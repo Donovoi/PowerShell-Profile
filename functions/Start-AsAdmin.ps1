@@ -10,7 +10,7 @@ function Start-AsAdmin {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')
     #if (-not $isAdmin) {
     Write-Output '-- Restarting as Administrator'
-    $callingcmdlet =$(Get-ParentFunction -Scope 2).FunctionName
+    $callingcmdlet = $(Get-ParentFunction -Scope 2).FunctionName
     if ($WindowsPowerShell) {
         Start-Process -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$callingcmdlet`"" -Verb RunAs -WindowStyle Normal
     } else {

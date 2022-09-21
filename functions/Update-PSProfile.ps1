@@ -15,8 +15,9 @@ function Update-PSProfile {
         git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]); 
 
     } catch {
-        $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\9589627f7e8e70bee3497549a88070dc\*"
-        Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
+        # $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\9589627f7e8e70bee3497549a88070dc\*"
+        # Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
+        Write-Error -Message "$_"
     } finally {
         $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
         $FunctionsFolder.ForEach{ Import-Module $_.FullName }
