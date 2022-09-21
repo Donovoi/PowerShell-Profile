@@ -13,7 +13,8 @@ $FunctionsFolder.ForEach{ Import-Module $_.FullName }
 # $USBfolders.foreach{$ENV:Path += ";$_.FullName"}
 # $foldersx86.foreach{$ENV:Path += ";$_.FullName"}
 
-
+$env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
+$env:Path += ";$($env:ChocolateyInstall);"
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }
