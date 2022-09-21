@@ -17,5 +17,3 @@ Function Git-Pull {
         #gh repo sync --force
     } 
 }
-
-Git-Pull
