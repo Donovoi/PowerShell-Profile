@@ -65,75 +65,75 @@ function Install-LatestDotNet {
         }
     }
  
-    function Get-HttpResource {
-        <#
-    .SYNOPSIS
-        Downloads the contents from a URL
+    # function Get-HttpResource {
+    #     <#
+    # .SYNOPSIS
+    #     Downloads the contents from a URL
  
-    .DESCRIPTION
-        Get-HttpResource downloads the contents of an HTTP url.
-        When -PassThru is specified it returns the string content.
+    # .DESCRIPTION
+    #     Get-HttpResource downloads the contents of an HTTP url.
+    #     When -PassThru is specified it returns the string content.
  
-    .PARAMETER Url
-        The url containing the content to download.
+    # .PARAMETER Url
+    #     The url containing the content to download.
  
-    .PARAMETER OutputPath
-        If provided, the content will be saved to this path.
+    # .PARAMETER OutputPath
+    #     If provided, the content will be saved to this path.
  
-    .PARAMETER PassThru
-        If provided, the string will be output to the pipeline.
+    # .PARAMETER PassThru
+    #     If provided, the string will be output to the pipeline.
  
-    .EXAMPLE
-        $content = Get-HttpResource -Url 'http://my/url' -OutputPath 'c:\myfile.txt' -PassThru
+    # .EXAMPLE
+    #     $content = Get-HttpResource -Url 'http://my/url' -OutputPath 'c:\myfile.txt' -PassThru
  
-        This downloads the content located at http://my/url and
-        saves it to a file at c:\myfile.txt and also returns
-        the downloaded string.
+    #     This downloads the content located at http://my/url and
+    #     saves it to a file at c:\myfile.txt and also returns
+    #     the downloaded string.
  
-    .LINK
-        https://boxstarter.org
-    #>
-        param (
-            [string]$Url,
-            [string]$OutputPath = $null,
-            [switch]$PassThru
-        )
+    # .LINK
+    #     https://boxstarter.org
+    # #>
+    #     param (
+    #         [string]$Url,
+    #         [string]$OutputPath = $null,
+    #         [switch]$PassThru
+    #     )
  
-        Write-Verbose "Downloading $url"
+    #     Write-Verbose "Downloading $url"
  
-        $str = Invoke-RetriableScript -RetryScript {
-            $downloader = New-Object System.Net.WebClient
-            $wp = [System.Net.WebProxy]::GetDefaultProxy()
-            $wp.UseDefaultCredentials = $true
-            $downloader.Proxy = $wp
-            $downloader.UseDefaultCredentials = $true
+    #     $str = Invoke-RetriableScript -RetryScript {
+    #         $downloader = New-Object System.Net.WebClient
+    #         $wp = [System.Net.WebProxy]::GetDefaultProxy()
+    #         $wp.UseDefaultCredentials = $true
+    #         $downloader.Proxy = $wp
+    #         $downloader.UseDefaultCredentials = $true
  
-            # Fixes: "Powershell Invoke-WebRequest Fails with SSL/TLS Secure Channel"
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    #         # Fixes: "Powershell Invoke-WebRequest Fails with SSL/TLS Secure Channel"
+    #         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
  
-            try {
-                if ($args[1]) {
-                    Write-Verbose "Saving $($args[0]) to $($args[1])"
-                    $downloader.DownloadFile($args[0], $args[1])
-                } else {
-                    $downloader.DownloadString($args[0])
-                }
-            } catch {
-                if ($VerbosePreference -eq "Continue") {
-                    Write-Error $($_.Exception | Format-List * -Force | Out-String)
-                }
-                throw $_
-            }
-        } $Url $OutputPath
+    #         try {
+    #             if ($args[1]) {
+    #                 Write-Verbose "Saving $($args[0]) to $($args[1])"
+    #                 $downloader.DownloadFile($args[0], $args[1])
+    #             } else {
+    #                 $downloader.DownloadString($args[0])
+    #             }
+    #         } catch {
+    #             if ($VerbosePreference -eq "Continue") {
+    #                 Write-Error $($_.Exception | Format-List * -Force | Out-String)
+    #             }
+    #             throw $_
+    #         }
+    #     } $Url $OutputPath
  
-        if ($PassThru) {
-            if ($str) {
-                Write-Output $str
-            } elseif ($OutputPath) {
-                Get-Content -Path $OutputPath
-            }
-        }
-    }
+    #     if ($PassThru) {
+    #         if ($str) {
+    #             Write-Output $str
+    #         } elseif ($OutputPath) {
+    #             Get-Content -Path $OutputPath
+    #         }
+    #     }
+    # }
  
     function Invoke-RetriableScript {
         <#
@@ -180,7 +180,7 @@ function Install-LatestDotNet {
             New-Item -Path $DotNetInstallDir -ItemType Directory -Force | Out-Null;
         }
  
-        Get-HttpResource -Uri $DotNetInstallerUri -OutFile $DotNetInstallScriptPath
+        Invoke-WebRequest -Uri $DotNetInstallerUri -OutFile $DotNetInstallScriptPath
         . $DotNetInstallScriptPath -Channel $DotNetChannel -Version $DotNetVersion -InstallDir $DotNetInstallDir;
  
         # Run `Get-ChildItem -Path Env:` to list current env variables
