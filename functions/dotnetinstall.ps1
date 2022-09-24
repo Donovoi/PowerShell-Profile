@@ -18,7 +18,7 @@ function Install-LatestDotNet {
     param (
     )
     Set-StrictMode -Version Latest
-    $ErrorActionPreference = 'Stop'
+    $ErrorActionPreference = 'Continue'
  
     $DotNetChannel = 'Preview';
     $DotNetVersion = '7.0.100-preview.7.22377.5';
