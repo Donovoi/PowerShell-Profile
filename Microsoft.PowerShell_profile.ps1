@@ -14,7 +14,7 @@ $FunctionsFolder.ForEach{ Import-Module $_.FullName }
 # $foldersx86.foreach{$ENV:Path += ";$_.FullName"}
 
 $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
-$env:Path += ";$($env:ChocolateyInstall);"
+$env:Path += ";$($env:ChocolateyInstall);`"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }
@@ -702,14 +702,11 @@ function Update-USBTools {
     $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
     $Encoded = [System.Convert]::ToBase64String($bytes)
     Start-Process pwsh -ArgumentList "-noexit -EncodedCommand $Encoded"
-    Remove-Item "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\ZimmermanTools\" -Recurse -Force -ea silentlycontinue
-    Remove-Item "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1" -ea silentlycontinue
-    Set-Location "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\"
-    Start-Process pwsh -ArgumentList "-NoProfile -ExecutionPolicy unrestricted -Command `". `"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1 -netVersion 6`""
     # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'o2k13 enu /includedotnet /includewddefs /verify'
     # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'DownloadUpdates w62-x64 w63  w63-x64  w100  w100-x64  ofc  o2k16 /includedotnet /includewddefs /verify'
     Update-VcRedist
     Update-VSCodes
+    Get-Zimmer
     Install-LatestDotNet
     Git-Pull
 }
