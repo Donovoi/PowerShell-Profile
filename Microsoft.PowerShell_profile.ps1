@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Continue'
 $parentpathprofile = $($(Resolve-Path -Path $Profile) -split 'Microsoft.PowerShell_profile.ps1')[0]
 $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
 Remove-Item "$parentpathprofile/functions/.dotnet" -Recurse -Force
-$FunctionsFolder.ForEach{ . $_.FullName}
+$FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
 # $USBfolders = Get-ChildItem "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps" -Directory -Recurse -Force -Verbose -erroraction silentlycontinue | out-null
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
