@@ -22,5 +22,8 @@ function Update-PSProfile {
         # Import all functions from functions folder
         $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
         $FunctionsFolder.ForEach{ Import-Module $_.FullName }
+        # Make sure chocolatey is correct path
+        $ENV:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
+        
     }
 }
