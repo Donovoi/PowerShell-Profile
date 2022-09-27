@@ -3,6 +3,7 @@ Function Git-Pull {
     Param(
 
     )
+    . .\start-asadmin.ps1
     $ErrorActionPreference = 'Continue'
     $global:OriginalCommand = $MyInvocation.MyCommand
     # Import-Module $PSScriptRoot\Start-AsAdmin.ps1 -Force
