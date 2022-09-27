@@ -6,7 +6,7 @@ function Start-AsAdmin {
         [switch]
         $WindowsPowerShell
     )
-    
+    $ErrorActionPreference = 'Continue'
     #Get current user context
     $CurrentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
     $StartPowershellVersion = "pwsh"
