@@ -30,8 +30,8 @@ function Start-AsAdmin {
         #Start the new elevated process
         #[System.Diagnostics.Process]::Start($ElevatedProcess)
      
-        # #Exit from the current, unelevated, process
-        # Exit
+        #Exit from the current, unelevated, process
+        Exit
      
     }
 }
