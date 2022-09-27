@@ -1,6 +1,6 @@
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
-$ErrorActionPreference = 'SilentlyContinue'
+$GLOBAL:ErrorActionPreference = 'continue'
 $parentpathprofile = $($(Resolve-Path -Path $Profile) -split 'Microsoft.PowerShell_profile.ps1')[0]
 $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
 Remove-Item "$parentpathprofile/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
