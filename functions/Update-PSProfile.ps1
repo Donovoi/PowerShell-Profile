@@ -3,6 +3,8 @@ function Update-PSProfile {
     param (
         $Global:parentpathprofile = $($(Resolve-Path -Path $Profile) -split 'Microsoft.PowerShell_profile.ps1')[0]  
     )    
+    . .\start-asadmin.ps1
+Start-AsAdmin
     if (-not(Test-Path $PROFILE)) {
         New-Item $PROFILE -Force
         $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\*"
