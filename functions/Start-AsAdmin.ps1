@@ -1,3 +1,4 @@
+
 function Start-AsAdmin {
     [CmdletBinding()]
     param (
@@ -5,18 +6,32 @@ function Start-AsAdmin {
         [switch]
         $WindowsPowerShell
     )
-    Import-Module $PSScriptRoot/Get-ParentFunction.ps1
-    # Verify Running as Admin
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')
-    #if (-not $isAdmin) {
-    Write-Output '-- Restarting as Administrator'
-    $callingcmdlet = $(Get-ParentFunction -Scope 2).FunctionName
-    if ($WindowsPowerShell) {
-        Start-Process -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$callingcmdlet`"" -Verb RunAs -WindowStyle Normal
+    
+    #Get current user context
+    $CurrentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
+    $StartPowershellVersion = "pwsh"
+      
+    #Check user running the script is member of Administrator Group
+    if ($CurrentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+        Write-Host "Script is already running with Administrator privileges!"
     } else {
-        Start-Process -FilePath pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        if ($windowsPowerShell) {
+            $StartPowershellVersion = "PowerShell.exe"
+        }
+        #Create a new Elevated process to Start PowerShell
+        Start-Process -FilePath $StartPowershellVersion  -ArgumentList " -ExecutionPolicy Bypass -noexit $(write-output $OriginalCommand)" -PassThru -Verb "runas" -Verbose
+     
+        # Specify the current script path and name as a parameter
+        #$ElevatedProcess.Arguments = "& '" + $script:MyInvocation.MyCommand.Path + "'" + "-NoProfile -ExecutionPolicy Bypass -NoExit"
+     
+        #Set the Process to elevated
+        #$ElevatedProcess.Verb = "runas"
+     
+        #Start the new elevated process
+        #[System.Diagnostics.Process]::Start($ElevatedProcess)
+     
+        # #Exit from the current, unelevated, process
+        # Exit
+     
     }
-
-    #exit
-    #}
 }
