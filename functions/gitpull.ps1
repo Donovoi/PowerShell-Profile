@@ -1,7 +1,8 @@
 Function Git-Pull {
     $ErrorActionPreference = 'Continue'
+    $global:OriginalCommand = $MyInvocation.MyCommand
     # Import-Module $PSScriptRoot\Start-AsAdmin.ps1 -Force
-    # Start-AsAdmin -WindowsPowerShell -Verbose
+    Start-AsAdmin -WindowsPowerShell -Verbose
     
     Write-Output $PSVersionTable
     # Find all git repositories in any directory on this drive, then perform git pull on each one.
