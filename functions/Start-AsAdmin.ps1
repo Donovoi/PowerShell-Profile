@@ -19,7 +19,7 @@ function Start-AsAdmin {
             $StartPowershellVersion = "PowerShell.exe"
         }
         #Create a new Elevated process to Start PowerShell
-        Start-Process -FilePath $StartPowershellVersion  -ArgumentList " -ExecutionPolicy Bypass -noexit $(write-output $OriginalCommand)" -PassThru -Verb "runas" -Verbose
+        Start-Process -FilePath $StartPowershellVersion -ArgumentList " -ExecutionPolicy Bypass -noexit $(Write-Output $OriginalCommand)" -PassThru -Verb "runas" -Verbose
      
         # Specify the current script path and name as a parameter
         #$ElevatedProcess.Arguments = "& '" + $script:MyInvocation.MyCommand.Path + "'" + "-NoProfile -ExecutionPolicy Bypass -NoExit"
