@@ -22,44 +22,47 @@
 # realise it should use Unicode for the UI rather than ISO-8859-1.
 
 #region Parameters
-param(
-	# (Optional) The title to display on the application window.
-	[string]$AppTitle = "Fido - Retail Windows ISO Downloader",
-	# (Optional) '|' separated UI localization strings.
-	[string]$LocData,
-	# (Optional) Path to a file that should be used for the UI icon.
-	[string]$Icon,
-	# (Optional) Name of a pipe the download URL should be sent to.
-	# If not provided, a browser window is opened instead.
-	[string]$PipeName,
-	# (Optional) Specify Windows version (e.g. "Windows 10") [Toggles commandline mode]
-	[string]$Win,
-	# (Optional) Specify Windows release (e.g. "21H1") [Toggles commandline mode]
-	[string]$Rel,
-	# (Optional) Specify Windows edition (e.g. "Pro") [Toggles commandline mode]
-	[string]$Ed,
-	# (Optional) Specify Windows language [Toggles commandline mode]
-	[string]$Lang,
-	# (Optional) Specify Windows architecture [Toggles commandline mode]
-	[string]$Arch,
-	# (Optional) Only display the download URL [Toggles commandline mode]
-	[switch]$GetUrl = $False,
-	# (Optional) Increase verbosity
-	[switch]$Verbose = $False
-)
-#endregion
+function Get-WindowsISO {
+	[CmdletBinding()]
+	param(
+		# (Optional) The title to display on the application window.
+		[string]$AppTitle = "Fido - Retail Windows ISO Downloader",
+		# (Optional) '|' separated UI localization strings.
+		[string]$LocData,
+		# (Optional) Path to a file that should be used for the UI icon.
+		[string]$Icon,
+		# (Optional) Name of a pipe the download URL should be sent to.
+		# If not provided, a browser window is opened instead.
+		[string]$PipeName,
+		# (Optional) Specify Windows version (e.g. "Windows 10") [Toggles commandline mode]
+		[string]$Win,
+		# (Optional) Specify Windows release (e.g. "21H1") [Toggles commandline mode]
+		[string]$Rel,
+		# (Optional) Specify Windows edition (e.g. "Pro") [Toggles commandline mode]
+		[string]$Ed,
+		# (Optional) Specify Windows language [Toggles commandline mode]
+		[string]$Lang,
+		# (Optional) Specify Windows architecture [Toggles commandline mode]
+		[string]$Arch,
+		# (Optional) Only display the download URL [Toggles commandline mode]
+		[switch]$GetUrl = $False,
+		# (Optional) Increase verbosity
+		[switch]$Verbose = $False
+	)
+	#endregion
 
-try {
-	[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-} catch {}
+	try {
+		[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+	} catch {
+	}
 
-$Cmd = $False
-if ($Win -or $Rel -or $Ed -or $Lang -or $Arch -or $GetUrl) {
-	$Cmd = $True
-}
+	$Cmd = $False
+	if ($Win -or $Rel -or $Ed -or $Lang -or $Arch -or $GetUrl) {
+		$Cmd = $True
+	}
 
-#region Assembly Types
-$code = @"
+	#region Assembly Types
+	$code = @"
 [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false, ThrowOnUnmappableChar = true)]
 	internal static extern int ExtractIconEx(string sFile, int iIndex, out IntPtr piLargeVersion, out IntPtr piSmallVersion, int amountIcons);
 [DllImport("user32.dll")]
@@ -78,487 +81,477 @@ $code = @"
 	}
 "@
 
-if (!$Cmd) {
-	Write-Host Please Wait...
-	$Drawing_Assembly = "System.Drawing"
-	# PowerShell 7 altered the name of the Drawing assembly...
-	if ($host.version -ge "7.0") {
-		$Drawing_Assembly += ".Common"
+	if (!$Cmd) {
+		Write-Host Please Wait...
+		$Drawing_Assembly = "System.Drawing"
+		# PowerShell 7 altered the name of the Drawing assembly...
+		if ($host.version -ge "7.0") {
+			$Drawing_Assembly += ".Common"
+		}
+		Add-Type -ErrorAction Stop -WarningAction Ignore -IgnoreWarnings -MemberDefinition $code -Namespace Gui -UsingNamespace System.Runtime, System.IO, System.Text, System.Drawing, System.Globalization -ReferencedAssemblies $Drawing_Assembly -Name Utils
+		Add-Type -AssemblyName PresentationFramework
+		# Hide the powershell window: https://stackoverflow.com/a/27992426/1069307
+		[Gui.Utils]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0) | Out-Null
 	}
-	Add-Type -ErrorAction Stop -WarningAction Ignore -IgnoreWarnings -MemberDefinition $code -Namespace Gui -UsingNamespace System.Runtime, System.IO, System.Text, System.Drawing, System.Globalization -ReferencedAssemblies $Drawing_Assembly -Name Utils
-	Add-Type -AssemblyName PresentationFramework
-	# Hide the powershell window: https://stackoverflow.com/a/27992426/1069307
-	[Gui.Utils]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0) | Out-Null
-}
-#endregion
+	#endregion
 
-#region Data
-$zh = 0x10000
-$ko = 0x20000
-$WindowsVersions = @(
-	@(
-		@("Windows 11", "windows11"),
+	#region Data
+	$zh = 0x10000
+	$ko = 0x20000
+	$WindowsVersions = @(
 		@(
-			"22H2 (Build 22621.382 - 2022.09)",
-			@("Windows 11 Home/Pro/Edu", 2360),
-			@("Windows 11 Home China ", ($zh + 2361))
-		),
-		@(
-			"21H2 v1 (Build 22000.318 - 2021.11)",
-			@("Windows 11 Home/Pro/Edu", 2093),
-			@("Windows 11 Home China ", ($zh + 2094))
-		),
-		@(
-			"21H2 (Build 22000.194 - 2021.10)",
-			@("Windows 11 Home/Pro/Edu", 2069),
-			@("Windows 11 Home China ", ($zh + 2070))
-		)
-	),
-	@(
-		@("Windows 10", "Windows10ISO"),
-		@(
-			"21H2 (Build 19044.1288 - 2021.11)",
-			@("Windows 10 Home/Pro/Edu", 2084),
-			@("Windows 10 Home China ", ($zh + 2085))
-		),
-		@(
-			"21H1 (Build 19043.985 - 2021.05)",
-			@("Windows 10 Home/Pro", 2033),
-			@("Windows 10 Education", 2032),
-			@("Windows 10 Home China ", ($zh + 2034))
-		),
-		@(
-			"20H2 (Build 19042.631 - 2020.12)",
-			@("Windows 10 Home/Pro", 1882),
-			@("Windows 10 Education", 1884),
-			@("Windows 10 Home China ", ($zh + 1883))
-		),
-		@(
-			"20H2 (Build 19042.508 - 2020.10)",
-			@("Windows 10 Home/Pro", 1807),
-			@("Windows 10 Education", 1805),
-			@("Windows 10 Home China ", ($zh + 1806))
-		),
-		@(
-			"20H1 (Build 19041.264 - 2020.05)",
-			@("Windows 10 Home/Pro", 1626),
-			@("Windows 10 Education", 1625),
-			@("Windows 10 Home China ", ($zh + 1627))
-		),
-		@(
-			"19H2 (Build 18363.418 - 2019.11)",
-			@("Windows 10 Home/Pro", 1429),
-			@("Windows 10 Education", 1431),
-			@("Windows 10 Home China ", ($zh + 1430))
-		),
-		@(
-			"19H1 (Build 18362.356 - 2019.09)",
-			@("Windows 10 Home/Pro", 1384),
-			@("Windows 10 Education", 1386),
-			@("Windows 10 Home China ", ($zh + 1385))
-		),
-		@(
-			"19H1 (Build 18362.30 - 2019.05)",
-			@("Windows 10 Home/Pro", 1214),
-			@("Windows 10 Education", 1216),
-			@("Windows 10 Home China ", ($zh + 1215))
-		),
-		@(
-			"1809 R3 (Build 17763.379 - 2019.03)",
-			@("Windows 10 Home/Pro", 1203),
-			@("Windows 10 Education", 1202),
-			@("Windows 10 Home China ", ($zh + 1204))
-		),
-		@(
-			"1809 R2 (Build 17763.107 - 2018.10)",
-			@("Windows 10 Home/Pro", 1060),
-			@("Windows 10 Education", 1056),
-			@("Windows 10 Home China ", ($zh + 1061))
-		),
-		@(
-			"1809 R1 (Build 17763.1 - 2018.09)",
-			@("Windows 10 Home/Pro", 1019),
-			@("Windows 10 Education", 1021),
-			@("Windows 10 Home China ", ($zh + 1020))
-		),
-		@(
-			"1803 (Build 17134.1 - 2018.04)",
-			@("Windows 10 Home/Pro", 651),
-			@("Windows 10 Education", 655),
-			@("Windows 10 1803", 637),
-			@("Windows 10 Home China", ($zh + 652))
-		),
-		@(
-			"1709 (Build 16299.15 - 2017.09)",
-			@("Windows 10 Home/Pro", 484),
-			@("Windows 10 Education", 488),
-			@("Windows 10 Home China", ($zh + 485))
-		),
-		@(
-			"1703 [Redstone 2] (Build 15063.0 - 2017.03)",
-			@("Windows 10 Home/Pro", 361),
-			@("Windows 10 Home/Pro N", 362),
-			@("Windows 10 Single Language", 363),
-			@("Windows 10 Education", 423),
-			@("Windows 10 Education N", 424),
-			@("Windows 10 Home China", ($zh + 364))
-		),
-		@(
-			"1607 [Redstone 1] (Build 14393.0 - 2016.07)",
-			@("Windows 10 Home/Pro", 244),
-			@("Windows 10 Home/Pro N", 245),
-			@("Windows 10 Single Language", 246),
-			@("Windows 10 Education", 242),
-			@("Windows 10 Education N", 243),
-			@("Windows 10 China Get Genuine", ($zh + 247))
-		),
-		@(
-			"1511 R3 [Threshold 2] (Build 10586.164 - 2016.04)",
-			@("Windows 10 Home/Pro", 178),
-			@("Windows 10 Home/Pro N", 183),
-			@("Windows 10 Single Language", 184),
-			@("Windows 10 Education", 179),
-			@("Windows 10 Education N", 181),
-			@("Windows 10 KN", ($ko + 182)),
-			@("Windows 10 Education KN", ($ko + 180)),
-			@("Windows 10 China Get Genuine", ($zh + 185))
-		),
-		@(
-			"1511 R2 [Threshold 2] (Build 10586.104 - 2016.02)",
-			@("Windows 10 Home/Pro", 109),
-			@("Windows 10 Home/Pro N", 115),
-			@("Windows 10 Single Language", 116),
-			@("Windows 10 Education", 110),
-			@("Windows 10 Education N", 112),
-			@("Windows 10 KN", ($ko + 114)),
-			@("Windows 10 Education KN", ($ko + 111)),
-			@("Windows 10 China Get Genuine", ($zh + 113))
-		),
-		@(
-			"1511 R1 [Threshold 2] (Build 10586.0 - 2015.11)",
-			@("Windows 10 Home/Pro", 99),
-			@("Windows 10 Home/Pro N", 105),
-			@("Windows 10 Single Language", 106),
-			@("Windows 10 Education", 100),
-			@("Windows 10 Education N", 102),
-			@("Windows 10 KN", ($ko + 104)),
-			@("Windows 10 Education KN", ($ko + 101)),
-			@("Windows 10 China Get Genuine", ($zh + 103))
-		),
-		@(
-			"1507 [Threshold 1] (Build 10240.16384 - 2015.07)",
-			@("Windows 10 Home/Pro", 79),
-			@("Windows 10 Home/Pro N", 81),
-			@("Windows 10 Single Language", 82),
-			@("Windows 10 Education", 75)
-			@("Windows 10 Education N", 77),
-			@("Windows 10 KN", ($ko + 80)),
-			@("Windows 10 Education KN", ($ko + 76)),
-			@("Windows 10 China Get Genuine", ($zh + 78))
-		)
-	),
-	@(
-		@("Windows 8.1", "windows8ISO"),
-		@(
-			"Update 3 (build 9600)",
-			@("Windows 8.1 Standard", 52),
-			@("Windows 8.1 N", 55)
-			@("Windows 8.1 Single Language", 48),
-			@("Windows 8.1 K", ($ko + 61)),
-			@("Windows 8.1 KN", ($ko + 62))
-		)
-	),
-	@(
-		@("Windows 7", "WIN7"),
-		@(
-			"with SP1 (build 7601)",
-			@("Windows 7 Ultimate", 0),
-			@("Windows 7 Professional", 1),
-			@("Windows 7 Home Premium", 2)
-		)
-	),
-	@(
-		@("UEFI Shell 2.2", "UEFI_SHELL 2.2"),
-		@(
-			"22H1 (edk2-stable202205)",
-			@("Release", 0),
-			@("Debug", 1)
-		),
-		@(
-			"21H2 (edk2-stable202108)",
-			@("Release", 0),
-			@("Debug", 1)
-		),
-		@(
-			"21H1 (edk2-stable202105)",
-			@("Release", 0),
-			@("Debug", 1)
-		),
-		@(
-			"20H2 (edk2-stable202011)",
-			@("Release", 0),
-			@("Debug", 1)
-		)
-	),
-	@(
-		@("UEFI Shell 2.0", "UEFI_SHELL 2.0"),	
-		@(
-			"4.632 [20100426]",
-			@("Release", 0)
-		)
-	)
-)
-
-$Windows7Versions = @(
-	# 0: Windows 7 Ultimate
-	@(
-		# Need a dummy to prevent PS from coalescing single array entries
-		@(""),
-		@("English (US)", "en-us",
+			@("Windows 11", "windows11"),
 			@(
-				@("x64", "https://download.microsoft.com/download/5/1/9/5195A765-3A41-4A72-87D8-200D897CBE21/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_ULTIMATE_x64FRE_en-us.iso"),
-				@("x86", "https://download.microsoft.com/download/1/E/6/1E6B4803-DD2A-49DF-8468-69C0E6E36218/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_ULTIMATE_x86FRE_en-us.iso")
+				"22H2 (Build 22621.382 - 2022.09)",
+				@("Windows 11 Home/Pro/Edu", 2360),
+				@("Windows 11 Home China ", ($zh + 2361))
+			),
+			@(
+				"21H2 v1 (Build 22000.318 - 2021.11)",
+				@("Windows 11 Home/Pro/Edu", 2093),
+				@("Windows 11 Home China ", ($zh + 2094))
+			),
+			@(
+				"21H2 (Build 22000.194 - 2021.10)",
+				@("Windows 11 Home/Pro/Edu", 2069),
+				@("Windows 11 Home China ", ($zh + 2070))
 			)
-		)
-	),
-	# 1: Windows 7 Profesional
-	@(
-		@(""),
-		@("English (US)", "en-us",
+		),
+		@(
+			@("Windows 10", "Windows10ISO"),
 			@(
-				@("x64", "https://download.microsoft.com/download/0/6/3/06365375-C346-4D65-87C7-EE41F55F736B/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_PROFESSIONAL_x64FRE_en-us.iso"),
-				@("x86", "https://download.microsoft.com/download/C/0/6/C067D0CD-3785-4727-898E-60DC3120BB14/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_PROFESSIONAL_x86FRE_en-us.iso")
+				"21H2 (Build 19044.1288 - 2021.11)",
+				@("Windows 10 Home/Pro/Edu", 2084),
+				@("Windows 10 Home China ", ($zh + 2085))
+			),
+			@(
+				"21H1 (Build 19043.985 - 2021.05)",
+				@("Windows 10 Home/Pro", 2033),
+				@("Windows 10 Education", 2032),
+				@("Windows 10 Home China ", ($zh + 2034))
+			),
+			@(
+				"20H2 (Build 19042.631 - 2020.12)",
+				@("Windows 10 Home/Pro", 1882),
+				@("Windows 10 Education", 1884),
+				@("Windows 10 Home China ", ($zh + 1883))
+			),
+			@(
+				"20H2 (Build 19042.508 - 2020.10)",
+				@("Windows 10 Home/Pro", 1807),
+				@("Windows 10 Education", 1805),
+				@("Windows 10 Home China ", ($zh + 1806))
+			),
+			@(
+				"20H1 (Build 19041.264 - 2020.05)",
+				@("Windows 10 Home/Pro", 1626),
+				@("Windows 10 Education", 1625),
+				@("Windows 10 Home China ", ($zh + 1627))
+			),
+			@(
+				"19H2 (Build 18363.418 - 2019.11)",
+				@("Windows 10 Home/Pro", 1429),
+				@("Windows 10 Education", 1431),
+				@("Windows 10 Home China ", ($zh + 1430))
+			),
+			@(
+				"19H1 (Build 18362.356 - 2019.09)",
+				@("Windows 10 Home/Pro", 1384),
+				@("Windows 10 Education", 1386),
+				@("Windows 10 Home China ", ($zh + 1385))
+			),
+			@(
+				"19H1 (Build 18362.30 - 2019.05)",
+				@("Windows 10 Home/Pro", 1214),
+				@("Windows 10 Education", 1216),
+				@("Windows 10 Home China ", ($zh + 1215))
+			),
+			@(
+				"1809 R3 (Build 17763.379 - 2019.03)",
+				@("Windows 10 Home/Pro", 1203),
+				@("Windows 10 Education", 1202),
+				@("Windows 10 Home China ", ($zh + 1204))
+			),
+			@(
+				"1809 R2 (Build 17763.107 - 2018.10)",
+				@("Windows 10 Home/Pro", 1060),
+				@("Windows 10 Education", 1056),
+				@("Windows 10 Home China ", ($zh + 1061))
+			),
+			@(
+				"1809 R1 (Build 17763.1 - 2018.09)",
+				@("Windows 10 Home/Pro", 1019),
+				@("Windows 10 Education", 1021),
+				@("Windows 10 Home China ", ($zh + 1020))
+			),
+			@(
+				"1803 (Build 17134.1 - 2018.04)",
+				@("Windows 10 Home/Pro", 651),
+				@("Windows 10 Education", 655),
+				@("Windows 10 1803", 637),
+				@("Windows 10 Home China", ($zh + 652))
+			),
+			@(
+				"1709 (Build 16299.15 - 2017.09)",
+				@("Windows 10 Home/Pro", 484),
+				@("Windows 10 Education", 488),
+				@("Windows 10 Home China", ($zh + 485))
+			),
+			@(
+				"1703 [Redstone 2] (Build 15063.0 - 2017.03)",
+				@("Windows 10 Home/Pro", 361),
+				@("Windows 10 Home/Pro N", 362),
+				@("Windows 10 Single Language", 363),
+				@("Windows 10 Education", 423),
+				@("Windows 10 Education N", 424),
+				@("Windows 10 Home China", ($zh + 364))
+			),
+			@(
+				"1607 [Redstone 1] (Build 14393.0 - 2016.07)",
+				@("Windows 10 Home/Pro", 244),
+				@("Windows 10 Home/Pro N", 245),
+				@("Windows 10 Single Language", 246),
+				@("Windows 10 Education", 242),
+				@("Windows 10 Education N", 243),
+				@("Windows 10 China Get Genuine", ($zh + 247))
+			),
+			@(
+				"1511 R3 [Threshold 2] (Build 10586.164 - 2016.04)",
+				@("Windows 10 Home/Pro", 178),
+				@("Windows 10 Home/Pro N", 183),
+				@("Windows 10 Single Language", 184),
+				@("Windows 10 Education", 179),
+				@("Windows 10 Education N", 181),
+				@("Windows 10 KN", ($ko + 182)),
+				@("Windows 10 Education KN", ($ko + 180)),
+				@("Windows 10 China Get Genuine", ($zh + 185))
+			),
+			@(
+				"1511 R2 [Threshold 2] (Build 10586.104 - 2016.02)",
+				@("Windows 10 Home/Pro", 109),
+				@("Windows 10 Home/Pro N", 115),
+				@("Windows 10 Single Language", 116),
+				@("Windows 10 Education", 110),
+				@("Windows 10 Education N", 112),
+				@("Windows 10 KN", ($ko + 114)),
+				@("Windows 10 Education KN", ($ko + 111)),
+				@("Windows 10 China Get Genuine", ($zh + 113))
+			),
+			@(
+				"1511 R1 [Threshold 2] (Build 10586.0 - 2015.11)",
+				@("Windows 10 Home/Pro", 99),
+				@("Windows 10 Home/Pro N", 105),
+				@("Windows 10 Single Language", 106),
+				@("Windows 10 Education", 100),
+				@("Windows 10 Education N", 102),
+				@("Windows 10 KN", ($ko + 104)),
+				@("Windows 10 Education KN", ($ko + 101)),
+				@("Windows 10 China Get Genuine", ($zh + 103))
+			),
+			@(
+				"1507 [Threshold 1] (Build 10240.16384 - 2015.07)",
+				@("Windows 10 Home/Pro", 79),
+				@("Windows 10 Home/Pro N", 81),
+				@("Windows 10 Single Language", 82),
+				@("Windows 10 Education", 75)
+				@("Windows 10 Education N", 77),
+				@("Windows 10 KN", ($ko + 80)),
+				@("Windows 10 Education KN", ($ko + 76)),
+				@("Windows 10 China Get Genuine", ($zh + 78))
 			)
-		)
-	),
-	# 2: Windows 7 Home Premium
-	@(
-		@(""),
-		@("English (US)", "en-us",
+		),
+		@(
+			@("Windows 8.1", "windows8ISO"),
 			@(
-				@("x64", "https://download.microsoft.com/download/E/A/8/EA804D86-C3DF-4719-9966-6A66C9306598/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_HOMEPREMIUM_x64FRE_en-us.iso"),
-				@("x86", "https://download.microsoft.com/download/E/D/A/EDA6B508-7663-4E30-86F9-949932F443D0/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_HOMEPREMIUM_x86FRE_en-us.iso")
+				"Update 3 (build 9600)",
+				@("Windows 8.1 Standard", 52),
+				@("Windows 8.1 N", 55)
+				@("Windows 8.1 Single Language", 48),
+				@("Windows 8.1 K", ($ko + 61)),
+				@("Windows 8.1 KN", ($ko + 62))
+			)
+		),
+		@(
+			@("Windows 7", "WIN7"),
+			@(
+				"with SP1 (build 7601)",
+				@("Windows 7 Ultimate", 0),
+				@("Windows 7 Professional", 1),
+				@("Windows 7 Home Premium", 2)
+			)
+		),
+		@(
+			@("UEFI Shell 2.2", "UEFI_SHELL 2.2"),
+			@(
+				"22H1 (edk2-stable202205)",
+				@("Release", 0),
+				@("Debug", 1)
+			),
+			@(
+				"21H2 (edk2-stable202108)",
+				@("Release", 0),
+				@("Debug", 1)
+			),
+			@(
+				"21H1 (edk2-stable202105)",
+				@("Release", 0),
+				@("Debug", 1)
+			),
+			@(
+				"20H2 (edk2-stable202011)",
+				@("Release", 0),
+				@("Debug", 1)
+			)
+		),
+		@(
+			@("UEFI Shell 2.0", "UEFI_SHELL 2.0"),	
+			@(
+				"4.632 [20100426]",
+				@("Release", 0)
 			)
 		)
 	)
 
-
-)
-#endregion
-
-#region Functions
-function Select-Language([string]$LangName)
-{
-	# Use the system locale to try select the most appropriate language
-	[string]$SysLocale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
-	if (($SysLocale.StartsWith("ar") -and $LangName -like "*Arabic*") -or `
-		($SysLocale -eq "pt-BR" -and $LangName -like "*Brazil*") -or `
-		($SysLocale.StartsWith("ar") -and $LangName -like "*Bulgar*") -or `
-		($SysLocale -eq "zh-CN" -and $LangName -like "*Chinese*" -and $LangName -like "*simp*") -or `
-		($SysLocale -eq "zh-TW" -and $LangName -like "*Chinese*" -and $LangName -like "*trad*") -or `
-		($SysLocale.StartsWith("hr") -and $LangName -like "*Croat*") -or `
-		($SysLocale.StartsWith("cz") -and $LangName -like "*Czech*") -or `
-		($SysLocale.StartsWith("da") -and $LangName -like "*Danish*") -or `
-		($SysLocale.StartsWith("nl") -and $LangName -like "*Dutch*") -or `
-		($SysLocale -eq "en-US" -and $LangName -eq "English") -or `
-		($SysLocale.StartsWith("en") -and $LangName -like "*English*" -and ($LangName -like "*inter*" -or $LangName -like "*ingdom*")) -or `
-		($SysLocale.StartsWith("et") -and $LangName -like "*Eston*") -or `
-		($SysLocale.StartsWith("fi") -and $LangName -like "*Finn*") -or `
-		($SysLocale -eq "fr-CA" -and $LangName -like "*French*" -and $LangName -like "*Canad*") -or `
-		($SysLocale.StartsWith("fr") -and $LangName -eq "French") -or `
-		($SysLocale.StartsWith("de") -and $LangName -like "*German*") -or `
-		($SysLocale.StartsWith("el") -and $LangName -like "*Greek*") -or `
-		($SysLocale.StartsWith("he") -and $LangName -like "*Hebrew*") -or `
-		($SysLocale.StartsWith("hu") -and $LangName -like "*Hungar*") -or `
-		($SysLocale.StartsWith("id") -and $LangName -like "*Indones*") -or `
-		($SysLocale.StartsWith("it") -and $LangName -like "*Italia*") -or `
-		($SysLocale.StartsWith("ja") -and $LangName -like "*Japan*") -or `
-		($SysLocale.StartsWith("ko") -and $LangName -like "*Korea*") -or `
-		($SysLocale.StartsWith("lv") -and $LangName -like "*Latvia*") -or `
-		($SysLocale.StartsWith("lt") -and $LangName -like "*Lithuania*") -or `
-		($SysLocale.StartsWith("ms") -and $LangName -like "*Malay*") -or `
-		($SysLocale.StartsWith("nb") -and $LangName -like "*Norw*") -or `
-		($SysLocale.StartsWith("fa") -and $LangName -like "*Persia*") -or `
-		($SysLocale.StartsWith("pl") -and $LangName -like "*Polish*") -or `
-		($SysLocale -eq "pt-PT" -and $LangName -eq "Portuguese") -or `
-		($SysLocale.StartsWith("ro") -and $LangName -like "*Romania*") -or `
-		($SysLocale.StartsWith("ru") -and $LangName -like "*Russia*") -or `
-		($SysLocale.StartsWith("sr") -and $LangName -like "*Serbia*") -or `
-		($SysLocale.StartsWith("sk") -and $LangName -like "*Slovak*") -or `
-		($SysLocale.StartsWith("sl") -and $LangName -like "*Slovenia*") -or `
-		($SysLocale -eq "es-ES" -and $LangName -eq "Spanish") -or `
-		($SysLocale.StartsWith("es") -and $Locale -ne "es-ES" -and $LangName -like "*Spanish*") -or `
-		($SysLocale.StartsWith("sv") -and $LangName -like "*Swed*") -or `
-		($SysLocale.StartsWith("th") -and $LangName -like "*Thai*") -or `
-		($SysLocale.StartsWith("tr") -and $LangName -like "*Turk*") -or `
-		($SysLocale.StartsWith("uk") -and $LangName -like "*Ukrain*") -or `
-		($SysLocale.StartsWith("vi") -and $LangName -like "*Vietnam*")) {
-		return $True
-	}
-	return $False
-}
-
-function Add-Entry([int]$pos, [string]$Name, [array]$Items, [string]$DisplayName)
-{
-	$Title = New-Object System.Windows.Controls.TextBlock
-	$Title.FontSize = $WindowsVersionTitle.FontSize
-	$Title.Height = $WindowsVersionTitle.Height;
-	$Title.Width = $WindowsVersionTitle.Width;
-	$Title.HorizontalAlignment = "Left"
-	$Title.VerticalAlignment = "Top"
-	$Margin = $WindowsVersionTitle.Margin
-	$Margin.Top += $pos * $dh
-	$Title.Margin = $Margin
-	$Title.Text = Get-Translation($Name)
-	$XMLGrid.Children.Insert(2 * $Stage + 2, $Title)
-
-	$Combo = New-Object System.Windows.Controls.ComboBox
-	$Combo.FontSize = $WindowsVersion.FontSize
-	$Combo.Height = $WindowsVersion.Height;
-	$Combo.Width = $WindowsVersion.Width;
-	$Combo.HorizontalAlignment = "Left"
-	$Combo.VerticalAlignment = "Top"
-	$Margin = $WindowsVersion.Margin
-	$Margin.Top += $pos * $script:dh
-	$Combo.Margin = $Margin
-	$Combo.SelectedIndex = 0
-	if ($Items) {
-		$Combo.ItemsSource = $Items
-		if ($DisplayName) {
-			$Combo.DisplayMemberPath = $DisplayName
-		} else {
-			$Combo.DisplayMemberPath = $Name
-		}
-	}
-	$XMLGrid.Children.Insert(2 * $Stage + 3, $Combo)
-
-	$XMLForm.Height += $dh;
-	$Margin = $Continue.Margin
-	$Margin.Top += $dh
-	$Continue.Margin = $Margin
-	$Margin = $Back.Margin
-	$Margin.Top += $dh
-	$Back.Margin = $Margin
-
-	return $Combo
-}
-
-function Refresh-Control([object]$Control)
-{
-	$Control.Dispatcher.Invoke("Render", [Windows.Input.InputEventHandler] { $Continue.UpdateLayout() }, $null, $null) | Out-Null
-}
-
-function Send-Message([string]$PipeName, [string]$Message)
-{
-	[System.Text.Encoding]$Encoding = [System.Text.Encoding]::UTF8
-	$Pipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList ".", $PipeName, ([System.IO.Pipes.PipeDirection]::Out), ([System.IO.Pipes.PipeOptions]::None), ([System.Security.Principal.TokenImpersonationLevel]::Impersonation)
-	try {
-		$Pipe.Connect(1000)
-	} catch {
-		Write-Host $_.Exception.Message
-	}
-	$bRequest = $Encoding.GetBytes($Message)
-	$cbRequest = $bRequest.Length;
-	$Pipe.Write($bRequest, 0, $cbRequest);
-	$Pipe.Dispose()
-}
-
-# From https://www.powershellgallery.com/packages/IconForGUI/1.5.2
-# Copyright © 2016 Chris Carter. All rights reserved.
-# License: https://creativecommons.org/licenses/by-sa/4.0/
-function ConvertTo-ImageSource
-{
-	[CmdletBinding()]
-	Param(
-		[Parameter(Mandatory=$true,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
-		[System.Drawing.Icon]$Icon
-	)
-
-	Process {
-		foreach ($i in $Icon) {
-			[System.Windows.Interop.Imaging]::CreateBitmapSourceFromHIcon(
-				$i.Handle,
-				(New-Object System.Windows.Int32Rect -Args 0,0,$i.Width, $i.Height),
-				[System.Windows.Media.Imaging.BitmapSizeOptions]::FromEmptyOptions()
+	$Windows7Versions = @(
+		# 0: Windows 7 Ultimate
+		@(
+			# Need a dummy to prevent PS from coalescing single array entries
+			@(""),
+			@("English (US)", "en-us",
+				@(
+					@("x64", "https://download.microsoft.com/download/5/1/9/5195A765-3A41-4A72-87D8-200D897CBE21/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_ULTIMATE_x64FRE_en-us.iso"),
+					@("x86", "https://download.microsoft.com/download/1/E/6/1E6B4803-DD2A-49DF-8468-69C0E6E36218/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_ULTIMATE_x86FRE_en-us.iso")
+				)
 			)
-		}
-	}
-}
+		),
+		# 1: Windows 7 Profesional
+		@(
+			@(""),
+			@("English (US)", "en-us",
+				@(
+					@("x64", "https://download.microsoft.com/download/0/6/3/06365375-C346-4D65-87C7-EE41F55F736B/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_PROFESSIONAL_x64FRE_en-us.iso"),
+					@("x86", "https://download.microsoft.com/download/C/0/6/C067D0CD-3785-4727-898E-60DC3120BB14/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_PROFESSIONAL_x86FRE_en-us.iso")
+				)
+			)
+		),
+		# 2: Windows 7 Home Premium
+		@(
+			@(""),
+			@("English (US)", "en-us",
+				@(
+					@("x64", "https://download.microsoft.com/download/E/A/8/EA804D86-C3DF-4719-9966-6A66C9306598/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_HOMEPREMIUM_x64FRE_en-us.iso"),
+					@("x86", "https://download.microsoft.com/download/E/D/A/EDA6B508-7663-4E30-86F9-949932F443D0/7601.24214.180801-1700.win7sp1_ldr_escrow_CLIENT_HOMEPREMIUM_x86FRE_en-us.iso")
+				)
+			)
+		)
 
-function Throw-Error([object]$Req, [string]$Alt)
-{
-	$Err = $(GetElementById -Request $r -Id "errorModalMessage").innerText
-	if (-not $Err) {
-		$Err = $Alt
-	} else {
-		$Err = [System.Text.Encoding]::UTF8.GetString([byte[]][char[]]$Err)
-	}
-	throw $Err
-}
 
-# Translate a message string
-function Get-Translation([string]$Text)
-{
-	if (-not $English -contains $Text) {
-		Write-Host "Error: '$Text' is not a translatable string"
-		return "(Untranslated)"
-	}
-	if ($Localized) {
-		if ($Localized.Length -ne $English.Length) {
-			Write-Host "Error: '$Text' is not a translatable string"
+	)
+	#endregion
+
+	#region Functions
+	function Select-Language([string]$LangName) {
+		# Use the system locale to try select the most appropriate language
+		[string]$SysLocale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
+		if (($SysLocale.StartsWith("ar") -and $LangName -like "*Arabic*") -or `
+			($SysLocale -eq "pt-BR" -and $LangName -like "*Brazil*") -or `
+			($SysLocale.StartsWith("ar") -and $LangName -like "*Bulgar*") -or `
+			($SysLocale -eq "zh-CN" -and $LangName -like "*Chinese*" -and $LangName -like "*simp*") -or `
+			($SysLocale -eq "zh-TW" -and $LangName -like "*Chinese*" -and $LangName -like "*trad*") -or `
+			($SysLocale.StartsWith("hr") -and $LangName -like "*Croat*") -or `
+			($SysLocale.StartsWith("cz") -and $LangName -like "*Czech*") -or `
+			($SysLocale.StartsWith("da") -and $LangName -like "*Danish*") -or `
+			($SysLocale.StartsWith("nl") -and $LangName -like "*Dutch*") -or `
+			($SysLocale -eq "en-US" -and $LangName -eq "English") -or `
+			($SysLocale.StartsWith("en") -and $LangName -like "*English*" -and ($LangName -like "*inter*" -or $LangName -like "*ingdom*")) -or `
+			($SysLocale.StartsWith("et") -and $LangName -like "*Eston*") -or `
+			($SysLocale.StartsWith("fi") -and $LangName -like "*Finn*") -or `
+			($SysLocale -eq "fr-CA" -and $LangName -like "*French*" -and $LangName -like "*Canad*") -or `
+			($SysLocale.StartsWith("fr") -and $LangName -eq "French") -or `
+			($SysLocale.StartsWith("de") -and $LangName -like "*German*") -or `
+			($SysLocale.StartsWith("el") -and $LangName -like "*Greek*") -or `
+			($SysLocale.StartsWith("he") -and $LangName -like "*Hebrew*") -or `
+			($SysLocale.StartsWith("hu") -and $LangName -like "*Hungar*") -or `
+			($SysLocale.StartsWith("id") -and $LangName -like "*Indones*") -or `
+			($SysLocale.StartsWith("it") -and $LangName -like "*Italia*") -or `
+			($SysLocale.StartsWith("ja") -and $LangName -like "*Japan*") -or `
+			($SysLocale.StartsWith("ko") -and $LangName -like "*Korea*") -or `
+			($SysLocale.StartsWith("lv") -and $LangName -like "*Latvia*") -or `
+			($SysLocale.StartsWith("lt") -and $LangName -like "*Lithuania*") -or `
+			($SysLocale.StartsWith("ms") -and $LangName -like "*Malay*") -or `
+			($SysLocale.StartsWith("nb") -and $LangName -like "*Norw*") -or `
+			($SysLocale.StartsWith("fa") -and $LangName -like "*Persia*") -or `
+			($SysLocale.StartsWith("pl") -and $LangName -like "*Polish*") -or `
+			($SysLocale -eq "pt-PT" -and $LangName -eq "Portuguese") -or `
+			($SysLocale.StartsWith("ro") -and $LangName -like "*Romania*") -or `
+			($SysLocale.StartsWith("ru") -and $LangName -like "*Russia*") -or `
+			($SysLocale.StartsWith("sr") -and $LangName -like "*Serbia*") -or `
+			($SysLocale.StartsWith("sk") -and $LangName -like "*Slovak*") -or `
+			($SysLocale.StartsWith("sl") -and $LangName -like "*Slovenia*") -or `
+			($SysLocale -eq "es-ES" -and $LangName -eq "Spanish") -or `
+			($SysLocale.StartsWith("es") -and $Locale -ne "es-ES" -and $LangName -like "*Spanish*") -or `
+			($SysLocale.StartsWith("sv") -and $LangName -like "*Swed*") -or `
+			($SysLocale.StartsWith("th") -and $LangName -like "*Thai*") -or `
+			($SysLocale.StartsWith("tr") -and $LangName -like "*Turk*") -or `
+			($SysLocale.StartsWith("uk") -and $LangName -like "*Ukrain*") -or `
+			($SysLocale.StartsWith("vi") -and $LangName -like "*Vietnam*")) {
+			return $True
 		}
-		for ($i = 0; $i -lt $English.Length; $i++) {
-			if ($English[$i] -eq $Text) {
-				if ($Localized[$i]) {
-					return $Localized[$i]
-				} else {
-					return $Text
-				}
+		return $False
+	}
+
+	function Add-Entry([int]$pos, [string]$Name, [array]$Items, [string]$DisplayName) {
+		$Title = New-Object System.Windows.Controls.TextBlock
+		$Title.FontSize = $WindowsVersionTitle.FontSize
+		$Title.Height = $WindowsVersionTitle.Height;
+		$Title.Width = $WindowsVersionTitle.Width;
+		$Title.HorizontalAlignment = "Left"
+		$Title.VerticalAlignment = "Top"
+		$Margin = $WindowsVersionTitle.Margin
+		$Margin.Top += $pos * $dh
+		$Title.Margin = $Margin
+		$Title.Text = Get-Translation($Name)
+		$XMLGrid.Children.Insert(2 * $Stage + 2, $Title)
+
+		$Combo = New-Object System.Windows.Controls.ComboBox
+		$Combo.FontSize = $WindowsVersion.FontSize
+		$Combo.Height = $WindowsVersion.Height;
+		$Combo.Width = $WindowsVersion.Width;
+		$Combo.HorizontalAlignment = "Left"
+		$Combo.VerticalAlignment = "Top"
+		$Margin = $WindowsVersion.Margin
+		$Margin.Top += $pos * $script:dh
+		$Combo.Margin = $Margin
+		$Combo.SelectedIndex = 0
+		if ($Items) {
+			$Combo.ItemsSource = $Items
+			if ($DisplayName) {
+				$Combo.DisplayMemberPath = $DisplayName
+			} else {
+				$Combo.DisplayMemberPath = $Name
+			}
+		}
+		$XMLGrid.Children.Insert(2 * $Stage + 3, $Combo)
+
+		$XMLForm.Height += $dh;
+		$Margin = $Continue.Margin
+		$Margin.Top += $dh
+		$Continue.Margin = $Margin
+		$Margin = $Back.Margin
+		$Margin.Top += $dh
+		$Back.Margin = $Margin
+
+		return $Combo
+	}
+
+	function Refresh-Control([object]$Control) {
+		$Control.Dispatcher.Invoke("Render", [Windows.Input.InputEventHandler] { $Continue.UpdateLayout() }, $null, $null) | Out-Null
+	}
+
+	function Send-Message([string]$PipeName, [string]$Message) {
+		[System.Text.Encoding]$Encoding = [System.Text.Encoding]::UTF8
+		$Pipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList ".", $PipeName, ([System.IO.Pipes.PipeDirection]::Out), ([System.IO.Pipes.PipeOptions]::None), ([System.Security.Principal.TokenImpersonationLevel]::Impersonation)
+		try {
+			$Pipe.Connect(1000)
+		} catch {
+			Write-Host $_.Exception.Message
+		}
+		$bRequest = $Encoding.GetBytes($Message)
+		$cbRequest = $bRequest.Length;
+		$Pipe.Write($bRequest, 0, $cbRequest);
+		$Pipe.Dispose()
+	}
+
+	# From https://www.powershellgallery.com/packages/IconForGUI/1.5.2
+	# Copyright © 2016 Chris Carter. All rights reserved.
+	# License: https://creativecommons.org/licenses/by-sa/4.0/
+	function ConvertTo-ImageSource {
+		[CmdletBinding()]
+		Param(
+			[Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+			[System.Drawing.Icon]$Icon
+		)
+
+		Process {
+			foreach ($i in $Icon) {
+				[System.Windows.Interop.Imaging]::CreateBitmapSourceFromHIcon(
+					$i.Handle,
+				(New-Object System.Windows.Int32Rect -Args 0, 0, $i.Width, $i.Height),
+					[System.Windows.Media.Imaging.BitmapSizeOptions]::FromEmptyOptions()
+				)
 			}
 		}
 	}
-	return $Text
-}
 
-# Some PowerShells don't have Microsoft.mshtml assembly (comes with MS Office?)
-# so we can't use ParsedHtml or IHTMLDocument[2|3] features there...
-function GetElementById([object]$Request, [string]$Id)
-{
-	try {
-		return $Request.ParsedHtml.IHTMLDocument3_GetElementByID($Id)
-	} catch {
-		return $Request.AllElements | ? {$_.id -eq $Id}
+	function Throw-Error([object]$Req, [string]$Alt) {
+		$Err = $(GetElementById -Request $r -Id "errorModalMessage").innerText
+		if (-not $Err) {
+			$Err = $Alt
+		} else {
+			$Err = [System.Text.Encoding]::UTF8.GetString([byte[]][char[]]$Err)
+		}
+		throw $Err
 	}
-}
 
-function Error([string]$ErrorMessage)
-{
-	Write-Host Error: $ErrorMessage
-	if (!$Cmd) {
-		$XMLForm.Title = $(Get-Translation("Error")) + ": " + $ErrorMessage
-		Refresh-Control($XMLForm)
-		$XMLGrid.Children[2 * $script:Stage + 1].IsEnabled = $True
-		$UserInput = [System.Windows.MessageBox]::Show($XMLForm.Title,  $(Get-Translation("Error")), "OK", "Error")
-		$script:ExitCode = $script:Stage--
-	} else {
-		$script:ExitCode = 2
+	# Translate a message string
+	function Get-Translation([string]$Text) {
+		if (-not $English -contains $Text) {
+			Write-Host "Error: '$Text' is not a translatable string"
+			return "(Untranslated)"
+		}
+		if ($Localized) {
+			if ($Localized.Length -ne $English.Length) {
+				Write-Host "Error: '$Text' is not a translatable string"
+			}
+			for ($i = 0; $i -lt $English.Length; $i++) {
+				if ($English[$i] -eq $Text) {
+					if ($Localized[$i]) {
+						return $Localized[$i]
+					} else {
+						return $Text
+					}
+				}
+			}
+		}
+		return $Text
 	}
-}
 
-function Get-RandomDate()
-{
-	[DateTime]$Min = "1/1/2008"
-	[DateTime]$Max = [DateTime]::Now
+	# Some PowerShells don't have Microsoft.mshtml assembly (comes with MS Office?)
+	# so we can't use ParsedHtml or IHTMLDocument[2|3] features there...
+	function GetElementById([object]$Request, [string]$Id) {
+		try {
+			return $Request.ParsedHtml.IHTMLDocument3_GetElementByID($Id)
+		} catch {
+			return $Request.AllElements | Where-Object { $_.id -eq $Id }
+		}
+	}
 
-	$RandomGen = new-object random
-	$RandomTicks = [Convert]::ToInt64( ($Max.ticks * 1.0 - $Min.Ticks * 1.0 ) * $RandomGen.NextDouble() + $Min.Ticks * 1.0 )
-	$Date = new-object DateTime($RandomTicks)
-	return $Date.ToString("yyyyMMdd")
-}
-#endregion
+	function Error([string]$ErrorMessage) {
+		Write-Host Error: $ErrorMessage
+		if (!$Cmd) {
+			$XMLForm.Title = $(Get-Translation("Error")) + ": " + $ErrorMessage
+			Refresh-Control($XMLForm)
+			$XMLGrid.Children[2 * $script:Stage + 1].IsEnabled = $True
+			$UserInput = [System.Windows.MessageBox]::Show($XMLForm.Title, $(Get-Translation("Error")), "OK", "Error")
+			$script:ExitCode = $script:Stage--
+		} else {
+			$script:ExitCode = 2
+		}
+	}
 
-#region Form
-[xml]$XAML = @"
+	function Get-RandomDate() {
+		[DateTime]$Min = "1/1/2008"
+		[DateTime]$Max = [DateTime]::Now
+
+		$RandomGen = New-Object random
+		$RandomTicks = [Convert]::ToInt64( ($Max.ticks * 1.0 - $Min.Ticks * 1.0 ) * $RandomGen.NextDouble() + $Min.Ticks * 1.0 )
+		$Date = New-Object DateTime($RandomTicks)
+		return $Date.ToString("yyyyMMdd")
+	}
+	#endregion
+
+	#region Form
+	[xml]$XAML = @"
 <Window xmlns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation" Height = "162" Width = "384" ResizeMode = "NoResize">
 	<Grid Name = "XMLGrid">
 		<Button Name = "Continue" FontSize = "16" Height = "26" Width = "160" HorizontalAlignment = "Left" VerticalAlignment = "Top" Margin = "14,78,0,0"/>
@@ -569,611 +562,609 @@ function Get-RandomDate()
 	</Grid>
 </Window>
 "@
-#endregion
+	#endregion
 
-#region Globals
-$ErrorActionPreference = "Stop"
-$dh = 58
-$Stage = 0
-$SelectedIndex = 0
-$ltrm = "‎"
-if ($Cmd) {
-	$ltrm = ""
-}
-$MaxStage = 4
-$SessionId = [guid]::NewGuid()
-$ExitCode = 100
-$Locale = "en-US"
-$RequestData = @{}
-# This GUID applies to all visitors, regardless of their locale
-$RequestData["GetLangs"] = @("a8f8f489-4c7f-463a-9ca6-5cff94d8d041", "getskuinformationbyproductedition" )
-# This GUID applies to visitors of the en-US download page. Other locales may get a different GUID.
-$RequestData["GetLinks"] = @("6e2a1789-ef16-4f27-a296-74ef7ef5d96b", "GetProductDownloadLinksBySku" )
-# Create a semi-random Linux User-Agent string
-$FirefoxVersion = Get-Random -Minimum 50 -Maximum 90
-$FirefoxDate = Get-RandomDate
-$UserAgent = "Mozilla/5.0 (X11; Linux i586; rv:$FirefoxVersion.0) Gecko/$FirefoxDate Firefox/$FirefoxVersion.0"
-$Verbosity = 2
-if ($Cmd) {
-	if ($GetUrl) {
-		$Verbosity = 0
-	} elseif (!$Verbose) {
-		$Verbosity = 1
+	#region Globals
+	$ErrorActionPreference = "Stop"
+	$dh = 58
+	$Stage = 0
+	$SelectedIndex = 0
+	$ltrm = "‎"
+	if ($Cmd) {
+		$ltrm = ""
 	}
-}
-#endregion
+	$MaxStage = 4
+	$SessionId = [guid]::NewGuid()
+	$ExitCode = 100
+	$Locale = "en-US"
+	$RequestData = @{}
+	# This GUID applies to all visitors, regardless of their locale
+	$RequestData["GetLangs"] = @("a8f8f489-4c7f-463a-9ca6-5cff94d8d041", "getskuinformationbyproductedition" )
+	# This GUID applies to visitors of the en-US download page. Other locales may get a different GUID.
+	$RequestData["GetLinks"] = @("6e2a1789-ef16-4f27-a296-74ef7ef5d96b", "GetProductDownloadLinksBySku" )
+	# Create a semi-random Linux User-Agent string
+	$FirefoxVersion = Get-Random -Minimum 50 -Maximum 90
+	$FirefoxDate = Get-RandomDate
+	$UserAgent = "Mozilla/5.0 (X11; Linux i586; rv:$FirefoxVersion.0) Gecko/$FirefoxDate Firefox/$FirefoxVersion.0"
+	$Verbosity = 2
+	if ($Cmd) {
+		if ($GetUrl) {
+			$Verbosity = 0
+		} elseif (!$Verbose) {
+			$Verbosity = 1
+		}
+	}
+	#endregion
 
-# Localization
-$EnglishMessages = "en-US|Version|Release|Edition|Language|Architecture|Download|Continue|Back|Close|Cancel|Error|Please wait...|" +
+	# Localization
+	$EnglishMessages = "en-US|Version|Release|Edition|Language|Architecture|Download|Continue|Back|Close|Cancel|Error|Please wait...|" +
 	"Download using a browser|Temporarily banned by Microsoft for requesting too many downloads - Please try again later...|" +
 	"PowerShell 3.0 or later is required to run this script.|Do you want to go online and download it?"
-[string[]]$English = $EnglishMessages.Split('|')
-[string[]]$Localized = $null
-if ($LocData -and (-not $LocData.StartsWith("en-US"))) {
-	$Localized = $LocData.Split('|')
-	if ($Localized.Length -ne $English.Length) {
-		Write-Host "Error: Missing or extra translated messages provided ($($Localized.Length)/$($English.Length))"
-		exit 101
-	}
-	$Locale = $Localized[0]
-}
-$QueryLocale = $Locale
-
-# Make sure PowerShell 3.0 or later is used (for Invoke-WebRequest)
-if ($PSVersionTable.PSVersion.Major -lt 3) {
-	Write-Host Error: PowerShell 3.0 or later is required to run this script.
-	$Msg = "$(Get-Translation($English[15]))`n$(Get-Translation($English[16]))"
-	if ([System.Windows.MessageBox]::Show($Msg, $(Get-Translation("Error")), "YesNo", "Error") -eq "Yes") {
-		Start-Process -FilePath https://www.microsoft.com/download/details.aspx?id=34595
-	}
-	exit 102
-}
-
-# Convert a size in bytes to a human readable string
-function Size-To-Human-Readable([uint64]$size)
-{
-	$suffix = "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
-	$i = 0
-	while ($size -gt 1kb) {
-		$size = $size / 1kb
-		$i++
-	}
-	"{0:N1} {1}" -f $size, $suffix[$i]
-}
-
-# Check if the locale we want is available - Fall back to en-US otherwise
-function Check-Locale {
-	try {
-		$url = "https://www.microsoft.com/" + $QueryLocale + "/software-download/"
-		if ($Verbosity -ge 2) {
-			Write-Host Querying $url
+	[string[]]$English = $EnglishMessages.Split('|')
+	[string[]]$Localized = $null
+	if ($LocData -and (-not $LocData.StartsWith("en-US"))) {
+		$Localized = $LocData.Split('|')
+		if ($Localized.Length -ne $English.Length) {
+			Write-Host "Error: Missing or extra translated messages provided ($($Localized.Length)/$($English.Length))"
+			exit 101
 		}
-		Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -UserAgent $UserAgent $url | Out-Null
-	} catch {
-		$script:QueryLocale = "en-US"
+		$Locale = $Localized[0]
 	}
-}
+	$QueryLocale = $Locale
 
-# Return an array of releases (e.g. 20H2, 21H1, ...) for the selected Windows version
-function Get-Windows-Releases([int]$SelectedVersion)
-{
-	$i = 0
-	$releases = @()
-	foreach ($version in $WindowsVersions[$SelectedVersion]) {
-		if (($i -ne 0) -and ($version -is [array])) {
-			$releases += @(New-Object PsObject -Property @{ Release = $ltrm + $version[0].Replace(")", ")" + $ltrm); Index = $i })
+	# Make sure PowerShell 3.0 or later is used (for Invoke-WebRequest)
+	if ($PSVersionTable.PSVersion.Major -lt 3) {
+		Write-Host Error: PowerShell 3.0 or later is required to run this script.
+		$Msg = "$(Get-Translation($English[15]))`n$(Get-Translation($English[16]))"
+		if ([System.Windows.MessageBox]::Show($Msg, $(Get-Translation("Error")), "YesNo", "Error") -eq "Yes") {
+			Start-Process -FilePath https://www.microsoft.com/download/details.aspx?id=34595
 		}
-		$i++
+		exit 102
 	}
-	return $releases
-}
 
-# Return an array of editions (e.g. Home, Pro, etc) for the selected Windows release
-function Get-Windows-Editions([int]$SelectedVersion, [int]$SelectedRelease)
-{
-	$editions = @()
-	foreach ($release in $WindowsVersions[$SelectedVersion][$SelectedRelease])
-	{
-		if ($release -is [array]) {
-			if (($release[1] -lt 0x10000) -or ($Locale.StartsWith("ko") -and ($release[1] -band $ko)) -or ($Locale.StartsWith("zh") -and ($release[1] -band $zh))) {
-				$editions += @(New-Object PsObject -Property @{ Edition = $release[0]; Id = $($release[1] -band 0xFFFF) })
+	# Convert a size in bytes to a human readable string
+	function Size-To-Human-Readable([uint64]$size) {
+		$suffix = "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+		$i = 0
+		while ($size -gt 1kb) {
+			$size = $size / 1kb
+			$i++
+		}
+		"{0:N1} {1}" -f $size, $suffix[$i]
+	}
+
+	# Check if the locale we want is available - Fall back to en-US otherwise
+	function Check-Locale {
+		try {
+			$url = "https://www.microsoft.com/" + $QueryLocale + "/software-download/"
+			if ($Verbosity -ge 2) {
+				Write-Host Querying $url
 			}
+			Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -UserAgent $UserAgent $url | Out-Null
+		} catch {
+			$script:QueryLocale = "en-US"
 		}
 	}
-	return $editions
-}
 
-# Return an array of languages for the selected edition
-function Get-Windows-Languages([int]$SelectedVersion, [int]$SelectedEdition)
-{
-	$languages = @()
-	$i = 0;
-	if ($WindowsVersions[$SelectedVersion][0][1] -eq "WIN7") {
-		foreach ($entry in $Windows7Versions[$SelectedEdition]) {
-			if ($entry[0] -ne "") {
-				$languages += @(New-Object PsObject -Property @{ DisplayLanguage = $entry[0]; Language = $entry[1]; Id = $i })
+	# Return an array of releases (e.g. 20H2, 21H1, ...) for the selected Windows version
+	function Get-Windows-Releases([int]$SelectedVersion) {
+		$i = 0
+		$releases = @()
+		foreach ($version in $WindowsVersions[$SelectedVersion]) {
+			if (($i -ne 0) -and ($version -is [array])) {
+				$releases += @(New-Object PsObject -Property @{ Release = $ltrm + $version[0].Replace(")", ")" + $ltrm); Index = $i })
 			}
 			$i++
 		}
-	} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
-		$languages += @(New-Object PsObject -Property @{ DisplayLanguage = "English (US)"; Language = "en-us"; Id = 0 })
-	} else {
-		$url = "https://www.microsoft.com/" + $QueryLocale + "/api/controls/contentinclude/html"
-		$url += "?pageId=" + $RequestData["GetLangs"][0]
-		$url += "&host=www.microsoft.com"
-		$url += "&segments=software-download," + $WindowsVersions[$SelectedVersion][0][1]
-		$url += "&query=&action=" + $RequestData["GetLangs"][1]
-		$url += "&sessionId=" + $SessionId
-		$url += "&productEditionId=" + [Math]::Abs($SelectedEdition)
-		$url += "&sdVersion=2"
-		if ($Verbosity -ge 2) {
-			Write-Host Querying $url
-		}
+		return $releases
+	}
 
-		$script:SelectedIndex = 0
-		try {
-			$r = Invoke-WebRequest -UseBasicParsing -UserAgent $UserAgent -SessionVariable "Session" $url
-			if ($r -match "errorModalMessage") {
-				Throw-Error -Req $r -Alt "Could not retrieve languages from server"
-			}
-			$pattern = '(?s)<select id="product-languages">(.*)?</select>'
-			$html = [regex]::Match($r, $pattern).Groups[1].Value
-			# Go through an XML conversion to keep all PowerShells happy...
-			$html = $html.Replace("selected value", "value")
-			$html = "<options>" + $html + "</options>"
-			$xml = [xml]$html
-			foreach ($var in $xml.options.option) {
-				$json = $var.value | ConvertFrom-Json;
-				if ($json) {
-					$languages += @(New-Object PsObject -Property @{ DisplayLanguage = $var.InnerText; Language = $json.language; Id = $json.id })
-					if (Select-Language($json.language)) {
-						$script:SelectedIndex = $i
-					}
-					$i++
+	# Return an array of editions (e.g. Home, Pro, etc) for the selected Windows release
+	function Get-Windows-Editions([int]$SelectedVersion, [int]$SelectedRelease) {
+		$editions = @()
+		foreach ($release in $WindowsVersions[$SelectedVersion][$SelectedRelease]) {
+			if ($release -is [array]) {
+				if (($release[1] -lt 0x10000) -or ($Locale.StartsWith("ko") -and ($release[1] -band $ko)) -or ($Locale.StartsWith("zh") -and ($release[1] -band $zh))) {
+					$editions += @(New-Object PsObject -Property @{ Edition = $release[0]; Id = $($release[1] -band 0xFFFF) })
 				}
 			}
-			if ($languages.Length -eq 0) {
-				Throw-Error -Req $r -Alt "Could not parse languages"
-			}
-		} catch {
-			Error($_.Exception.Message)
-			return @()
 		}
+		return $editions
 	}
-	return $languages
-}
 
-# Return an array of download links for each supported arch
-function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease, [int]$SelectedEdition, [string]$SkuId, [string]$LanguageName)
-{
-	$links = @()
-	if ($WindowsVersions[$SelectedVersion][0][1] -eq "WIN7") {
-		foreach ($Version in $Windows7Versions[$SelectedEdition][$SkuId][2]) {
-			$links += @(New-Object PsObject -Property @{ Type = $Version[0]; Link = $Version[1] })
-		}
-	} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
-		$tag = $WindowsVersions[$SelectedVersion][$SelectedRelease][0].Split(' ')[0]
-		$shell_version = $WindowsVersions[$SelectedVersion][0][1].Split(' ')[1]
-		$url = "https://github.com/pbatard/UEFI-Shell/releases/download/" + $tag
-		$link = $url + "/UEFI-Shell-" + $shell_version + "-" + $tag
-		if ($SelectedEdition -eq 0) {
-			$link += "-RELEASE.iso"
+	# Return an array of languages for the selected edition
+	function Get-Windows-Languages([int]$SelectedVersion, [int]$SelectedEdition) {
+		$languages = @()
+		$i = 0;
+		if ($WindowsVersions[$SelectedVersion][0][1] -eq "WIN7") {
+			foreach ($entry in $Windows7Versions[$SelectedEdition]) {
+				if ($entry[0] -ne "") {
+					$languages += @(New-Object PsObject -Property @{ DisplayLanguage = $entry[0]; Language = $entry[1]; Id = $i })
+				}
+				$i++
+			}
+		} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
+			$languages += @(New-Object PsObject -Property @{ DisplayLanguage = "English (US)"; Language = "en-us"; Id = 0 })
 		} else {
-			$link += "-DEBUG.iso"
-		}
-		try {
-			# Read the supported archs from the release URL
-			$url += "/Version.xml"
-			$xml = New-Object System.Xml.XmlDocument
+			$url = "https://www.microsoft.com/" + $QueryLocale + "/api/controls/contentinclude/html"
+			$url += "?pageId=" + $RequestData["GetLangs"][0]
+			$url += "&host=www.microsoft.com"
+			$url += "&segments=software-download," + $WindowsVersions[$SelectedVersion][0][1]
+			$url += "&query=&action=" + $RequestData["GetLangs"][1]
+			$url += "&sessionId=" + $SessionId
+			$url += "&productEditionId=" + [Math]::Abs($SelectedEdition)
+			$url += "&sdVersion=2"
 			if ($Verbosity -ge 2) {
 				Write-Host Querying $url
-			}			
-			$xml.Load($url)
-			$sep = ""
-			$archs = ""
-			foreach($arch in $xml.release.supported_archs.arch) {
-				$archs += $sep + $arch
-				$sep = ", "
 			}
-			$links += @(New-Object PsObject -Property @{ Type = $archs; Link = $link })
-		} catch {
-			Error($_.Exception.Message)
-			return @()
-		}
-	} else {
-		$url = "https://www.microsoft.com/" + $QueryLocale + "/api/controls/contentinclude/html"
-		$url += "?pageId=" + $RequestData["GetLinks"][0]
-		$url += "&host=www.microsoft.com"
-		$url += "&segments=software-download," + $WindowsVersions[$SelectedVersion][0][1]
-		$url += "&query=&action=" + $RequestData["GetLinks"][1]
-		$url += "&sessionId=" + $SessionId
-		$url += "&skuId=" + $SkuId
-		$url += "&language=" + $LanguageName
-		$url += "&sdVersion=2"
-		if ($Verbosity -ge 2) {
-			Write-Host Querying $url
-		}
 
-		$i = 0
-		$script:SelectedIndex = 0
-
-		try {
-			$Is64 = [Environment]::Is64BitOperatingSystem
-			# Must add a referer for POST requests, else Microsoft's servers will deny them
-			$ref = "https://www.microsoft.com/software-download/windows11"
-			$wr = [System.Net.WebRequest]::Create($url)
-			# Windows 7 PowerShell doesn't support 'Invoke-WebRequest -Headers @{"Referer" = $ref}'
-			# (produces "The 'Referer' header must be modified using the appropriate property or method")
-			# so we use StreamReader() with GetResponseStream() and do this whole gymkhana instead...
-			$wr.Method = "POST"
-			$wr.Referer = $ref
-			$wr.UserAgent = $UserAgent
-			$wr.ContentLength = 0
-			$sr = New-Object System.IO.StreamReader($wr.GetResponse().GetResponseStream())
-			$r = $sr.ReadToEnd()
-			if ($r -match "errorModalMessage") {
-				Throw-Error -Req $r -Alt "Could not retrieve architectures from server"
-			}
-			$pattern = '(?s)(<input.*?></input>)'
-			ForEach-Object { [regex]::Matches($r, $pattern) } | ForEach-Object { $html += $_.Groups[1].value }
-			# Need to fix the HTML and JSON data so that it is well-formed
-			$html = $html.Replace("class=product-download-hidden", "")
-			$html = $html.Replace("type=hidden", "")
-			$html = $html.Replace("&nbsp;", " ")
-			$html = $html.Replace("IsoX86", "&quot;x86&quot;")
-			$html = $html.Replace("IsoX64", "&quot;x64&quot;")
-			$html = "<inputs>" + $html + "</inputs>"
-			$xml = [xml]$html
-			foreach ($var in $xml.inputs.input) {
-				$json = $var.value | ConvertFrom-Json;
-				if ($json) {
-					if (($Is64 -and $json.DownloadType -eq "x64") -or (-not $Is64 -and $json.DownloadType -eq "x86")) {
-						$script:SelectedIndex = $i
+			$script:SelectedIndex = 0
+			try {
+				$r = Invoke-WebRequest -UseBasicParsing -UserAgent $UserAgent -SessionVariable "Session" $url
+				if ($r -match "errorModalMessage") {
+					Throw-Error -Req $r -Alt "Could not retrieve languages from server"
+				}
+				$pattern = '(?s)<select id="product-languages">(.*)?</select>'
+				$html = [regex]::Match($r, $pattern).Groups[1].Value
+				# Go through an XML conversion to keep all PowerShells happy...
+				$html = $html.Replace("selected value", "value")
+				$html = "<options>" + $html + "</options>"
+				$xml = [xml]$html
+				foreach ($var in $xml.options.option) {
+					$json = $var.value | ConvertFrom-Json;
+					if ($json) {
+						$languages += @(New-Object PsObject -Property @{ DisplayLanguage = $var.InnerText; Language = $json.language; Id = $json.id })
+						if (Select-Language($json.language)) {
+							$script:SelectedIndex = $i
+						}
+						$i++
 					}
-					$links += @(New-Object PsObject -Property @{ Type = $json.DownloadType; Link = $json.Uri })
-					$i++
+				}
+				if ($languages.Length -eq 0) {
+					Throw-Error -Req $r -Alt "Could not parse languages"
+				}
+			} catch {
+				Get-Error($_.Exception.Message)
+				return @()
+			}
+		}
+		return $languages
+	}
+
+	# Return an array of download links for each supported arch
+	function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease, [int]$SelectedEdition, [string]$SkuId, [string]$LanguageName) {
+		$links = @()
+		if ($WindowsVersions[$SelectedVersion][0][1] -eq "WIN7") {
+			foreach ($Version in $Windows7Versions[$SelectedEdition][$SkuId][2]) {
+				$links += @(New-Object PsObject -Property @{ Type = $Version[0]; Link = $Version[1] })
+			}
+		} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
+			$tag = $WindowsVersions[$SelectedVersion][$SelectedRelease][0].Split(' ')[0]
+			$shell_version = $WindowsVersions[$SelectedVersion][0][1].Split(' ')[1]
+			$url = "https://github.com/pbatard/UEFI-Shell/releases/download/" + $tag
+			$link = $url + "/UEFI-Shell-" + $shell_version + "-" + $tag
+			if ($SelectedEdition -eq 0) {
+				$link += "-RELEASE.iso"
+			} else {
+				$link += "-DEBUG.iso"
+			}
+			try {
+				# Read the supported archs from the release URL
+				$url += "/Version.xml"
+				$xml = New-Object System.Xml.XmlDocument
+				if ($Verbosity -ge 2) {
+					Write-Host Querying $url
+				}			
+				$xml.Load($url)
+				$sep = ""
+				$archs = ""
+				foreach ($arch in $xml.release.supported_archs.arch) {
+					$archs += $sep + $arch
+					$sep = ", "
+				}
+				$links += @(New-Object PsObject -Property @{ Type = $archs; Link = $link })
+			} catch {
+				Get-Error($_.Exception.Message)
+				return @()
+			}
+		} else {
+			$url = "https://www.microsoft.com/" + $QueryLocale + "/api/controls/contentinclude/html"
+			$url += "?pageId=" + $RequestData["GetLinks"][0]
+			$url += "&host=www.microsoft.com"
+			$url += "&segments=software-download," + $WindowsVersions[$SelectedVersion][0][1]
+			$url += "&query=&action=" + $RequestData["GetLinks"][1]
+			$url += "&sessionId=" + $SessionId
+			$url += "&skuId=" + $SkuId
+			$url += "&language=" + $LanguageName
+			$url += "&sdVersion=2"
+			if ($Verbosity -ge 2) {
+				Write-Host Querying $url
+			}
+
+			$i = 0
+			$script:SelectedIndex = 0
+
+			try {
+				$Is64 = [Environment]::Is64BitOperatingSystem
+				# Must add a referer for POST requests, else Microsoft's servers will deny them
+				$ref = "https://www.microsoft.com/software-download/windows11"
+				$wr = [System.Net.WebRequest]::Create($url)
+				# Windows 7 PowerShell doesn't support 'Invoke-WebRequest -Headers @{"Referer" = $ref}'
+				# (produces "The 'Referer' header must be modified using the appropriate property or method")
+				# so we use StreamReader() with GetResponseStream() and do this whole gymkhana instead...
+				$wr.Method = "POST"
+				$wr.Referer = $ref
+				$wr.UserAgent = $UserAgent
+				$wr.ContentLength = 0
+				$sr = New-Object System.IO.StreamReader($wr.GetResponse().GetResponseStream())
+				$r = $sr.ReadToEnd()
+				if ($r -match "errorModalMessage") {
+					Throw-Error -Req $r -Alt "Could not retrieve architectures from server"
+				}
+				$pattern = '(?s)(<input.*?></input>)'
+				ForEach-Object { [regex]::Matches($r, $pattern) } | ForEach-Object { $html += $_.Groups[1].value }
+				# Need to fix the HTML and JSON data so that it is well-formed
+				$html = $html.Replace("class=product-download-hidden", "")
+				$html = $html.Replace("type=hidden", "")
+				$html = $html.Replace("&nbsp;", " ")
+				$html = $html.Replace("IsoX86", "&quot;x86&quot;")
+				$html = $html.Replace("IsoX64", "&quot;x64&quot;")
+				$html = "<inputs>" + $html + "</inputs>"
+				$xml = [xml]$html
+				foreach ($var in $xml.inputs.input) {
+					$json = $var.value | ConvertFrom-Json;
+					if ($json) {
+						if (($Is64 -and $json.DownloadType -eq "x64") -or (-not $Is64 -and $json.DownloadType -eq "x86")) {
+							$script:SelectedIndex = $i
+						}
+						$links += @(New-Object PsObject -Property @{ Type = $json.DownloadType; Link = $json.Uri })
+						$i++
+					}
+				}
+				if ($links.Length -eq 0) {
+					Throw-Error -Req $r -Alt "Could not retrieve ISO download links"
+				}
+			} catch {
+				Get-Error($_.Exception.Message)
+				return @()
+			}
+		}
+		return $links
+	}
+
+	# Process the download URL by either sending it through the pipe or by opening the browser
+	function Process-Download-Link([string]$Url) {
+		try {
+			if ($PipeName -and -not $Check.IsChecked) {
+				Send-Message -PipeName $PipeName -Message $Url
+			} else {
+				if ($Cmd) {
+					$pattern = '.*\/(.*\.iso).*'
+					$File = [regex]::Match($Url, $pattern).Groups[1].Value
+					# PowerShell implicit conversions are iffy, so we need to force them...
+					$str_size = (Invoke-WebRequest -UseBasicParsing -Uri $Url -Method Head).Headers.'Content-Length'
+					$tmp_size = [uint64]::Parse($str_size)
+					$Size = Size-To-Human-Readable $tmp_size
+					Write-Host "Downloading '$File' ($Size)..."
+					Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $File
+				} else {
+					Write-Host Download Link: $Url
+					Start-Process -FilePath $Url
 				}
 			}
-			if ($links.Length -eq 0) {
-				Throw-Error -Req $r -Alt "Could not retrieve ISO download links"
-			}
 		} catch {
-			Error($_.Exception.Message)
-			return @()
+			Get-Error($_.Exception.Message)
+			return 404
 		}
+		return 0
 	}
-	return $links
-}
 
-# Process the download URL by either sending it through the pipe or by opening the browser
-function Process-Download-Link([string]$Url)
-{
-	try {
-		if ($PipeName -and -not $Check.IsChecked) {
-			Send-Message -PipeName $PipeName -Message $Url
-		} else {
-			if ($Cmd) {
-				$pattern = '.*\/(.*\.iso).*'
-				$File = [regex]::Match($Url, $pattern).Groups[1].Value
-				# PowerShell implicit conversions are iffy, so we need to force them...
-				$str_size = (Invoke-WebRequest -UseBasicParsing -Uri $Url -Method Head).Headers.'Content-Length'
-				$tmp_size = [uint64]::Parse($str_size)
-				$Size = Size-To-Human-Readable $tmp_size
-				Write-Host "Downloading '$File' ($Size)..."
-				Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $File
-			} else {
-				Write-Host Download Link: $Url
-				Start-Process -FilePath $Url
-			}
-		}
-	} catch {
-		Error($_.Exception.Message)
-		return 404
-	}
-	return 0
-}
+	if ($Cmd) {
+		$winVersionId = $null
+		$winReleaseId = $null
+		$winEditionId = $null
+		$winLanguageId = $null
+		$winLanguageName = $null
+		$winLink = $null
 
-if ($Cmd) {
-	$winVersionId = $null
-	$winReleaseId = $null
-	$winEditionId = $null
-	$winLanguageId = $null
-	$winLanguageName = $null
-	$winLink = $null
-
-	$i = 0
-	$Selected = ""
-	if ($Win -eq "List") {
-		Write-Host "Please select a Windows Version (-Win):"
-	}
-	foreach($version in $WindowsVersions) {
+		$i = 0
+		$Selected = ""
 		if ($Win -eq "List") {
-			Write-Host " -" $version[0][0]
-		} elseif ($version[0][0] -match $Win) {
-			$Selected += $version[0][0]
-			$winVersionId = $i
-			break;
+			Write-Host "Please select a Windows Version (-Win):"
 		}
-		$i++
-	}
-	if ($winVersionId -eq $null) {
-		if ($Win -ne "List") {
-			Write-Host "Invalid Windows version provided."
-			Write-Host "Use '-Win List' for a list of available Windows versions."
+		foreach ($version in $WindowsVersions) {
+			if ($Win -eq "List") {
+				Write-Host " -" $version[0][0]
+			} elseif ($version[0][0] -match $Win) {
+				$Selected += $version[0][0]
+				$winVersionId = $i
+				break;
+			}
+			$i++
 		}
-		exit 1
-	}
+		if ($null -eq $winReleaseId) {
+			if ($Win -ne "List") {
+				Write-Host "Invalid Windows version provided."
+				Write-Host "Use '-Win List' for a list of available Windows versions."
+			}
+			exit 1
+		}
 
-	# Windows Version selection
-	$releases = Get-Windows-Releases $winVersionId
-	if ($Rel -eq "List") {
-		Write-Host "Please select a Windows Release (-Rel) for ${Selected} (or use 'Latest' for most recent):"
-	}
-	foreach ($release in $releases) {
+		# Windows Version selection
+		$releases = Get-Windows-Releases $winVersionId
 		if ($Rel -eq "List") {
-			Write-Host " -" $release.Release
-		} elseif (!$Rel -or $release.Release.StartsWith($Rel) -or $Rel -eq "Latest") {
-			if (!$Rel -and $Verbosity -ge 1) {
-				Write-Host "No release specified (-Rel). Defaulting to '$($release.Release)'."
+			Write-Host "Please select a Windows Release (-Rel) for ${Selected} (or use 'Latest' for most recent):"
+		}
+		foreach ($release in $releases) {
+			if ($Rel -eq "List") {
+				Write-Host " -" $release.Release
+			} elseif (!$Rel -or $release.Release.StartsWith($Rel) -or $Rel -eq "Latest") {
+				if (!$Rel -and $Verbosity -ge 1) {
+					Write-Host "No release specified (-Rel). Defaulting to '$($release.Release)'."
+				}
+				$Selected += " " + $release.Release
+				$winReleaseId = $release.Index
+				break;
 			}
-			$Selected += " " + $release.Release
-			$winReleaseId = $release.Index
-			break;
 		}
-	}
-	if ($winReleaseId -eq $null) {
-		if ($Rel -ne "List") {
-			Write-Host "Invalid Windows release provided."
-			Write-Host "Use '-Rel List' for a list of available $Selected releases or '-Rel Latest' for latest."
+		if ($null -eq $winReleaseId) {
+			if ($Rel -ne "List") {
+				Write-Host "Invalid Windows release provided."
+				Write-Host "Use '-Rel List' for a list of available $Selected releases or '-Rel Latest' for latest."
+			}
+			exit 1
 		}
-		exit 1
-	}
 
-	# Windows Release selection => Populate Product Edition
-	$editions = Get-Windows-Editions $winVersionId $winReleaseId
-	if ($Ed -eq "List") {
-		Write-Host "Please select a Windows Edition (-Ed) for ${Selected}:"
-	}
-	foreach($edition in $editions) {
+		# Windows Release selection => Populate Product Edition
+		$editions = Get-Windows-Editions $winVersionId $winReleaseId
 		if ($Ed -eq "List") {
-			Write-Host " -" $edition.Edition
-		} elseif (!$Ed -or $edition.Edition -match $Ed) {
-			if (!$Ed -and $Verbosity -ge 1) {
-				Write-Host "No edition specified (-Ed). Defaulting to '$($edition.Edition)'."
+			Write-Host "Please select a Windows Edition (-Ed) for ${Selected}:"
+		}
+		foreach ($edition in $editions) {
+			if ($Ed -eq "List") {
+				Write-Host " -" $edition.Edition
+			} elseif (!$Ed -or $edition.Edition -match $Ed) {
+				if (!$Ed -and $Verbosity -ge 1) {
+					Write-Host "No edition specified (-Ed). Defaulting to '$($edition.Edition)'."
+				}
+				$Selected += "," + $edition.Edition -replace "Windows [0-9\.]*", ""
+				$winEditionId = $edition.Id
+				break;
 			}
-			$Selected += "," + $edition.Edition -replace "Windows [0-9\.]*", ""
-			$winEditionId = $edition.Id
-			break;
 		}
-	}
-	if ($winEditionId -eq $null) {
-		if ($Ed -ne "List") {
-			Write-Host "Invalid Windows edition provided."
-			Write-Host "Use '-Ed List' for a list of available editions or remove the -Ed parameter to use default."
+		if ($null -eq $winEditionId) {
+			if ($Ed -ne "List") {
+				Write-Host "Invalid Windows edition provided."
+				Write-Host "Use '-Ed List' for a list of available editions or remove the -Ed parameter to use default."
+			}
+			exit 1
 		}
-		exit 1
-	}
 
-	# Product Edition selection => Request and populate Languages
-	$languages = Get-Windows-Languages $winVersionId $winEditionId
-	if (!$languages) {
-		exit 3
-	}
-	if ($Lang -eq "List") {
-		Write-Host "Please select a Language (-Lang) for ${Selected}:"
-	} elseif ($Lang) {
-		# Escape parentheses so that they aren't interpreted as regex
-		$Lang = $Lang.replace('(', '\(')
-		$Lang = $Lang.replace(')', '\)')
-	}
-	$i = 0
-	foreach ($language in $languages) {
+		# Product Edition selection => Request and populate Languages
+		$languages = Get-Windows-Languages $winVersionId $winEditionId
+		if (!$languages) {
+			exit 3
+		}
 		if ($Lang -eq "List") {
-			Write-Host " -" $language.Language
-		} elseif ((!$Lang -and $script:SelectedIndex -eq $i) -or ($Lang -and $language.Language -match $Lang)) {
-			if (!$Lang -and $Verbosity -ge 1) {
-				Write-Host "No language specified (-Lang). Defaulting to '$($language.Language)'."
+			Write-Host "Please select a Language (-Lang) for ${Selected}:"
+		} elseif ($Lang) {
+			# Escape parentheses so that they aren't interpreted as regex
+			$Lang = $Lang.replace('(', '\(')
+			$Lang = $Lang.replace(')', '\)')
+		}
+		$i = 0
+		foreach ($language in $languages) {
+			if ($Lang -eq "List") {
+				Write-Host " -" $language.Language
+			} elseif ((!$Lang -and $script:SelectedIndex -eq $i) -or ($Lang -and $language.Language -match $Lang)) {
+				if (!$Lang -and $Verbosity -ge 1) {
+					Write-Host "No language specified (-Lang). Defaulting to '$($language.Language)'."
+				}
+				$Selected += ", " + $language.Language
+				$winLanguageId = $language.Id
+				$winLanguageName = $language.Language
+				break;
 			}
-			$Selected += ", " + $language.Language
-			$winLanguageId = $language.Id
-			$winLanguageName = $language.Language
-			break;
+			$i++
 		}
-		$i++
-	}
-	if (!$winLanguageId -or !$winLanguageName) {
-		if ($Lang -ne "List") {
-			Write-Host "Invalid Windows language provided."
-			Write-Host "Use '-Lang List' for a list of available languages or remove the option to use system default."
+		if (!$winLanguageId -or !$winLanguageName) {
+			if ($Lang -ne "List") {
+				Write-Host "Invalid Windows language provided."
+				Write-Host "Use '-Lang List' for a list of available languages or remove the option to use system default."
+			}
+			exit 1
 		}
-		exit 1
-	}
 
-	# Language selection => Request and populate Arch download links
-	$links = Get-Windows-Download-Links $winVersionId $winReleaseId $winEditionId $winLanguageId $winLanguageName
-	if (!$links) {
-		exit 3
-	}
-	if ($Arch -eq "List") {
-		Write-Host "Please select an Architecture (-Arch) for ${Selected}:"
-	}
-	$i = 0
-	foreach ($link in $links) {
+		# Language selection => Request and populate Arch download links
+		$links = Get-Windows-Download-Links $winVersionId $winReleaseId $winEditionId $winLanguageId $winLanguageName
+		if (!$links) {
+			exit 3
+		}
 		if ($Arch -eq "List") {
-			Write-Host " -" $link.Type
-		} elseif ((!$Arch -and $script:SelectedIndex -eq $i) -or ($Arch -and $link.Type -match $Arch)) {
-			if (!$Arch -and $Verbosity -ge 1) {
-				Write-Host "No architecture specified (-Arch). Defaulting to '$($link.Type)'."
+			Write-Host "Please select an Architecture (-Arch) for ${Selected}:"
+		}
+		$i = 0
+		foreach ($link in $links) {
+			if ($Arch -eq "List") {
+				Write-Host " -" $link.Type
+			} elseif ((!$Arch -and $script:SelectedIndex -eq $i) -or ($Arch -and $link.Type -match $Arch)) {
+				if (!$Arch -and $Verbosity -ge 1) {
+					Write-Host "No architecture specified (-Arch). Defaulting to '$($link.Type)'."
+				}
+				$Selected += ", [" + $link.Type + "]"
+				$winLink = $link
+				break;
 			}
-			$Selected += ", [" + $link.Type + "]"
-			$winLink = $link
-			break;
+			$i++
 		}
-		$i++
-	}
-	if ($winLink -eq $null) {
-		if ($Arch -ne "List") {
-			Write-Host "Invalid Windows architecture provided."
-			Write-Host "Use '-Arch List' for a list of available architectures or remove the option to use system default."
+		if ($null -eq $winLink) {
+			if ($Arch -ne "List") {
+				Write-Host "Invalid Windows architecture provided."
+				Write-Host "Use '-Arch List' for a list of available architectures or remove the option to use system default."
+			}
+			exit 1
 		}
-		exit 1
+
+		# Arch selection => Return selected download link
+		if ($GetUrl) {
+			Return $winLink.Link
+			$ExitCode = 0
+		} else {
+			Write-Host "Selected: $Selected"
+			$ExitCode = Process-Download-Link $winLink.Link
+		}
+
+		# Clean up & exit
+		exit $ExitCode
 	}
 
-	# Arch selection => Return selected download link
-	if ($GetUrl) {
-		Return $winLink.Link
-		$ExitCode = 0
+	# Form creation
+	$XMLForm = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $XAML))
+	$XAML.SelectNodes("//*[@Name]") | ForEach-Object { Set-Variable -Name ($_.Name) -Value $XMLForm.FindName($_.Name) -Scope Script }
+	$XMLForm.Title = $AppTitle
+	if ($Icon) {
+		$XMLForm.Icon = $Icon
 	} else {
-		Write-Host "Selected: $Selected"
-		$ExitCode = Process-Download-Link $winLink.Link
+		$XMLForm.Icon = [Gui.Utils]::ExtractIcon("shell32.dll", -41, $true) | ConvertTo-ImageSource
 	}
+	if ($Locale.StartsWith("ar") -or $Locale.StartsWith("fa") -or $Locale.StartsWith("he")) {
+		$XMLForm.FlowDirection = "RightToLeft"
+	}
+	$WindowsVersionTitle.Text = Get-Translation("Version")
+	$Continue.Content = Get-Translation("Continue")
+	$Back.Content = Get-Translation("Close")
+
+	# Populate the Windows versions
+	$i = 0
+	$versions = @()
+	foreach ($version in $WindowsVersions) {
+		$versions += @(New-Object PsObject -Property @{ Version = $version[0][0]; PageType = $version[0][1]; Index = $i })
+		$i++
+	}
+	$WindowsVersion.ItemsSource = $versions
+	$WindowsVersion.DisplayMemberPath = "Version"
+
+	# Button Action
+	$Continue.add_click({
+			$script:Stage++
+			$XMLGrid.Children[2 * $Stage + 1].IsEnabled = $False
+			$Continue.IsEnabled = $False
+			$Back.IsEnabled = $False
+			Refresh-Control($Continue)
+			Refresh-Control($Back)
+
+			switch ($Stage) {
+
+				1 {
+					# Windows Version selection
+					$XMLForm.Title = Get-Translation($English[12])
+					Refresh-Control($XMLForm)
+					if ($WindowsVersion.SelectedValue.Version.StartsWith("Windows") -and $WindowsVersion.SelectedValue.Version -ne "Windows 7") {
+						Check-Locale
+					}
+					$releases = Get-Windows-Releases $WindowsVersion.SelectedValue.Index
+					$script:WindowsRelease = Add-Entry $Stage "Release" $releases
+					$Back.Content = Get-Translation($English[8])
+					$XMLForm.Title = $AppTitle
+				}
+
+				2 {
+					# Windows Release selection => Populate Product Edition
+					$editions = Get-Windows-Editions $WindowsVersion.SelectedValue.Index $WindowsRelease.SelectedValue.Index
+					$script:ProductEdition = Add-Entry $Stage "Edition" $editions
+				}
+
+				3 {
+					# Product Edition selection => Request and populate languages
+					$XMLForm.Title = Get-Translation($English[12])
+					Refresh-Control($XMLForm)
+					$languages = Get-Windows-Languages $WindowsVersion.SelectedValue.Index $ProductEdition.SelectedValue.Id
+					if ($languages.Length -eq 0) {
+						break
+					}
+					$script:Language = Add-Entry $Stage "Language" $languages "DisplayLanguage"
+					$Language.SelectedIndex = $script:SelectedIndex
+					$XMLForm.Title = $AppTitle
+				}
+
+				4 {
+					# Language selection => Request and populate Arch download links
+					$XMLForm.Title = Get-Translation($English[12])
+					Refresh-Control($XMLForm)
+					$links = Get-Windows-Download-Links $WindowsVersion.SelectedValue.Index $WindowsRelease.SelectedValue.Index $ProductEdition.SelectedValue.Id $Language.SelectedValue.Id $Language.SelectedValue.Language
+					if ($links.Length -eq 0) {
+						break
+					}
+					$script:Architecture = Add-Entry $Stage "Architecture" $links "Type"
+					if ($PipeName) {
+						$XMLForm.Height += $dh / 2;
+						$Margin = $Continue.Margin
+						$top = $Margin.Top
+						$Margin.Top += $dh / 2
+						$Continue.Margin = $Margin
+						$Margin = $Back.Margin
+						$Margin.Top += $dh / 2
+						$Back.Margin = $Margin
+						$Margin = $Check.Margin
+						$Margin.Top = $top - 2
+						$Check.Margin = $Margin
+						$Check.Content = Get-Translation($English[13])
+						$Check.Visibility = "Visible"
+					}
+					$Architecture.SelectedIndex = $script:SelectedIndex
+					$Continue.Content = Get-Translation("Download")
+					$XMLForm.Title = $AppTitle
+				}
+
+				5 {
+					# Arch selection => Return selected download link
+					$script:ExitCode = Process-Download-Link $Architecture.SelectedValue.Link
+					$XMLForm.Close()
+				}
+			}
+			$Continue.IsEnabled = $True
+			if ($Stage -ge 0) {
+				$Back.IsEnabled = $True
+			}
+		})
+
+	$Back.add_click({
+			if ($Stage -eq 0) {
+				$XMLForm.Close()
+			} else {
+				$XMLGrid.Children.RemoveAt(2 * $Stage + 3)
+				$XMLGrid.Children.RemoveAt(2 * $Stage + 2)
+				$XMLGrid.Children[2 * $Stage + 1].IsEnabled = $True
+				$dh2 = $dh
+				if ($Stage -eq 4 -and $PipeName) {
+					$Check.Visibility = "Collapsed"
+					$dh2 += $dh / 2
+				}
+				$XMLForm.Height -= $dh2;
+				$Margin = $Continue.Margin
+				$Margin.Top -= $dh2
+				$Continue.Margin = $Margin
+				$Margin = $Back.Margin
+				$Margin.Top -= $dh2
+				$Back.Margin = $Margin
+				$script:Stage = $Stage - 1
+				$XMLForm.Title = $AppTitle
+				if ($Stage -eq 0) {
+					$Back.Content = Get-Translation("Close")
+				} else {
+					$Continue.Content = Get-Translation("Continue")
+					Refresh-Control($Continue)
+				}
+			}
+		})
+
+	# Display the dialog
+	$XMLForm.Add_Loaded( { $XMLForm.Activate() } )
+	$XMLForm.ShowDialog() | Out-Null
 
 	# Clean up & exit
 	exit $ExitCode
 }
-
-# Form creation
-$XMLForm = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $XAML))
-$XAML.SelectNodes("//*[@Name]") | ForEach-Object { Set-Variable -Name ($_.Name) -Value $XMLForm.FindName($_.Name) -Scope Script }
-$XMLForm.Title = $AppTitle
-if ($Icon) {
-	$XMLForm.Icon = $Icon
-} else {
-	$XMLForm.Icon = [Gui.Utils]::ExtractIcon("shell32.dll", -41, $true) | ConvertTo-ImageSource
-}
-if ($Locale.StartsWith("ar") -or $Locale.StartsWith("fa") -or $Locale.StartsWith("he")) {
-	$XMLForm.FlowDirection = "RightToLeft"
-}
-$WindowsVersionTitle.Text = Get-Translation("Version")
-$Continue.Content = Get-Translation("Continue")
-$Back.Content = Get-Translation("Close")
-
-# Populate the Windows versions
-$i = 0
-$versions = @()
-foreach($version in $WindowsVersions) {
-	$versions += @(New-Object PsObject -Property @{ Version = $version[0][0]; PageType = $version[0][1]; Index = $i })
-	$i++
-}
-$WindowsVersion.ItemsSource = $versions
-$WindowsVersion.DisplayMemberPath = "Version"
-
-# Button Action
-$Continue.add_click({
-	$script:Stage++
-	$XMLGrid.Children[2 * $Stage + 1].IsEnabled = $False
-	$Continue.IsEnabled = $False
-	$Back.IsEnabled = $False
-	Refresh-Control($Continue)
-	Refresh-Control($Back)
-
-	switch ($Stage) {
-
-		1 { # Windows Version selection
-			$XMLForm.Title = Get-Translation($English[12])
-			Refresh-Control($XMLForm)
-			if ($WindowsVersion.SelectedValue.Version.StartsWith("Windows") -and $WindowsVersion.SelectedValue.Version -ne "Windows 7") {
-				Check-Locale
-			}
-			$releases = Get-Windows-Releases $WindowsVersion.SelectedValue.Index
-			$script:WindowsRelease = Add-Entry $Stage "Release" $releases
-			$Back.Content = Get-Translation($English[8])
-			$XMLForm.Title = $AppTitle
-		}
-
-		2 { # Windows Release selection => Populate Product Edition
-			$editions = Get-Windows-Editions $WindowsVersion.SelectedValue.Index $WindowsRelease.SelectedValue.Index
-			$script:ProductEdition = Add-Entry $Stage "Edition" $editions
-		}
-
-		3 { # Product Edition selection => Request and populate languages
-			$XMLForm.Title = Get-Translation($English[12])
-			Refresh-Control($XMLForm)
-			$languages = Get-Windows-Languages $WindowsVersion.SelectedValue.Index $ProductEdition.SelectedValue.Id
-			if ($languages.Length -eq 0) {
-				break
-			}
-			$script:Language = Add-Entry $Stage "Language" $languages "DisplayLanguage"
-			$Language.SelectedIndex = $script:SelectedIndex
-			$XMLForm.Title = $AppTitle
-		}
-
-		4 { # Language selection => Request and populate Arch download links
-			$XMLForm.Title = Get-Translation($English[12])
-			Refresh-Control($XMLForm)
-			$links = Get-Windows-Download-Links $WindowsVersion.SelectedValue.Index $WindowsRelease.SelectedValue.Index $ProductEdition.SelectedValue.Id $Language.SelectedValue.Id $Language.SelectedValue.Language
-			if ($links.Length -eq 0) {
-				break
-			}
-			$script:Architecture = Add-Entry $Stage "Architecture" $links "Type"
-			if ($PipeName) {
-				$XMLForm.Height += $dh / 2;
-				$Margin = $Continue.Margin
-				$top = $Margin.Top
-				$Margin.Top += $dh /2
-				$Continue.Margin = $Margin
-				$Margin = $Back.Margin
-				$Margin.Top += $dh / 2
-				$Back.Margin = $Margin
-				$Margin = $Check.Margin
-				$Margin.Top = $top - 2
-				$Check.Margin = $Margin
-				$Check.Content = Get-Translation($English[13])
-				$Check.Visibility = "Visible"
-			}
-			$Architecture.SelectedIndex = $script:SelectedIndex
-			$Continue.Content = Get-Translation("Download")
-			$XMLForm.Title = $AppTitle
-		}
-
-		5 { # Arch selection => Return selected download link
-			$script:ExitCode = Process-Download-Link $Architecture.SelectedValue.Link
-			$XMLForm.Close()
-		}
-	}
-	$Continue.IsEnabled = $True
-	if ($Stage -ge 0) {
-		$Back.IsEnabled = $True
-	}
-})
-
-$Back.add_click({
-	if ($Stage -eq 0) {
-		$XMLForm.Close()
-	} else {
-		$XMLGrid.Children.RemoveAt(2 * $Stage + 3)
-		$XMLGrid.Children.RemoveAt(2 * $Stage + 2)
-		$XMLGrid.Children[2 * $Stage + 1].IsEnabled = $True
-		$dh2 = $dh
-		if ($Stage -eq 4 -and $PipeName) {
-			$Check.Visibility = "Collapsed"
-			$dh2 += $dh / 2
-		}
-		$XMLForm.Height -= $dh2;
-		$Margin = $Continue.Margin
-		$Margin.Top -= $dh2
-		$Continue.Margin = $Margin
-		$Margin = $Back.Margin
-		$Margin.Top -= $dh2
-		$Back.Margin = $Margin
-		$script:Stage = $Stage - 1
-		$XMLForm.Title = $AppTitle
-		if ($Stage -eq 0) {
-			$Back.Content = Get-Translation("Close")
-		} else {
-			$Continue.Content = Get-Translation("Continue")
-			Refresh-Control($Continue)
-		}
-	}
-})
-
-# Display the dialog
-$XMLForm.Add_Loaded( { $XMLForm.Activate() } )
-$XMLForm.ShowDialog() | Out-Null
-
-# Clean up & exit
-exit $ExitCode
-
 # SIG # Begin signature block
 # MIIkWQYJKoZIhvcNAQcCoIIkSjCCJEYCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
