@@ -9,10 +9,8 @@ $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 
-
-# $folders.foreach{$ENV:Path += ";$_.FullName"}
-# $USBfolders.foreach{$ENV:Path += ";$_.FullName"}
-# $foldersx86.foreach{$ENV:Path += ";$_.FullName"}
+#Make sure powershell is up-to-date
+iex "& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI"
 
 $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
 $env:Path += ";$($env:ChocolateyInstall);`"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\`""
