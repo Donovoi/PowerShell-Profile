@@ -1157,7 +1157,7 @@ function Get-WindowsISO {
 				}
 			}
 		})
-
+	# Get-WindowsISO
 	# Display the dialog
 	$XMLForm.Add_Loaded( { $XMLForm.Activate() } )
 	$XMLForm.ShowDialog() | Out-Null
@@ -1165,4 +1165,4 @@ function Get-WindowsISO {
 	# Clean up & exit
 	exit $ExitCode
 }
-Get-WindowsISO
+
