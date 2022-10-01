@@ -45,9 +45,9 @@ function Get-WindowsISO {
 		# (Optional) Specify Windows architecture [Toggles commandline mode]
 		[string]$Arch,
 		# (Optional) Only display the download URL [Toggles commandline mode]
-		[switch]$GetUrl = $False,
-		# (Optional) Increase verbosity
-		[switch]$Verbose = $False
+		[switch]$GetUrl = $False
+		# # (Optional) Increase verbosity
+		# [switch]$Verbose = $False
 	)
 	#endregion
 
@@ -1165,3 +1165,4 @@ function Get-WindowsISO {
 	# Clean up & exit
 	exit $ExitCode
 }
+Get-WindowsISO
