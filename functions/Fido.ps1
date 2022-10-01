@@ -21,7 +21,6 @@
 # NB: You must have a BOM on your .ps1 if you want Powershell to actually
 # realise it should use Unicode for the UI rather than ISO-8859-1.
 
-#region Parameters
 function Get-WindowsISO {
 	[CmdletBinding()]
 	param(
