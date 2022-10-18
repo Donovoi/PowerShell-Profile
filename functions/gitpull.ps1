@@ -16,6 +16,7 @@ Function Git-Pull {
         git fetch --all; 
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD); 
         git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]); 
+        Write-Output "Git pull complete for $($pathparent)[0]"
         #git pull --verbose; 
         #git config --global --add safe.directory $(Resolve-Path .)
         #git config --global --add safe.directory '*'
