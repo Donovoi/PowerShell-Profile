@@ -10,11 +10,12 @@ Function Git-Pull {
     # Find all git repositories in any directory on this drive, then perform git pull on each one.
     $DriveLetter = Get-PSDrive | Where-Object { $_.Description -eq 'X-Ways Portable' } | Select-Object -Property root
     [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -Parallel { 
-        $ErrorActionPreference = 'Continue'
+        $ErrorActionPreference = 'SilentlyContinue'
         $pathparent = $_ -split '.git'
         Write-Output "Pulling from $pathparent"
         Set-Location -Path $($pathparent)[0]
-        git fetch --all; 
+        # verbose git fetch
+        git fetch --all --verbose
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD); 
         git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]); 
         Write-Output "Git pull complete for $($pathparent)[0]"
