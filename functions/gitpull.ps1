@@ -9,7 +9,7 @@ Function Git-Pull {
     Start-AsAdmin -WindowsPowerShell -Verbose
     # Find all git repositories in any directory on this drive, then perform git pull on each one.
     $DriveLetter = Get-PSDrive | Where-Object { $_.Description -eq 'X-Ways Portable' } | Select-Object -Property root
-    [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -ErrorAction SilentlyContinue -Process { 
+    [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -ErrorAction SilentlyContinue -Parallel { 
   
         $pathparent = $_ -split '.git'
         Set-Location -Path $($pathparent)[0]
