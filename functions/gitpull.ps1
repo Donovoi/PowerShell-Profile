@@ -12,6 +12,7 @@ Function Git-Pull {
     [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -Parallel { 
         $ErrorActionPreference = 'Continue'
         $pathparent = $_ -split '.git'
+        Write-Output "Pulling from $pathparent"
         Set-Location -Path $($pathparent)[0]
         git fetch --all; 
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD); 
