@@ -708,5 +708,7 @@ function Update-USBTools {
     Get-Zimmer
     Install-LatestDotNet
     Git-Pull
+    # wsl.exe --update
+    # wsl.exe -e 'sudo apt update && sudo apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean'
 }
 
