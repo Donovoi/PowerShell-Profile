@@ -52,7 +52,9 @@ Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
 }
 
 # ---
-
+if (wsl.exe -l -q) {
+    Import-WslCommand 'apt', 'awk', 'emacs', 'find', 'grep', 'head', 'less', 'ls', 'man', 'sed', 'seq', 'ssh', 'sudo', 'tail', 'touch', 'vim', 'wget', 'whoami', 'nano'
+}
 
 # This is an example profile for PSReadLine.
 #
@@ -708,7 +710,8 @@ function Update-USBTools {
     Get-Zimmer
     Install-LatestDotNet
     Git-Pull
-    # wsl.exe --update
-    # wsl.exe -e 'sudo apt update && sudo apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean'
+    # update all wsl distrobutions
+    #Update-WSL
+
 }
 
