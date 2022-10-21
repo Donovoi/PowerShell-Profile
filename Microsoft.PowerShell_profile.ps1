@@ -13,7 +13,7 @@ $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
 #iex "& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI"
 
 $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
-$env:Path += ";$($env:ChocolateyInstall);`"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\;`"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;`""
+$env:Path += ";$($env:ChocolateyInstall);$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }
