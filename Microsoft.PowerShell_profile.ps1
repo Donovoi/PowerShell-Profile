@@ -53,7 +53,7 @@ Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
 
 # ---
 if (wsl.exe -l -q) {
-    Import-WslCommand 'apt', 'awk', 'emacs', 'find', 'grep', 'head', 'less', 'ls', 'man', 'sed', 'seq', 'ssh', 'sudo', 'tail', 'touch', 'vim', 'wget', 'whoami', 'nano'
+    Import-WslCommand 'apt', 'awk', 'emacs', 'find', 'grep', 'head', 'less', 'man', 'sed', 'seq', 'ssh', 'sudo', 'tail', 'touch', 'vim', 'wget', 'whoami', 'nano'
 }
 
 # This is an example profile for PSReadLine.
