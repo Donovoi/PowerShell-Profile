@@ -9,17 +9,17 @@ function Start-AsAdmin {
     $ErrorActionPreference = 'Continue'
     #Get current user context
     $CurrentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
-    $StartPowershellVersion = "pwsh"
+    $StartPowershellVersion = 'pwsh'
       
     #Check user running the script is member of Administrator Group
     if ($CurrentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-        Write-Host "Script is already running with Administrator privileges!"
+        Write-Host 'Script is already running with Administrator privileges!'
     } else {
         if ($windowsPowerShell) {
-            $StartPowershellVersion = "PowerShell.exe"
+            $StartPowershellVersion = 'PowerShell.exe'
         }
         #Create a new Elevated process to Start PowerShell
-        Start-Process -FilePath $StartPowershellVersion -ArgumentList " -ExecutionPolicy Bypass -noexit $($OriginalCommand)" -PassThru -Verb "runas" -Verbose
+        Start-Process -FilePath $StartPowershellVersion -ArgumentList " -ExecutionPolicy Bypass -noexit $($OriginalCommand)" -PassThru -Verb 'runas' -Verbose
      
         # Specify the current script path and name as a parameter
         #$ElevatedProcess.Arguments = "& '" + $script:MyInvocation.MyCommand.Path + "'" + "-NoProfile -ExecutionPolicy Bypass -NoExit"
