@@ -9,8 +9,7 @@ $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 
-#Make sure powershell is up-to-date
-#iex "& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI"
+
 
 $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
 $env:Path += ";$($env:ChocolateyInstall);$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
@@ -692,26 +691,5 @@ if (Test-Path($ChocolateyProfile)) {
     Import-Module "$ChocolateyProfile"
 }
 
-function Update-USBTools {
-    $firstcommand = { $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"; `
-            $xml = Get-ChildItem "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\license\*.xml"; `
-            Rename-Item $xml[0] choco.xml; `
-            chocolatey upgrade chocolatey.extension; `
-            Rename-Item "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\license\choco.xml" chocolatey.license.xml; `
-            chocolatey upgrade chocolatey.extension; `
-            cup all };
-    $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
-    $Encoded = [System.Convert]::ToBase64String($bytes)
-    Start-Process pwsh -ArgumentList "-noexit -EncodedCommand $Encoded"
-    # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'o2k13 enu /includedotnet /includewddefs /verify'
-    # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'DownloadUpdates w62-x64 w63  w63-x64  w100  w100-x64  ofc  o2k16 /includedotnet /includewddefs /verify'
-    Update-VcRedist
-    Update-VSCodes
-    Get-Zimmer
-    Install-LatestDotNet
-    Git-Pull
-    # update all wsl distrobutions
-    #Update-WSL
 
-}
 
