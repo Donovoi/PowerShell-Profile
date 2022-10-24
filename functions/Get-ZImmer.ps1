@@ -12,7 +12,7 @@ function Get-Zimmer {
     Start-Process pwsh -ArgumentList "-NoProfile -ExecutionPolicy unrestricted -Command `". `"$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1 -netVersion 6`""
     $ProgressPreference = 'SilentlyContinue'
     $Global:ENV:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin"
-    Invoke-WebRequest -Uri "https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip" -OutFile "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\ZimmermanTools.zip" -Verbose 
+    Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\ZimmermanTools.zip" -Verbose 
     Expand-Archive -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\ZimmermanTools.zip" -DestinationPath "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\ZimmermanTools" -Force
     # We now have a a folder with many zip files in it. We need to extract each one to the same folder "$ENV:TEMP\extracted" .
     Get-ChildItem -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\ZimmermanTools" -Filter *.zip -File | ForEach-Object -Process { 
