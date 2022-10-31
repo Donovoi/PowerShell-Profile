@@ -1,7 +1,7 @@
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $GLOBAL:ErrorActionPreference = 'continue'
-$parentpathprofile = $($(Resolve-Path -Path $Profile) -split 'Microsoft.PowerShell_profile.ps1')[0]
+$parentpathprofile = $(Resolve-Path -Path $ENV:) -split "/"[-1]
 $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
 Remove-Item "$parentpathprofile/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
 $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
@@ -26,7 +26,7 @@ if (-not ((Get-Command oh-my-posh).Source)) {
 }
 RefreshEnv.cmd
 Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine , PSColors
-Import-Module -Name ".\Modules\PowerShell-WSL-Interop-0.4.0\WslInterop.psd1"
+Import-Module -Name "$parentpathprofile/modules/PowerShell-WSL-Interop-0.4.0\WslInterop.psd1"
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
 Copy-Item -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
