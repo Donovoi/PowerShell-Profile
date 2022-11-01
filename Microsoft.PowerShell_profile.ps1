@@ -1,7 +1,7 @@
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $GLOBAL:ErrorActionPreference = 'continue'
-$parentpathprofile = $(Resolve-Path -Path $ENV:) -split "/"[-1]
+$parentpathprofile = $(Resolve-Path -Path $PROFILE) -split "/"[-1]
 $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
 Remove-Item "$parentpathprofile/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
 $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
