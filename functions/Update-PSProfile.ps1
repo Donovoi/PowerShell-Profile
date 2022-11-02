@@ -1,7 +1,7 @@
 function Update-PSProfile {
     [CmdletBinding()]
     param (
-        $Global:parentpathprofile = $($(Resolve-Path -Path $Profile) -split 'Microsoft.PowerShell_profile.ps1')[0]  
+        $parentpathprofile = $(Get-Item $PROFILE).Directory.FullName
     )    
     Start-AsAdmin
     if (-not(Test-Path $PROFILE)) {
@@ -20,6 +20,8 @@ function Update-PSProfile {
         Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
         Write-Error -Message "$_"
     } finally {
+        # Clean up any bak files
+        Get-ChildItem -Path $parentpathprofile -Filter *.bak -Recurse | Remove-Item -Force
         # Import all functions from functions folder
         $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
         $FunctionsFolder.ForEach{ Import-Module $_.FullName }
