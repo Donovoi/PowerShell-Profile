@@ -38,7 +38,3 @@ function Get-UniqueStrings {
 
 
 }
-
-
-Measure-Command -Expression { Get-UniqueStrings -Path $ENV:USERPROFILE\case2 -FinalFile $ENV:USERPROFILE\case.txt -Verbose } -Verbose
-Start-Process Notepad++.exe -ArgumentList $("$ENV:USERPROFILE\case.txt")
