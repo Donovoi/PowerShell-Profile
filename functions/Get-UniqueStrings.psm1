@@ -21,8 +21,6 @@ function GetStrings {
   }
 }
 
-
-
 function Import-Content {
   [CmdletBinding()]
   param(
@@ -38,7 +36,7 @@ function Import-Content {
     $Raw
   )
   process {
-    $Files = Get-ChildItem -LiteralPath $Path -Recurse -Force -File
+    $Files = Get-ChildItem $Path -Recurse -Force -File
     foreach ($file in (Resolve-Path -LiteralPath $Files)) {
       if (Test-Path -LiteralPath $file -PathType Leaf) {
         if ($Raw) {
