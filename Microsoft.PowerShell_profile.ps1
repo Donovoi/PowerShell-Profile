@@ -6,7 +6,7 @@ $profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
-$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/*.ps*" -Recurse
+$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/Get-UniqueStrings/*.ps*"
 
 $ModulesFolder.foreach{
     Import-Module -Name $_.FullName
