@@ -11,14 +11,14 @@ $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/Get-UniqueStrin
 $ModulesFolder.foreach{
     Import-Module -Name $_.FullName
 }
-# $USBfolders = Get-ChildItem "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps" -Directory -Recurse -Force -Verbose -erroraction silentlycontinue | out-null
+$ENV:PATH += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin;"
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 
 
 
 $env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
-$env:Path += ";$($env:ChocolateyInstall);$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Triage\KAPE\Modules\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
+$env:Path += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }
