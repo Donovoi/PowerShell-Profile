@@ -6,6 +6,10 @@ $profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
+$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/*.ps*" -Recurse
+$ModulesFolder.foreach($Module In $ModulesFolder) {
+    Import-Module -Name $Module.FullName
+}
 # $USBfolders = Get-ChildItem "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps" -Directory -Recurse -Force -Verbose -erroraction silentlycontinue | out-null
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
