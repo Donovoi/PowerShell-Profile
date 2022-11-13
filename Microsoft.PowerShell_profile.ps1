@@ -2,9 +2,9 @@ using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $GLOBAL:ErrorActionPreference = 'continue'
 #$profileps1 = $(Resolve-Path -Path $PROFILE) -split "\"[-1]
-$profileparentpath = $(get-item $PROFILE ).Directory.FullName
-$FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*" -Recurse
+$profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
+$FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*" -Recurse
 $FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
 # $USBfolders = Get-ChildItem "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps" -Directory -Recurse -Force -Verbose -erroraction silentlycontinue | out-null
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
