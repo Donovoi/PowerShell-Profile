@@ -5,7 +5,7 @@ $GLOBAL:ErrorActionPreference = 'continue'
 $profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
-$FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue}
+$FunctionsFolder.ForEach{ . $_.FullName -ErrorAction SilentlyContinue }
 $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/Get-UniqueStrings/*.ps*"
 
 $ModulesFolder.foreach{
@@ -57,11 +57,6 @@ Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
     }
 }
 
-# ---
-if (wsl.exe -l -q) {
-    Import-WslCommand 'apt', 'awk', 'emacs', 'find', 'grep', 'head', 'less', 'man', 'sed', 'seq', 'ssh', 'sudo', 'tail', 'touch', 'vim', 'wget', 'whoami', 'nano'
-}
-
 # This is an example profile for PSReadLine.
 #
 # This is roughly what I use so there is some emphasis on emacs bindings,
@@ -98,7 +93,8 @@ Set-PSReadLineKeyHandler -Key F7 `
                 $line = $line.Substring(0, $line.Length - 1)
                 $lines = if ($lines) {
                     "$lines`n$line"
-                } else {
+                }
+                else {
                     $line
                 }
                 continue
@@ -221,7 +217,8 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
         if ($line[0..$cursor].Where{ $_ -eq $quote }.Count % 2 -eq 1) {
             # Odd number of quotes before the cursor, insert a single quote
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
-        } else {
+        }
+        else {
             # Insert matching quotes, move cursor to be in between the quotes
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$quote$quote")
             [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
@@ -275,7 +272,8 @@ Set-PSReadLineKeyHandler -Key '(', '{', '[' `
         # Text is selected, wrap it in brackets
         [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $key.KeyChar + $line.SubString($selectionStart, $selectionLength) + $closeChar)
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-    } else {
+    }
+    else {
         # No text is selected, insert a pair
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)$closeChar")
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
@@ -294,7 +292,8 @@ Set-PSReadLineKeyHandler -Key ')', ']', '}' `
 
     if ($line[$cursor] -eq $key.KeyChar) {
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-    } else {
+    }
+    else {
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)")
     }
 }
@@ -333,7 +332,8 @@ Set-PSReadLineKeyHandler -Key Backspace `
 
         if ($toMatch -ne $null -and $line[$cursor - 1] -eq $toMatch) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Delete($cursor - 1, 2)
-        } else {
+        }
+        else {
             [Microsoft.PowerShell.PSConsoleReadLine]::BackwardDeleteChar($key, $arg)
         }
     }
@@ -370,7 +370,8 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
         # Get clipboard text - remove trailing spaces, convert \r\n to \n, and remove the final \n.
         $text = ([System.Windows.Clipboard]::GetText() -replace "\p{Zs}*`r?`n", "`n").TrimEnd()
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert("@'`n$text`n'@")
-    } else {
+    }
+    else {
         [Microsoft.PowerShell.PSConsoleReadLine]::Ding()
     }
 }
@@ -394,7 +395,8 @@ Set-PSReadLineKeyHandler -Key 'Alt+(' `
     if ($selectionStart -ne -1) {
         [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, '(' + $line.SubString($selectionStart, $selectionLength) + ')')
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-    } else {
+    }
+    else {
         [Microsoft.PowerShell.PSConsoleReadLine]::Replace(0, $line.Length, '(' + $line + ')')
         [Microsoft.PowerShell.PSConsoleReadLine]::EndOfLine()
     }
@@ -439,10 +441,12 @@ Set-PSReadLineKeyHandler -Key "Alt+'" `
         if ($tokenText[0] -eq '"' -and $tokenText[-1] -eq '"') {
             # Switch to no quotes
             $replacement = $tokenText.Substring(1, $tokenText.Length - 2)
-        } elseif ($tokenText[0] -eq "'" -and $tokenText[-1] -eq "'") {
+        }
+        elseif ($tokenText[0] -eq "'" -and $tokenText[-1] -eq "'") {
             # Switch to double quotes
             $replacement = '"' + $tokenText.Substring(1, $tokenText.Length - 2) + '"'
-        } else {
+        }
+        else {
             # Add single quotes
             $replacement = "'" + $tokenText + "'"
         }
@@ -566,7 +570,7 @@ Set-PSReadLineKeyHandler -Key Alt+j `
 
     $global:PSReadLineMarks.GetEnumerator() | ForEach-Object {
         [PSCustomObject]@{Key = $_.Key; Dir = $_.Value } } |
-        Format-Table -AutoSize | Out-Host
+    Format-Table -AutoSize | Out-Host
 
     [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
@@ -602,7 +606,8 @@ Set-PSReadLineKeyHandler -Key RightArrow `
 
     if ($cursor -lt $line.Length) {
         [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
-    } else {
+    }
+    else {
         [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
     }
 }
@@ -635,7 +640,8 @@ Set-PSReadLineKeyHandler -Key Alt+a `
 
     if ($null -ne $arg) {
         $nextAst = $asts[$arg - 1]
-    } else {
+    }
+    else {
         foreach ($ast in $asts) {
             if ($ast.Extent.StartOffset -ge $cursor) {
                 $nextAst = $ast
