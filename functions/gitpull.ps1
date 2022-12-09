@@ -9,7 +9,7 @@ Function Git-Pull {
     Start-AsAdmin -WindowsPowerShell -Verbose
     # Find all ein repositories in any directory on this drive, then perform ein pull on each one.
     $DriveLetter = Get-PSDrive | Where-Object { $_.Description -eq 'X-Ways Portable' } | Select-Object -Property root
-    [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.ein', 'AllDirectories') | ForEach-Object -Verbose -Process { 
+    [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -Verbose -Process { 
         $ErrorActionPreference = 'SilentlyContinue'
         $pathparent = $_ -split '.ein'
         Write-Output "Pulling from $pathparent"
