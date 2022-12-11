@@ -11,14 +11,14 @@ Function Git-Pull {
     $DriveLetter = Get-PSDrive | Where-Object { $_.Description -eq 'X-Ways Portable' } | Select-Object -Property root
     [System.IO.Directory]::EnumerateDirectories($DriveLetter.root, '.git', 'AllDirectories') | ForEach-Object -Verbose -Process { 
         $ErrorActionPreference = 'SilentlyContinue'
-        $pathparent = $_ -split '.ein'
+        $pathparent = $_ -split '.git'
         Write-Output "Pulling from $pathparent"
         Set-Location -Path $($pathparent)[0]
         # verbose ein fetch
-        ein fetch --all --verbose
-        $NAMEOFHEAD = $(ein symbolic-ref refs/remotes/origin/HEAD) 
-        ein reset --hard origin/$($NAMEOFHEAD.split('/')[-1]) 
-        Write-Output "ein pull complete for $($pathparent)[0]"
+        gix fetch --all --verbose
+        $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD) 
+        git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]) 
+        Write-Output "git pull complete for $($pathparent)[0]"
         [GC]::Collect()
         #ein pull --verbose; 
         #ein config --global --add safe.directory $(Resolve-Path .)
