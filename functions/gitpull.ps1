@@ -14,6 +14,7 @@ Function Git-Pull {
         $pathparent = $_ -split '.git'
         Write-Output "Pulling from $pathparent"
         Set-Location -Path $($pathparent)[0]
+        git config --global --add safe.directory $(Resolve-Path .)
         # verbose ein fetch
         gix fetch #--all --verbose
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD) 
