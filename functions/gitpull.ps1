@@ -15,7 +15,7 @@ Function Git-Pull {
         Write-Output "Pulling from $pathparent"
         Set-Location -Path $($pathparent)[0]
         # verbose ein fetch
-        gix fetch --all --verbose
+        gix fetch #--all --verbose
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD) 
         git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]) 
         Write-Output "git pull complete for $($pathparent)[0]"
