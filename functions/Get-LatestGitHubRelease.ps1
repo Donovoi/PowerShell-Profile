@@ -25,3 +25,4 @@ function Get-LatestGitHubRelease {
         Write-Output "No release assets to download."
     }
 }
+
