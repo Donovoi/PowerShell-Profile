@@ -76,5 +76,3 @@ function Get-SpeedyDownload {
     # save the downloaded data to a file
     [System.IO.File]::WriteAllBytes("C:\temp\file.zip", $buffer)
 }
-
-Get-SpeedyDownload -Verbose
