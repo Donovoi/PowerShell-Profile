@@ -37,7 +37,6 @@ if (-not ((Get-Command oh-my-posh).Source)) {
 }
 RefreshEnv.cmd
 Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine , PSColors
-Import-Module -Name "$profileparentpath/modules/PowerShell-WSL-Interop-0.4.0\WslInterop.psd1"
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
 Copy-Item -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
