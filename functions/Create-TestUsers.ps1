@@ -25,7 +25,8 @@ Function Create-TestUsers {
     #Import required module ActiveDirectory
     try {
         Import-Module ActiveDirectory -ErrorAction Stop
-    } catch {
+    }
+    catch {
         throw 'Module GroupPolicy not Installed'
     }
 
@@ -39,7 +40,8 @@ Function Create-TestUsers {
 
         if (($firstname -eq 'Johan') -or ($firstname -eq 'Andreas')) {
             $Department = 'Cool Department' 
-        } else {
+        }
+        else {
             $i = Get-Random -Minimum 0 -Maximum $Departments.count
             $Department = $Departments[$i]
         }
@@ -52,7 +54,8 @@ Function Create-TestUsers {
             try { 
                 $userexists = Get-ADUser -Identity $username
                 $username = $firstname.Substring(0, 3).tolower() + $lastname.Substring(0, 3).tolower() + $count++
-            } catch {
+            }
+            catch {
                 $exit = 1
             }
         }

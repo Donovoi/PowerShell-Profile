@@ -121,8 +121,8 @@ function Get-GitBranch($branch = $null, $gitDir = $(Get-GitDirectory), [switch]$
             $b = Invoke-NullCoalescing `
                 $b `
                 $branch `
-                { dbg 'Trying symbolic-ref' $sw; git --no-optional-locks symbolic-ref HEAD -q 2>$null } `
-                { '({0})' -f (Invoke-NullCoalescing `
+            { dbg 'Trying symbolic-ref' $sw; git --no-optional-locks symbolic-ref HEAD -q 2>$null } `
+            { '({0})' -f (Invoke-NullCoalescing `
                     {
                         dbg 'Trying describe' $sw
                         switch ($Global:GitPromptSettings.DescribeStyle) {
@@ -399,16 +399,16 @@ function Get-GitStatus {
         $indexPaths = @(GetUniquePaths $indexAdded, $indexModified, $indexDeleted, $indexUnmerged)
         $workingPaths = @(GetUniquePaths $filesAdded, $filesModified, $filesDeleted, $filesUnmerged)
         $index = (, $indexPaths) |
-            Add-Member -Force -PassThru NoteProperty Added    $indexAdded.ToArray() |
-            Add-Member -Force -PassThru NoteProperty Modified $indexModified.ToArray() |
-            Add-Member -Force -PassThru NoteProperty Deleted  $indexDeleted.ToArray() |
-            Add-Member -Force -PassThru NoteProperty Unmerged $indexUnmerged.ToArray()
+        Add-Member -Force -PassThru NoteProperty Added    $indexAdded.ToArray() |
+        Add-Member -Force -PassThru NoteProperty Modified $indexModified.ToArray() |
+        Add-Member -Force -PassThru NoteProperty Deleted  $indexDeleted.ToArray() |
+        Add-Member -Force -PassThru NoteProperty Unmerged $indexUnmerged.ToArray()
 
         $working = (, $workingPaths) |
-            Add-Member -Force -PassThru NoteProperty Added    $filesAdded |
-            Add-Member -Force -PassThru NoteProperty Modified $filesModified.ToArray() |
-            Add-Member -Force -PassThru NoteProperty Deleted  $filesDeleted.ToArray() |
-            Add-Member -Force -PassThru NoteProperty Unmerged $filesUnmerged.ToArray()
+        Add-Member -Force -PassThru NoteProperty Added    $filesAdded |
+        Add-Member -Force -PassThru NoteProperty Modified $filesModified.ToArray() |
+        Add-Member -Force -PassThru NoteProperty Deleted  $filesDeleted.ToArray() |
+        Add-Member -Force -PassThru NoteProperty Unmerged $filesUnmerged.ToArray()
 
         $result = New-Object PSObject -Property @{
             GitDir       = $GitDir

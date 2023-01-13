@@ -117,7 +117,8 @@ function global:Import-WslCommand() {
         if ($null -eq $global:WslCompletionFunctions) {
             if (Test-Path $WslCompletionFunctionsCache) {
                 $global:WslCompletionFunctions = Import-Clixml $WslCompletionFunctionsCache
-            } else {
+            }
+            else {
                 $global:WslCompletionFunctions = @{}
             }
         }
@@ -134,8 +135,9 @@ function global:Import-WslCommand() {
                 # If the default completion function was overridden, use that.
                 if ($global:WslCompletionFunctions["-D"] -ne "_completion_loader") {
                     $global:WslCompletionFunctions[$command] = $global:WslCompletionFunctions["-D"]
-                # Otherwise, resort to _minimal which will return Linux file paths.
-                } else {
+                    # Otherwise, resort to _minimal which will return Linux file paths.
+                }
+                else {
                     $global:WslCompletionFunctions[$command] = "_minimal"
                 }
             }
@@ -158,17 +160,20 @@ function global:Import-WslCommand() {
                 $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
                 $COMP_CWORD = $i
                 break
-            } elseif ($cursorPosition -eq $extent.EndColumnNumber) {
+            }
+            elseif ($cursorPosition -eq $extent.EndColumnNumber) {
                 # The cursor is immediately after the current word.
                 $previousWord = $extent.Text
                 $COMP_CWORD = $i + 1
                 break
-            } elseif ($cursorPosition -lt $extent.StartColumnNumber) {
+            }
+            elseif ($cursorPosition -lt $extent.StartColumnNumber) {
                 # The cursor is within whitespace between the previous and current words.
                 $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
                 $COMP_CWORD = $i
                 break
-            } elseif ($i -eq $commandAst.CommandElements.Count - 1 -and $cursorPosition -gt $extent.EndColumnNumber) {
+            }
+            elseif ($i -eq $commandAst.CommandElements.Count - 1 -and $cursorPosition -gt $extent.EndColumnNumber) {
                 # The cursor is within whitespace at the end of the line.
                 $previousWord = $extent.Text
                 $COMP_CWORD = $i + 1
@@ -214,7 +219,8 @@ function global:Import-WslCommand() {
             if ($wordToComplete -match "(.*=).*") {
                 $completionText = Format-WslArgument ($Matches[1] + $_) $true
                 $listItemText = $_
-            } else {
+            }
+            else {
                 $completionText = Format-WslArgument $_ $true
                 $listItemText = $completionText
             }
@@ -252,7 +258,8 @@ function global:Format-WslArgument([string]$arg, [bool]$interactive) {
     
     if ($interactive) {
         $arg = (($arg -replace '([ ,(){}|&;])', '`$1'), "'$arg'")[$arg.Contains(" ")]
-    } else {
+    }
+    else {
         $arg = $arg -replace '(\\\\|\\[ ,(){}|&;])', '\\$1'
 
         while ($arg -match '([^\\](\\\\)*)([ ,(){}|&;])') {

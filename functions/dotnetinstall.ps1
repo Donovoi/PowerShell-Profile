@@ -49,7 +49,8 @@ function Install-LatestDotNet {
                 $newItems = $path.Split(':', [StringSplitOptions]::RemoveEmptyEntries) | Where-Object { "$($_)" -INotLike $VariableToRemove }
                 [System.Environment]::SetEnvironmentVariable('PATH', [System.String]::Join(':', $newItems), [System.EnvironmentVariableTarget]::Machine)
             }
-        } else {
+        }
+        else {
             # Windows
             $path = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::User)
             if ($null -ne $path) {
@@ -153,18 +154,21 @@ function Install-LatestDotNet {
                     $ret = Invoke-Command -ScriptBlock $RetryScript -ArgumentList $args
                     return $ret
                     break
-                } catch {
+                }
+                catch {
                     if ($global:Error.Count -gt 0) {
                         $global:Error.RemoveAt(0)
                     }
                     if ($count -eq 5) {
                         throw $_
-                    } else {
+                    }
+                    else {
                         Start-Sleep 10
                     }
                 }
             }
-        } finally {
+        }
+        finally {
             $ErrorActionPreference = $currentErrorAction
         }
     }

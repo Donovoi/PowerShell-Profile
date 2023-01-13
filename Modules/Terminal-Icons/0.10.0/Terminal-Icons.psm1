@@ -6,7 +6,7 @@ function Add-Theme {
     param(
         [Parameter(
             Mandatory,
-            ParameterSetName  = 'Path',
+            ParameterSetName = 'Path',
             Position = 0,
             ValueFromPipeline,
             ValueFromPipelineByPropertyName
@@ -36,7 +36,8 @@ function Add-Theme {
         # Resolve path(s)
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             $paths = Resolve-Path -Path $Path | Select-Object -ExpandProperty Path
-        } elseif ($PSCmdlet.ParameterSetName -eq 'LiteralPath') {
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'LiteralPath') {
             $paths = Resolve-Path -LiteralPath $LiteralPath | Select-Object -ExpandProperty Path
         }
 
@@ -44,9 +45,9 @@ function Add-Theme {
             if (Test-Path $resolvedPath) {
                 $item = Get-Item -LiteralPath $resolvedPath
 
-                $statusMsg  = "Adding $($type.ToLower()) theme [$($item.BaseName)]"
+                $statusMsg = "Adding $($type.ToLower()) theme [$($item.BaseName)]"
                 $confirmMsg = "Are you sure you want to add file [$resolvedPath]?"
-                $operation  = "Add $($Type.ToLower())"
+                $operation = "Add $($Type.ToLower())"
                 if ($PSCmdlet.ShouldProcess($statusMsg, $confirmMsg, $operation) -or $Force.IsPresent) {
                     if (-not $script:userThemeData.Themes.$Type.ContainsKey($item.BaseName) -or $Force.IsPresent) {
 
@@ -61,25 +62,27 @@ function Add-Theme {
 
                             # Directories
                             $theme.Types.Directories.WellKnown.GetEnumerator().ForEach({
-                                $script:colorSequences[$theme.Name].Types.Directories[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-                            })
+                                    $script:colorSequences[$theme.Name].Types.Directories[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+                                })
                             # Wellknown files
                             $theme.Types.Files.WellKnown.GetEnumerator().ForEach({
-                                $script:colorSequences[$theme.Name].Types.Files.WellKnown[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-                            })
+                                    $script:colorSequences[$theme.Name].Types.Files.WellKnown[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+                                })
                             # File extensions
-                            $theme.Types.Files.GetEnumerator().Where({$_.Name -ne 'WellKnown'}).ForEach({
-                                $script:colorSequences[$theme.Name].Types.Files[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-                            })
+                            $theme.Types.Files.GetEnumerator().Where({ $_.Name -ne 'WellKnown' }).ForEach({
+                                    $script:colorSequences[$theme.Name].Types.Files[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+                                })
                         }
 
                         $script:userThemeData.Themes.$Type[$theme.Name] = $theme
                         Save-Theme -Theme $theme -Type $Type
-                    } else {
+                    }
+                    else {
                         Write-Error "$Type theme [$($theme.Name)] already exists. Use the -Force switch to overwrite."
                     }
                 }
-            } else {
+            }
+            else {
                 Write-Error "Path [$resolvedPath] is not valid."
             }
         }
@@ -97,9 +100,9 @@ function ConvertFrom-ColorEscapeSequence {
     process {
         # Example input sequence: 'e[38;2;135;206;250m'
         $arr = $Sequence.Split(';')
-        $r   = '{0:x}' -f [int]$arr[2]
-        $g   = '{0:x}' -f [int]$arr[3]
-        $b   = '{0:x}' -f [int]$arr[4].TrimEnd('m')
+        $r = '{0:x}' -f [int]$arr[2]
+        $g = '{0:x}' -f [int]$arr[3]
+        $b = '{0:x}' -f [int]$arr[4].TrimEnd('m')
 
         ($r + $g + $b).ToUpper()
     }
@@ -115,9 +118,9 @@ function ConvertFrom-RGBColor {
 
     process {
         $RGB = $RGB.Replace('#', '')
-        $r   = [convert]::ToInt32($RGB.SubString(0,2), 16)
-        $g   = [convert]::ToInt32($RGB.SubString(2,2), 16)
-        $b   = [convert]::ToInt32($RGB.SubString(4,2), 16)
+        $r = [convert]::ToInt32($RGB.SubString(0, 2), 16)
+        $g = [convert]::ToInt32($RGB.SubString(2, 2), 16)
+        $b = [convert]::ToInt32($RGB.SubString(4, 2), 16)
 
         "${script:escape}[38;2;$r;$g;$b`m"
     }
@@ -130,35 +133,35 @@ function ConvertTo-ColorSequence {
     )
 
     process {
-        $cs      = New-EmptyColorTheme
+        $cs = New-EmptyColorTheme
         $cs.Name = $ColorData.Name
 
         # Directories
         if ($ColorData.Types.Directories['symlink']) {
-            $cs.Types.Directories['symlink']  = ConvertFrom-RGBColor -RGB $ColorData.Types.Directories['symlink']
+            $cs.Types.Directories['symlink'] = ConvertFrom-RGBColor -RGB $ColorData.Types.Directories['symlink']
         }
         if ($ColorData.Types.Directories['junction']) {
             $cs.Types.Directories['junction'] = ConvertFrom-RGBColor -RGB $ColorData.Types.Directories['junction']
         }
         $ColorData.Types.Directories.WellKnown.GetEnumerator().ForEach({
-            $cs.Types.Directories[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-        })
+                $cs.Types.Directories[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+            })
 
         # Wellknown files
         if ($ColorData.Types.Files['symlink']) {
-            $cs.Types.Files['symlink']  = ConvertFrom-RGBColor -RGB $ColorData.Types.Files['symlink']
+            $cs.Types.Files['symlink'] = ConvertFrom-RGBColor -RGB $ColorData.Types.Files['symlink']
         }
         if ($ColorData.Types.Files['junction']) {
             $cs.Types.Files['junction'] = ConvertFrom-RGBColor -RGB $ColorData.Types.Files['junction']
         }
         $ColorData.Types.Files.WellKnown.GetEnumerator().ForEach({
-            $cs.Types.Files.WellKnown[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-        })
+                $cs.Types.Files.WellKnown[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+            })
 
         # File extensions
-        $ColorData.Types.Files.GetEnumerator().Where({$_.Name -ne 'WellKnown' -and $_.Name -ne ''}).ForEach({
-            $cs.Types.Files[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
-        })
+        $ColorData.Types.Files.GetEnumerator().Where({ $_.Name -ne 'WellKnown' -and $_.Name -ne '' }).ForEach({
+                $cs.Types.Files[$_.Name] = ConvertFrom-RGBColor -RGB $_.Value
+            })
 
         $cs
     }
@@ -172,7 +175,8 @@ function Get-ThemeStoragePath {
         if (-not ($basePath = $env:XDG_CONFIG_HOME)) {
             $basePath = [IO.Path]::Combine($HOME, '.local', 'share')
         }
-    } else {
+    }
+    else {
         if (-not ($basePath = $env:APPDATA)) {
             $basePath = [Environment]::GetFolderPath('ApplicationData')
         }
@@ -193,11 +197,11 @@ function Import-ColorTheme {
 
     $hash = @{}
     (Get-ChildItem -Path $moduleRoot/Data/colorThemes).ForEach({
-        $colorData = Import-PowerShellDataFile $_.FullName
-        $hash[$colorData.Name] = $colorData
-        $hash[$colorData.Name].Types.Directories[''] = $colorReset
-        $hash[$colorData.Name].Types.Files['']       = $colorReset
-    })
+            $colorData = Import-PowerShellDataFile $_.FullName
+            $hash[$colorData.Name] = $colorData
+            $hash[$colorData.Name].Types.Directories[''] = $colorReset
+            $hash[$colorData.Name].Types.Files[''] = $colorReset
+        })
     $hash
 }
 function Import-IconTheme {
@@ -207,8 +211,8 @@ function Import-IconTheme {
 
     $hash = @{}
     (Get-ChildItem -Path $moduleRoot/Data/iconThemes).ForEach({
-        $hash.Add($_.Basename, (Import-PowerShellDataFile $_.FullName))
-    })
+            $hash.Add($_.Basename, (Import-PowerShellDataFile $_.FullName))
+        })
     $hash
 }
 function Import-Preferences {
@@ -233,11 +237,13 @@ function Import-Preferences {
         if (Test-Path $Path) {
             try {
                 Import-Clixml -Path $Path -ErrorAction Stop
-            } catch {
+            }
+            catch {
                 Write-Warning "Unable to parse [$Path]. Setting default preferences."
                 $defaultPrefs
             }
-        } else {
+        }
+        else {
             $defaultPrefs
         }
     }
@@ -249,18 +255,18 @@ function New-EmptyColorTheme {
     param()
 
     @{
-        Name = ''
+        Name  = ''
         Types = @{
             Directories = @{
                 #''        = "`e[0m"
-                symlink  = ''
-                junction = ''
+                symlink   = ''
+                junction  = ''
                 WellKnown = @{}
             }
-            Files = @{
+            Files       = @{
                 #''        = "`e[0m"
-                symlink  = ''
-                junction = ''
+                symlink   = ''
+                junction  = ''
                 WellKnown = @{}
             }
         }
@@ -279,20 +285,21 @@ function Resolve-Icon {
     )
 
     begin {
-        $icons  = $script:userThemeData.Themes.Icon[$IconTheme]
+        $icons = $script:userThemeData.Themes.Icon[$IconTheme]
         $colors = $script:colorSequences[$ColorTheme]
     }
 
     process {
         $displayInfo = @{
-            Icon     = $null
-            Color    = $null
-            Target   = ''
+            Icon   = $null
+            Color  = $null
+            Target = ''
         }
 
         if ($FileInfo.PSIsContainer) {
             $type = 'Directories'
-        } else {
+        }
+        else {
             $type = 'Files'
         }
 
@@ -301,12 +308,14 @@ function Resolve-Icon {
             'Junction' {
                 if ($icons) {
                     $iconName = $icons.Types.($type)['junction']
-                } else {
+                }
+                else {
                     $iconName = $null
                 }
                 if ($colors) {
                     $colorSeq = $colors.Types.($type)['junction']
-                } else {
+                }
+                else {
                     $colorSet = $script:colorReset
                 }
                 $displayInfo['Target'] = ' ' + $glyphs['nf-mdi-arrow_right_thick'] + ' ' + $FileInfo.Target
@@ -315,12 +324,14 @@ function Resolve-Icon {
             'SymbolicLink' {
                 if ($icons) {
                     $iconName = $icons.Types.($type)['symlink']
-                } else {
+                }
+                else {
                     $iconName = $null
                 }
                 if ($colors) {
                     $colorSeq = $colors.Types.($type)['symlink']
-                } else {
+                }
+                else {
                     $colorSet = $script:colorReset
                 }
                 $displayInfo['Target'] = ' ' + $glyphs['nf-mdi-arrow_right_thick'] + ' ' + $FileInfo.Target
@@ -332,9 +343,11 @@ function Resolve-Icon {
                     if (-not $iconName) {
                         if ($FileInfo.PSIsContainer) {
                             $iconName = $icons.Types.$type[$FileInfo.Name]
-                        } elseif ($icons.Types.$type.ContainsKey($FileInfo.Extension)) {
+                        }
+                        elseif ($icons.Types.$type.ContainsKey($FileInfo.Extension)) {
                             $iconName = $icons.Types.$type[$FileInfo.Extension]
-                        } else {
+                        }
+                        else {
                             # File probably has multiple extensions
                             # Fallback to computing the full extension
                             $firstDot = $FileInfo.Name.IndexOf('.')
@@ -351,12 +364,14 @@ function Resolve-Icon {
                         if (-not $iconName) {
                             if ($FileInfo.PSIsContainer) {
                                 $iconName = 'nf-oct-file_directory'
-                            } else {
+                            }
+                            else {
                                 $iconName = 'nf-fa-file'
                             }
                         }
                     }
-                } else {
+                }
+                else {
                     $iconName = $null
                 }
                 if ($colors) {
@@ -364,9 +379,11 @@ function Resolve-Icon {
                     if (-not $colorSeq) {
                         if ($FileInfo.PSIsContainer) {
                             $colorSeq = $colors.Types.$type[$FileInfo.Name]
-                        } elseif ($colors.Types.$type.ContainsKey($FileInfo.Extension)) {
+                        }
+                        elseif ($colors.Types.$type.ContainsKey($FileInfo.Extension)) {
                             $colorSeq = $colors.Types.$type[$FileInfo.Extension]
-                        } else {
+                        }
+                        else {
                             # File probably has multiple extensions
                             # Fallback to computing the full extension
                             $firstDot = $FileInfo.Name.IndexOf('.')
@@ -384,14 +401,16 @@ function Resolve-Icon {
                             $colorSeq = $script:colorReset
                         }
                     }
-                } else {
+                }
+                else {
                     $colorSeq = $script:colorReset
                 }
             }
         }
         if ($iconName) {
             $displayInfo['Icon'] = $glyphs[$iconName]
-        } else {
+        }
+        else {
             $displayInfo['Icon'] = $null
         }
         $displayInfo['Color'] = $colorSeq
@@ -448,10 +467,12 @@ function Set-Theme {
         $script:userThemeData."Current$($Type)Theme" = $null
         $script:prefs."Current$($Type)Theme" = ''
         Save-Preferences $script:prefs
-    } else {
+    }
+    else {
         if (-not $script:userThemeData.Themes.$Type.ContainsKey($Name)) {
             Write-Error "$Type theme [$Name] not found."
-        } else {
+        }
+        else {
             $script:userThemeData."Current$($Type)Theme" = $Name
             $script:prefs."Current$($Type)Theme" = $Name
             Save-Theme -Theme $userThemeData.Themes.$Type[$Name] -Type $type
@@ -493,12 +514,12 @@ function Add-TerminalIconsColorTheme {
     .LINK
         Add-TerminalIconsIconTheme
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification='Implemented in private function')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Implemented in private function')]
     [CmdletBinding(DefaultParameterSetName = 'Path', SupportsShouldProcess)]
     param(
         [Parameter(
             Mandatory,
-            ParameterSetName  = 'Path',
+            ParameterSetName = 'Path',
             Position = 0,
             ValueFromPipeline,
             ValueFromPipelineByPropertyName
@@ -558,12 +579,12 @@ function Add-TerminalIconsIconTheme {
     .LINK
         Add-TerminalIconsColorTheme
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification='Implemented in private function')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Implemented in private function')]
     [CmdletBinding(DefaultParameterSetName = 'Path', SupportsShouldProcess)]
     param(
         [Parameter(
             Mandatory,
-            ParameterSetName  = 'Path',
+            ParameterSetName = 'Path',
             Position = 0,
             ValueFromPipeline,
             ValueFromPipelineByPropertyName
@@ -626,7 +647,8 @@ function Format-TerminalIcons {
         $displayInfo = Resolve-Icon $FileInfo
         if ($displayInfo.Icon) {
             "$($displayInfo.Color)$($displayInfo.Icon)  $($FileInfo.Name)$($displayInfo.Target)$($script:colorReset)"
-        } else {
+        }
+        else {
             "$($displayInfo.Color)$($FileInfo.Name)$($displayInfo.Target)$($script:colorReset)"
         }
     }
@@ -730,13 +752,15 @@ function Get-TerminalIconsTheme {
 
     $iconTheme = if ($script:userThemeData.CurrentIconTheme) {
         [pscustomobject]$script:userThemeData.Themes.Icon[$script:userThemeData.CurrentIconTheme]
-    } else {
+    }
+    else {
         $null
     }
 
     $colorTheme = if ($script:userThemeData.CurrentColorTheme) {
         [pscustomobject]$script:userThemeData.Themes.Color[$script:userThemeData.CurrentColorTheme]
-    } else {
+    }
+    else {
         $null
     }
 
@@ -787,18 +811,18 @@ function Remove-TerminalIconsTheme {
     param(
         [ArgumentCompleter({
             (Get-TerminalIconsIconTheme).Keys | Sort-Object
-        })]
+            })]
         [string]$IconTheme,
 
         [ArgumentCompleter({
             (Get-TerminalIconsColorTheme).Keys | Sort-Object
-        })]
+            })]
         [string]$ColorTheme,
 
         [switch]$Force
     )
 
-    $currentTheme     = Get-TerminalIconsTheme
+    $currentTheme = Get-TerminalIconsTheme
     $themeStoragePath = Get-ThemeStoragePath
 
     if ($ColorTheme) {
@@ -806,18 +830,21 @@ function Remove-TerminalIconsTheme {
             $themePath = Join-Path $themeStoragePath "$($ColorTheme)_color.xml"
             if (-not (Test-Path $themePath)) {
                 Write-Error "Could not find theme file [$themePath]"
-            } else {
+            }
+            else {
                 if ($Force -or $PSCmdlet.ShouldProcess($ColorTheme, 'Remove color theme')) {
                     if ($userThemeData.Themes.Color.ContainsKey($ColorTheme)) {
                         $userThemeData.Themes.Color.Remove($ColorTheme)
-                    } else {
+                    }
+                    else {
                         # We shouldn't be here
                         Write-Error "Color theme [$ColorTheme] is not registered."
                     }
                     Remove-Item $themePath -Force
                 }
             }
-        } else {
+        }
+        else {
             Write-Error ("Color theme [{0}] is active. Please select another theme before removing this it." -f $ColorTheme)
         }
     }
@@ -827,18 +854,21 @@ function Remove-TerminalIconsTheme {
             $themePath = Join-Path $themeStoragePath "$($IconTheme)_icon.xml"
             if (-not (Test-Path $themePath)) {
                 Write-Error "Could not find theme file [$themePath]"
-            } else {
+            }
+            else {
                 if ($Force -or $PSCmdlet.ShouldProcess($ColorTheme, 'Remove icon theme')) {
                     if ($userThemeData.Themes.Icon.ContainsKey($IconTheme)) {
                         $userThemeData.Themes.Icon.Remove($IconTheme)
-                    } else {
+                    }
+                    else {
                         # We shouldn't be here
                         Write-Error "Icon theme [$IconTheme] is not registered."
                     }
                     Remove-Item $themePath -Force
                 }
             }
-        } else {
+        }
+        else {
             Write-Error ("Icon theme [{0}] is active. Please select another theme before removing this it." -f $IconTheme)
         }
     }
@@ -943,7 +973,7 @@ function Set-TerminalIconsIcon {
         [switch]$Force
     )
 
-    If($PSCmdlet.ParameterSetName -eq "Directory") {
+    If ($PSCmdlet.ParameterSetName -eq "Directory") {
         If ($Force -or $PSCmdlet.ShouldProcess("$Directory = $Glyph", 'Set well-known directory icon')) {
             (Get-TerminalIconsIconTheme).Values.Types.Directories.WellKnown[$Directory] = $Glyph
         }
@@ -1029,13 +1059,13 @@ function Set-TerminalIconsTheme {
         [Parameter(ParameterSetName = 'theme')]
         [ArgumentCompleter({
             (Get-TerminalIconsIconTheme).Keys | Sort-Object
-        })]
+            })]
         [string]$IconTheme,
 
         [Parameter(ParameterSetName = 'theme')]
         [ArgumentCompleter({
             (Get-TerminalIconsColorTheme).Keys | Sort-Object
-        })]
+            })]
         [string]$ColorTheme,
 
         [Parameter(ParameterSetName = 'notheme')]
@@ -1106,26 +1136,27 @@ function Show-TerminalIconsTheme {
     # Use the default theme if the icon theme has been disabled
     if ($theme.Icon) {
         $themeName = $theme.Icon.Name
-    } else {
+    }
+    else {
         $themeName = $script:defaultTheme
     }
 
     $directories = @(
         [IO.DirectoryInfo]::new('ExampleFolder')
         $script:userThemeData.Themes.Icon[$themeName].Types.Directories.WellKnown.Keys.ForEach({
-            [IO.DirectoryInfo]::new($_)
-        })
+                [IO.DirectoryInfo]::new($_)
+            })
     )
     $wellKnownFiles = @(
         [IO.FileInfo]::new('ExampleFile')
         $script:userThemeData.Themes.Icon[$themeName].Types.Files.WellKnown.Keys.ForEach({
-            [IO.FileInfo]::new($_)
-        })
+                [IO.FileInfo]::new($_)
+            })
     )
 
-    $extensions = $script:userThemeData.Themes.Icon[$themeName].Types.Files.Keys.Where({$_ -ne 'WellKnown'}).ForEach({
-        [IO.FileInfo]::new("example$_")
-    })
+    $extensions = $script:userThemeData.Themes.Icon[$themeName].Types.Files.Keys.Where({ $_ -ne 'WellKnown' }).ForEach({
+            [IO.FileInfo]::new("example$_")
+        })
 
     $directories + $wellKnownFiles + $extensions | Sort-Object | Format-TerminalIcons
 }
@@ -1141,16 +1172,16 @@ function Show-TerminalIconsTheme {
 #     }
 # })
 
-$moduleRoot    = $PSScriptRoot
-$glyphs        = . $moduleRoot/Data/glyphs.ps1
-$escape        = [char]27
-$colorReset    = "${escape}[0m"
-$defaultTheme  = 'devblackops'
+$moduleRoot = $PSScriptRoot
+$glyphs = . $moduleRoot/Data/glyphs.ps1
+$escape = [char]27
+$colorReset = "${escape}[0m"
+$defaultTheme = 'devblackops'
 $userThemePath = Get-ThemeStoragePath
 $userThemeData = @{
     CurrentIconTheme  = $null
     CurrentColorTheme = $null
-    Themes = @{
+    Themes            = @{
         Color = @{}
         Icon  = @{}
     }
@@ -1158,48 +1189,48 @@ $userThemeData = @{
 
 # Import builtin icon/color themes and convert colors to escape sequences
 $colorSequences = @{}
-$iconThemes     = Import-IconTheme
-$colorThemes    = Import-ColorTheme
+$iconThemes = Import-IconTheme
+$colorThemes = Import-ColorTheme
 $colorThemes.GetEnumerator().ForEach({
-    $colorSequences[$_.Name] = ConvertTo-ColorSequence -ColorData $_.Value
-})
+        $colorSequences[$_.Name] = ConvertTo-ColorSequence -ColorData $_.Value
+    })
 
 # Load or create default prefs
 $prefs = Import-Preferences
 
 # Set current theme
-$userThemeData.CurrentIconTheme  = $prefs.CurrentIconTheme
+$userThemeData.CurrentIconTheme = $prefs.CurrentIconTheme
 $userThemeData.CurrentColorTheme = $prefs.CurrentColorTheme
 
 # Load user icon and color themes
 # We're ignoring the old 'theme.xml' from Terimal-Icons v0.3.1 and earlier
 (Get-ChildItem $userThemePath -Filter '*_icon.xml').ForEach({
-    $userIconTheme = Import-CliXml -Path $_.FullName
-    $userThemeData.Themes.Icon[$userIconTheme.Name] = $userIconTheme
-})
+        $userIconTheme = Import-CliXml -Path $_.FullName
+        $userThemeData.Themes.Icon[$userIconTheme.Name] = $userIconTheme
+    })
 (Get-ChildItem $userThemePath -Filter '*_color.xml').ForEach({
-    $userColorTheme = Import-CliXml -Path $_.FullName
-    $userThemeData.Themes.Color[$userColorTheme.Name] = $userColorTheme
-    $colorSequences[$userColorTheme.Name] = ConvertTo-ColorSequence -ColorData $userThemeData.Themes.Color[$userColorTheme.Name]
-})
+        $userColorTheme = Import-CliXml -Path $_.FullName
+        $userThemeData.Themes.Color[$userColorTheme.Name] = $userColorTheme
+        $colorSequences[$userColorTheme.Name] = ConvertTo-ColorSequence -ColorData $userThemeData.Themes.Color[$userColorTheme.Name]
+    })
 
 # Update the builtin themes
 $colorThemes.GetEnumerator().ForEach({
-    $userThemeData.Themes.Color[$_.Name] = $_.Value
-})
+        $userThemeData.Themes.Color[$_.Name] = $_.Value
+    })
 $iconThemes.GetEnumerator().ForEach({
-    $userThemeData.Themes.Icon[$_.Name] = $_.Value
-})
+        $userThemeData.Themes.Icon[$_.Name] = $_.Value
+    })
 
 # Save all themes to theme path
 $userThemeData.Themes.Color.GetEnumerator().ForEach({
-    $colorThemePath = Join-Path $userThemePath "$($_.Name)_color.xml"
-    $_.Value | Export-Clixml -Path $colorThemePath -Force
-})
+        $colorThemePath = Join-Path $userThemePath "$($_.Name)_color.xml"
+        $_.Value | Export-Clixml -Path $colorThemePath -Force
+    })
 $userThemeData.Themes.Icon.GetEnumerator().ForEach({
-    $iconThemePath = Join-Path $userThemePath "$($_.Name)_icon.xml"
-    $_.Value | Export-Clixml -Path $iconThemePath -Force
-})
+        $iconThemePath = Join-Path $userThemePath "$($_.Name)_icon.xml"
+        $_.Value | Export-Clixml -Path $iconThemePath -Force
+    })
 
 Save-Preferences -Preferences $prefs
 

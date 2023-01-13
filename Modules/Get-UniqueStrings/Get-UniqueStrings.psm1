@@ -42,7 +42,8 @@ function Import-Content {
         if ($Raw) {
           [System.IO.File]::ReadAllText($file) | Write-Output -NoEnumerate
 
-        } else {
+        }
+        else {
           [System.IO.File]::ReadAllLines($file) | Write-Output -NoEnumerate
 
         }

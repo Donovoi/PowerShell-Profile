@@ -19,14 +19,16 @@ function Import-RequiredModule {
             if (-not (Get-Module -ListAvailable -Name $Module )) {
                 Write-Output -Message "Installing $Module module"
                 Install-Module -Name $Module -AllowClobber -SkipPublisherCheck -Force -AllowPrerelease
-            } else {
+            }
+            else {
                 if (($Module -like '*psreadline*') -and ((Get-Module $Module ).Version -lt '2.2.6')) {
                     #Get-Module -ListAvailable $Module | Uninstall-Module -Force 
                     Install-Module -Name $Module -AllowClobber -SkipPublisherCheck -Force -AllowPrerelease
                 }
             }
             Import-Module -Name $Module -Force
-        } catch {
+        }
+        catch {
             Write-Output "Can't install $Module. See Error Below:"
             Write-Output "$_"
         }

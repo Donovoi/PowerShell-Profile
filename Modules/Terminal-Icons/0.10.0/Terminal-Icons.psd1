@@ -9,8 +9,8 @@
     PowerShellVersion = '5.1'
     # PowerShellHostName = ''
     # PowerShellHostVersion = ''
-    RequiredModules = @()
-    FunctionsToExport = @('Add-TerminalIconsColorTheme','Add-TerminalIconsIconTheme','Format-TerminalIcons','Get-TerminalIconsColorTheme','Get-TerminalIconsGlyphs','Get-TerminalIconsIconTheme','Get-TerminalIconsTheme','Remove-TerminalIconsTheme','Set-TerminalIconsIcon','Set-TerminalIconsTheme','Show-TerminalIconsTheme')
+    RequiredModules   = @()
+    FunctionsToExport = @('Add-TerminalIconsColorTheme', 'Add-TerminalIconsIconTheme', 'Format-TerminalIcons', 'Get-TerminalIconsColorTheme', 'Get-TerminalIconsGlyphs', 'Get-TerminalIconsIconTheme', 'Get-TerminalIconsTheme', 'Remove-TerminalIconsTheme', 'Set-TerminalIconsIcon', 'Set-TerminalIconsTheme', 'Show-TerminalIconsTheme')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()

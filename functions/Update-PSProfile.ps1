@@ -15,11 +15,13 @@ function Update-PSProfile {
         $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD); 
         git reset --hard origin/$($NAMEOFHEAD.split('/')[-1]); 
 
-    } catch {
+    }
+    catch {
         $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\*"
         Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
         Write-Error -Message "$_"
-    } finally {
+    }
+    finally {
         # Clean up any bak files
         Get-ChildItem -Path $parentpathprofile -Filter *.bak -Recurse | Remove-Item -Force
         # Import all functions from functions folder
