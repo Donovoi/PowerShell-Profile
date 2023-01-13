@@ -39,7 +39,8 @@ Function Get-AllEvents {
 
     if ($PassThru) {
       $result
-    } else {
+    }
+    else {
       $result.ShowDialog()
     }
   }
@@ -70,26 +71,26 @@ Function Get-AllEvents {
 
     $Events = $EventLogs |
 
-      ForEach-Object -Process {
-        $LogName = $_.logname
-        $Index = [array]::IndexOf($EventLogs, $_)
-        $Percentage = $Index / $Count
-        $Message = "Retrieving events from Logs ($Index of $Count)"
+    ForEach-Object -Process {
+      $LogName = $_.logname
+      $Index = [array]::IndexOf($EventLogs, $_)
+      $Percentage = $Index / $Count
+      $Message = "Retrieving events from Logs ($Index of $Count)"
 
-        Write-Progress -Activity $Message -PercentComplete ($Percentage * 100) -CurrentOperation $LogName -Status 'Processing ...'
+      Write-Progress -Activity $Message -PercentComplete ($Percentage * 100) -CurrentOperation $LogName -Status 'Processing ...'
 
-        Get-WinEvent -FilterHashtable @{
-          logname   = $LogName
-          StartTime = $StartTime
-          EndTime   = $EndTime
-        } -ea 0
-      }
+      Get-WinEvent -FilterHashtable @{
+        logname   = $LogName
+        StartTime = $StartTime
+        EndTime   = $EndTime
+      } -ea 0
+    }
 
     if ($Events) {
 
       $Global:EventsSorted = $Events |
-        Sort-Object -Property timecreated |
-          Select-Object -Property timecreated, id, logname, leveldisplayname, message
+      Sort-Object -Property timecreated |
+      Select-Object -Property timecreated, id, logname, leveldisplayname, message
 
       Write-Progress -Activity 'Almost there' -PercentComplete 100 -CurrentOperation 'Generating gridview output data ...' -Completed -Status 'Done'
 
@@ -99,18 +100,21 @@ Function Get-AllEvents {
 
         if (!$exists) {
           Write-Error "$ExportToCSVPath doesn't exist, re-run script ..."
-        } else {
+        }
+        else {
           $date = Get-Date
           $filename = "Events_$date`_$Computer.csv" -replace ':', '_'
           $filename = $filename -replace '/', '-'
           $EventsSorted | Export-Csv ($ExportToCSVPath + '\' + $Filename) -NoTypeInformation -Verbose
         }
-      } else {
+      }
+      else {
 
         try {
           $EventsSorted |
-            Out-GridView -Title 'Events Found' 
-        } catch {
+          Out-GridView -Title 'Events Found' 
+        }
+        catch {
           Write-Warning 'Error using the ''Out-GridView'' cmdlet, use the ''$EventsSorted'' variable to see all found events sorted on date and time. Or use the -ExportToCSV parameter with this script to Export the results to CSV'
           write-ouput ''
           Write-Warning $_.exception.message
@@ -119,7 +123,8 @@ Function Get-AllEvents {
       } # end if exporttocsv 
 
 
-    } else {
+    }
+    else {
       Write-Warning -Message "`n`n`nNo events found between $StartTime and $EndTime"
     }
   } # end function
@@ -212,7 +217,8 @@ Function Get-AllEvents {
         $objForm.Activate()
       })
     [void]$objForm.ShowDialog()
-  } else {
+  }
+  else {
     $XAML = @'
 <Window 
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

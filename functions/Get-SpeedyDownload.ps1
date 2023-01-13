@@ -70,7 +70,7 @@ function Get-SpeedyDownload {
         $offset += $bytesRead.Length
     
         # copy the downloaded data to the buffer
-       $arrayvar = [Array]::Copy($bytesRead, 0, $buffer, $offset, $bytesRead.Length)
+        $arrayvar = [Array]::Copy($bytesRead, 0, $buffer, $offset, $bytesRead.Length)
     }
     
     # save the downloaded data to a file

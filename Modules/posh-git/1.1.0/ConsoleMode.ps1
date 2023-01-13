@@ -49,30 +49,27 @@ public class NativeConsoleMethods
 "@
 
 [Flags()]
-enum ConsoleModeInputFlags
-{
-    ENABLE_PROCESSED_INPUT             = 0x0001
-    ENABLE_LINE_INPUT                  = 0x0002
-    ENABLE_ECHO_INPUT                  = 0x0004
-    ENABLE_WINDOW_INPUT                = 0x0008
-    ENABLE_MOUSE_INPUT                 = 0x0010
-    ENABLE_INSERT_MODE                 = 0x0020
-    ENABLE_QUICK_EDIT_MODE             = 0x0040
-    ENABLE_EXTENDED_FLAGS              = 0x0080
-    ENABLE_AUTO_POSITION               = 0x0100
+enum ConsoleModeInputFlags {
+    ENABLE_PROCESSED_INPUT = 0x0001
+    ENABLE_LINE_INPUT = 0x0002
+    ENABLE_ECHO_INPUT = 0x0004
+    ENABLE_WINDOW_INPUT = 0x0008
+    ENABLE_MOUSE_INPUT = 0x0010
+    ENABLE_INSERT_MODE = 0x0020
+    ENABLE_QUICK_EDIT_MODE = 0x0040
+    ENABLE_EXTENDED_FLAGS = 0x0080
+    ENABLE_AUTO_POSITION = 0x0100
     ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0200
 }
 
 [Flags()]
-enum ConsoleModeOutputFlags
-{
-    ENABLE_PROCESSED_OUTPUT            = 0x0001
-    ENABLE_WRAP_AT_EOL_OUTPUT          = 0x0002
+enum ConsoleModeOutputFlags {
+    ENABLE_PROCESSED_OUTPUT = 0x0001
+    ENABLE_WRAP_AT_EOL_OUTPUT = 0x0002
     ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
 }
 
-function Set-ConsoleMode
-{
+function Set-ConsoleMode {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     param(
         [Parameter(ParameterSetName = "ANSI")]
@@ -96,19 +93,16 @@ function Set-ConsoleMode
     }
 
     end {
-        if ($ANSI)
-        {
+        if ($ANSI) {
             $outputMode = [NativeConsoleMethods]::GetConsoleMode($false)
             $null = [NativeConsoleMethods]::SetConsoleMode($false, $outputMode -bor [ConsoleModeOutputFlags]::ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 
-            if ($StandardInput)
-            {
+            if ($StandardInput) {
                 $inputMode = [NativeConsoleMethods]::GetConsoleMode($true)
                 $null = [NativeConsoleMethods]::SetConsoleMode($true, $inputMode -bor [ConsoleModeInputFlags]::ENABLE_VIRTUAL_TERMINAL_PROCESSING)
             }
         }
-        else
-        {
+        else {
             [NativeConsoleMethods]::SetConsoleMode($StandardInput, $Mode)
         }
     }

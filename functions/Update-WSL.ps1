@@ -20,20 +20,24 @@ function Update-WSL {
             Write-Output "[$($DistributionName)] Updating..."
             wsl --exec 'apt update && apt dist-upgrade -y && apt autoremove -y && apt clean' -d $DistributionName -u root
             Write-Output "[$($DistributionName)] Updated!"
-        } elseif (($DistributionName -like '*openSUSE*') -or ($DistributionName -like '*sles*')) {
+        }
+        elseif (($DistributionName -like '*openSUSE*') -or ($DistributionName -like '*sles*')) {
             Write-Output "[$($DistributionName)] Updating..."
             wsl --exec zypper refresh
             wsl --exec zypper update
             Write-Output "[$($DistributionName)] Updated!"
-        } elseif ($DistributionName -like '*Arch*') {
+        }
+        elseif ($DistributionName -like '*Arch*') {
             Write-Output "[$($DistributionName)] Updating..."
             wsl --exec pacman -Sy
             wsl --exec pacman --noconfirm
-        } elseif ($DistributionName -like '*fedora*') {
+        }
+        elseif ($DistributionName -like '*fedora*') {
             Write-Output "[$($DistributionName)] Updating..."
             wsl --exec dnf update --assumeyes --refresh
             Write-Output "[$($DistributionName)] Updated!"
-        } else {
+        }
+        else {
             Write-Warning "[$($DistributionName)] This distribution is not supported for WSL Update functionality!"
         }
     }

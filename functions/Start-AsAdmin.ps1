@@ -14,7 +14,8 @@ function Start-AsAdmin {
     #Check user running the script is member of Administrator Group
     if ($CurrentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
         Write-Host 'Script is already running with Administrator privileges!'
-    } else {
+    }
+    else {
         if ($windowsPowerShell) {
             $StartPowershellVersion = 'PowerShell.exe'
         }

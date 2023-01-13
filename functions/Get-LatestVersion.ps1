@@ -15,7 +15,8 @@ function Get-LatestVersion() {
         $response.Close()
         # Identify where the version number is in the url
         $version = $response.Headers.GetValues('Location').First().split('/').Last()
-    } else {
+    }
+    else {
         Write-Error 'CoPilot is not smart enough to create this function'
         exit
     }

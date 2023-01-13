@@ -64,7 +64,8 @@ function Install-Fonts {
             #Test if font is copied over  
             If ((Test-Path ('C:\Windows\Fonts\' + $FontFile.Name)) -eq $true) {  
                 Write-Verbose ('Success') 
-            } else {  
+            }
+            else {  
                 Write-Verbose ('Failed') 
             }  
             $Copy = $false  
@@ -74,31 +75,36 @@ function Install-Fonts {
                 If ((Get-ItemPropertyValue -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts') -eq $FontFile.Name) {  
                     Write-Verbose ('Adding' + [char]32 + $FontName + [char]32 + 'to the registry.....') 
                     Write-Verbose ('Success') 
-                } else {  
+                }
+                else {  
                     $AddKey = $true  
                     Remove-ItemProperty -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -Force  
                     Write-Verbose ('Adding' + [char]32 + $FontName + [char]32 + 'to the registry.....') 
                     New-ItemProperty -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -PropertyType string -Value $FontFile.Name -Force -ErrorAction SilentlyContinue | Out-Null  
                     If ((Get-ItemPropertyValue -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts') -eq $FontFile.Name) {  
                         Write-Verbose ('Success') 
-                    } else {  
+                    }
+                    else {  
                         Write-Verbose ('Failed') 
                     }  
                     $AddKey = $false  
                 }  
-            } else {  
+            }
+            else {  
                 $AddKey = $true  
                 Write-Verbose ('Adding' + [char]32 + $FontName + [char]32 + 'to the registry.....') 
                 New-ItemProperty -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -PropertyType string -Value $FontFile.Name -Force -ErrorAction SilentlyContinue | Out-Null  
                 If ((Get-ItemPropertyValue -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts') -eq $FontFile.Name) {  
                     Write-Verbose ('Success') 
-                } else {  
+                }
+                else {  
                     Write-Verbose ('Failed') 
                 }  
                 $AddKey = $false  
             }  
            
-        } catch {  
+        }
+        catch {  
             If ($Copy -eq $true) {  
                 Write-Verbose ('Failed') 
                 $Copy = $false  

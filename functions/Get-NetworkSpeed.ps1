@@ -36,7 +36,8 @@ function Get-NetworkSpeedTest {
     if (Test-Path $SpeedTestEXEPath -PathType leaf) {
         Write-Host 'SpeedTest EXE Exists, starting test' -ForegroundColor Green
         RunTest
-    } else {
+    }
+    else {
         Write-Host "SpeedTest EXE Doesn't Exist, starting file download"
 
         #downloads the file from the URL

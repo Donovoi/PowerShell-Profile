@@ -28,7 +28,8 @@ function Update-VcRedist {
             Get-VcList | Save-VcRedist -Path $VcFolder;
             $VcList = Get-VcList;
             Install-VcRedist -VcList $VcList -Path $VcFolder;
-        } catch {
+        }
+        catch {
             Write-Host $_;
             Write-Error 'There is a problem installing the required Visual Studio Redistributables' -ErrorAction Stop;
         }

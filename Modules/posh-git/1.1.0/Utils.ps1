@@ -123,7 +123,7 @@ function Add-PoshGitToProfile {
     $underTest = $false
 
     $profileName = $(if ($AllUsers) { 'AllUsers' } else { 'CurrentUser' }) `
-                 + $(if ($AllHosts) { 'AllHosts' } else { 'CurrentHost' })
+        + $(if ($AllHosts) { 'AllHosts' } else { 'CurrentHost' })
     Write-Verbose "`$profileName = '$profileName'"
 
     $profilePath = $PROFILE.$profileName
@@ -180,8 +180,7 @@ function Add-PoshGitToProfile {
 
     # If the profile script exists and is signed, then we should not modify it
     if (Test-Path -LiteralPath $profilePath) {
-        if (!(Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue))
-        {
+        if (!(Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue)) {
             Write-Verbose "Platform doesn't support script signing, skipping test for signed profile."
         }
         else {
@@ -269,7 +268,7 @@ function Remove-PoshGitFromProfile {
     $underTest = $false
 
     $profileName = $(if ($AllUsers) { 'AllUsers' } else { 'CurrentUser' }) `
-                 + $(if ($AllHosts) { 'AllHosts' } else { 'CurrentHost' })
+        + $(if ($AllHosts) { 'AllHosts' } else { 'CurrentHost' })
     Write-Verbose "`$profileName = '$profileName'"
 
     $profilePath = $PROFILE.$profileName
@@ -298,8 +297,7 @@ function Remove-PoshGitFromProfile {
 
     if (Test-Path -LiteralPath $profilePath) {
         # If the profile script exists and is signed, then we should not modify it
-        if (!(Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue))
-        {
+        if (!(Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue)) {
             Write-Verbose "Platform doesn't support script signing, skipping test for signed profile."
         }
         else {
@@ -315,14 +313,14 @@ function Remove-PoshGitFromProfile {
         $oldProfileEncoding = Get-FileEncoding $profilePath
 
         $newProfile = @()
-        foreach($line in $oldProfile) {
+        foreach ($line in $oldProfile) {
             if ($line -like '*PoshGitPrompt*') { continue; }
             if ($line -like '*Load posh-git example profile*') { continue; }
 
-            if($line -like '. *posh-git*profile.example.ps1*') {
+            if ($line -like '. *posh-git*profile.example.ps1*') {
                 continue;
             }
-            if($line -like 'Import-Module *\posh-git.psd1*') {
+            if ($line -like 'Import-Module *\posh-git.psd1*') {
                 continue;
             }
             $newProfile += $line
@@ -358,13 +356,13 @@ function Get-FileEncoding($Path) {
 
     if (!$bytes) { return 'utf8' }
 
-    switch -regex ('{0:x2}{1:x2}{2:x2}{3:x2}' -f $bytes[0],$bytes[1],$bytes[2],$bytes[3]) {
-        '^efbbbf'   { return 'utf8' }
-        '^2b2f76'   { return 'utf7' }
-        '^fffe'     { return 'unicode' }
-        '^feff'     { return 'bigendianunicode' }
+    switch -regex ('{0:x2}{1:x2}{2:x2}{3:x2}' -f $bytes[0], $bytes[1], $bytes[2], $bytes[3]) {
+        '^efbbbf' { return 'utf8' }
+        '^2b2f76' { return 'utf7' }
+        '^fffe' { return 'unicode' }
+        '^feff' { return 'bigendianunicode' }
         '^0000feff' { return 'utf32' }
-        default     { return 'ascii' }
+        default { return 'ascii' }
     }
 }
 
@@ -443,7 +441,7 @@ function Get-PromptConnectionInfo($Format = '[{1}@{0}]: ') {
     if ($GitPromptSettings -and (Test-Path Env:SSH_CONNECTION)) {
         $MachineName = [System.Environment]::MachineName
         $UserName = [System.Environment]::UserName
-        $Format -f $MachineName,$UserName
+        $Format -f $MachineName, $UserName
     }
 }
 
@@ -454,7 +452,7 @@ function Get-PSModulePath {
 
 function Test-InPSModulePath {
     param (
-        [Parameter(Position=0, Mandatory=$true)]
+        [Parameter(Position = 0, Mandatory = $true)]
         [ValidateNotNull()]
         [string]
         $Path
@@ -478,7 +476,7 @@ function Test-InPSModulePath {
 
 function Test-PoshGitImportedInScript {
     param (
-        [Parameter(Position=0)]
+        [Parameter(Position = 0)]
         [string]
         $Path
     )
@@ -494,6 +492,6 @@ function Test-PoshGitImportedInScript {
 
 function dbg($Message, [Diagnostics.Stopwatch]$Stopwatch) {
     if ($Stopwatch) {
-        Write-Verbose ('{0:00000}:{1}' -f $Stopwatch.ElapsedMilliseconds,$Message) -Verbose # -ForegroundColor Yellow
+        Write-Verbose ('{0:00000}:{1}' -f $Stopwatch.ElapsedMilliseconds, $Message) -Verbose # -ForegroundColor Yellow
     }
 }
