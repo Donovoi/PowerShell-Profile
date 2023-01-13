@@ -11,19 +11,11 @@ function Update-USBTools {
     Start-Process pwsh -ArgumentList "-noexit -EncodedCommand $Encoded"
     # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'o2k13 enu /includedotnet /includewddefs /verify'
     # Start-Process -NoNewWindow "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'DownloadUpdates w62-x64 w63  w63-x64  w100  w100-x64  ofc  o2k16 /includedotnet /includewddefs /verify'
-    Start-Process pwsh -ArgumentList "-noexit Update-VcRedist"
-    Start-Process pwsh -ArgumentList "-noexit Update-VSCodes"
-    Start-Process pwsh -ArgumentList "-noexit Get-Zimmer"
-    Start-Process pwsh -ArgumentList "-noexit Install-LatestDotNet"
-    Start-Process pwsh -ArgumentList "-noexit Git-Pull"
-    Start-Process pwsh -ArgumentList "-noexit Update-PowerShell"
-
-    
-    
-    
-    
-    # update all wsl distributions
-    #Update-WSL
-    
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist -verbose"'
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCodes -verbose"'
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-Zimmer -verbose"'
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Install-LatestDotNet -verbose"'
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Git-Pull -verbose"'
+    Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -verbose"'
 
 }
