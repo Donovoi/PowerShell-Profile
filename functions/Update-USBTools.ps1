@@ -17,5 +17,6 @@ function Update-USBTools {
     Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Install-LatestDotNet -verbose"'
     Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Git-Pull -verbose"'
     Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -verbose"'
-
+cargo install cargo-update
+cargo install-update -a
 }
