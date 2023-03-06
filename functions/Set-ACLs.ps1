@@ -2,8 +2,8 @@ function Set-ACLs {
     [CmdletBinding()]
     param (
        
-         [Parameter(Mandatory = $false)]
-         [string]
+        [Parameter(Mandatory = $false)]
+        [string]
         $FolderToScan = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\"
 
     )
@@ -18,10 +18,10 @@ function Set-ACLs {
 
     if (-not ([string]::IsNullOrWhiteSpace($RAWPaths))) {
         [string[]]$Files = if (-not ([string]::IsNullOrWhiteSpace($RAWPaths))) {
-          $RAWPaths.Split()
+            $RAWPaths.Split()
         }
         if (-Not ([string]::IsNullOrWhiteSpace($Files))) {
-          $FastFileList = [System.Collections.Generic.HashSet[string]]::new([string[]]($Files), [System.StringComparer]::OrdinalIgnoreCase)
+            $FastFileList = [System.Collections.Generic.HashSet[string]]::new([string[]]($Files), [System.StringComparer]::OrdinalIgnoreCase)
         }
     }
     [GC]::Collect()
