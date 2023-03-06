@@ -21,7 +21,7 @@ if ([string]::IsNullOrEmpty($chococommand)) {
     cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
 }
 
-$env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
+$env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\chocolatey apps\chocolatey\bin\"
 $env:Path += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
@@ -39,7 +39,7 @@ RefreshEnv.cmd
 Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine , PSColors
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
-Copy-Item -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
+Copy-Item -Path (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
 oh-my-posh --init --shell pwsh --config $ENV:USERPROFILE/jandedobbeleer.omp.json | Invoke-Expression
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
