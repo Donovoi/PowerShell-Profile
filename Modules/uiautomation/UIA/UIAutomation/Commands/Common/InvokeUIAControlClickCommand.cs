@@ -30,13 +30,13 @@ namespace UIAutomation.Commands
             Shift = false;
             Ctrl = false;
             DoubleClick = false;
-            
-            
+
+
             this.X = -1000000;
             this.Y = -1000000;
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         public SwitchParameter RightClick { get; set; }
@@ -55,17 +55,18 @@ namespace UIAutomation.Commands
         [Parameter(Mandatory = false)]
         public int Y { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
+
             // 20120823
-            foreach (AutomationElement inputObject in this.InputObject) {
-            
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
                 ClickControl(
                     this,
                     inputObject,
@@ -78,14 +79,17 @@ namespace UIAutomation.Commands
                     this.DoubleClick,
                     this.X,
                     this.Y);
-    
-                if (this.PassThru) {
+
+                if (this.PassThru)
+                {
 
                     this.WriteObject(this, inputObject);
-                } else {
+                }
+                else
+                {
                     this.WriteObject(this, true);
                 }
-                
+
             } // 20120823
         }
     }

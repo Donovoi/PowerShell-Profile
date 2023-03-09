@@ -10,7 +10,7 @@
 namespace UIAutomationAliases
 {
     using System;
-    
+
     /// <summary>
     /// Description of LanguagePack_En_US.
     /// </summary>
@@ -19,11 +19,11 @@ namespace UIAutomationAliases
         public LanguagePack_En_US()
         {
         }
-        
+
         // 20121120
-        public new string Button { get {return @"Button";} }
-        public new string Calendar { get {return @"Calendar";} }
-        public new string Custom { get {return @"Custom";} }
-        public new string Edit { get {return @"Edit";} }
+        public new string Button { get { return @"Button"; } }
+        public new string Calendar { get { return @"Calendar"; } }
+        public new string Custom { get { return @"Custom"; } }
+        public new string Edit { get { return @"Edit"; } }
     }
 }

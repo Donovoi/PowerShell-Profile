@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of Profile.
     /// </summary>
@@ -21,13 +21,13 @@ namespace UIAutomation
         {
             this.Name = name;
         }
-        
+
         public string Name { get; set; }
-        
+
         // timeouts
         //public 
-        
-        
+
+
         /// <summary>
         /// The flag that initiates the Highlighter to run.
         /// </summary>
@@ -46,11 +46,13 @@ namespace UIAutomation
         /// MIlliseconds
         /// </summary>
         public static int Timeout
-        { 
-            get {
+        {
+            get
+            {
                 return _timeout;
             }
-            set { 
+            set
+            {
                 _timeout = value;
                 TimeoutSetByCustomer = true;
                 StoredDefaultTimeout = 0;
@@ -68,11 +70,11 @@ namespace UIAutomation
         public static int AfterFailTurboTimeout { get; set; }
         internal static int StoredDefaultTimeout { get; set; }
         internal static bool TimeoutSetByCustomer { get; set; }
-        
+
         public static bool DisableExactSearch { get; set; }
         public static bool DisableWildCardSearch { get; set; }
         public static bool DisableWin32Search { get; set; }
-        
+
         /// <summary>
         /// The folder where screenshots are stored.
         /// </summary>
@@ -82,7 +84,7 @@ namespace UIAutomation
         /// if a terminating or non-terminating error has been raised.
         /// </summary>
         public static bool OnErrorScreenShot { get; set; }
-        
+
         /// <summary>
         /// This property defines an interval
         /// the Start-UIARecorer cmdlet queries the element
@@ -140,8 +142,8 @@ namespace UIAutomation
         /// Path to the log file
         /// </summary>
         public static string LogPath { get; set; }
-        
-        
+
+
         //Preferences.AfterFailTurboTimeout
         //Preferences.DisableWildCardSearch
         //Preferences.DisableWin32Search

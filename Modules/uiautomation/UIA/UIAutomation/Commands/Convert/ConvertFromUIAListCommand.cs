@@ -25,32 +25,32 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
+
             //_control.SetFocus();
-            
+
             // get headers
-            
+
             // output headers
-            
+
             // get rows
-            
+
             // output rows
-            
+
         }
-        
-// protected override void EndProcessing()
-// {
-//  //_control = null;
-// }
+
+        // protected override void EndProcessing()
+        // {
+        //  //_control = null;
+        // }
     }
 }

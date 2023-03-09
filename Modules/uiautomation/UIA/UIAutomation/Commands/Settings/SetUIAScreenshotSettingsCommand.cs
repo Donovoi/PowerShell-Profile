@@ -23,14 +23,14 @@ namespace UIAutomation.Commands
             this.Screenshot = Preferences.OnErrorScreenShot;
             this.ScreenshotFolder = Preferences.ScreenShotFolder;
         }
-            
+
         #region Parameters
-        [Parameter(Mandatory=true)]
+        [Parameter(Mandatory = true)]
         public SwitchParameter Screenshot { get; set; }
-        [Parameter(Mandatory=false)]
+        [Parameter(Mandatory = false)]
         public string ScreenshotFolder { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             Preferences.OnErrorScreenShot = this.Screenshot;

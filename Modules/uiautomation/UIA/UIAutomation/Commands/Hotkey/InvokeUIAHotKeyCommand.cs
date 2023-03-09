@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAHotKeyCommand.
     /// </summary>
@@ -24,11 +24,11 @@ namespace UIAutomation.Commands
             this.Key = string.Empty;
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         public string Key { get; set; }
-        
+
         [Parameter(Mandatory = false)]
         public SwitchParameter Win { get; set; }
         [Parameter(Mandatory = false)]
@@ -39,65 +39,68 @@ namespace UIAutomation.Commands
         public SwitchParameter Shift { get; set; }
         [Parameter(Mandatory = false)]
         public SwitchParameter Alt { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Esc { get; set; }
-        
-        
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Del { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Esc { get; set; }
+
+
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Del { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Win { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             //NativeMethods.keybd_event
-            
+
             byte keys = 0x00;
             byte keys2 = 0x00;
             byte keys3 = 0x00;
-            
-            if (this.Win) { 
+
+            if (this.Win)
+            {
                 keys = 0xE0;
                 keys2 = 0x5B;
             }
-            
+
             if (this.Ctrl) { keys = 0x11; }
             if (this.Shift) { keys = 0x10; }
             if (this.Alt) { keys = 0x12; }
             if (this.Enter) { keys = 0x0D; }
             //if (this.Esc) { keys = 0x1B; }
-            
+
             //if (this.Ctrl) {}
             //if (this.Ctrl) {}
             //if (this.Ctrl) {}
-            
-            if (this.Key.Length > 0) {
-                switch (this.Key) {
+
+            if (this.Key.Length > 0)
+            {
+                switch (this.Key)
+                {
                     case "a":
                     case "A":
                         keys3 = NativeMethods.VK_0x41;
@@ -232,106 +235,109 @@ namespace UIAutomation.Commands
                     case "9":
                         keys3 = NativeMethods.VK_0x39;
                         break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                        
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-//                    case "a":
-//                    case "A":
-//                        keys3 = NativeMethods.VK_0x41;
-//                        break;
-                        
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                        
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+                        //                    case "a":
+                        //                    case "A":
+                        //                        keys3 = NativeMethods.VK_0x41;
+                        //                        break;
+
                 }
             }
-            
+
             // Simulate a key press
-            NativeMethods.keybd_event( keys,
+            NativeMethods.keybd_event(keys,
                         0x45,
                         NativeMethods.KEYEVENTF_EXTENDEDKEY | 0,
-                        0 );
-            
-            if (keys2 != 0x00) {
-                NativeMethods.keybd_event( keys2,
+                        0);
+
+            if (keys2 != 0x00)
+            {
+                NativeMethods.keybd_event(keys2,
                                           0x45,
                                           NativeMethods.KEYEVENTF_EXTENDEDKEY | 0,
-                                          0 );
+                                          0);
             }
-                
-            if (keys3 != 0x00) {
-                NativeMethods.keybd_event( keys3,
+
+            if (keys3 != 0x00)
+            {
+                NativeMethods.keybd_event(keys3,
                                           0x45,
                                           NativeMethods.KEYEVENTF_EXTENDEDKEY | 0,
-                                          0 );
-                
-                NativeMethods.keybd_event( keys3,
+                                          0);
+
+                NativeMethods.keybd_event(keys3,
                                           0x45,
                                           NativeMethods.KEYEVENTF_EXTENDEDKEY | NativeMethods.KEYEVENTF_KEYUP,
-                                          0 );
+                                          0);
             }
-                
-            if (keys2 != 0x00) {
-                NativeMethods.keybd_event( keys2,
+
+            if (keys2 != 0x00)
+            {
+                NativeMethods.keybd_event(keys2,
                                           0x45,
                                           NativeMethods.KEYEVENTF_EXTENDEDKEY | NativeMethods.KEYEVENTF_KEYUP,
-                                          0 );
+                                          0);
             }
-            
+
             // Simulate a key release
-            NativeMethods.keybd_event( keys,
+            NativeMethods.keybd_event(keys,
                         0x45,
                         NativeMethods.KEYEVENTF_EXTENDEDKEY | NativeMethods.KEYEVENTF_KEYUP,
                         0);
-            
-            
+
+
         }
     }
 }

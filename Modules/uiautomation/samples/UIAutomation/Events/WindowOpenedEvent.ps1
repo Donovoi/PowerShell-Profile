@@ -13,7 +13,7 @@ ipmo $global:uiautomationModule;
 
 Start-Process $appName -PassThru | `
 	Get-UIAWindow | `
-	Register-UIAWindowOpenedEvent -EventAction {param($src, $e) [System.Windows.Forms.MessageBox]::Show("A new window is open: $($src.Cached.Name)");};
+	Register-UIAWindowOpenedEvent -EventAction { param($src, $e) [System.Windows.Forms.MessageBox]::Show("A new window is open: $($src.Cached.Name)"); };
 Get-UIAMenuItem -Name File | `
 	Invoke-UIAMenuItemClick | `
 	Get-UIAMenuItem -Name Opt* | `

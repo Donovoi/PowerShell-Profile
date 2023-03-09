@@ -12,7 +12,7 @@ namespace UIAutomation
     using System;
     using System.Runtime.InteropServices;
     //using 
-    
+
     /// <summary>
     /// Description of JavaHelper.
     /// </summary>
@@ -20,13 +20,13 @@ namespace UIAutomation
     {
         [DllImport("windowsaccessbridge.dll", SetLastError = true)]
         internal extern static void Windows_run();
-        
+
         static JavaHelper()
         {
         }
-        
- 
-        public static void JavaAPIFunc ()
+
+
+        public static void JavaAPIFunc()
         {
             Windows_run();
         }

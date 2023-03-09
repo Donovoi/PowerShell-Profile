@@ -18,10 +18,10 @@ namespace PSTestLib
         static PSTestHelper()
         {
         }
-        
+
         public static string GetTimedFileName()
         {
-            string result = 
+            string result =
                 System.DateTime.Now.Year.ToString() +
                 System.DateTime.Now.Month.ToString() +
                 System.DateTime.Now.Day.ToString() +

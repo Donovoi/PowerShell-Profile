@@ -18,27 +18,27 @@ namespace UIAutomation.UnitTests
         public AutomationElement()
         {
         }
-        
+
         public System.Windows.Automation.AutomationElement.AutomationElementInformation Cached
         { get; set; }
-        
-// public System.Windows.Automation.AutomationElementCollection CachedChildren
-// {
-// get { return ((System.Windows.Automation.AutomationElementCollection)(new UIAutomation.UnitTests.AutomationElementCollection())); }
-// set { }
-// }
-        
+
+        // public System.Windows.Automation.AutomationElementCollection CachedChildren
+        // {
+        // get { return ((System.Windows.Automation.AutomationElementCollection)(new UIAutomation.UnitTests.AutomationElementCollection())); }
+        // set { }
+        // }
+
         public System.Windows.Automation.AutomationElement CachedParent
         { get; set; }
-        
+
         public System.Windows.Automation.AutomationElement.AutomationElementInformation Current
         {
             get { return (new System.Windows.Automation.AutomationElement.AutomationElementInformation()); }
             set { }
         }
-        
+
     }
-    
+
     public class AutomationElementCollection
     {
         public AutomationElementCollection()
@@ -51,7 +51,7 @@ namespace UIAutomation.UnitTests
         // public int Count { get; set; }
         // public int Count { get; set; }
     }
-    
+
     public class AutomationElementInformation
     {
         public string AcceleratorKey { get; set; }
@@ -73,12 +73,12 @@ namespace UIAutomation.UnitTests
         public string ItemStatus { get; set; }
         public string ItemType { get; set; }
         public System.Windows.Automation.AutomationElement LabeledBy { get; set; }
-        public string LocalizedControlType { get; set; }        
+        public string LocalizedControlType { get; set; }
         public string Name { get; set; }
         public int NativeWindowHandle { get; set; }
         public System.Windows.Automation.OrientationType Orientation { get; set; }
         public int ProcessId { get; set; }
-        
+
         // 20120206 System.Windows.Automation.AutomationElement elt;
         // elt.CachedChildren.IsSynchronized bool
         // elt.CachedChildren.SyncRoot
@@ -100,7 +100,7 @@ namespace UIAutomation.UnitTests
         // info.FrameworkId string
         // info.HasKeyboardFocus bool
         // info.HelpText string
-        
+
         // info.IsContentElement
         // info.IsControlElement
         // info.IsEnabled
@@ -108,7 +108,7 @@ namespace UIAutomation.UnitTests
         // info.IsOffscreen
         // info.IsPassword
         // info.IsRequiredForForm
-        
+
         // info.ItemStatus string
         // info.ItemType string
         // info.LabeledBy ae

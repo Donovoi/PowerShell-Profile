@@ -14,29 +14,29 @@ namespace UIAutomationUnitTests.Commands.Wizard
     using PSTestLib;
     using UIAutomation;
     using System.Management.Automation;
-    
-	/// <summary>
-	/// Description of AddUIAWizardStepCommandTestFixture.
-	/// </summary>
-	[TestFixture]
-	public class AddUIAWizardStepCommandTestFixture
-	{
-		public AddUIAWizardStepCommandTestFixture()
-		{
-		}
-		
+
+    /// <summary>
+    /// Description of AddUIAWizardStepCommandTestFixture.
+    /// </summary>
+    [TestFixture]
+    public class AddUIAWizardStepCommandTestFixture
+    {
+        public AddUIAWizardStepCommandTestFixture()
+        {
+        }
+
         [SetUp]
         public void SetUp()
         {
             UnitTestingHelper.PrepareUnitTestDataStore();
         }
-        
+
         [TearDown]
         public void TearDown()
         {
             WizardCollection.ResetData();
         }
-        
+
         [Test]
         [Description("Add-UIAWizardStep")]
         [Category("Fast")]
@@ -50,7 +50,7 @@ namespace UIAutomationUnitTests.Commands.Wizard
                 expectedName,
                 ((Wizard)PSTestLib.UnitTestOutput.LastOutput[0]).Steps[0].Name);
         }
-        
+
         [Test]
         [Description("Add-UIAWizardStep")]
         [Category("Fast")]
@@ -64,5 +64,5 @@ namespace UIAutomationUnitTests.Commands.Wizard
                 expectedName,
                 ((Wizard)PSTestLib.UnitTestOutput.LastOutput[0]).Steps[0].Name);
         }
-	}
+    }
 }

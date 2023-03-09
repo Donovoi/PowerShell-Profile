@@ -24,7 +24,7 @@ namespace UIAutomation.Commands
         public RegisterUIATextChangedEventCommand()
         {
             // base.AutomationEventType = 
-            this.AutomationEventType = 
+            this.AutomationEventType =
                 TextPattern.TextChangedEvent;
             // base.AutomationEventHandler = OnUIAutomationEvent;
             this.AutomationEventHandler = OnUIAutomationEvent;

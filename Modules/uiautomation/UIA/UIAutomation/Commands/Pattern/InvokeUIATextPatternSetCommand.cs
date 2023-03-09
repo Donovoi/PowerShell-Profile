@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIATextPatternSetCommand.
     /// </summary>
@@ -20,22 +20,22 @@ namespace UIAutomation.Commands
     {
         public InvokeUIATextPatternSetCommand()
         {
-            WhatToDo = "TextSet"; 
+            WhatToDo = "TextSet";
             //this.PassThru = false;
             //this.TextLength = -1;
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    Position = 0)]
         [AllowEmptyString]
         public string Text { get; set; }
-        
+
         [Parameter]
         internal new SwitchParameter PassThru { get; set; }
         #endregion Parameters
     }
-    
+
     /// <summary>
     /// Description of SetUIADocumentRangeTextCommand.
     /// </summary>
@@ -44,7 +44,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIADocumentRangeTextCommand : InvokeUIATextPatternSetCommand
     { public SetUIADocumentRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAEditRangeTextCommand.
     /// </summary>
@@ -53,7 +53,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAEditRangeTextCommand : InvokeUIATextPatternSetCommand
     { public SetUIAEditRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIATextRangeTextCommand.
     /// </summary>
@@ -62,7 +62,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIATextRangeTextCommand : InvokeUIATextPatternSetCommand
     { public SetUIATextRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAToolTipRangeTextCommand.
     /// </summary>

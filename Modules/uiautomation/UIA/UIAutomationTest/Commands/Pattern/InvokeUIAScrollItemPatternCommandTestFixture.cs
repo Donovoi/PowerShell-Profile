@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Pattern
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAScrollItemPatternCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Pattern
         public InvokeUIAScrollItemPatternCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -30,10 +30,12 @@ namespace UIAutomationTest.Commands.Pattern
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.Preferences]::Timeout = 10000);");
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("WinForms")]
-        [Category("Slow")][Category("Control")]
+        [Category("Slow")]
+        [Category("WinForms")]
+        [Category("Slow")]
+        [Category("Control")]
         public void InvokeScrollItem_ListBox()
         {
             //string name1 = "listBox1";
@@ -42,33 +44,33 @@ namespace UIAutomationTest.Commands.Pattern
             //string auId2 = "rb222";
             string expectedResult = "False";
             MiddleLevelCode.StartProcessWithForm(
-                UIAutomationTestForms.Forms.WinFormsFull, 
+                UIAutomationTestForms.Forms.WinFormsFull,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"if ((Get-UIAWindow -pn " + 
+                @"if ((Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                " | Get-UIAList -AutomationId '" + 
-                auId1 + 
-                "' | Get-UIAListItem -Name '" + 
+                " | Get-UIAList -AutomationId '" +
+                auId1 +
+                "' | Get-UIAListItem -Name '" +
                 name2 +
                 "' | Read-UIAControlIsOffscreen)) {" +
-                "$null = Get-UIAWindow -pn " + 
+                "$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                " | Get-UIAList -AutomationId '" + 
-                auId1 + 
-                "' | Get-UIAListItem -Name '" + 
+                " | Get-UIAList -AutomationId '" +
+                auId1 +
+                "' | Get-UIAListItem -Name '" +
                 name2 +
                 "' | Invoke-UIAListItemScrollItem; " +
-                @"Get-UIAWindow -pn " + 
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                " | Get-UIAList -AutomationId '" + 
-                auId1 + 
-                "' | Get-UIAListItem -Name '" + 
+                " | Get-UIAList -AutomationId '" +
+                auId1 +
+                "' | Get-UIAListItem -Name '" +
                 name2 +
                 "' | Read-UIAControlIsOffscreen;}",
                 expectedResult);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

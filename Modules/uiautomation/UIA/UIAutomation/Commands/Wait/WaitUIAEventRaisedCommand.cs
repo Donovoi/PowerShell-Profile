@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of WaitUIAEventRaisedCommand.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation.Commands
         public WaitUIAEventRaisedCommand()
         {
         }
-        
+
         [Parameter(Mandatory = false)]
         //public new string[] ControlType { get; set; }
         public string[] ControlType { get; set; }
@@ -34,87 +34,97 @@ namespace UIAutomation.Commands
         [Parameter(Mandatory = false)]
         //public new string Name { get; set; }
         public string[] EventId { get; set; }
-        
+
         protected override void BeginProcessing()
         {
             this.StartDate = System.DateTime.Now;
         }
-        
+
         protected override void ProcessRecord()
         {
-            
+
             bool notFoundYet = true;
-            
-            do {
-this.WriteTrace(this, "do");
-                if (CurrentData.LastEventInfoAdded) {
-this.WriteTrace(this, "if (CurrentData.LastEventInfoAdded)");
+
+            do
+            {
+                this.WriteTrace(this, "do");
+                if (CurrentData.LastEventInfoAdded)
+                {
+                    this.WriteTrace(this, "if (CurrentData.LastEventInfoAdded)");
                     string name = string.Empty;
                     string automationId = string.Empty;
                     string controlType = string.Empty;
                     string eventId = string.Empty;
 
-                    try {
-this.WriteTrace(this, "name 1");
+                    try
+                    {
+                        this.WriteTrace(this, "name 1");
                         name = CurrentData.LastEventSource.Cached.Name;
-this.WriteTrace(this, "name 2");
+                        this.WriteTrace(this, "name 2");
                     }
-                    catch {}
+                    catch { }
 
-                    try {
-this.WriteTrace(this, "auId 1");
+                    try
+                    {
+                        this.WriteTrace(this, "auId 1");
                         automationId = CurrentData.LastEventSource.Cached.AutomationId;
-this.WriteTrace(this, "auId 2");
+                        this.WriteTrace(this, "auId 2");
                     }
-                    catch {}
-                    
-                    try {
-this.WriteTrace(this, "type 1");
-                        controlType = CurrentData.LastEventSource.Cached.ControlType.ProgrammaticName;
-this.WriteTrace(this, "type 2");
-                        controlType = controlType.Substring(12);
-this.WriteTrace(this, "type 3");
-                    }
-                    catch {}
+                    catch { }
 
-                    try {
-this.WriteTrace(this, "eventId 1");
-                        eventId = CurrentData.LastEventType;
-this.WriteTrace(this, eventId);
-this.WriteTrace(this, "eventId 2");
+                    try
+                    {
+                        this.WriteTrace(this, "type 1");
+                        controlType = CurrentData.LastEventSource.Cached.ControlType.ProgrammaticName;
+                        this.WriteTrace(this, "type 2");
+                        controlType = controlType.Substring(12);
+                        this.WriteTrace(this, "type 3");
                     }
-                    catch {}
+                    catch { }
+
+                    try
+                    {
+                        this.WriteTrace(this, "eventId 1");
+                        eventId = CurrentData.LastEventType;
+                        this.WriteTrace(this, eventId);
+                        this.WriteTrace(this, "eventId 2");
+                    }
+                    catch { }
                     //System.Windows.Automation.Peers.AutomationEvents.
                     //System.Windows.Automation.Peers.PatternInterface.Dock
                     if (this.Name != null &&
-                        this.Name.Length > 0) {
-this.WriteTrace(this, "name 001");
+                        this.Name.Length > 0)
+                    {
+                        this.WriteTrace(this, "name 001");
                         notFoundYet = !IsInArray(name, this.Name);
-this.WriteTrace(this, "name 002");
+                        this.WriteTrace(this, "name 002");
                     }
-                    
+
                     if (this.AutomationId != null &&
-                        this.AutomationId.Length > 0) {
-this.WriteTrace(this, "auId 001");
+                        this.AutomationId.Length > 0)
+                    {
+                        this.WriteTrace(this, "auId 001");
                         notFoundYet = !IsInArray(automationId, this.AutomationId);
-this.WriteTrace(this, "auId 002");
+                        this.WriteTrace(this, "auId 002");
                     }
-                    
+
                     if (this.ControlType != null &&
-                        this.ControlType.Length > 0) {
-this.WriteTrace(this, "type 001");
+                        this.ControlType.Length > 0)
+                    {
+                        this.WriteTrace(this, "type 001");
                         notFoundYet = !IsInArray(controlType, this.ControlType);
-this.WriteTrace(this, "type 002");
+                        this.WriteTrace(this, "type 002");
                     }
-                    
+
                     if (this.EventId != null &&
-                        this.EventId.Length > 0) {
-this.WriteTrace(this, "eventId 001");
+                        this.EventId.Length > 0)
+                    {
+                        this.WriteTrace(this, "eventId 001");
                         notFoundYet = !IsInArray(eventId, this.EventId);
-this.WriteTrace(this, "eventId 002");
+                        this.WriteTrace(this, "eventId 002");
                     }
                 }
-                
+
                 //System.Threading.Thread.Sleep(100);
                 SleepAndRunScriptBlocks(this);
                 System.DateTime nowDate = System.DateTime.Now;
@@ -127,25 +137,28 @@ this.WriteTrace(this, "eventId 002");
                             "NoEventFound",
                             ErrorCategory.ObjectNotFound,
                             null);
-                    err.ErrorDetails = 
+                    err.ErrorDetails =
                         new ErrorDetails(
                             "Could not catch the event");
                     WriteError(this, err, true);
                 }
-                
-                if (!notFoundYet) {
+
+                if (!notFoundYet)
+                {
                     CurrentData.LastEventInfoAdded = false;
                     WriteObject(this, CurrentData.LastEventSource);
                 }
-                
+
             } while (notFoundYet);
         }
-        
+
         private bool IsInArray(string whatToSearch, string[] whereToSearch)
         {
             bool result = false;
-            for (int i = 0; i < whereToSearch.Length; i++) {
-                if (whatToSearch.ToUpper() == whereToSearch[i].ToUpper()) {
+            for (int i = 0; i < whereToSearch.Length; i++)
+            {
+                if (whatToSearch.ToUpper() == whereToSearch[i].ToUpper())
+                {
                     result = true;
                     break;
                 }

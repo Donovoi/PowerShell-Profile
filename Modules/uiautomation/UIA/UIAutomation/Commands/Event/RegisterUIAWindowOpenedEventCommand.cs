@@ -23,7 +23,7 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAWindowOpenedEventCommand()
         {
-            base.AutomationEventType = 
+            base.AutomationEventType =
                 WindowPattern.WindowOpenedEvent;
             base.AutomationEventHandler = OnUIAutomationEvent;
         }

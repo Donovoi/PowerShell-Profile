@@ -10,13 +10,13 @@ ipmo [path]\UIAutomation.dll;
 
 Start-Process calc -PassThru | Get-UIAWindow | Get-UIAControl -Name A* | `
  
-	%{Write-Host "===========================================================";
+% { Write-Host "===========================================================";
  
 	Write-Host "@{Name='$($_.Current.Name)'; 
 	AutomationId='$($_.Current.AutomationId)'; 
 	ControlType='$($_.Current.ControlType.ProgrammaticName)'}"; 
 	$_ | Get-UIAControlAncestors | `
  
-	%{Write-Host "@{Name='$($_.Current.Name)'; 
+	% { Write-Host "@{Name='$($_.Current.Name)'; 
 	AutomationId='$($_.Current.AutomationId)'; 
-	ControlType='$($_.Current.ControlType.ProgrammaticName)'}";}};
+	ControlType='$($_.Current.ControlType.ProgrammaticName)'}"; } };

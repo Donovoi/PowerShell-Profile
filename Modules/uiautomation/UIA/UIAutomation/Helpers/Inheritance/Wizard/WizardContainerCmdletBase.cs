@@ -20,36 +20,36 @@ namespace UIAutomation
         public WizardContainerCmdletBase()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         // 20130322
         //internal new Wizard InputObject { get; set; }
         public new Wizard InputObject { get; set; }
-        
-        
-        
-        
-//        [Parameter(Mandatory = true)]
-//        [ValidateNotNullOrEmpty]
-//        public ScriptBlock[] StartAction { get; set; }
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public ScriptBlock[] StopAction { get; set; }
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public ScriptBlock[] DefaultStepForwardAction { get; set; }
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public ScriptBlock[] DefaultStepBackwardAction { get; set; }
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public ScriptBlock[] DefaultStepCancelAction { get; set; }
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public ScriptBlock[] DefaultStepGetWindowAction { get; set; }
-//        [Parameter(Mandatory = false)]
-//        internal int Order { get; set; }
+
+
+
+
+        //        [Parameter(Mandatory = true)]
+        //        [ValidateNotNullOrEmpty]
+        //        public ScriptBlock[] StartAction { get; set; }
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public ScriptBlock[] StopAction { get; set; }
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public ScriptBlock[] DefaultStepForwardAction { get; set; }
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public ScriptBlock[] DefaultStepBackwardAction { get; set; }
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public ScriptBlock[] DefaultStepCancelAction { get; set; }
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public ScriptBlock[] DefaultStepGetWindowAction { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        internal int Order { get; set; }
         #endregion Parameters
     }
 }

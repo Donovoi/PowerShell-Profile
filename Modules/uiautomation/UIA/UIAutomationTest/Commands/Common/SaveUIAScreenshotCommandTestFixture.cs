@@ -22,23 +22,25 @@ namespace UIAutomationTest.Commands.Common
         public SaveUIAScreenshotCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [Test] //[Test(Description="Saving a screenshot with description")]
-        [Category("Slow")][Category("NoForms")]
-        [Category("Slow")][Category("Screenshot")]
+        [Category("Slow")]
+        [Category("NoForms")]
+        [Category("Slow")]
+        [Category("Screenshot")]
         public void ScreenshotFile_Description()
         {
             CmdletUnitTest.TestRunspace.RunAndEvaluateIsTrue(
                 @"if ( ($null | Set-UIAFocus) ) { 1; } else { 0; }",
                 "0");
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

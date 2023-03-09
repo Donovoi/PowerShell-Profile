@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Pattern
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIATransformPatternResizeCommandTestFixture.
     /// </summary>
@@ -22,13 +22,13 @@ namespace UIAutomationTest.Commands.Pattern
         public InvokeUIATransformPatternResizeCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

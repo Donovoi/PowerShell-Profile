@@ -10,7 +10,7 @@
 namespace PSTestLib
 {
     using System;
-    
+
     /// <summary>
     /// Description of IRecordedElementItem.
     /// </summary>

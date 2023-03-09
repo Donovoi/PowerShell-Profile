@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of SearchCmdletBase.
     /// </summary>
@@ -21,13 +21,13 @@ namespace UIAutomation
         {
             this.CaseSensitive = false;
         }
-        
+
         #region Parameters
-//        [Parameter(Mandatory = false)]
-//        public new string[] ControlType { get; set; }
-        
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter CaseSensitive { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        public new string[] ControlType { get; set; }
+
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter CaseSensitive { get; set; }
         #endregion Parameters
     }
 }

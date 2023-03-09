@@ -25,20 +25,20 @@ namespace UIAutomation.Commands
             WhatToDo = "ValueSet";
             Text = String.Empty;
             base.Child = this;
-            
+
             this.PassThru = false;
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    Position = 0)]
         [AllowEmptyString]
         public string Text { get; set; }
-        
+
         [Parameter]
-        internal new SwitchParameter PassThru {get; set; }
+        internal new SwitchParameter PassThru { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             WriteVerbose(this, "Text = " + Text);
@@ -53,7 +53,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIACalendarValueCommand : InvokeUIAValuePatternSetCommand
     { public SetUIACalendarValueCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAComboBoxTextCommand.
     /// </summary>
@@ -62,7 +62,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAComboBoxTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIAComboBoxTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIACustomTextCommand.
     /// </summary>
@@ -71,7 +71,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIACustomTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIACustomTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIADataItemTextCommand.
     /// </summary>
@@ -80,7 +80,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIADataItemTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIADataItemTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAEditTextCommand.
     /// </summary>
@@ -89,7 +89,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAEditTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIAEditTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIATextBoxTextCommand.
     /// </summary>
@@ -98,7 +98,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIATextBoxTextCommand : SetUIAEditTextCommand
     { public SetUIATextBoxTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAHyperlinkTextCommand.
     /// </summary>
@@ -107,7 +107,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAHyperlinkTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIAHyperlinkTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIALinkLabelTextCommand.
     /// </summary>
@@ -116,7 +116,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIALinkLabelTextCommand : SetUIAHyperlinkTextCommand
     { public SetUIALinkLabelTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAListItemTextCommand.
     /// </summary>
@@ -125,7 +125,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAListItemTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIAListItemTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAProgressBarValueCommand.
     /// </summary>
@@ -134,7 +134,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAProgressBarValueCommand : InvokeUIAValuePatternSetCommand
     { public SetUIAProgressBarValueCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIASliderValueCommand.
     /// </summary>
@@ -143,7 +143,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIASliderValueCommand : InvokeUIAValuePatternSetCommand
     { public SetUIASliderValueCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIASpinnerValueCommand.
     /// </summary>
@@ -152,7 +152,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIASpinnerValueCommand : InvokeUIAValuePatternSetCommand
     { public SetUIASpinnerValueCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIATextTextCommand.
     /// </summary>
@@ -161,7 +161,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIATextTextCommand : InvokeUIAValuePatternSetCommand
     { public SetUIATextTextCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIALabelTextCommand.
     /// </summary>

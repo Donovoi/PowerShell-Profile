@@ -23,7 +23,7 @@ namespace UIAutomation
         public WizardStepCmdletBase()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         //public System.Collections.Hashtable[] SearchCriteria { get; set; }
@@ -39,13 +39,13 @@ namespace UIAutomation
         // 20130319
         //[Parameter(Mandatory = false)]
         //public ScriptBlock[] StepGetWindowAction { get; set; }
-        
+
         [Parameter(Mandatory = false)]
         public int Order { get; set; }
-        
-//        // 20130318
-//        [Parameter(Mandatory = false)]
-//        public string Description { get; set; }
+
+        //        // 20130318
+        //        [Parameter(Mandatory = false)]
+        //        public string Description { get; set; }
         #endregion Parameters
     }
 }

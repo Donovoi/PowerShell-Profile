@@ -10,7 +10,7 @@
 namespace UIARunner
 {
     using System;
-    
+
     public enum RunModes
     {
         GUI = 1,

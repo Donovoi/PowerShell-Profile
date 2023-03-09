@@ -20,9 +20,10 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     [Obsolete("This cmdlet is obsolete. Please use the Invoke-UIATogglePatternSet cmdlet")]
     public class InvokeUIATogglePatternCommand : PatternCmdletBase
-    { public InvokeUIATogglePatternCommand() { WhatToDo = "Toggle"; }
+    {
+        public InvokeUIATogglePatternCommand() { WhatToDo = "Toggle"; }
     }
-    
+
     /// <summary>
     /// Description of InvokeUIAButtonToggleCommand.
     /// </summary>
@@ -32,7 +33,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIAButtonToggleState cmdlet")]
     public class InvokeUIAButtonToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIAButtonToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIACheckBoxToggleCommand.
     /// </summary>
@@ -42,7 +43,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIACheckBoxToggleState cmdlet")]
     public class InvokeUIACheckBoxToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIACheckBoxToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomToggleCommand.
     /// </summary>
@@ -52,7 +53,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIACustomToggleState cmdlet")]
     public class InvokeUIACustomToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIACustomToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIADataItemToggleCommand.
     /// </summary>
@@ -62,7 +63,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIADataItemToggleState cmdlet")]
     public class InvokeUIADataItemToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIADataItemToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemToggleCommand.
     /// </summary>
@@ -72,7 +73,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIAListItemToggleState cmdlet")]
     public class InvokeUIAListItemToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIAListItemToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuItemToggleCommand.
     /// </summary>
@@ -82,7 +83,7 @@ namespace UIAutomation.Commands
     [Obsolete("This cmdlet is obsolete. Please use the Set-UIAMenuItemToggleState cmdlet")]
     public class InvokeUIAMenuItemToggleCommand : InvokeUIATogglePatternCommand
     { public InvokeUIAMenuItemToggleCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIARadioButtonToggleCommand.
     /// </summary>

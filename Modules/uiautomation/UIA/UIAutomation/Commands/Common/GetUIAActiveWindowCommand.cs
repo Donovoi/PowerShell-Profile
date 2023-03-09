@@ -13,7 +13,7 @@ namespace UIAutomation.Commands
     using System.Management.Automation;
     // using System.Runtime.InteropServices;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of GetUIAActiveWindowCommand.
     /// </summary>
@@ -26,10 +26,10 @@ namespace UIAutomation.Commands
         {
         }
         #endregion constructor
-        
+
         protected override void BeginProcessing()
         {
-            AutomationElement element = 
+            AutomationElement element =
                 GetActiveWindow();
             UIAutomation.CurrentData.CurrentWindow = element;
             this.WriteObject(this, element);

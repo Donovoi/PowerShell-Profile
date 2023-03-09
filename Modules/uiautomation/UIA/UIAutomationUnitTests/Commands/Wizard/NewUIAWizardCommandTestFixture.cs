@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests.Commands.Wizard
     using PSTestLib;
     using UIAutomation;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of NewUIAWizardCommandTestFixture.
     /// </summary>
@@ -24,19 +24,19 @@ namespace UIAutomationUnitTests.Commands.Wizard
         public NewUIAWizardCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void SetUp()
         {
             UnitTestingHelper.PrepareUnitTestDataStore();
         }
-        
+
         [TearDown]
         public void TearDown()
         {
             WizardCollection.ResetData();
         }
-        
+
         [Test]
         [Description("New-UIAWizard")]
         [Category("Fast")]
@@ -45,12 +45,12 @@ namespace UIAutomationUnitTests.Commands.Wizard
         {
             string expectedName = "name";
             UnitTestingHelper.CreateWizard(expectedName, null);
-            
+
             Assert.AreEqual(
                 expectedName,
                 ((Wizard)PSTestLib.UnitTestOutput.LastOutput[0]).Name);
         }
-        
+
         [Test]
         [Description("New-UIAWizard")]
         [Category("Fast")]
@@ -59,12 +59,12 @@ namespace UIAutomationUnitTests.Commands.Wizard
         {
             string expectedName = @"\\aa//bb``cc";
             UnitTestingHelper.CreateWizard(expectedName, null);
-            
+
             Assert.AreEqual(
                 expectedName,
                 ((Wizard)PSTestLib.UnitTestOutput.LastOutput[0]).Name);
         }
-        
+
         [Test]
         [Description("New-UIAWizard")]
         [Category("Fast")]
@@ -74,14 +74,14 @@ namespace UIAutomationUnitTests.Commands.Wizard
         {
             string expectedName = "name";
             UnitTestingHelper.CreateWizard(expectedName, null);
-            
+
             //Assert.Throws<Type>(UnitTestingHelper.CreateWizard(expectedName, null));
-            
-//            createWizard(expectedName, null);
-//            
-//            Assert.AreEqual(
-//                expectedName,
-//                ((Wizard)(object)PSTestLib.UnitTestOutput.LastOutput[0]).Name);
+
+            //            createWizard(expectedName, null);
+            //            
+            //            Assert.AreEqual(
+            //                expectedName,
+            //                ((Wizard)(object)PSTestLib.UnitTestOutput.LastOutput[0]).Name);
         }
     }
 }

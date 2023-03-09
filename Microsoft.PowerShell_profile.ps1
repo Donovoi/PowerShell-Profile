@@ -1,6 +1,7 @@
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $GLOBAL:ErrorActionPreference = 'continue'
+$Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 #$profileps1 = $(Resolve-Path -Path $PROFILE) -split "\"[-1]
 $profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
@@ -11,7 +12,7 @@ $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/Get-UniqueStrin
 $ModulesFolder.foreach{
     Import-Module -Name $_.FullName
 }
-$ENV:PATH += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin;"
+$ENV:PATH += ";$XWAYSUSB`:\chocolatey apps\chocolatey\bin;"
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 
@@ -22,7 +23,7 @@ if ([string]::IsNullOrEmpty($chococommand)) {
 }
 
 $env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\chocolatey apps\chocolatey\bin\"
-$env:Path += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
+$env:Path += ";$XWAYSUSB`:\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }

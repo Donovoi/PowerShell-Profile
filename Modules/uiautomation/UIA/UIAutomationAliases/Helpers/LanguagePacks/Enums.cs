@@ -9,7 +9,8 @@
 
 namespace UIAutomationAliases
 {
-    public enum LanguagePacks {
+    public enum LanguagePacks
+    {
         @En_US,
         @Ru_ru
     }

@@ -19,7 +19,7 @@ namespace UIAutomation.Commands
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIATransformPatternResizeCommand : PatternCmdletBase
-    {    
+    {
         public InvokeUIATransformPatternResizeCommand()
         {
             WhatToDo = "TransformResize";
@@ -27,13 +27,13 @@ namespace UIAutomation.Commands
             TransformResizeHeight = 1;
             base.Child = this;
         }
-        
+
         [Parameter(Mandatory = true)]
         public double TransformResizeWidth { get; set; }
         [Parameter(Mandatory = true)]
         public double TransformResizeHeight { get; set; }
     }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomTransformResizeCommand.
     /// </summary>
@@ -51,7 +51,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHeaderTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAHeaderTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAHeaderItemTransformResizeCommand.
     /// </summary>
@@ -60,7 +60,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHeaderItemTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAHeaderItemTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAMenuBarTransformResizeCommand.
     /// </summary>
@@ -69,7 +69,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuBarTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAMenuBarTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAPaneTransformResizeCommand.
     /// </summary>
@@ -78,7 +78,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAPaneTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAPaneTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAThumbTransformResizeCommand.
     /// </summary>
@@ -87,7 +87,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAThumbTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAThumbTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAToolBarTransformResizeCommand.
     /// </summary>
@@ -96,7 +96,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAToolBarTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAToolBarTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAWindowTransformResizeCommand.
     /// </summary>
@@ -105,7 +105,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAWindowTransformResizeCommand : InvokeUIATransformPatternResizeCommand
     { public InvokeUIAWindowTransformResizeCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAChildWindowTransformResizeCommand.
     /// </summary>
@@ -114,5 +114,5 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAChildWindowTransformResizeCommand : InvokeUIAWindowTransformResizeCommand
     { public InvokeUIAChildWindowTransformResizeCommand() { } }
-    
+
 }

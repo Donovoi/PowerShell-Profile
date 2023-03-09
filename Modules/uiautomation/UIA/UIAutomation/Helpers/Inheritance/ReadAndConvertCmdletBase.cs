@@ -22,7 +22,7 @@ namespace UIAutomation
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new SwitchParameter PassThru { get; set; }

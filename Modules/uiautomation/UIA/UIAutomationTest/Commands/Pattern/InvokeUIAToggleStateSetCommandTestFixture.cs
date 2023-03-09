@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Pattern
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAToggleStateSetCommandTestFixture.
     /// </summary>
@@ -21,19 +21,19 @@ namespace UIAutomationTest.Commands.Pattern
         public InvokeUIAToggleStateSetCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("Set-UIACheckBoxToggleState")]
@@ -50,24 +50,24 @@ namespace UIAutomationTest.Commands.Pattern
                 automationId,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $true; " +
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $true; " +
-                @"Get-UIAWindow -pn " + 
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Get-UIACheckBoxToggleState;",
                 expectedResult);
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("Set-UIACheckBoxToggleState")]
@@ -84,24 +84,24 @@ namespace UIAutomationTest.Commands.Pattern
                 automationId,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $true; " +
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $false; " +
-                @"Get-UIAWindow -pn " + 
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Get-UIACheckBoxToggleState;",
                 expectedResult);
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("Set-UIACheckBoxToggleState")]
@@ -118,19 +118,19 @@ namespace UIAutomationTest.Commands.Pattern
                 automationId,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $true; " +
-                @"Get-UIAWindow -pn " + 
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Get-UIACheckBoxToggleState;",
                 expectedResult);
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("Set-UIACheckBoxToggleState")]
@@ -147,12 +147,12 @@ namespace UIAutomationTest.Commands.Pattern
                 automationId,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +
                 "' | Set-UIACheckBoxToggleState $false; " +
-                @"Get-UIAWindow -pn " + 
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 " | Get-UIACheckBox -Name '" +
                 name +

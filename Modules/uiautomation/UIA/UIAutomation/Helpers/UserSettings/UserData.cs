@@ -10,7 +10,7 @@
 namespace UIAutomation
 {
     using System;
-    
+
     /// <summary>
     /// Description of UserData.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation
         {
             UserDictionary = new System.Collections.Generic.Dictionary<string, object>();
         }
-        
+
         public static System.Collections.Generic.Dictionary<string, object> UserDictionary = null;
     }
 }

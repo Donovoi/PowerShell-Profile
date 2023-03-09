@@ -2,7 +2,7 @@
 	[string]$FileName,
 	[string]$AppTitle,
 	[string]$HelpTitle
-     )
+)
 Set-StrictMode -Version Latest
 cls;
 
@@ -24,41 +24,37 @@ Start-Process $testNames.AppName -PassThru | Get-UIAWindow -Seconds 120 | `
 	Get-UIAMenuItem -Name 'Help*Topic*' | INvoke-UIAMenuItemClick;
 Get-UIAWindow -Name $testNames.HelpTitle -Seconds 120;
 
-function Invoke-TreeNodeExpand
-{
+function Invoke-TreeNodeExpand {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -DoubleClick -PassThru:$false);
 }
 
-function Invoke-TreeNodeCollapse
-{
+function Invoke-TreeNodeCollapse {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -DoubleClick -PassThru:$false);
 }
 
 
-function Invoke-TreeNodeShowRightPane
-{
+function Invoke-TreeNodeShowRightPane {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -PassThru:$false);
 }
 
-function Invoke-TreeNodeChildrenProcess
-{
+function Invoke-TreeNodeChildrenProcess {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element,
-		  [string]$NodeHierarchy
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element,
+		[string]$NodeHierarchy
+	)
 	
 	# children of the node or top-level nodes
 	$children = $element | Get-UIAControlChildren -ControlType TreeItem;
@@ -87,7 +83,8 @@ function Invoke-TreeNodeChildrenProcess
 				[string]$fullHierarchy = "";
 				if ($NodeHierarchy.Length -gt 0) {
 					$fullHierarchy = $NodeHierarchy + " -> " + $childNode.Current.Name;
-				} else {
+				}
+				else {
 					$fullHierarchy = $childNode.Current.Name;
 				}
 				Write-Host $fullHierarchy;
