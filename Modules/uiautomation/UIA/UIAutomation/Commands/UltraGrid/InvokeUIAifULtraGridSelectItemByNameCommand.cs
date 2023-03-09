@@ -23,19 +23,19 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         public int First { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
+
             ifUltraGridProcessing(ifUltraGridOperations.selectItems);
         }
     }

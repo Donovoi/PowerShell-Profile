@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Pattern
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAWindowPatternCommandTestFixture.
     /// </summary>
@@ -22,21 +22,21 @@ namespace UIAutomationTest.Commands.Pattern
         public InvokeUIAWindowPatternCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
-        
+
+
         // Custom
         // Pane
         // ToolTip
         // Window
         // ChildWindow
-        
-        
+
+
         [TearDown]
         public void DisposeRunspace()
         {

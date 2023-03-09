@@ -23,14 +23,14 @@ namespace UIAutomation.Commands
             this.Log = Preferences.Log;
             this.Path = Preferences.LogPath;
         }
-        
+
         #region Parameters
-        [Parameter(Mandatory=true)]
+        [Parameter(Mandatory = true)]
         public SwitchParameter Log { get; set; }
-        [Parameter(Mandatory=false)]
+        [Parameter(Mandatory = false)]
         public string Path { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             Preferences.Log = this.Log;

@@ -23,21 +23,23 @@ namespace UIAutomation.Commands
         public GetUIARegisteredEventCommand()
         {
         }
-        
+
         #region Parameters
-//        [Parameter(Mandatory = false)] 
-//        internal new System.Windows.Automation.AutomationElement[] InputObject { get; set; }
-//        [Parameter(Mandatory = false)]
-//        internal new SwitchParameter PassThru { get; set; }
-//        [Parameter(Mandatory = false)]
-//        internal new ScriptBlock[] EventAction { get; set; }
+        //        [Parameter(Mandatory = false)] 
+        //        internal new System.Windows.Automation.AutomationElement[] InputObject { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        internal new SwitchParameter PassThru { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        internal new ScriptBlock[] EventAction { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
-            try {
+            try
+            {
 
-                foreach (object handler in CurrentData.Events) {
+                foreach (object handler in CurrentData.Events)
+                {
 
                     this.WriteObject(
                         this,
@@ -45,7 +47,8 @@ namespace UIAutomation.Commands
 
                 }
             }
-            catch (Exception eEnumEventhandlers) {
+            catch (Exception eEnumEventhandlers)
+            {
                 this.WriteError(
                     this,
                     "Unable to enumerate event handlers. " +
@@ -55,7 +58,7 @@ namespace UIAutomation.Commands
                     true);
             }
         }
-        
+
         /// <summary>
         /// This is a placeholder to prevent its base counterpart from being run.
         /// </summary>

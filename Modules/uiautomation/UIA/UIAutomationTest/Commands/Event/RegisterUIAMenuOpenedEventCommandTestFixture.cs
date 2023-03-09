@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Event
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of RegisterUIAMenuOpenedEventCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Event
         public RegisterUIAMenuOpenedEventCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -32,7 +32,7 @@ namespace UIAutomationTest.Commands.Event
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.Preferences]::Timeout = 10000);");
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("WinForms")]
@@ -42,27 +42,27 @@ namespace UIAutomationTest.Commands.Event
         public void RegisterMenuOpenedEvent()
         {
             string text = "File";
-            string eventType = 
+            string eventType =
                 "AutomationElementIdentifiers.MenuOpenedEvent";
 
             MiddleLevelCode.StartProcessWithForm(
-                UIAutomationTestForms.Forms.WinFormsFull, 
+                UIAutomationTestForms.Forms.WinFormsFull,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
                 @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                @" | Register-UIAMenuOpenedEvent " + 
-                @"-EventAction {$i = 1;}; " + 
-                @"$null = Get-UIAMenuItem -Name '" + 
+                @" | Register-UIAMenuOpenedEvent " +
+                @"-EventAction {$i = 1;}; " +
+                @"$null = Get-UIAMenuItem -Name '" +
                 text +
-                @"' | Invoke-UIAMenuItemClick -PassThru | Invoke-UIAMenuItemClick; " + 
+                @"' | Invoke-UIAMenuItemClick -PassThru | Invoke-UIAMenuItemClick; " +
                 @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 @" | Invoke-UIAControlClick; " +
                 @"[UIAutomation.CurrentData]::LastEventType",
                 eventType);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

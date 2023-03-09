@@ -32,17 +32,16 @@ Get-UIAMenuItem -Name View | `
 	Invoke-UIAMenuItemExpand | `
 	Get-UIAMenuItem -Name Standard | `
 	Invoke-UIAMenuItemClick -TestResultName 'The Standard menu item is available' `
-		-TestPassed -TestLog;
+	-TestPassed -TestLog;
 # the TestLog parameters logs the last line of code
 # the TestPassed parameter informs that we have gotten the result we expected
 # the TestResultName parameter gives the name to our test result
 # test result Id is generated as we don't need to set it manually, this is just result
 
-function calculateExpression
-{
+function calculateExpression {
 	param(
-		  [string]$modeName
-		  )
+		[string]$modeName
+	)
 	# produce the input
 	Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
 	Get-UIAButton -Name Add | Invoke-UIAButtonClick -TestResultName "The Add button is clickable $($modeName)" -TestPassed;
@@ -84,7 +83,8 @@ function calculateExpression
 Get-UIAWindow -ProcessName calc;
 if ((Get-UIAControlDescendants -ControlType Button).Count -eq 31) {
 	Close-TMXTestResult -Name $testResultName -TestPassed;
-} else {
+}
+else {
 	Close-TMXTestResult -Name $testResultName -TestPassed:$false;
 	# do additional actions if needed
 }
@@ -102,7 +102,7 @@ Get-UIAMenuItem -Name View | `
 	Invoke-UIAMenuItemExpand | `
 	Get-UIAMenuItem -Name Scientific | `
 	Invoke-UIAMenuItemClick -TestResultName 'The Scientific menu item is available' `
-		-TestPassed -TestLog;
+	-TestPassed -TestLog;
 
 # check the mode we are in now
 $testResultName = 'The Scientific mode is available';
@@ -111,7 +111,8 @@ $testResultName = 'The Scientific mode is available';
 Get-UIAWindow -ProcessName calc;
 if ((Get-UIAControlDescendants -ControlType Button).Count -eq 53) {
 	Close-TMXTestResult -Name $testResultName -TestPassed;
-} else {
+}
+else {
 	Close-TMXTestResult -Name $testResultName -TestPassed:$false;
 	# do additional actions if needed
 }

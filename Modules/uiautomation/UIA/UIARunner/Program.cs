@@ -24,26 +24,31 @@ namespace UIARunner
         private static void Main(string[] args)
         {
             RunModes mode = RunModes.GUI;
-            
-            if (args == null || args.Length > 0) {
-                if (System.IO.File.Exists(args[0])) {
+
+            if (args == null || args.Length > 0)
+            {
+                if (System.IO.File.Exists(args[0]))
+                {
                     mode = RunModes.Unattended;
-                } else {
+                }
+                else
+                {
                     Console.WriteLine(
-                        "The path to a script file '" + 
+                        "The path to a script file '" +
                         args[0] +
                         "' is not valid.");
                 }
             }
-            
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
-            if (mode == RunModes.Unattended) {
+
+            if (mode == RunModes.Unattended)
+            {
                 UIARunnerForm runnerForm =
                     new UIARunnerForm();
                 PSTestRunner.TestRunner.InitScript();
-                TMX.TestData.TMXNewTestResultClosed += 
+                TMX.TestData.TMXNewTestResultClosed +=
                     new TMX.TMXStructureChangedEventHandler(
                         PSTestRunner.TestRunner.NewTestResultClosed);
                 PSRunner.Runner.PSErrorThrown +=
@@ -53,10 +58,12 @@ namespace UIARunner
                     new PSRunner.PSDataArrivedEventHandler(
                         runnerForm.PSOutputArrived);
                 PSTestRunner.TestRunner.RunScript(args[0], true);
-            } else {
+            }
+            else
+            {
                 Application.Run(new UIARunnerForm());
             }
         }
-        
+
     }
 }

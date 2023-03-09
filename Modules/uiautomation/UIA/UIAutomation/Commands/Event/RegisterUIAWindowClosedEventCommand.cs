@@ -24,7 +24,7 @@ namespace UIAutomation.Commands
         public RegisterUIAWindowClosedEventCommand()
         {
             // base.AutomationEventType = 
-            this.AutomationEventType = 
+            this.AutomationEventType =
                 WindowPattern.WindowClosedEvent;
             // base.AutomationEventHandler = OnUIAutomationEvent;
             this.AutomationEventHandler = OnUIAutomationEvent;

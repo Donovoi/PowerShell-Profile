@@ -12,7 +12,7 @@ namespace UIAutomationTest.Provider
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of UIAProviderTestFixture.
     /// </summary>
@@ -22,39 +22,42 @@ namespace UIAutomationTest.Provider
         public UIAProviderTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
+        [Category("Slow")]
+        [Category("Provider")]
         public void CheckProvider()
         {
             string name = "UIAProvider";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(Get-PSProvider -PSProvider " + 
-                name + 
-                ").Name;",
-                name);
-        }
-        
-        [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
-        public void CheckDefaultDrive()
-        {
-            string name = "UIA";
-            CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(Get-PSDrive -Name " + 
+                @"(Get-PSProvider -PSProvider " +
                 name +
                 ").Name;",
                 name);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
+        [Category("Slow")]
+        [Category("Provider")]
+        public void CheckDefaultDrive()
+        {
+            string name = "UIA";
+            CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
+                @"(Get-PSDrive -Name " +
+                name +
+                ").Name;",
+                name);
+        }
+
+        [Test] //[Test(Description="TBD")]
+        [Category("Slow")]
+        [Category("Provider")]
         public void CheckNewDriveByWindowName()
         {
             string driveName = "UIA1";
@@ -64,7 +67,7 @@ namespace UIAutomationTest.Provider
             string processName = @"""""";
             int processId = 0;
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-PSDrive -Name  " + 
+                @"$null = New-PSDrive -Name  " +
                 driveName +
                 " -PSProvider " +
                 providerName +
@@ -75,15 +78,16 @@ namespace UIAutomationTest.Provider
                 " -ProcessName " +
                 processName +
                 " -ProcessId " +
-                processId.ToString() + 
+                processId.ToString() +
                 "; (Get-PSDrive -Name " +
                 driveName +
                 ").Name;",
                 driveName);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
+        [Category("Slow")]
+        [Category("Provider")]
         public void CheckNewDrivebyProcessName()
         {
             string driveName = "UIA2";
@@ -93,7 +97,7 @@ namespace UIAutomationTest.Provider
             string processName = "mmc";
             int processId = 0;
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-PSDrive -Name  " + 
+                @"$null = New-PSDrive -Name  " +
                 driveName +
                 " -PSProvider " +
                 providerName +
@@ -104,15 +108,16 @@ namespace UIAutomationTest.Provider
                 " -ProcessName " +
                 processName +
                 " -ProcessId " +
-                processId.ToString() + 
+                processId.ToString() +
                 "; (Get-PSDrive -Name " +
                 driveName +
                 ").Name;",
                 driveName);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
+        [Category("Slow")]
+        [Category("Provider")]
         public void CheckNewDriveByProcessId()
         {
             string driveName = "UIA3";
@@ -122,7 +127,7 @@ namespace UIAutomationTest.Provider
             string processName = @"""""";
             int processId = 1024;
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-PSDrive -Name  " + 
+                @"$null = New-PSDrive -Name  " +
                 driveName +
                 " -PSProvider " +
                 providerName +
@@ -133,7 +138,7 @@ namespace UIAutomationTest.Provider
                 " -ProcessName " +
                 processName +
                 " -ProcessId " +
-                processId.ToString() + 
+                processId.ToString() +
                 "; (Get-PSDrive -Name " +
                 driveName +
                 ").Name;",
@@ -141,12 +146,13 @@ namespace UIAutomationTest.Provider
         }
 
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Provider")]
+        [Category("Slow")]
+        [Category("Provider")]
         public void RemoveDefaultDrive()
         {
             string driveName = "UIA";
             CmdletUnitTest.TestRunspace.RunAndGetTheException(
-                @"$null = Remove-PSDrive -Name " + 
+                @"$null = Remove-PSDrive -Name " +
                 driveName +
                 "; (Get-PSDrive -Name " +
                 driveName +
@@ -155,11 +161,11 @@ namespace UIAutomationTest.Provider
                 //"DriveNotFoundException",
                 "AssertionFailureException",
                 "An assertion failed.");
-                //"Cannot find drive. A drive with the name " + 
-                //driveName +
-                //" does not exist.");
+            //"Cannot find drive. A drive with the name " + 
+            //driveName +
+            //" does not exist.");
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

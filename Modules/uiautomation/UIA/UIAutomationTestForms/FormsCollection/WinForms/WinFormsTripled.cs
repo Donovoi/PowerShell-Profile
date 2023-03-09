@@ -18,67 +18,67 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsTripled : WinFormsForm //Form
     {
-//        public WinFormsTripled()
-//        {
-//            //
-//            // The InitializeComponent() call is required for Windows Forms designer support.
-//            //
-//            InitializeComponent();
-//            
-//            //
-//            // TODO: Add constructor code after the InitializeComponent() call.
-//            //
-//        }
-        
+        //        public WinFormsTripled()
+        //        {
+        //            //
+        //            // The InitializeComponent() call is required for Windows Forms designer support.
+        //            //
+        //            InitializeComponent();
+        //            
+        //            //
+        //            // TODO: Add constructor code after the InitializeComponent() call.
+        //            //
+        //        }
+
         private ControlToForm[] neededControls = null;
-        
+
         public WinFormsTripled(
             System.Windows.Automation.ControlType controlType,
-            int controlDelay) : base ("WinFormsTripled", "WinFormsTripled", controlType, controlDelay)
+            int controlDelay) : base("WinFormsTripled", "WinFormsTripled", controlType, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsTripled(
             System.Windows.Automation.ControlType controlType,
             string controlName,
             string controlAutomationId,
-            int controlDelay) : base ("WinFormsTripled", "WinFormsTripled", controlType, controlName, controlAutomationId, controlDelay)
+            int controlDelay) : base("WinFormsTripled", "WinFormsTripled", controlType, controlName, controlAutomationId, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsTripled(
-            ControlToForm[] controls) : base ("WinFormsTripled", "WinFormsTripled", controls)
+            ControlToForm[] controls) : base("WinFormsTripled", "WinFormsTripled", controls)
         {
             base.ChildForm = this;
-            
+
             this.neededControls = controls;
         }
-        
-        
-        
-//        void WinFormsTripledLoad(object sender, EventArgs e)
-//        {
-//            WinFormsSecond secondForm =
-//                new WinFormsSecond(this.neededControls);
-//            secondForm.Show();
-//        }
-        
-//        void WinFormsTripledShown(object sender, System.EventArgs e)
-//        {
-//            WinFormsSecond secondForm =
-//                new WinFormsSecond(this.neededControls);
-//            secondForm.Show();
-//        }
-        
-//        void WinFormsTripledControlAdded(object sender, System.Windows.Forms.ControlEventArgs e)
-//        {
-//            WinFormsSecond secondForm =
-//                new WinFormsSecond(this.neededControls);
-//            secondForm.Show();
-//        }
-        
+
+
+
+        //        void WinFormsTripledLoad(object sender, EventArgs e)
+        //        {
+        //            WinFormsSecond secondForm =
+        //                new WinFormsSecond(this.neededControls);
+        //            secondForm.Show();
+        //        }
+
+        //        void WinFormsTripledShown(object sender, System.EventArgs e)
+        //        {
+        //            WinFormsSecond secondForm =
+        //                new WinFormsSecond(this.neededControls);
+        //            secondForm.Show();
+        //        }
+
+        //        void WinFormsTripledControlAdded(object sender, System.Windows.Forms.ControlEventArgs e)
+        //        {
+        //            WinFormsSecond secondForm =
+        //                new WinFormsSecond(this.neededControls);
+        //            secondForm.Show();
+        //        }
+
         void btnSecondFormClick(object sender, System.EventArgs e)
         {
             WinFormsSecond secondForm =

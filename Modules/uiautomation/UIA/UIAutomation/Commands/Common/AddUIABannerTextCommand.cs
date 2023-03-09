@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of AddUIABannerTextCommand.
     /// </summary>
@@ -21,14 +21,14 @@ namespace UIAutomation.Commands
         public AddUIABannerTextCommand()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    Position = 0)]
         [ValidateNotNullOrEmpty()]
         public string Message { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             UIAHelper.AppendBanner(this.Message);

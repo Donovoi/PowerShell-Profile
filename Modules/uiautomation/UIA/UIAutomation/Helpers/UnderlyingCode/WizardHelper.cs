@@ -15,7 +15,7 @@ namespace UIAutomation
     using UIAutomation.Commands;
     using System.Collections;
     using System.Collections.Generic;
-    
+
     /// <summary>
     /// Description of WizardHelper.
     /// </summary>
@@ -24,16 +24,17 @@ namespace UIAutomation
         static WizardHelper()
         {
         }
-        
+
         //public static void CreateWizard(WizardContainerCmdletBase cmdlet)
         public static void CreateWizard(NewUIAWizardCommand cmdlet)
         {
-            if (!cmdlet.ValidateWizardName(cmdlet.Name)) {
-                
+            if (!cmdlet.ValidateWizardName(cmdlet.Name))
+            {
+
                 cmdlet.WriteVerbose(
                     cmdlet,
                     "The wizard name you selected is already in use");
-                
+
                 cmdlet.WriteError(
                     cmdlet,
                     "The wizard name you selected is already in use",
@@ -42,7 +43,7 @@ namespace UIAutomation
                     true);
                 // return;
             }
-            
+
             cmdlet.WriteVerbose(cmdlet, "wizard name validated");
             Wizard wzd = new Wizard(cmdlet.Name);
             cmdlet.WriteVerbose(cmdlet, "wizard object created");
@@ -55,19 +56,21 @@ namespace UIAutomation
             //wzd.DefaultStepGetWindowAction = cmdlet.DefaultStepGetWindowAction;
             wzd.GetWindowAction = cmdlet.GetWindowAction;
             cmdlet.WriteVerbose(cmdlet, "the wizard is fulfilled with properties");
-            
+
             cmdlet.WriteObject(cmdlet, wzd);
         }
-        
+
         // 20130320
         //public static void AddWizardStep(WizardConstructionCmdletBase cmdlet)
         public static void AddWizardStep(WizardStepCmdletBase cmdlet)
         {
-            if (null != cmdlet.InputObject && cmdlet.InputObject is Wizard) {
-                
+            if (null != cmdlet.InputObject && cmdlet.InputObject is Wizard)
+            {
+
                 WizardStep probeTheSameStep = cmdlet.InputObject.GetStep(cmdlet.Name);
-                if (null != probeTheSameStep) {
-                    
+                if (null != probeTheSameStep)
+                {
+
                     cmdlet.WriteError(
                         cmdlet,
                         "A step with the name provided already exists",
@@ -75,7 +78,7 @@ namespace UIAutomation
                         ErrorCategory.InvalidArgument,
                         true);
                 }
-                
+
                 WizardStep step = new WizardStep(cmdlet.Name, cmdlet.Order);
                 step.SearchCriteria = cmdlet.SearchCriteria;
                 step.StepForwardAction = cmdlet.StepForwardAction;
@@ -88,23 +91,28 @@ namespace UIAutomation
 
                 cmdlet.WriteVerbose(cmdlet, "adding the step");
                 cmdlet.InputObject.Steps.Add(step);
-                
+
                 // 20130508
                 cmdlet.WriteInfo(cmdlet, step.Name + " has been added");
 
-                if (cmdlet.PassThru) {
+                if (cmdlet.PassThru)
+                {
 
                     cmdlet.WriteObject(cmdlet, cmdlet.InputObject);
-                } else {
+                }
+                else
+                {
 
                     cmdlet.WriteObject(cmdlet, true);
                 }
-            } else {
+            }
+            else
+            {
 
                 cmdlet.WriteError(cmdlet, "The wizard object you provided is not valid", "WrongWizardObject", ErrorCategory.InvalidArgument, true);
             }
         }
-        
+
         public static void InvokeWizard(WizardRunCmdletBase cmdlet)
         {
             cmdlet.WriteVerbose(
@@ -112,56 +120,61 @@ namespace UIAutomation
                 "Getting the wizard");
             Wizard wzd = cmdlet.GetWizard(cmdlet.Name);
 
-            if (null == wzd) {
+            if (null == wzd)
+            {
 
                 cmdlet.WriteError(cmdlet, "Couldn't get the wizard you asked for", "NoSuchWizard", ErrorCategory.InvalidArgument, true);
-            } else {
+            }
+            else
+            {
 
                 cmdlet.WriteVerbose(
                     cmdlet,
                     "The wizard has been obtained from the collection");
-                
+
                 // publish the wizard as a global variable
                 WizardCollection.CurrentWizard = wzd;
-                
+
                 // 20130508
                 cmdlet.WriteInfo(cmdlet, "the current wizard is '" + WizardCollection.CurrentWizard.Name + "'");
-#region commented
-//                try {
-//
-//                    System.Management.Automation.Runspaces.Runspace.DefaultRunspace.SessionStateProxy.GetVariable(".SessionStateProxy.PSVariable.Set(
-//                        "Wizard",
-//                        wzd);
-//
-////                    testRunSpace.SessionStateProxy.SetVariable(
-////                        variableName,
-////                        variableValue);
-////                    result = true;
-//                }
-//                catch (Exception eWizardVariable) {
-//
-//                    cmdlet.WriteError(
-//                        cmdlet,
-//                        eWizardVariable.Message,
-//                        "VariablePublishingFailed",
-//                        ErrorCategory.InvalidOperation,
-//                        true);
-//                }
-#endregion commented
+                #region commented
+                //                try {
+                //
+                //                    System.Management.Automation.Runspaces.Runspace.DefaultRunspace.SessionStateProxy.GetVariable(".SessionStateProxy.PSVariable.Set(
+                //                        "Wizard",
+                //                        wzd);
+                //
+                ////                    testRunSpace.SessionStateProxy.SetVariable(
+                ////                        variableName,
+                ////                        variableValue);
+                ////                    result = true;
+                //                }
+                //                catch (Exception eWizardVariable) {
+                //
+                //                    cmdlet.WriteError(
+                //                        cmdlet,
+                //                        eWizardVariable.Message,
+                //                        "VariablePublishingFailed",
+                //                        ErrorCategory.InvalidOperation,
+                //                        true);
+                //                }
+                #endregion commented
 
                 // 20130322
                 //wzd.Automatic = cmdlet.Automatic;
                 //wzd.ForwardDirection = cmdlet.ForwardDirection;
 
                 // 20130322
-                if (null != cmdlet.Directions && 0 < cmdlet.DirectionsDictionaries.Count) {
-                    
+                if (null != cmdlet.Directions && 0 < cmdlet.DirectionsDictionaries.Count)
+                {
+
                     cmdlet.WriteVerbose(cmdlet, "Preparing step directions");
                     PrepareStepDirections(cmdlet, wzd);
                 }
 
                 // scriptblocks' parameters
-                if (null != cmdlet.ParametersDictionaries && 0 < cmdlet.ParametersDictionaries.Count) {
+                if (null != cmdlet.ParametersDictionaries && 0 < cmdlet.ParametersDictionaries.Count)
+                {
 
                     cmdlet.WriteVerbose(cmdlet, "Preparing step parameters");
                     PrepareStepParameters(cmdlet, wzd);
@@ -178,16 +191,19 @@ namespace UIAutomation
                 // 20130325
                 //cmdlet.RunWizardStartScriptBlocks(cmdlet, wzd, null);
                 cmdlet.RunWizardStartScriptBlocks(cmdlet, wzd, wzd.StartActionParameters);
-                
+
                 cmdlet.WriteVerbose(cmdlet, "running Wizard in the automated mode");
                 // 20130508
                 cmdlet.WriteInfo(cmdlet, "working in unattended mode");
 
                 cmdlet.RunWizardInAutomaticMode(cmdlet, wzd);
 
-                if (cmdlet.Quiet) {
+                if (cmdlet.Quiet)
+                {
                     cmdlet.WriteObject(cmdlet, true);
-                } else {
+                }
+                else
+                {
                     cmdlet.WriteObject(cmdlet, wzd);
                 }
             }
@@ -199,7 +215,7 @@ namespace UIAutomation
         // @{step="Step05PrinterData";action="forward";parameters=@{action="forward";list=@("printer_2","port_2")}}
         #region commented
         //                            try {
-//
+        //
         //                                switch (dictParameters["ACTION"].ToString().ToUpper()) {
         //                                    case "FORWARD":
         //                                        stepWithParameters.ToDo = WizardStepActions.Forward;
@@ -219,7 +235,7 @@ namespace UIAutomation
         //                                }
         //                            }
         //                            catch (Exception eActionType) {
-//
+        //
         //                                cmdlet.WriteVerbose(
         //                                    cmdlet,
         //                                    "The action parameter: " +
@@ -232,9 +248,9 @@ namespace UIAutomation
         #region commented
         //                                Hashtable parameters =
         //                                    (Hashtable)dictParameters["PARAMETERS"];
-//
+        //
         //                                if (null != parameters) {
-//
+        //
         //                                    switch (parameters["ACTION"].ToString().ToUpper()) {
         //                                        case "FORWARD":
         //                                            stepWithParameters.StepForwardActionParameters = (object[])parameters["LIST"];
@@ -249,9 +265,9 @@ namespace UIAutomation
         //                                            // nothing to do
         //                                        	break;
         //                                    }
-//
+        //
         //                                } else {
-//
+        //
         //                                    cmdlet.WriteVerbose(
         //                                        cmdlet,
         //                                        "Parameters: " +
@@ -261,20 +277,26 @@ namespace UIAutomation
         // 20130322
         internal static void PrepareStepParameters(WizardRunCmdletBase cmdlet, Wizard wzd)
         {
-            foreach (Dictionary<string, object> dictParameters in cmdlet.ParametersDictionaries) {
+            foreach (Dictionary<string, object> dictParameters in cmdlet.ParametersDictionaries)
+            {
                 WizardStep stepWithParameters = null;
                 string stepWithParametersName = string.Empty;
-                try {
+                try
+                {
                     stepWithParametersName = dictParameters["STEP"].ToString();
-                    
-                    if ("0" == stepWithParametersName) {
+
+                    if ("0" == stepWithParametersName)
+                    {
                         //
-                    } else {
+                    }
+                    else
+                    {
                         stepWithParameters = wzd.GetStep(stepWithParametersName);
-                        
-                        if (null == stepWithParameters) {
+
+                        if (null == stepWithParameters)
+                        {
                             cmdlet.WriteError(
-                                cmdlet, 
+                                cmdlet,
                                 "Failed to get a step with name '" +
                                 stepWithParametersName +
                                 "' in the Parameters hashtable.",
@@ -283,9 +305,11 @@ namespace UIAutomation
                                 true);
                         }
                     }
-                    
-                    try {
-                        switch (dictParameters["ACTION"].ToString().ToUpper()) {
+
+                    try
+                    {
+                        switch (dictParameters["ACTION"].ToString().ToUpper())
+                        {
                             case "FORWARD":
                                 stepWithParameters.StepForwardActionParameters = (object[])dictParameters["PARAMETERS"];
                                 break;
@@ -305,7 +329,9 @@ namespace UIAutomation
 
                                 break;
                         }
-                    } catch (Exception eParameters) {
+                    }
+                    catch (Exception eParameters)
+                    {
 
                         cmdlet.WriteVerbose(
                             cmdlet,
@@ -313,7 +339,9 @@ namespace UIAutomation
                             eParameters.Message);
                     }
 
-                } catch (Exception eParametersDictionaries) {
+                }
+                catch (Exception eParametersDictionaries)
+                {
 
                     cmdlet.WriteError(
                         cmdlet,
@@ -330,20 +358,26 @@ namespace UIAutomation
 
         internal static void PrepareStepDirections(WizardRunCmdletBase cmdlet, Wizard wzd)
         {
-            foreach (Dictionary<string, object> dictDirections in cmdlet.DirectionsDictionaries) {
+            foreach (Dictionary<string, object> dictDirections in cmdlet.DirectionsDictionaries)
+            {
                 WizardStep stepWithDirections = null;
                 string stepWithDirectionsName = string.Empty;
-                try {
-                    
+                try
+                {
+
                     stepWithDirectionsName = dictDirections["STEP"].ToString();
-                    
-                    if ("0" == stepWithDirectionsName) {
+
+                    if ("0" == stepWithDirectionsName)
+                    {
                         //
-                    } else {
-                    
+                    }
+                    else
+                    {
+
                         stepWithDirections = wzd.GetStep(stepWithDirectionsName);
-                        
-                        if (null == stepWithDirections) {
+
+                        if (null == stepWithDirections)
+                        {
                             cmdlet.WriteError(
                                 cmdlet,
                                 "Failed to get a step with name '" +
@@ -354,9 +388,11 @@ namespace UIAutomation
                                 true);
                         }
                     }
-                    
-                    try {
-                        switch (dictDirections["ACTION"].ToString().ToUpper()) {
+
+                    try
+                    {
+                        switch (dictDirections["ACTION"].ToString().ToUpper())
+                        {
                             case "FORWARD":
                                 stepWithDirections.ToDo = WizardStepActions.Forward;
                                 break;
@@ -374,15 +410,19 @@ namespace UIAutomation
                                 //stepWithDirections.ToDo = WizardStepActions.Forward;
                                 //break;
                         }
-                        
-                    } catch (Exception eActionType) {
-                        
+
+                    }
+                    catch (Exception eActionType)
+                    {
+
                         cmdlet.WriteVerbose(
                             cmdlet,
                             "The action parameter: " +
                             eActionType.Message);
                     }
-                } catch (Exception eDirectionsDictionaries) {
+                }
+                catch (Exception eDirectionsDictionaries)
+                {
                     cmdlet.WriteError(
                         cmdlet,
                         "Failed to parse directions for step '" +
@@ -395,18 +435,21 @@ namespace UIAutomation
                 }
             }
         }
-        
+
         public static void GetWizard(GetUIAWizardCommand cmdlet)
         {
             //Wizard wzd = GetWizard(Name);
             Wizard wzd = cmdlet.GetWizard(cmdlet.Name);
-            if (wzd != null) {
+            if (wzd != null)
+            {
 
                 //WriteObject(this, wzd);
                 cmdlet.WriteObject(cmdlet, wzd);
 
-            } else {
-                
+            }
+            else
+            {
+
                 cmdlet.WriteError(
                     cmdlet,
                     "Can't get the wizard you asked for",
@@ -416,31 +459,39 @@ namespace UIAutomation
 
             }
         }
-        
+
         public static void RemoveWizardStep(RemoveUIAWizardStepCommand cmdlet)
         {
-            
+
             //if (InputObject != null && InputObject is Wizard) {
-            if (cmdlet.InputObject != null && cmdlet.InputObject is Wizard) {
+            if (cmdlet.InputObject != null && cmdlet.InputObject is Wizard)
+            {
                 WizardStep stepToRemove = null;
                 //foreach (WizardStep step in InputObject.Steps) {
-                foreach (WizardStep step in cmdlet.InputObject.Steps) {
+                foreach (WizardStep step in cmdlet.InputObject.Steps)
+                {
                     //if (step.Name == Name) {
-                    if (step.Name == cmdlet.Name) {
+                    if (step.Name == cmdlet.Name)
+                    {
                         stepToRemove = step;
                     }
                 }
                 //InputObject.Steps.Remove(stepToRemove);
                 cmdlet.InputObject.Steps.Remove(stepToRemove);
                 //if (PassThru) {
-                if (cmdlet.PassThru) {
+                if (cmdlet.PassThru)
+                {
                     //WriteObject(this, InputObject);
                     cmdlet.WriteObject(cmdlet, cmdlet.InputObject);
-                } else {
+                }
+                else
+                {
                     //WriteObject(this, true);
                     cmdlet.WriteObject(cmdlet, true);
                 }
-            } else {
+            }
+            else
+            {
                 //                ErrorRecord err =
                 //                    new ErrorRecord(
                 //                        new Exception("The wizard object you provided is not valid"),
@@ -451,7 +502,7 @@ namespace UIAutomation
                 //                    new ErrorDetails(
                 //                        "The wizard object you provided is not valid");
                 //                WriteError(this, err, true);
-                
+
                 cmdlet.WriteError(
                     cmdlet,
                     "The wizard object you provided is not valid",
@@ -462,28 +513,32 @@ namespace UIAutomation
             // WizardStep step = new WizardStep(Name, Order);
             // if (SearchCriteria != null && SearchCriteria.Length > 0) {
         }
-        
+
         public static void StepWizardStep(StepUIAWizardCommand cmdlet)
         {
             // getting the step the user ordered to run
             //if (InputObject != null && InputObject is Wizard) {
-            if (cmdlet.InputObject != null && cmdlet.InputObject is Wizard) {
+            if (cmdlet.InputObject != null && cmdlet.InputObject is Wizard)
+            {
                 WizardStep stepToRun = null;
                 //WriteVerbose(this, "searching for a step");
                 cmdlet.WriteVerbose(cmdlet, "searching for a step");
                 //foreach (WizardStep step in InputObject.Steps) {
-                foreach (WizardStep step in cmdlet.InputObject.Steps) {
+                foreach (WizardStep step in cmdlet.InputObject.Steps)
+                {
                     //WriteVerbose(this, "found step: " + step.Name);
                     cmdlet.WriteVerbose(cmdlet, "found step: " + step.Name);
                     //if (step.Name == Name) {
-                    if (step.Name == cmdlet.Name) {
+                    if (step.Name == cmdlet.Name)
+                    {
                         //WriteVerbose(this, "found the step we've been searching for");
                         cmdlet.WriteVerbose(cmdlet, "found the step we've been searching for");
                         stepToRun = step;
                         break;
                     }
                 }
-                if (stepToRun == null) {
+                if (stepToRun == null)
+                {
                     //                    ErrorRecord err =
                     //                        new ErrorRecord(
                     //                            new Exception("Couldn't find the step"),
@@ -494,7 +549,7 @@ namespace UIAutomation
                     //                        new ErrorDetails(
                     //                            "Failed to find the step");
                     //                    WriteError(this, err, true);
-                    
+
                     cmdlet.WriteError(
                         cmdlet,
                         "Couldn't find the step",
@@ -502,19 +557,23 @@ namespace UIAutomation
                         ErrorCategory.InvalidArgument,
                         true);
                 }
-                
+
                 bool result = false;
-                do {
+                do
+                {
                     //WriteVerbose(this, "checking controls' properties");
                     cmdlet.WriteVerbose(cmdlet, "checking controls' properties");
-                    
+
                     // if there is no SearchCriteria, for example, there's at least one @{}
                     if (stepToRun.SearchCriteria.Length == 0 ||
                         System.Text.RegularExpressions.Regex.IsMatch(
                             stepToRun.SearchCriteria.ToString(),
-                            @"[\@][\{]\s+?[\}]")) {
+                            @"[\@][\{]\s+?[\}]"))
+                    {
                         result = true;
-                    } else {
+                    }
+                    else
+                    {
                         result =
                             //testControlByPropertiesFromHashtable(
                             cmdlet.TestControlByPropertiesFromHashtable(
@@ -524,15 +583,18 @@ namespace UIAutomation
                                 //this.Timeout);
                                 cmdlet.Timeout);
                     }
-                    if (result) {
-                        
+                    if (result)
+                    {
+
                         //WriteVerbose(this, "there are no SearchCriteria");
                         cmdlet.WriteVerbose(cmdlet, "there are no SearchCriteria");
                         //WriteVerbose(this, "thus, control state is confirmed");
                         cmdlet.WriteVerbose(cmdlet, "thus, control state is confirmed");
                         //WriteObject(this, true);
                         //return;
-                    } else {
+                    }
+                    else
+                    {
                         //WriteVerbose(this, "control state is not yet confirmed. Checking the timeout");
                         cmdlet.WriteVerbose(cmdlet, "control state is not yet confirmed. Checking the timeout");
                         //SleepAndRunScriptBlocks(this);
@@ -541,7 +603,8 @@ namespace UIAutomation
                         System.DateTime nowDate =
                             System.DateTime.Now;
                         //if ((nowDate - startDate).TotalSeconds > this.Timeout / 1000) {
-                        if ((nowDate - cmdlet.StartDate).TotalSeconds > cmdlet.Timeout / 1000) {
+                        if ((nowDate - cmdlet.StartDate).TotalSeconds > cmdlet.Timeout / 1000)
+                        {
                             //WriteObject(this, false);
                             //result = true;
                             //return;
@@ -556,7 +619,7 @@ namespace UIAutomation
                             //                                new ErrorDetails(
                             //                                    "Timeout expired");
                             //                            WriteError(this, err, true);
-                            
+
                             cmdlet.WriteError(
                                 cmdlet,
                                 "Timeout expired",
@@ -566,7 +629,7 @@ namespace UIAutomation
                         }
                     }
                 } while (!result);
-                
+
                 //WriteVerbose(this, "running script blocks");
                 // 20130319
                 //cmdlet.WriteVerbose(cmdlet, "running ForwardAction, BackwardAction, CancelAction scriptblocks");
@@ -579,16 +642,21 @@ namespace UIAutomation
                 cmdlet.RunWizardStepScriptBlocks(cmdlet, stepToRun, stepToRun.ToDo, null);
 
                 //if (PassThru) {
-                if (cmdlet.PassThru) {
+                if (cmdlet.PassThru)
+                {
 
                     //WriteObject(this, InputObject);
                     cmdlet.WriteObject(cmdlet, cmdlet.InputObject);
-                } else {
+                }
+                else
+                {
 
                     //WriteObject(this, true);
                     cmdlet.WriteObject(cmdlet, true);
                 }
-            } else {
+            }
+            else
+            {
 
                 //                ErrorRecord err =
                 //                    new ErrorRecord(
@@ -600,7 +668,7 @@ namespace UIAutomation
                 //                    new ErrorDetails(
                 //                        "The wizard object you provided is not valid");
                 //                WriteError(this, err, true);
-                
+
                 cmdlet.WriteError(
                     cmdlet,
                     "The wizard object you provided is not valid",

@@ -17,7 +17,7 @@ namespace UIARunner
     //using UIARunner;
     using System.Threading;
     using PSTestRunner;
-    
+
     /// <summary>
     /// Description of UIARunnerForm.
     /// </summary>
@@ -29,77 +29,80 @@ namespace UIARunner
             // The InitializeComponent() call is required for Windows Forms designer support.
             //
             InitializeComponent();
-            
+
             //
             // TODO: Add constructor code after the InitializeComponent() call.
             //
-            
+
             this.cellStylePassed.BackColor = System.Drawing.Color.Green;
             this.cellStyleFailed.BackColor = System.Drawing.Color.Red;
             this.cellStylePassedWithBadSmell.BackColor = System.Drawing.Color.Olive;
             this.cellStyleOutput.BackColor = System.Drawing.Color.LightBlue;
         }
-        
-        
-        DataGridViewCellStyle cellStylePassed = 
+
+
+        DataGridViewCellStyle cellStylePassed =
             new DataGridViewCellStyle();
-        DataGridViewCellStyle cellStyleFailed = 
+        DataGridViewCellStyle cellStyleFailed =
             new DataGridViewCellStyle();
-        DataGridViewCellStyle cellStylePassedWithBadSmell = 
+        DataGridViewCellStyle cellStylePassedWithBadSmell =
             new DataGridViewCellStyle();
-        DataGridViewCellStyle cellStyleOutput = 
+        DataGridViewCellStyle cellStyleOutput =
             new DataGridViewCellStyle();
-        
+
         private int testResultsPassed = 0;
         private int testResultsFailed = 0;
         private DateTime startTime = System.DateTime.Now;
         private int testResultsAll = 0;
-        
+
         private const string rowStateOutput = "OUTPUT";
-        
+
         void UIARunnerFormLeave(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
-        
+
         void UIARunnerFormDeactivate(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
-        
+
         void UIARunnerFormResize(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
-        
+
         void UIARunnerFormLoad(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
-        
+
         void OpenToolStripMenuItemClick(object sender, EventArgs e)
         {
             //this.openFileDialog.AddExtension = "*.ps1";
             this.openFileDialog.CheckFileExists = true;
             this.openFileDialog.CheckPathExists = true;
             DialogResult res = this.openFileDialog.ShowDialog();
-            
-            PSTestRunner.TestRunner.ScriptPath = 
+
+            PSTestRunner.TestRunner.ScriptPath =
                 this.openFileDialog.FileName;
-            
+
             if (PSTestRunner.TestRunner.ScriptPath != null && PSTestRunner.TestRunner.ScriptPath != string.Empty &&
-                PSTestRunner.TestRunner.ScriptPath.Length > 0 && System.IO.File.Exists(PSTestRunner.TestRunner.ScriptPath)) {
+                PSTestRunner.TestRunner.ScriptPath.Length > 0 && System.IO.File.Exists(PSTestRunner.TestRunner.ScriptPath))
+            {
                 setToReadyToRunState();
                 setCaption(PSTestRunner.TestRunner.ScriptPath);
-            } else {
+            }
+            else
+            {
                 resetCaption();
             }
         }
-        
+
         void RunToolStripMenuItemClick(object sender, EventArgs e)
         {
         }
-        
+
         internal void OnRunScript(object sender, EventArgs e)
         {
             setToRunningState();
@@ -108,25 +111,29 @@ namespace UIARunner
 
             TMX.TestData.ResetData();
 
-            try {
+            try
+            {
                 unregisterEvents();
             }
-            catch {}
-            
+            catch { }
+
             int index = 0;
-            
+
             bool res = false;
 
-            try {
-                if (this.inputToolStripTextBox.Text.Length > 0) {
+            try
+            {
+                if (this.inputToolStripTextBox.Text.Length > 0)
+                {
                     PSTestRunner.TestRunner.ScriptParameters =
                         this.inputToolStripTextBox.Text;
                 }
-                
+
                 res =
                     PSTestRunner.TestRunner.InitScript();
-                if (!res) {
-                    index = 
+                if (!res)
+                {
+                    index =
                         this.dgvTestResults.Rows.Add(
                             System.DateTime.Now.ToString(),
                             TMX.TestData.TestStateFailed,
@@ -142,8 +149,9 @@ namespace UIARunner
                     return;
                 }
             }
-            catch (Exception eInitException) {
-                index = 
+            catch (Exception eInitException)
+            {
+                index =
                     this.dgvTestResults.Rows.Add(
                         System.DateTime.Now.ToString(),
                         TMX.TestData.TestStateFailed,
@@ -163,10 +171,12 @@ namespace UIARunner
 
             registerEvents();
 
-            try {
+            try
+            {
                 res = PSTestRunner.TestRunner.RunScriptCode();
-                if (!res) {
-                    index = 
+                if (!res)
+                {
+                    index =
                         this.dgvTestResults.Rows.Add(
                             System.DateTime.Now.ToString(),
                             TMX.TestData.TestStateFailed,
@@ -181,8 +191,9 @@ namespace UIARunner
                     Application.DoEvents();
                 }
             }
-            catch (Exception eRunScript) {
-                index = 
+            catch (Exception eRunScript)
+            {
+                index =
                     this.dgvTestResults.Rows.Add(
                         System.DateTime.Now.ToString(),
                         TMX.TestData.TestStateFailed,
@@ -199,38 +210,41 @@ namespace UIARunner
                 Application.DoEvents();
                 return;
             }
-            
+
             autoresizeColumns();
 
             setToReadyToRunState();
             Application.DoEvents();
         }
-        
+
         void NewTestResultClosed(object sender, EventArgs e)
         {
-            
-            DataGridViewCellStyle cellStyle = 
+
+            DataGridViewCellStyle cellStyle =
                 new DataGridViewCellStyle();
             cellStyle.BackColor = System.Drawing.Color.Red;
-            
+
             string screenShotPath = string.Empty;
-            try {
-                screenShotPath = 
-                    @"files:///" + 
+            try
+            {
+                screenShotPath =
+                    @"files:///" +
                     ((ITestResult)sender).Screenshot.Replace(@"\", @"/").Replace(@":", "");
             }
-            catch {}
+            catch { }
 
             string errorMessage = string.Empty;
-            try {
-                if (((ITestResult)sender).Error != null) {
-                    errorMessage = 
+            try
+            {
+                if (((ITestResult)sender).Error != null)
+                {
+                    errorMessage =
                         ((ITestResult)sender).Error.ErrorDetails.Message;
                 }
-            } 
-            catch {}
-            
-            int index = 
+            }
+            catch { }
+
+            int index =
                 this.dgvTestResults.Rows.Add(
                     ((ITestResult)sender).Timestamp,
                     ((ITestResult)sender).Status,
@@ -241,45 +255,45 @@ namespace UIARunner
                     errorMessage,
                     screenShotPath);
             setRowStatus(index, ((ITestResult)sender).Status);
-            
+
             PSTestRunner.TestRunner.WriteTestResultToLog(((ITestResult)sender));
-            
+
             Application.DoEvents();
         }
-        
+
         void PSStateRunning(string msg)
         {
             this.toolStripStatusLabelState.Text = "Running...";
         }
-        
+
         void PSStateCodeCompleted(string msg)
         {
             this.toolStripStatusLabelState.Text = "Completed";
         }
-        
+
         void PSStateNotStarted(string msg)
         {
             this.toolStripStatusLabelState.Text = "Not started";
         }
-        
+
         void PSStateCodeStopped(string msg)
         {
             this.toolStripStatusLabelState.Text = "Stopped";
         }
-        
+
         void PSStateCodeStopping(string msg)
         {
             this.toolStripStatusLabelState.Text = "Stopping...";
         }
-        
+
         public void PSStateErrorThrown(string msg)
         {
             this.toolStripStatusLabelState.Text = "Error thrown";
-            
-            string timestamp = 
+
+            string timestamp =
                 System.DateTime.Now.ToString();
-            
-            int index = 
+
+            int index =
                 this.dgvTestResults.Rows.Add(
                     timestamp,
                     TMX.TestData.TestStateFailed,
@@ -289,11 +303,11 @@ namespace UIARunner
                     PSTestRunner.TestRunner.ScriptPath,
                     msg,
                     string.Empty);
-            
+
             setRowStatus(index, TMX.TestData.TestStateFailed);
             setTestResultsCounters(TMX.TestData.TestStateFailed, 1);
             setToReadyToRunState();
-            
+
             PSTestRunner.TestRunner.WriteTestResultToLog(
                timestamp,
                TMX.TestData.TestStateFailed,
@@ -303,16 +317,16 @@ namespace UIARunner
                PSTestRunner.TestRunner.ScriptPath,
                msg,
                string.Empty);
-            
+
             Application.DoEvents();
         }
-        
+
         public void PSOutputArrived(object data)
         {
-            string timestamp = 
+            string timestamp =
                 System.DateTime.Now.ToString();
-            
-            int index = 
+
+            int index =
                 this.dgvTestResults.Rows.Add(
                     timestamp,
                     rowStateOutput,
@@ -322,11 +336,11 @@ namespace UIARunner
                     PSTestRunner.TestRunner.ScriptPath,
                     string.Empty,
                     string.Empty);
-            
+
             setRowStatus(index, rowStateOutput);
-            
+
             this.dgvTestResults.AutoResizeColumns();
-            
+
             PSTestRunner.TestRunner.WriteTestResultToLog(
                timestamp,
                rowStateOutput,
@@ -336,30 +350,30 @@ namespace UIARunner
                PSTestRunner.TestRunner.ScriptPath,
                string.Empty,
                string.Empty);
-            
+
             Application.DoEvents();
         }
-        
+
         void PSErrorArrived(object data)
         {
             this.dgvTestResults.AutoResizeColumns();
             Application.DoEvents();
         }
-        
+
         private void registerEvents()
         {
-            TMX.TestData.TMXNewTestResultClosed += 
+            TMX.TestData.TMXNewTestResultClosed +=
                 new TMX.TMXStructureChangedEventHandler(
                     NewTestResultClosed);
-            
+
             // Runspace and Pipeline events
             PSRunner.Runner.PSCodeRunning +=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateRunning);
-            PSRunner.Runner.PSCodeCompleted += 
+            PSRunner.Runner.PSCodeCompleted +=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateCodeCompleted);
-            PSRunner.Runner.PSCodeNotStarted += 
+            PSRunner.Runner.PSCodeNotStarted +=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateNotStarted);
             PSRunner.Runner.PSCodeStopped +=
@@ -368,7 +382,7 @@ namespace UIARunner
             PSRunner.Runner.PSCodeStopping +=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateCodeStopping);
-            PSRunner.Runner.PSErrorThrown += 
+            PSRunner.Runner.PSErrorThrown +=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateErrorThrown);
             PSRunner.Runner.PSOutputArrived +=
@@ -378,22 +392,22 @@ namespace UIARunner
                 new PSRunner.PSDataArrivedEventHandler(
                     PSErrorArrived);
         }
-        
+
         private void unregisterEvents()
         {
-            TMX.TestData.TMXNewTestResultClosed -= 
+            TMX.TestData.TMXNewTestResultClosed -=
                 new TMX.TMXStructureChangedEventHandler(
                 NewTestResultClosed);
-            
-            
+
+
             // Runspace and Pipeline events
             PSRunner.Runner.PSCodeRunning -=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateRunning);
-            PSRunner.Runner.PSCodeCompleted -= 
+            PSRunner.Runner.PSCodeCompleted -=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateCodeCompleted);
-            PSRunner.Runner.PSCodeNotStarted -= 
+            PSRunner.Runner.PSCodeNotStarted -=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateNotStarted);
             PSRunner.Runner.PSCodeStopped -=
@@ -402,7 +416,7 @@ namespace UIARunner
             PSRunner.Runner.PSCodeStopping -=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateCodeStopping);
-            PSRunner.Runner.PSErrorThrown -= 
+            PSRunner.Runner.PSErrorThrown -=
                 new PSRunner.PSStateChangedEventHandler(
                     PSStateErrorThrown);
             PSRunner.Runner.PSOutputArrived -=
@@ -412,28 +426,34 @@ namespace UIARunner
                 new PSRunner.PSDataArrivedEventHandler(
                     PSErrorArrived);
         }
-        
+
         private void autoresizeColumns()
         {
             this.dgvTestResults.AutoResizeColumn(0);
             this.dgvTestResults.AutoResizeColumn(1);
             this.dgvTestResults.AutoResizeColumn(2);
         }
-        
+
         private void setRowStatus(int index, string status)
         {
-            if (status != TMX.TestData.TestStateNotTested) {
-                foreach (DataGridViewCell cell in this.dgvTestResults.Rows[index].Cells) {
-                    if (status == TMX.TestData.TestStatePassed) {
+            if (status != TMX.TestData.TestStateNotTested)
+            {
+                foreach (DataGridViewCell cell in this.dgvTestResults.Rows[index].Cells)
+                {
+                    if (status == TMX.TestData.TestStatePassed)
+                    {
                         cell.Style = this.cellStylePassed;
                     }
-                    if (status == TMX.TestData.TestStateFailed) {
+                    if (status == TMX.TestData.TestStateFailed)
+                    {
                         cell.Style = this.cellStyleFailed;
                     }
-                    if (status == TMX.TestData.TestStateKnownIssue) {
+                    if (status == TMX.TestData.TestStateKnownIssue)
+                    {
                         cell.Style = this.cellStylePassedWithBadSmell;
                     }
-                    if (status == rowStateOutput) {
+                    if (status == rowStateOutput)
+                    {
                         cell.Style = this.cellStyleOutput;
                     }
                 }
@@ -444,7 +464,8 @@ namespace UIARunner
         private void setTestResultsCounters(string type, int count)
         {
             TestResultTypes tsType = TestResultTypes.NotTested;
-            switch (type) {
+            switch (type)
+            {
                 case TMX.TestData.TestStatePassed:
                     tsType = TestResultTypes.Passed;
                     break;
@@ -455,7 +476,7 @@ namespace UIARunner
                     tsType = PSTestRunner.TestResultTypes.PassedWithBadSmell;
                     break;
             }
-            
+
             PSTestRunner.TestRunner.SetTestResultsCounters(
                 tsType,
                 count,
@@ -467,7 +488,7 @@ namespace UIARunner
                 this.toolStripStatusLabelAverageCount,
                 this.startTime);
         }
-        
+
         private void setToReadyToRunState()
         {
             // MainMenu
@@ -475,14 +496,14 @@ namespace UIARunner
             this.inputToolStripTextBox.Enabled = true;
             this.breakToolStripMenuItem.Enabled = false;
             this.openToolStripMenuItem.Enabled = true;
-            
+
             // ToolBar
             this.toolStripButtonRun.Enabled = true;
             this.toolStripTextBoxInput.Enabled = true;
             this.toolStripButtonBreak.Enabled = false;
             this.toolStripButtonOpen.Enabled = true;
         }
-        
+
         private void setToRunningState()
         {
             // MainMenu
@@ -490,13 +511,13 @@ namespace UIARunner
             this.inputToolStripTextBox.Enabled = false;
             this.breakToolStripMenuItem.Enabled = true;
             this.openToolStripMenuItem.Enabled = false;
-            
+
             // ToolBar
             this.toolStripButtonRun.Enabled = false;
             this.toolStripTextBoxInput.Enabled = false;
             this.toolStripButtonBreak.Enabled = true;
             this.toolStripButtonOpen.Enabled = false;
-            
+
             // variables
             this.testResultsPassed = 0;
             this.testResultsFailed = 0;
@@ -505,75 +526,75 @@ namespace UIARunner
             setTestResultsCounters(TMX.TestData.TestStatePassed, 0);
             setTestResultsCounters(TMX.TestData.TestStateFailed, 0);
         }
-        
+
         private void setCaption(string scriptPath)
         {
-            string scriptFileName = 
+            string scriptFileName =
                 scriptPath.Split('\\')[scriptPath.Split('\\').Length - 1];
-            this.Text = 
+            this.Text =
                 "UIARunner - " +
                 scriptFileName;
         }
-        
+
         private void resetCaption()
         {
-            this.Text = 
+            this.Text =
                 "UIARunner";
         }
-        
+
         void DgvTestResultsMouseMove(object sender, MouseEventArgs e)
         {
             Application.DoEvents();
         }
-        
+
         void ToolStripButtonOpenClick(object sender, EventArgs e)
         {
             this.openToolStripMenuItem.PerformClick();
         }
-        
+
         void ToolStripButtonRunClick(object sender, EventArgs e)
         {
             this.runToolStripMenuItem.PerformClick();
         }
-        
+
         void ToolStripButtonBreakClick(object sender, EventArgs e)
         {
             this.breakToolStripMenuItem.PerformClick();
         }
-        
+
         void BreakToolStripMenuItemClick(object sender, EventArgs e)
         {
             PSTestRunner.TestRunner.BreakScript();
         }
-        
+
         void ExitToolStripMenuItemClick(object sender, EventArgs e)
         {
             Application.Exit();
         }
-        
+
         void UIARunnerFormMouseMove(object sender, MouseEventArgs e)
         {
             Application.DoEvents();
         }
-        
+
         void AboutToolStripMenuItemClick(object sender, EventArgs e)
         {
             AboutForm aboutForm = new AboutForm();
             aboutForm.ShowDialog();
         }
-        
+
         void ToolStripTextBoxInputParametersModifiedChanged(object sender, EventArgs e)
         {
             this.toolStripTextBoxInput.Text =
                 this.inputToolStripTextBox.Text;
         }
-        
+
         void ToolStripTextBoxInputModifiedChanged(object sender, EventArgs e)
         {
             this.inputToolStripTextBox.Text =
                 this.toolStripTextBoxInput.Text;
         }
     }
-    
+
     delegate void RunScriptDelegate(object sender, EventArgs e);
 }

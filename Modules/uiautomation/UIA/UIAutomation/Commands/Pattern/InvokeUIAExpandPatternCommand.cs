@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAExpandPatternCommand.
     /// </summary>
@@ -19,9 +19,10 @@ namespace UIAutomation.Commands
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAExpandPatternCommand : PatternCmdletBase
-    { public InvokeUIAExpandPatternCommand() { WhatToDo = "Expand"; }
+    {
+        public InvokeUIAExpandPatternCommand() { WhatToDo = "Expand"; }
     }
-    
+
     /// <summary>
     /// Description of InvokeUIAButtonExpandCommand.
     /// </summary>
@@ -30,7 +31,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAButtonExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAButtonExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAComboBoxExpandCommand.
     /// </summary>
@@ -39,7 +40,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAComboBoxExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAComboBoxExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomExpandCommand.
     /// </summary>
@@ -48,7 +49,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIACustomExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIACustomExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIADataItemExpandCommand.
     /// </summary>
@@ -57,7 +58,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIADataItemExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIADataItemExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAGroupExpandCommand.
     /// </summary>
@@ -66,7 +67,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAGroupExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAGroupExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAGroupBoxExpandCommand.
     /// </summary>
@@ -75,7 +76,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAGroupBoxExpandCommand : InvokeUIAGroupExpandCommand
     { public InvokeUIAGroupBoxExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemExpandCommand.
     /// </summary>
@@ -84,7 +85,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAListItemExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAListItemExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuBarExpandCommand.
     /// </summary>
@@ -93,7 +94,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuBarExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAMenuBarExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuItemExpandCommand.
     /// </summary>
@@ -102,7 +103,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuItemExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAMenuItemExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIASplitButtonExpandCommand.
     /// </summary>
@@ -111,7 +112,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIASplitButtonExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIASplitButtonExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAToolBarExpandCommand.
     /// </summary>
@@ -120,7 +121,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAToolBarExpandCommand : InvokeUIAExpandPatternCommand
     { public InvokeUIAToolBarExpandCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATreeItemExpandCommand.
     /// </summary>

@@ -23,7 +23,7 @@ namespace UIAutomation.Commands
             this.Action = Preferences.OnErrorAction;
             this.Delay = Preferences.OnErrorDelay;
         }
-        
+
         protected override void BeginProcessing()
         {
             Preferences.OnErrorAction = this.Action;

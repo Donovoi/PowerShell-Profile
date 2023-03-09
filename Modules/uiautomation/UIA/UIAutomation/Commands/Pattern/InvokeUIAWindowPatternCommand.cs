@@ -20,7 +20,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAWindowPatternCommand : PatternCmdletBase
     { public InvokeUIAWindowPatternCommand() { WhatToDo = "Window"; } }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomWindowStateCommand.
     /// </summary>

@@ -11,19 +11,20 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIATextPatternGetCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIATextPatternGet")]
     public class InvokeUIATextPatternGetCommand : PatternCmdletBase
-    { public InvokeUIATextPatternGetCommand() 
-        { 
-            WhatToDo = "TextGet"; 
+    {
+        public InvokeUIATextPatternGetCommand()
+        {
+            WhatToDo = "TextGet";
             this.PassThru = false;
             this.TextLength = -1;
         }
-        
+
         [Parameter(Mandatory = false)]
         internal new SwitchParameter PassThru { get; set; }
         [Parameter(Mandatory = false)]
@@ -31,7 +32,7 @@ namespace UIAutomation.Commands
         [Parameter(Mandatory = false)]
         public SwitchParameter VisibleArea { get; set; }
     }
-    
+
     /// <summary>
     /// Description of GetUIADocumentRangeTextCommand.
     /// </summary>
@@ -40,7 +41,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIADocumentRangeTextCommand : InvokeUIATextPatternGetCommand
     { public GetUIADocumentRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAEditRangeTextCommand.
     /// </summary>
@@ -49,7 +50,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAEditRangeTextCommand : InvokeUIATextPatternGetCommand
     { public GetUIAEditRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIATextRangeTextCommand.
     /// </summary>
@@ -58,7 +59,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIATextRangeTextCommand : InvokeUIATextPatternGetCommand
     { public GetUIATextRangeTextCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAToolTipRangeTextCommand.
     /// </summary>

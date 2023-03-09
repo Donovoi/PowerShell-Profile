@@ -18,40 +18,40 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsMaximized : WinFormsForm // Form
     {
-//        public WinFormsMaximized(
-//            System.Windows.Automation.ControlType controlType,
-//            int controlDelay)
-//        {
-//            this.ControlType = controlType;
-//            this.ControlDelay = controlDelay;
-//            //  // The InitializeComponent() call is required for Windows Forms designer support.
-//            // 
-//            InitializeComponent();
-//            
-//            //  // TODO: Add constructor code after the InitializeComponent() call.
-//            // 
-//        }
+        //        public WinFormsMaximized(
+        //            System.Windows.Automation.ControlType controlType,
+        //            int controlDelay)
+        //        {
+        //            this.ControlType = controlType;
+        //            this.ControlDelay = controlDelay;
+        //            //  // The InitializeComponent() call is required for Windows Forms designer support.
+        //            // 
+        //            InitializeComponent();
+        //            
+        //            //  // TODO: Add constructor code after the InitializeComponent() call.
+        //            // 
+        //        }
 
         public WinFormsMaximized(
             System.Windows.Automation.ControlType controlType,
-            int controlDelay) : base ("WinFormsMaximized", "WinFormsMaximized", controlType, controlDelay)
+            int controlDelay) : base("WinFormsMaximized", "WinFormsMaximized", controlType, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsMaximized(
             System.Windows.Automation.ControlType controlType,
             string controlName,
             string controlAutomationId,
-            int controlDelay) : base ("WinFormsMaximized", "WinFormsMaximized", controlType, controlName, controlAutomationId, controlDelay)
+            int controlDelay) : base("WinFormsMaximized", "WinFormsMaximized", controlType, controlName, controlAutomationId, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsMaximized(
-            ControlToForm[] controls) : base ("WinFormsMaximized", "WinFormsMaximized", controls)
+            ControlToForm[] controls) : base("WinFormsMaximized", "WinFormsMaximized", controls)
         {
             base.ChildForm = this;
-        }        
+        }
     }
 }

@@ -18,36 +18,36 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsSecond : WinFormsForm
     {
-//        public WinFormsSecond()
-//        {
-//            //
-//            // The InitializeComponent() call is required for Windows Forms designer support.
-//            //
-//            InitializeComponent();
-//            
-//            //
-//            // TODO: Add constructor code after the InitializeComponent() call.
-//            //
-//        }
-        
+        //        public WinFormsSecond()
+        //        {
+        //            //
+        //            // The InitializeComponent() call is required for Windows Forms designer support.
+        //            //
+        //            InitializeComponent();
+        //            
+        //            //
+        //            // TODO: Add constructor code after the InitializeComponent() call.
+        //            //
+        //        }
+
         public WinFormsSecond(
             System.Windows.Automation.ControlType controlType,
-            int controlDelay) : base ("WinFormsSecond", "WinFormsSecond", controlType, controlDelay)
+            int controlDelay) : base("WinFormsSecond", "WinFormsSecond", controlType, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsSecond(
             System.Windows.Automation.ControlType controlType,
             string controlName,
             string controlAutomationId,
-            int controlDelay) : base ("WinFormsSecond", "WinFormsSecond", controlType, controlName, controlAutomationId, controlDelay)
+            int controlDelay) : base("WinFormsSecond", "WinFormsSecond", controlType, controlName, controlAutomationId, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsSecond(
-            ControlToForm[] controls) : base ("WinFormsSecond", "WinFormsSecond", controls)
+            ControlToForm[] controls) : base("WinFormsSecond", "WinFormsSecond", controls)
         {
             base.ChildForm = this;
         }

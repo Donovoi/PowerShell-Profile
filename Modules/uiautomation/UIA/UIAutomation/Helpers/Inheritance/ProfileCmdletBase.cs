@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ProfileCmdletBase.
     /// </summary>
@@ -20,7 +20,7 @@ namespace UIAutomation
         public ProfileCmdletBase()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    ParameterSetName = "Name")]

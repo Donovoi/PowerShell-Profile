@@ -7,11 +7,11 @@
 param(
       [string]$Password,
       [string]$DirName
-      )
+)
 
 Set-StrictMode -Version Latest;
 if ("" -eq $DirName) {
-	Write-Error "Empty dir!";
+      Write-Error "Empty dir!";
 }
 
 [string]$pathToSignTool = "C:\Program Files (x86)\Windows Kits\8.0\bin\x64\signtool.exe";

@@ -12,7 +12,7 @@ namespace UIAutomation.Commands
     using System;
     using System.Management.Automation;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of GetUIADesktopCommand.
     /// </summary>
@@ -23,10 +23,10 @@ namespace UIAutomation.Commands
         public GetUIADesktopCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
-            UIAutomation.CurrentData.CurrentWindow = 
+            UIAutomation.CurrentData.CurrentWindow =
                 AutomationElement.RootElement;
             this.WriteObject(this, AutomationElement.RootElement);
         }

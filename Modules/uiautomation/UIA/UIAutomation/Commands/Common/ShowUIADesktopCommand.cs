@@ -12,7 +12,7 @@ namespace UIAutomation.Commands.Common
     using System;
     using System.Management.Automation;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of ShowUIADesktopCommand.
     /// </summary>
@@ -22,22 +22,24 @@ namespace UIAutomation.Commands.Common
         public ShowUIADesktopCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
-            try{
-                AutomationElement showDesktopButton = 
+            try
+            {
+                AutomationElement showDesktopButton =
                     AutomationElement.RootElement.FindFirst(
                         TreeScope.Children,
                         new PropertyCondition(
                             AutomationElement.NameProperty,
                             "Show desktop"));
-                InvokePattern invPtrn = 
+                InvokePattern invPtrn =
                     showDesktopButton.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern;
                 invPtrn.Invoke();
                 this.WriteObject(this, true);
             }
-            catch (Exception ee) {
+            catch (Exception ee)
+            {
                 this.WriteObject(this, ee.Message);
                 this.WriteObject(this, false);
             }

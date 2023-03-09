@@ -23,7 +23,7 @@ namespace UIAutomation.Commands
             this.Action = Preferences.OnSleepAction;
             this.Delay = Preferences.OnSleepDelay;
         }
-        
+
         protected override void BeginProcessing()
         {
             Preferences.OnSleepAction = this.Action;

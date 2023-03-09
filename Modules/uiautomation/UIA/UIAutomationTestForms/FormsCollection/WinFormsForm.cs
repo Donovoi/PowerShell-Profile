@@ -18,15 +18,15 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsForm : Form
     {
-//        public WinFormsForm()
-//        {
-//            //  // The InitializeComponent() call is required for Windows Forms designer support.
-//            // InitializeComponent();
-//            
-//            //  // TODO: Add constructor code after the InitializeComponent() call.
-//            // 
-//        }
-        
+        //        public WinFormsForm()
+        //        {
+        //            //  // The InitializeComponent() call is required for Windows Forms designer support.
+        //            // InitializeComponent();
+        //            
+        //            //  // TODO: Add constructor code after the InitializeComponent() call.
+        //            // 
+        //        }
+
         protected WinFormsForm(
             string formName,
             string formTitle,
@@ -37,8 +37,9 @@ namespace UIAutomationTestForms
             this.ControlDelay = controlDelay;
             this.FormName = formName;
             this.FormTitle = formTitle;
-            
-            if (FormName == "WinFormsNoTaskBar") {
+
+            if (FormName == "WinFormsNoTaskBar")
+            {
                 this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
                 this.Visible = false;
                 this.AllowTransparency = true;
@@ -46,16 +47,16 @@ namespace UIAutomationTestForms
                 this.ShowIcon = false;
                 this.ShowInTaskbar = false;
             }
-            
+
             //this.ChildForm = this;
             //  // The InitializeComponent() call is required for Windows Forms designer support.
             // 
             InitializeComponent();
-            
+
             //  // TODO: Add constructor code after the InitializeComponent() call.
             // 
         }
-        
+
         protected WinFormsForm(
             string formName,
             string formTitle,
@@ -70,8 +71,9 @@ namespace UIAutomationTestForms
             this.ControlAutomationId = controlAutomationId;
             this.FormName = formName;
             this.FormTitle = formTitle;
-            
-            if (FormName == "WinFormsNoTaskBar") {
+
+            if (FormName == "WinFormsNoTaskBar")
+            {
                 this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
                 this.Visible = false;
                 this.AllowTransparency = true;
@@ -79,32 +81,33 @@ namespace UIAutomationTestForms
                 this.ShowIcon = false;
                 this.ShowInTaskbar = false;
             }
-            
+
             //this.ChildForm = this;
             //  // The InitializeComponent() call is required for Windows Forms designer support.
             // 
             InitializeComponent();
-            
+
             //  // TODO: Add constructor code after the InitializeComponent() call.
             // 
         }
-        
+
         protected WinFormsForm(
             string formName,
             string formTitle,
             ControlToForm[] controlToForm)
         {
-//            this.ControlType = controlType;
-//            this.ControlDelay = controlDelay;
-//            this.ControlName = controlName;
-//            this.ControlAutomationId = controlAutomationId;
-            
+            //            this.ControlType = controlType;
+            //            this.ControlDelay = controlDelay;
+            //            this.ControlName = controlName;
+            //            this.ControlAutomationId = controlAutomationId;
+
             this.controlsArray = controlToForm;
-            
+
             this.FormName = formName;
             this.FormTitle = formTitle;
-            
-            if (FormName == "WinFormsNoTaskBar") {
+
+            if (FormName == "WinFormsNoTaskBar")
+            {
                 this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
                 this.Visible = false;
                 this.AllowTransparency = true;
@@ -112,18 +115,18 @@ namespace UIAutomationTestForms
                 this.ShowIcon = false;
                 this.ShowInTaskbar = false;
             }
-            
+
             //this.ChildForm = this;
             //  // The InitializeComponent() call is required for Windows Forms designer support.
             // 
             InitializeComponent();
-            
+
             //  // TODO: Add constructor code after the InitializeComponent() call.
             // 
         }
-        
+
         private ControlToForm[] controlsArray { get; set; }
-        
+
         protected System.Windows.Automation.ControlType ControlType;
         protected int ControlDelay; // = 0;
         protected System.Windows.Forms.Form ChildForm;
@@ -131,68 +134,73 @@ namespace UIAutomationTestForms
         protected string ControlAutomationId;
         private string FormName;
         private string FormTitle;
-        
+
         void WinFormsFormShown(object sender, EventArgs e)
         {
-// Console.WriteLine("Shown");
+            // Console.WriteLine("Shown");
             //System.Threading.Thread.Sleep(this.ControlDelay);
-// Console.WriteLine("Sleeped");
+            // Console.WriteLine("Sleeped");
             if ((null == this.ControlType) &&
                 (null == this.controlsArray ||
                 this.controlsArray.Length == 0)) { return; }
-// Console.WriteLine("not null");
+            // Console.WriteLine("not null");
             // string _controlType = this.ControlType.ToString();
-//            string _controlType = this.ControlType.ProgrammaticName.Substring(
-//                this.ControlType.ProgrammaticName.IndexOf(".") + 1);
-// Console.WriteLine(_controlType);
+            //            string _controlType = this.ControlType.ProgrammaticName.Substring(
+            //                this.ControlType.ProgrammaticName.IndexOf(".") + 1);
+            // Console.WriteLine(_controlType);
 
             ControlToForm[] arr;
             if (null == this.controlsArray &&
-                null != this.ControlType) {
+                null != this.ControlType)
+            {
                 ControlToForm ctf = new ControlToForm();
                 ctf.ControlType = this.ControlType;
                 ctf.ControlName = this.ControlName;
                 ctf.ControlAutomationId = this.ControlAutomationId;
                 ctf.ControlDelayEn = this.ControlDelay;
-                System.Collections.ArrayList arrList = 
+                System.Collections.ArrayList arrList =
                     new System.Collections.ArrayList();
                 arrList.Add(ctf);
                 arr = (ControlToForm[])arrList.ToArray(typeof(ControlToForm));
-            } else {
-//MessageBox.Show("Name = " + this.controlsArray[0].ControlName);
-//MessageBox.Show("AuId = " + this.controlsArray[0].ControlAutomationId);
-//                if (this.controlsArray != null) {
-                    arr = this.controlsArray;
-//                } else {
-//                    loadControl((new Button), 
-//                }
+            }
+            else
+            {
+                //MessageBox.Show("Name = " + this.controlsArray[0].ControlName);
+                //MessageBox.Show("AuId = " + this.controlsArray[0].ControlAutomationId);
+                //                if (this.controlsArray != null) {
+                arr = this.controlsArray;
+                //                } else {
+                //                    loadControl((new Button), 
+                //                }
             }
 
-            for (int i = 0; i < arr.Length; i++) {
-                
+            for (int i = 0; i < arr.Length; i++)
+            {
+
                 string _controlType = arr[i].ControlType.ProgrammaticName.Substring(
                     arr[i].ControlType.ProgrammaticName.IndexOf(".") + 1);
                 arr[i].ControlTypeAsString = _controlType;
-//this.Text += 
-//    _controlType + "\t" + arr[i].ControlName + "\t" + arr[i].ControlAutomationId;
-                switch (_controlType) {
+                //this.Text += 
+                //    _controlType + "\t" + arr[i].ControlName + "\t" + arr[i].ControlAutomationId;
+                switch (_controlType)
+                {
                     case "Button":
                         Button b = new Button();
                         //loadControl(b, _controlType);
                         loadControl(b, arr[i]);
-    //                    if (this.ControlName != string.Empty){
-    //                        b.Text = this.ControlName;
-    //                    } else {
-    //                        b.Text = _controlType;
-    //                    }
-    //                    if (this.ControlAutomationId != string.Empty){
-    //                        b.Name = this.ControlAutomationId;
-    //                    } else {
-    //                        b.Name = _controlType;
-    //                    }
-    //                    b.Visible = true;
-    //                    // this.Controls.Add(b);
-    //                    ChildForm.Controls.Add(b);
+                        //                    if (this.ControlName != string.Empty){
+                        //                        b.Text = this.ControlName;
+                        //                    } else {
+                        //                        b.Text = _controlType;
+                        //                    }
+                        //                    if (this.ControlAutomationId != string.Empty){
+                        //                        b.Name = this.ControlAutomationId;
+                        //                    } else {
+                        //                        b.Name = _controlType;
+                        //                    }
+                        //                    b.Visible = true;
+                        //                    // this.Controls.Add(b);
+                        //                    ChildForm.Controls.Add(b);
                         break;
                     case "MonthCalendar":
                     case "Calendar":
@@ -229,7 +237,7 @@ namespace UIAutomationTestForms
                         loadControl(lb, arr[i]);
                         break;
                     case "ListView":
-                    //case "Table":
+                        //case "Table":
                         ListView lv = new ListView();
                         //loadControl(lv, _controlType);
                         loadControl(lv, arr[i]);
@@ -286,94 +294,108 @@ namespace UIAutomationTestForms
                         //System.Windows.Automation.ControlType.Document
                         break;
                 } // switch (_controlType)
-                
+
                 Application.DoEvents();
-                
+
             } // for (int i = 0; i < arr.Length; i++)
-            
+
             //Application.DoEvents();
         }
-        
+
         private void loadControl<T>(T control, string _controlType)
         {
-            try {
-                if (this.ControlName != string.Empty){
+            try
+            {
+                if (this.ControlName != string.Empty)
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, this.ControlName, null);
-                } else {
+                }
+                else
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, _controlType, null);
                 }
-                if (this.ControlAutomationId != string.Empty){
+                if (this.ControlAutomationId != string.Empty)
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, this.ControlAutomationId, null);
-                } else {
+                }
+                else
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, _controlType, null);
                 }
                 (control as System.Windows.Forms.Control).Visible = false;
                 Random r = new Random();
-                (control as System.Windows.Forms.Control).Left = 
+                (control as System.Windows.Forms.Control).Left =
                     r.Next(0, this.Width - 20);
-                (control as System.Windows.Forms.Control).Top = 
+                (control as System.Windows.Forms.Control).Top =
                     r.Next(0, this.Height - 20);
                 // this.Controls.Add(b);
                 this.ChildForm.Controls.Add(control as System.Windows.Forms.Control);
-                
+
                 ShowControl showControlDelegate = new ShowControl(runTimeout);
                 // WriteVerbose(this, "runScriptBlocks 5 fired");
                 showControlDelegate(this.ControlDelay, control as System.Windows.Forms.Control);
             }
-            catch {}
+            catch { }
         }
-        
+
         private void loadControl<T>(T control, ControlToForm controlToForm)
         {
-            try {
-    //            if (this.ControlName != string.Empty){
-    //                (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, this.ControlName, null);
-    //            } else {
-    //                (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, _controlType, null);
-    //            }
-                if (controlToForm.ControlName != string.Empty){
+            try
+            {
+                //            if (this.ControlName != string.Empty){
+                //                (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, this.ControlName, null);
+                //            } else {
+                //                (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, _controlType, null);
+                //            }
+                if (controlToForm.ControlName != string.Empty)
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, controlToForm.ControlName, null);
-                } else {
+                }
+                else
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Text").SetValue(control, controlToForm.ControlTypeAsString, null);
                 }
-    //            if (this.ControlAutomationId != string.Empty){
-    //                (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, this.ControlAutomationId, null);
-    //            } else {
-    //                (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, _controlType, null);
-    //            }
-                if (controlToForm.ControlAutomationId != string.Empty) {
+                //            if (this.ControlAutomationId != string.Empty){
+                //                (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, this.ControlAutomationId, null);
+                //            } else {
+                //                (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, _controlType, null);
+                //            }
+                if (controlToForm.ControlAutomationId != string.Empty)
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, controlToForm.ControlAutomationId, null);
-                } else {
+                }
+                else
+                {
                     (control as System.Windows.Forms.Control).GetType().GetProperty("Name").SetValue(control, controlToForm.ControlTypeAsString, null);
                 }
                 (control as System.Windows.Forms.Control).Visible = false;
                 Random r = new Random();
-                (control as System.Windows.Forms.Control).Left = 
+                (control as System.Windows.Forms.Control).Left =
                     // 20130110
                     //r.Next(0, this.Width - 20);
                     r.Next(0, this.Width - 50);
-                (control as System.Windows.Forms.Control).Top = 
+                (control as System.Windows.Forms.Control).Top =
                     // 20130110
                     //r.Next(0, this.Height - 20);
                     r.Next(0, this.Height - 50);
                 // this.Controls.Add(b);
                 this.ChildForm.Controls.Add(control as System.Windows.Forms.Control);
-                
+
                 ShowControl showControlDelegate = new ShowControl(runTimeout);
                 // WriteVerbose(this, "runScriptBlocks 5 fired");
                 //showControlDelegate(this.ControlDelay, control as System.Windows.Forms.Control);
                 showControlDelegate(controlToForm.ControlDelayEn, control as System.Windows.Forms.Control);
             }
-            catch {}
+            catch { }
         }
-        
+
         private void runTimeout(int timeout, System.Windows.Forms.Control control)
         {
             System.Threading.Thread.Sleep(timeout);
             control.Visible = true;
         }
-        
+
     }
-    
+
     delegate void ShowControl(int timeout, System.Windows.Forms.Control control);
 }

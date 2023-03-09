@@ -14,7 +14,7 @@ namespace PSTestLib
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of Util.
     /// </summary>
@@ -23,13 +23,14 @@ namespace PSTestLib
         static Util()
         {
         }
-        
+
         public static System.Collections.Generic.List<T> AsList<T>(this System.Collections.ObjectModel.Collection<object> collection)
         {
             System.Collections.Generic.List<T> resultList =
                 new System.Collections.Generic.List<T>(); //collection);
 
-            foreach (object element in collection) {
+            foreach (object element in collection)
+            {
 
                 resultList.Add((T)element);
 
@@ -37,12 +38,12 @@ namespace PSTestLib
 
             return resultList;
         }
-        
+
         public static T[] AsArray<T>(this System.Collections.ObjectModel.Collection<object> collection)
         {
             System.Collections.Generic.List<T> resultList =
                 new System.Collections.Generic.List<T>(); //collection);
-            
+
             return resultList.ToArray();
         }
     }

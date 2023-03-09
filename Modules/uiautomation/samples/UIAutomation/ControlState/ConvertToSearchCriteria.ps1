@@ -9,5 +9,5 @@ ipmo $global:uiautomationModule;
 
 Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria
 Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Full
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Include controltype,class
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -exclude controltype,class
+Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Include controltype, class
+Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -exclude controltype, class

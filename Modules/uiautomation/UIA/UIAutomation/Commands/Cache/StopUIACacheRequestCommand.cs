@@ -12,7 +12,7 @@ namespace UIAutomation.Commands
     using System;
     using System.Management.Automation;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of StopUIACacheRequestCommand.
     /// </summary>
@@ -22,23 +22,25 @@ namespace UIAutomation.Commands
         public StopUIACacheRequestCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
-            try {
+            try
+            {
                 CurrentData.CacheRequest.Pop();
                 CurrentData.CacheRequest = null;
                 Preferences.FromCache = false;
                 this.WriteObject(this, true);
             }
-            catch (Exception eCacheRequest) {
-                ErrorRecord err = 
+            catch (Exception eCacheRequest)
+            {
+                ErrorRecord err =
                     new ErrorRecord(
                         new Exception("Unable to stop cache request"),
                         "CacheRequestFailedToPop",
                         ErrorCategory.InvalidOperation,
                         null);
-                err.ErrorDetails = 
+                err.ErrorDetails =
                     new ErrorDetails(
                         "Failed to stop a cache request\r\n" +
                         eCacheRequest.Message);

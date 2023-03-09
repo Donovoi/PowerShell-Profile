@@ -24,13 +24,13 @@ namespace UIAutomation.Commands
         public RemoveUIAWizardStepCommand()
         {
         }
-        
-        
+
+
         #region Parameters
-// [Parameter]
-// public string Name { get; set; }
+        // [Parameter]
+        // public string Name { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -39,34 +39,34 @@ namespace UIAutomation.Commands
             UIARemoveWizardStepCommand command =
                 new UIARemoveWizardStepCommand(this);
             command.Execute();
-            
-//            if (InputObject != null && InputObject is Wizard) {
-//                WizardStep stepToRemove = null;
-//                foreach (WizardStep step in InputObject.Steps) {
-//                    if (step.Name == Name) {
-//                        stepToRemove = step;
-//                    }
-//                }
-//                InputObject.Steps.Remove(stepToRemove);
-//                if (PassThru) {
-//                    WriteObject(this, InputObject);
-//                } else {
-//                    WriteObject(this, true);
-//                }
-//            } else {
-//                ErrorRecord err = 
-//                    new ErrorRecord(
-//                        new Exception("The wizard object you provided is not valid"),
-//                        "WrongWizardObject",
-//                        ErrorCategory.InvalidArgument,
-//                        InputObject);
-//                err.ErrorDetails = 
-//                    new ErrorDetails(
-//                        "The wizard object you provided is not valid");
-//                WriteError(this, err, true);
-//            }
-//        // WizardStep step = new WizardStep(Name, Order);
-//        // if (SearchCriteria != null && SearchCriteria.Length > 0) {
+
+            //            if (InputObject != null && InputObject is Wizard) {
+            //                WizardStep stepToRemove = null;
+            //                foreach (WizardStep step in InputObject.Steps) {
+            //                    if (step.Name == Name) {
+            //                        stepToRemove = step;
+            //                    }
+            //                }
+            //                InputObject.Steps.Remove(stepToRemove);
+            //                if (PassThru) {
+            //                    WriteObject(this, InputObject);
+            //                } else {
+            //                    WriteObject(this, true);
+            //                }
+            //            } else {
+            //                ErrorRecord err = 
+            //                    new ErrorRecord(
+            //                        new Exception("The wizard object you provided is not valid"),
+            //                        "WrongWizardObject",
+            //                        ErrorCategory.InvalidArgument,
+            //                        InputObject);
+            //                err.ErrorDetails = 
+            //                    new ErrorDetails(
+            //                        "The wizard object you provided is not valid");
+            //                WriteError(this, err, true);
+            //            }
+            //        // WizardStep step = new WizardStep(Name, Order);
+            //        // if (SearchCriteria != null && SearchCriteria.Length > 0) {
         }
     }
 }

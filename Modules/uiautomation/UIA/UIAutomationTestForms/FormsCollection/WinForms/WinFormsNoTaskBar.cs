@@ -18,38 +18,38 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsNoTaskBar : WinFormsForm // Form
     {
-//        public WinFormsNoTaskBar(
-//            System.Windows.Automation.ControlType controlType,
-//            int controlDelay)
-//        {
-//            this.ControlType = controlType;
-//            this.ControlDelay = controlDelay;
-//            //  // The InitializeComponent() call is required for Windows Forms designer support.
-//            // 
-//            InitializeComponent();
-//            
-//            //  // TODO: Add constructor code after the InitializeComponent() call.
-//            // 
-//        }
+        //        public WinFormsNoTaskBar(
+        //            System.Windows.Automation.ControlType controlType,
+        //            int controlDelay)
+        //        {
+        //            this.ControlType = controlType;
+        //            this.ControlDelay = controlDelay;
+        //            //  // The InitializeComponent() call is required for Windows Forms designer support.
+        //            // 
+        //            InitializeComponent();
+        //            
+        //            //  // TODO: Add constructor code after the InitializeComponent() call.
+        //            // 
+        //        }
 
         public WinFormsNoTaskBar(
             System.Windows.Automation.ControlType controlType,
-            int controlDelay) : base ("WinFormsNoTaskBar", "WinFormsNoTaskBar", controlType, controlDelay)
+            int controlDelay) : base("WinFormsNoTaskBar", "WinFormsNoTaskBar", controlType, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsNoTaskBar(
             System.Windows.Automation.ControlType controlType,
             string controlName,
             string controlAutomationId,
-            int controlDelay) : base ("WinFormsNoTaskBar", "WinFormsNoTaskBar", controlType, controlName, controlAutomationId, controlDelay)
+            int controlDelay) : base("WinFormsNoTaskBar", "WinFormsNoTaskBar", controlType, controlName, controlAutomationId, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsNoTaskBar(
-            ControlToForm[] controls) : base ("WinFormsNoTaskBar", "WinFormsNoTaskBar", controls)
+            ControlToForm[] controls) : base("WinFormsNoTaskBar", "WinFormsNoTaskBar", controls)
         {
             base.ChildForm = this;
         }

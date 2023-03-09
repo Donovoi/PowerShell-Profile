@@ -24,36 +24,39 @@ namespace UIAutomation
         {
             Wizards = new List<Wizard>();
         }
-        
+
         public static List<Wizard> Wizards { get; set; }
         // 20130401
         public static Wizard CurrentWizard { get; internal set; }
-        
+
         public static void ResetData()
         {
             Wizards = new List<Wizard>();
         }
-        
+
         public static void RemoveWizard(string wizardName)
         {
             Wizard wizard = Wizards.Find(x => x.Name == wizardName);
-            
-            if (null != wizard) {
+
+            if (null != wizard)
+            {
                 Wizards.Remove(wizard);
             }
         }
-        
+
         public static Wizard GetWizard(string name)
         {
             Wizard wizard = null;
-            
-            foreach (Wizard wzd in WizardCollection.Wizards) {
-                if (name == wzd.Name) {
+
+            foreach (Wizard wzd in WizardCollection.Wizards)
+            {
+                if (name == wzd.Name)
+                {
                     wizard = wzd;
                     return wizard;
                 }
             }
-            
+
             return wizard;
         }
     }

@@ -68,15 +68,15 @@ namespace UIAutomation
                                             pPromptStruct,
                                           int dwFlags,
                                           ref DATA_BLOB pDataOut);
-//        [DllImport("kernel32.dll",
-//                    CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-//        private unsafe static extern int FormatMessage(int dwFlags,
-//                                                       ref IntPtr lpSource,
-//                                                       int dwMessageId,
-//                                                       int dwLanguageId,
-//                                                       ref String lpBuffer,
-//                                                         int nSize,
-//                                                       IntPtr* Arguments);
+        //        [DllImport("kernel32.dll",
+        //                    CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        //        private unsafe static extern int FormatMessage(int dwFlags,
+        //                                                       ref IntPtr lpSource,
+        //                                                       int dwMessageId,
+        //                                                       int dwLanguageId,
+        //                                                       ref String lpBuffer,
+        //                                                         int nSize,
+        //                                                       IntPtr* Arguments);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         internal struct DATA_BLOB
@@ -250,7 +250,7 @@ namespace UIAutomation
                 {//Using the user store
                     dwFlags = CRYPTPROTECT_UI_FORBIDDEN;
                 }
-                retVal = CryptUnprotectData(ref cipherBlob, DataDescription, ref 
+                retVal = CryptUnprotectData(ref cipherBlob, DataDescription, ref
       entropyBlob,
                                             IntPtr.Zero, ref prompt, dwFlags,
                                             ref plainTextBlob);
@@ -288,27 +288,27 @@ namespace UIAutomation
             ps.szPrompt = null;
         }
 
-//        private unsafe static String GetErrorMessage(int errorCode)
-//        {
-//            int FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100;
-//            int FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
-//            int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
-//            int messageSize = 255;
-//            String lpMsgBuf = "";
-//            int dwFlags = FORMAT_MESSAGE_ALLOCATE_BUFFER |
-//              FORMAT_MESSAGE_FROM_SYSTEM |
-//                          FORMAT_MESSAGE_IGNORE_INSERTS;
-//            IntPtr ptrlpSource = new IntPtr();
-//            IntPtr prtArguments = new IntPtr();
-//            int retVal = FormatMessage(dwFlags, ref ptrlpSource, errorCode, 0,
-//                                       ref lpMsgBuf, messageSize,
-//                                         &prtArguments);
-//            if (0 == retVal)
-//            {
-//                throw new Exception("Failed to format message for error code " +
-//                                    errorCode + ". ");
-//            }
-//            return lpMsgBuf;
-//        }
+        //        private unsafe static String GetErrorMessage(int errorCode)
+        //        {
+        //            int FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100;
+        //            int FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+        //            int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
+        //            int messageSize = 255;
+        //            String lpMsgBuf = "";
+        //            int dwFlags = FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        //              FORMAT_MESSAGE_FROM_SYSTEM |
+        //                          FORMAT_MESSAGE_IGNORE_INSERTS;
+        //            IntPtr ptrlpSource = new IntPtr();
+        //            IntPtr prtArguments = new IntPtr();
+        //            int retVal = FormatMessage(dwFlags, ref ptrlpSource, errorCode, 0,
+        //                                       ref lpMsgBuf, messageSize,
+        //                                         &prtArguments);
+        //            if (0 == retVal)
+        //            {
+        //                throw new Exception("Failed to format message for error code " +
+        //                                    errorCode + ". ");
+        //            }
+        //            return lpMsgBuf;
+        //        }
     }
 }

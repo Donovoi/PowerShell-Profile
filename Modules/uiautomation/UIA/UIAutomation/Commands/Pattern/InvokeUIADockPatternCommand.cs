@@ -19,7 +19,7 @@ namespace UIAutomation.Commands
     public class InvokeUIADockPatternCommand : PatternCmdletBase
     {
         public InvokeUIADockPatternCommand() { WhatToDo = "DockSet"; }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    Position = 0)]
@@ -27,7 +27,7 @@ namespace UIAutomation.Commands
         public System.Windows.Automation.DockPosition DockPosition { get; set; }
         #endregion Parameters
     }
-    
+
     /// <summary>
     /// Description of SetUIACustomDockPositionCommand.
     /// </summary>
@@ -36,7 +36,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIACustomDockPositionCommand : InvokeUIADockPatternCommand
     { public SetUIACustomDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAMenuBarDockPositionCommand.
     /// </summary>
@@ -45,7 +45,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAMenuBarDockPositionCommand : InvokeUIADockPatternCommand
     { public SetUIAMenuBarDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAPaneDockPositionCommand.
     /// </summary>
@@ -54,7 +54,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAPaneDockPositionCommand : InvokeUIADockPatternCommand
     { public SetUIAPaneDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAToolBarDockPositionCommand.
     /// </summary>
@@ -63,7 +63,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class SetUIAToolBarDockPositionCommand : InvokeUIADockPatternCommand
     { public SetUIAToolBarDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of SetUIAWindowDockPositionCommand.
     /// </summary>

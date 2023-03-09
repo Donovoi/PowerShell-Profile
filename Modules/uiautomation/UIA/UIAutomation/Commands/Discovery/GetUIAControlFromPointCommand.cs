@@ -26,14 +26,14 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             System.Windows.Automation.AutomationElement result = null;
-            result = 
+            result =
                 UIAHelper.GetAutomationElementFromPoint();
             //WriteObject(this, (object)result);
             this.WriteObject(this, result);

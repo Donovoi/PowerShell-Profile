@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Wait
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of WaitUIAControlIsVisibleCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Wait
         public WaitUIAControlIsVisibleCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -30,42 +30,44 @@ namespace UIAutomationTest.Commands.Wait
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.Preferences]::Timeout = 10000);");
         }
-        
+
         private void checkIsVisible(
             string name,
             string controlType,
-            string  propertyName,
+            string propertyName,
             string expectedResult)
         {
             MiddleLevelCode.StartProcessWithForm(
-                UIAutomationTestForms.Forms.WinFormsFull, 
+                UIAutomationTestForms.Forms.WinFormsFull,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
                 @"if (-not (Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 @" | Get-UIA" +
                 controlType +
-                " -" +  propertyName + " '" +
+                " -" + propertyName + " '" +
                 name +
-                @"').IsVisible) { " + 
+                @"').IsVisible) { " +
                 @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 @" | Get-UIAButton -Name Button2 | Invoke-UIAButtonClick; " +
                 @"(-not (Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                @" | Get-UIA" + 
+                @" | Get-UIA" +
                 controlType +
                 " -" + propertyName + " '" +
-                name + 
-                @"' | Wait-UIA" + 
+                name +
+                @"' | Wait-UIA" +
                 controlType +
                 @"IsVisible | Read-UIAControlIsOffscreen)); } ",
                 expectedResult);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("WinForms")]
-        [Category("Slow")][Category("Control")]
+        [Category("Slow")]
+        [Category("WinForms")]
+        [Category("Slow")]
+        [Category("Control")]
         public void WaitControlIsVisible_Text()
         {
             string name = "label2";
@@ -74,10 +76,12 @@ namespace UIAutomationTest.Commands.Wait
             string expectedResult = "True";
             checkIsVisible(name, controlType, propertyName, expectedResult);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("WinForms")]
-        [Category("Slow")][Category("Control")]
+        [Category("Slow")]
+        [Category("WinForms")]
+        [Category("Slow")]
+        [Category("Control")]
         public void WaitControlIsVisible_RadioButton()
         {
             string name = "radioButton2";
@@ -86,10 +90,12 @@ namespace UIAutomationTest.Commands.Wait
             string expectedResult = "True";
             checkIsVisible(name, controlType, propertyName, expectedResult);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("WinForms")]
-        [Category("Slow")][Category("Control")]
+        [Category("Slow")]
+        [Category("WinForms")]
+        [Category("Slow")]
+        [Category("Control")]
         public void WaitControlIsVisible_Spinner()
         {
             string name = "domainUpDown2";
@@ -98,7 +104,7 @@ namespace UIAutomationTest.Commands.Wait
             string expectedResult = "True";
             checkIsVisible(name, controlType, propertyName, expectedResult);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

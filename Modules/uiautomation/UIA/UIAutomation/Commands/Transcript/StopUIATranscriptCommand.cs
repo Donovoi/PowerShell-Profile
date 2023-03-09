@@ -25,18 +25,18 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             Global.GTranscript = false;
-            
-            
+
+
         }
     }
-    
+
     /// <summary>
     /// Description of StopUIARecorderCommand.
     /// </summary>

@@ -6,13 +6,13 @@
  * 
  * To change this template use Tools | Options | Coding | Edit Standard Headers.
  */
- 
+
 namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
     using System.Management.Automation.Runspaces;
-    
+
     /// <summary>
     /// Description of ProfileInputCmdletBase.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation
         public ProfileInputCmdletBase()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    ParameterSetName = "Input",

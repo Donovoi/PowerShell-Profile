@@ -22,19 +22,19 @@ namespace UIAutomationTest.Commands.Get
         public WaitUIAWindowCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("WinForms")]
@@ -44,12 +44,12 @@ namespace UIAutomationTest.Commands.Get
             MiddleLevelCode.StartProcessWithForm(UIAutomationTestForms.Forms.WinFormsEmpty, 0);
 
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"Wait-UIAWindow -pn '" + 
+                @"Wait-UIAWindow -pn '" +
                 MiddleLevelCode.TestFormProcess +
                 "' -Seconds 2;",
                 "True");
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("WinForms")]
@@ -62,7 +62,7 @@ namespace UIAutomationTest.Commands.Get
                 @"Wait-UIAWindow -pn 'wrong process name' -Seconds 2;",
                 "False");
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("WinForms")]
@@ -72,12 +72,12 @@ namespace UIAutomationTest.Commands.Get
             MiddleLevelCode.StartProcessWithForm(UIAutomationTestForms.Forms.WinFormsEmpty, 0);
 
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"Wait-UIAWindow -pid (Get-Process '" + 
+                @"Wait-UIAWindow -pid (Get-Process '" +
                 MiddleLevelCode.TestFormProcess +
                 "').Id -Seconds 2;",
                 "True");
         }
-        
+
         [Test]
         [Category("Slow")]
         [Category("WinForms")]

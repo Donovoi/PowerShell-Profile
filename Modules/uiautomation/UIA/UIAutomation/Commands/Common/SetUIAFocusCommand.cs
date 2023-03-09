@@ -12,10 +12,10 @@ namespace UIAutomation.Commands
     using System;
     using System.Management.Automation;
     using System.Runtime.InteropServices;
-    
+
     // 20120823
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of SetUIAFocusCommand.
     /// </summary>
@@ -28,10 +28,10 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -39,14 +39,17 @@ namespace UIAutomation.Commands
         {
             // if (!this.CheckControl(this)) { return; }
             if (!this.CheckControl(this)) { return; }
-            
-            // 20120823
-            foreach (AutomationElement inputObject in this.InputObject) {
 
-                try {
+            // 20120823
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
+                try
+                {
                     inputObject.SetFocus();
                 }
-                catch (Exception eSetFocus) {
+                catch (Exception eSetFocus)
+                {
                     this.WriteError(
                         this,
                         "Could not set focus. " +
@@ -55,14 +58,17 @@ namespace UIAutomation.Commands
                         ErrorCategory.InvalidOperation,
                         true);
                 }
-                if (this.PassThru) {
+                if (this.PassThru)
+                {
                     // 20130105
                     //this.WriteObject(this, this.InputObject);
                     this.WriteObject(this, inputObject);
-                } else {
+                }
+                else
+                {
                     this.WriteObject(this, true);
                 }
-            
+
             } // 20120823
 
         }

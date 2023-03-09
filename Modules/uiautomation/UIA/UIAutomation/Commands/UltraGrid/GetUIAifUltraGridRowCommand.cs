@@ -23,14 +23,14 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
+
             ifUltraGridProcessing(ifUltraGridOperations.getItems);
         }
     }
