@@ -4,7 +4,7 @@ function Set-ACLs {
        
         [Parameter(Mandatory = $false)]
         [string]
-        $FolderToScan = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\"
+        $FolderToScan = $XWAYSUSB + "\"
 
     )
     $ErrorActionPreference = 'Continue'
