@@ -10,8 +10,17 @@ function Set-ACLs {
     $ErrorActionPreference = 'Continue'
     $NewOwner = New-Object System.Security.Principal.NTAccount("$ENV:COMPUTERNAME", "$ENV:USERNAME")
     # Now we run the fastfileenum exe to get a list of files appeneded to a text file on the desktop
-    Start-Process -FilePath "D:\Projects\PowerShell-Profile\Non PowerShell Tools\FastFileEnum\bin\Debug\net7.0\win32.exe" -ArgumentList "$(Resolve-Path $FolderToScan)" -Wait -NoNewWindow -Verbose
+    # Start-Process -FilePath "D:\Projects\PowerShell-Profile\Non PowerShell Tools\FastFileEnum\bin\Debug\net7.0\win32.exe" -ArgumentList "$(Resolve-Path $FolderToScan)" -Wait -NoNewWindow -Verbose
     
+    # use wmic to create the shadow copy of the folder
+    $SCOutput = wmic shadowcopy call create volume="$(Resolve-Path $FolderToScan)"
+
+    # use regex to extract the guid from the output
+    $GUID = $SCOutput | Select-String -Pattern "{.*}" -AllMatches | Select-Object -ExpandProperty Matches | Select-Object -ExpandProperty Value
+
+    # use the guid to create a link to the shadow copy
+    cmd /c "mklink /d Snapshot `"D:\System Volume Information\_restore$GUID\`""
+
     # read the large text file line by line into an in memory collection. this needs to be the fastest way to do this
     $RAWPaths = Import-Content -Path $env:USERPROFILE\desktop\files.txt -Verbose
     
