@@ -11,35 +11,13 @@ function Update-VcRedist {
         [string][Parameter(mandatory = $false)] $DownloadDirectory = "$ENV:USERPROFILE\Downloads"
     )
   
-    begin {
-        ##we need to install a few things before we install any modules
-        if ($PSVersionTable.PSVersion.Major -lt 6) {
-            Install-PackageProvider -Name NuGet -Force;
-        }
+    # Download the installer
+    Invoke-WebRequest -Uri "https://github.com/abbodi1406/vcredist/releases/latest/download/VisualCppRedist_AIO_x86_x64_69.zip" -outfile "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip"
 
-        Install-Module -Name VcRedist -Force;
-        Import-Module -Name VcRedist;
-        $VcFolder = New-Item -Path "$DownloadDirectory\VcRedist" -ItemType Directory -Force;
-    }
-  
-    process {
-        # Install VC++ Redis, if it fails then the install needs to stop so we can fix it
-        try {
-            Get-VcList | Save-VcRedist -Path $VcFolder;
-            $VcList = Get-VcList;
-            Install-VcRedist -VcList $VcList -Path $VcFolder;
-        }
-        catch {
-            Write-Host $_;
-            Write-Error 'There is a problem installing the required Visual Studio Redistributables' -ErrorAction Stop;
-        }
-    }
-  
-    end {
-        #Sometimes VC++ 2013 is not installed via the above method - so ensuring it is installed
-        Invoke-WebRequest -Uri 'http://download.microsoft.com/download/0/5/6/056dcda9-d667-4e27-8001-8a0c6971d6b1/vcredist_x64.exe' -Verbose -UseBasicParsing -OutFile "$DownloadDirectory\vc2013.exe";
-        Start-Process -FilePath "$DownloadDirectory\vc2013.exe" -ArgumentList '/install /passive';
-  
-        Write-Host 'All Done!';
-    }
+    # Extract the installer
+    Expand-Archive -Path "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip" -DestinationPath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69" -Force
+
+    # Run the installer
+    Start-Process -FilePath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69\VisualCppRedist_AIO_x86_x64.exe" -ArgumentList "/y" -Wait -NoNewWindow
+
 }
