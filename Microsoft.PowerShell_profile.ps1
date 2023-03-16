@@ -1,6 +1,7 @@
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $GLOBAL:ErrorActionPreference = 'continue'
+$Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 #$profileps1 = $(Resolve-Path -Path $PROFILE) -split "\"[-1]
 $profileparentpath = $(Get-Item $PROFILE ).Directory.FullName
 Remove-Item "$profileparentpath/functions/.dotnet" -Recurse -Force -ErrorAction SilentlyContinue
@@ -11,7 +12,7 @@ $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/Get-UniqueStrin
 $ModulesFolder.foreach{
     Import-Module -Name $_.FullName
 }
-$ENV:PATH += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin;"
+$ENV:PATH += ";$XWAYSUSB`:\chocolatey apps\chocolatey\bin;"
 # $folders = Get-ChildItem -Path "C:\program files" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 # $foldersx86 = Get-ChildItem -Path "C:\program files (x86)" -Recurse -Force -Verbose -Directory -erroraction silentlycontinue | out-null
 
@@ -21,8 +22,8 @@ if ([string]::IsNullOrEmpty($chococommand)) {
     cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
 }
 
-$env:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
-$env:Path += ";$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\bin\;$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
+$env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\chocolatey apps\chocolatey\bin\"
+$env:Path += ";$XWAYSUSB`:\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB`:\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
     Import-Module PSReadLine
 }
@@ -39,7 +40,7 @@ RefreshEnv.cmd
 Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine , PSColors
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
-Copy-Item -Path "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
+Copy-Item -Path (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
 oh-my-posh --init --shell pwsh --config $ENV:USERPROFILE/jandedobbeleer.omp.json | Invoke-Expression
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {

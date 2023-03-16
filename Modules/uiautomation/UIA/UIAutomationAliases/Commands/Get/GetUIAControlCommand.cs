@@ -12,26 +12,26 @@ namespace UIAutomationAliases.Commands.Get
     using System;
     using System.Management.Automation;
     using UIAutomation.Commands;
-    
-    
-//    using System.Reflection;
-//    using System.Reflection.Emit;
-    
-    
+
+
+    //    using System.Reflection;
+    //    using System.Reflection.Emit;
+
+
     //using System.Management.Automation.Internal;
-    
-//    /// <summary>
-//    /// Description of GetUIAControlCommand.
-//    /// </summary>
-//    public class GetUIAControlCommand
-//    {
-//        public GetUIAControlCommand()
-//        {
-//        }
-//    }
-    
-    
-    
+
+    //    /// <summary>
+    //    /// Description of GetUIAControlCommand.
+    //    /// </summary>
+    //    public class GetUIAControlCommand
+    //    {
+    //        public GetUIAControlCommand()
+    //        {
+    //        }
+    //    }
+
+
+
     /// <summary>
     /// Description of GetUIAButton.
     /// </summary>
@@ -39,8 +39,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetButtonCommand : GetUIAButtonCommand
-    { public GetButtonCommand() {} }
-    
+    { public GetButtonCommand() { } }
+
     //===========================================================================
     /// <summary>
     /// Description of GetUIAButton.
@@ -53,10 +53,10 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetButtonCommand1 : GetUIAButtonCommand
-    { public GetButtonCommand1() {} }
-    
-    
-    
+    { public GetButtonCommand1() { } }
+
+
+
     //===========================================================================
 
     /// <summary>
@@ -66,8 +66,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetCalendarCommand : GetUIACalendarCommand
-    { public GetCalendarCommand() {} }
-    
+    { public GetCalendarCommand() { } }
+
     /// <summary>
     /// Description of GetUIACheckBox.
     /// </summary>
@@ -75,8 +75,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetCheckBoxCommand : GetUIACheckBoxCommand
-    { public GetCheckBoxCommand() {} }
-    
+    { public GetCheckBoxCommand() { } }
+
     /// <summary>
     /// Description of GetUIAComboBox.
     /// </summary>
@@ -84,8 +84,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetComboBoxCommand : GetUIAComboBoxCommand
-    { public GetComboBoxCommand() {} }
-    
+    { public GetComboBoxCommand() { } }
+
     /// <summary>
     /// Description of GetUIACustom.
     /// </summary>
@@ -93,8 +93,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetCustomCommand : GetUIACustomCommand
-    { public GetCustomCommand() {} }
-    
+    { public GetCustomCommand() { } }
+
     /// <summary>
     /// Description of GetUIADataGrid.
     /// </summary>
@@ -102,8 +102,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetDataGridCommand : GetUIADataGridCommand
-    { public GetDataGridCommand() {} }
-    
+    { public GetDataGridCommand() { } }
+
     /// <summary>
     /// Description of GetUIADataItem.
     /// </summary>
@@ -111,8 +111,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetDataItemCommand : GetUIADataItemCommand
-    { public GetDataItemCommand() {} }
-    
+    { public GetDataItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIADocument.
     /// </summary>
@@ -120,7 +120,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetDocumentCommand : GetUIADocumentCommand
-    { public GetDocumentCommand() {} }
+    { public GetDocumentCommand() { } }
 
     /// <summary>
     /// Description of GetUIAEdit.
@@ -129,8 +129,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetEditCommand : GetUIAEditCommand
-    { public GetEditCommand() {} }
-    
+    { public GetEditCommand() { } }
+
     /// <summary>
     /// Description of GetUIATextBox.
     /// </summary>
@@ -138,8 +138,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTextBoxCommand : GetUIATextBoxCommand
-    { public GetTextBoxCommand() {} }
-    
+    { public GetTextBoxCommand() { } }
+
     /// <summary>
     /// Description of GetUIAGroup.
     /// </summary>
@@ -147,8 +147,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetGroupCommand : GetUIAGroupCommand
-    { public GetGroupCommand() {} }
-    
+    { public GetGroupCommand() { } }
+
     /// <summary>
     /// Description of GetUIAGroupBox.
     /// </summary>
@@ -156,8 +156,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetGroupBoxCommand : GetUIAGroupBoxCommand
-    { public GetGroupBoxCommand() {} }
-    
+    { public GetGroupBoxCommand() { } }
+
     /// <summary>
     /// Description of GetUIAHeader.
     /// </summary>
@@ -165,8 +165,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetHeaderCommand : GetUIAHeaderCommand
-    { public GetHeaderCommand() {} }
-    
+    { public GetHeaderCommand() { } }
+
     /// <summary>
     /// Description of GetUIAHeaderItem.
     /// </summary>
@@ -174,8 +174,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetHeaderItemCommand : GetUIAHeaderItemCommand
-    { public GetHeaderItemCommand() {} }
-    
+    { public GetHeaderItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIAHyperlink.
     /// </summary>
@@ -183,8 +183,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetHyperlinkCommand : GetUIAHyperlinkCommand
-    { public GetHyperlinkCommand() {} }
-    
+    { public GetHyperlinkCommand() { } }
+
     /// <summary>
     /// Description of GetUIALinkLabel.
     /// </summary>
@@ -192,7 +192,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetLinkLabelCommand : GetUIALinkLabelCommand
-    { public GetLinkLabelCommand() {} }
+    { public GetLinkLabelCommand() { } }
 
     /// <summary>
     /// Description of GetUIAImage.
@@ -201,8 +201,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetImageCommand : GetUIAImageCommand
-    { public GetImageCommand() {} }
-    
+    { public GetImageCommand() { } }
+
     /// <summary>
     /// Description of GetUIAList.
     /// </summary>
@@ -210,8 +210,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetListCommand : GetUIAListCommand
-    { public GetListCommand() {} }
-    
+    { public GetListCommand() { } }
+
     /// <summary>
     /// Description of GetUIAListItem.
     /// </summary>
@@ -219,8 +219,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetListItemCommand : GetUIAListItemCommand
-    { public GetListItemCommand() {} }
-    
+    { public GetListItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIAMenu.
     /// </summary>
@@ -228,8 +228,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetMenuCommand : GetUIAMenuCommand
-    { public GetMenuCommand() {} }
-    
+    { public GetMenuCommand() { } }
+
     /// <summary>
     /// Description of GetUIAMenuBar.
     /// </summary>
@@ -237,7 +237,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetMenuBarCommand : GetUIAMenuBarCommand
-    { public GetMenuBarCommand() {} }
+    { public GetMenuBarCommand() { } }
 
     /// <summary>
     /// Description of GetUIAMenuItem.
@@ -246,8 +246,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetMenuItemCommand : GetUIAMenuItemCommand
-    { public GetMenuItemCommand() {} }
-    
+    { public GetMenuItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIAPane.
     /// </summary>
@@ -255,8 +255,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetPaneCommand : GetUIAPaneCommand
-    { public GetPaneCommand() {} }
-    
+    { public GetPaneCommand() { } }
+
     /// <summary>
     /// Description of GetUIAProgressBar.
     /// </summary>
@@ -264,8 +264,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetProgressBarCommand : GetUIAProgressBarCommand
-    { public GetProgressBarCommand() {} }
-    
+    { public GetProgressBarCommand() { } }
+
     /// <summary>
     /// Description of GetUIARadioButton.
     /// </summary>
@@ -273,8 +273,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetRadioButtonCommand : GetUIARadioButtonCommand
-    { public GetRadioButtonCommand() {} }
-    
+    { public GetRadioButtonCommand() { } }
+
     /// <summary>
     /// Description of GetUIAScrollBar.
     /// </summary>
@@ -282,7 +282,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetScrollBarCommand : GetUIAScrollBarCommand
-    { public GetScrollBarCommand() {} }
+    { public GetScrollBarCommand() { } }
 
     /// <summary>
     /// Description of GetUIASeparator.
@@ -291,8 +291,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetSeparatorCommand : GetUIASeparatorCommand
-    { public GetSeparatorCommand() {} }
-    
+    { public GetSeparatorCommand() { } }
+
     /// <summary>
     /// Description of GetUIASlider.
     /// </summary>
@@ -300,8 +300,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetSliderCommand : GetUIASliderCommand
-    { public GetSliderCommand() {} }
-    
+    { public GetSliderCommand() { } }
+
     /// <summary>
     /// Description of GetUIASpinner.
     /// </summary>
@@ -309,8 +309,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetSpinnerCommand : GetUIASpinnerCommand
-    { public GetSpinnerCommand() {} }
-    
+    { public GetSpinnerCommand() { } }
+
     /// <summary>
     /// Description of GetUIASplitButton.
     /// </summary>
@@ -318,8 +318,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetSplitButtonCommand : GetUIASplitButtonCommand
-    { public GetSplitButtonCommand() {} }
-    
+    { public GetSplitButtonCommand() { } }
+
     /// <summary>
     /// Description of GetUIAStatusBar.
     /// </summary>
@@ -327,7 +327,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetStatusBarCommand : GetUIAStatusBarCommand
-    { public GetStatusBarCommand() {} }
+    { public GetStatusBarCommand() { } }
 
     /// <summary>
     /// Description of GetUIATab.
@@ -336,8 +336,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTabCommand : GetUIATabCommand
-    { public GetTabCommand() {} }
-    
+    { public GetTabCommand() { } }
+
     /// <summary>
     /// Description of GetUIATabItem.
     /// </summary>
@@ -345,8 +345,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTabItemCommand : GetUIATabItemCommand
-    { public GetTabItemCommand() {} }
-    
+    { public GetTabItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIATable.
     /// </summary>
@@ -354,8 +354,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTableCommand : GetUIATableCommand
-    { public GetTableCommand() {} }
-    
+    { public GetTableCommand() { } }
+
     /// <summary>
     /// Description of GetUIAText.
     /// </summary>
@@ -363,8 +363,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTextCommand : GetUIATextCommand
-    { public GetTextCommand() {} }
-    
+    { public GetTextCommand() { } }
+
     /// <summary>
     /// Description of GetUIALabel.
     /// </summary>
@@ -372,8 +372,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetLabelCommand : GetUIALabelCommand
-    { public GetLabelCommand() {} }
-    
+    { public GetLabelCommand() { } }
+
     /// <summary>
     /// Description of GetUIAThumb.
     /// </summary>
@@ -381,7 +381,7 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetThumbCommand : GetUIAThumbCommand
-    { public GetThumbCommand() {} }
+    { public GetThumbCommand() { } }
 
     /// <summary>
     /// Description of GetUIATitleBar.
@@ -390,8 +390,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTitleBarCommand : GetUIATitleBarCommand
-    { public GetTitleBarCommand() {} }
-    
+    { public GetTitleBarCommand() { } }
+
     /// <summary>
     /// Description of GetUIAToolBar.
     /// </summary>
@@ -399,8 +399,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetToolBarCommand : GetUIAToolBarCommand
-    { public GetToolBarCommand() {} }
-    
+    { public GetToolBarCommand() { } }
+
     /// <summary>
     /// Description of GetUIAToolTip.
     /// </summary>
@@ -408,8 +408,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetToolTipCommand : GetUIAToolTipCommand
-    { public GetToolTipCommand() {} }
-    
+    { public GetToolTipCommand() { } }
+
     /// <summary>
     /// Description of GetUIATree.
     /// </summary>
@@ -417,8 +417,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTreeCommand : GetUIATreeCommand
-    { public GetTreeCommand() {} }
-    
+    { public GetTreeCommand() { } }
+
     /// <summary>
     /// Description of GetUIATreeItem.
     /// </summary>
@@ -426,8 +426,8 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetTreeItemCommand : GetUIATreeItemCommand
-    { public GetTreeItemCommand() {} }
-    
+    { public GetTreeItemCommand() { } }
+
     /// <summary>
     /// Description of GetUIAChildWindow.
     /// </summary>
@@ -435,6 +435,6 @@ namespace UIAutomationAliases.Commands.Get
     [OutputType(typeof(System.Windows.Automation.AutomationElement[]))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetChildWindowCommand : GetUIAChildWindowCommand
-    { public GetChildWindowCommand() {} }
-    
+    { public GetChildWindowCommand() { } }
+
 }

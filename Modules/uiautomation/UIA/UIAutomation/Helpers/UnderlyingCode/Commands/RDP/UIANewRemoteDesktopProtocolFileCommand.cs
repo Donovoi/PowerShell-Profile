@@ -12,16 +12,16 @@ namespace UIAutomation
     using System;
     using System.Management.Automation;
     using UIAutomation.Commands;
-    
+
     /// <summary>
     /// Description of UIANewRemoteDesktopProtocolFileCommand.
     /// </summary>
     internal class UIANewRemoteDesktopProtocolFileCommand : UIACommand
     {
-        internal UIANewRemoteDesktopProtocolFileCommand(CommonCmdletBase cmdlet) : base (cmdlet)
+        internal UIANewRemoteDesktopProtocolFileCommand(CommonCmdletBase cmdlet) : base(cmdlet)
         {
         }
-        
+
         internal override void Execute()
         {
             NewUIARemoteDesktopProtocolFileCommand cmdlet =

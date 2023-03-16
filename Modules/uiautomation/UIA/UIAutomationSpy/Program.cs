@@ -25,25 +25,27 @@ namespace UIAutomationSpy
         {
             // 20121003
             SpyModes currentMode = SpyModes.uIAutomationSpy;
-            if (null != args && 0 < args.Length) {
-                switch (Convert.ToInt32(args[0].Trim())) {
+            if (null != args && 0 < args.Length)
+            {
+                switch (Convert.ToInt32(args[0].Trim()))
+                {
                     case (int)SpyModes.uIAutomationSpy:
                         currentMode = SpyModes.uIAutomationSpy;
                         break;
                     case (int)SpyModes.seleniumSpy:
                         currentMode = SpyModes.seleniumSpy;
                         break;
-//                    default:
-//                        
-//                    	break;
+                        //                    default:
+                        //                        
+                        //                    	break;
                 }
             }
-            
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
+
             Application.Run(new SpyForm(currentMode));
         }
-        
+
     }
 }

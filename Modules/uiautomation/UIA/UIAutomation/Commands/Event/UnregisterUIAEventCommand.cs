@@ -25,51 +25,56 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         public SwitchParameter All { get; set; }
         [Parameter(Mandatory = false)]
         public AutomationEventHandler EventHandler { get; set; }
-        
+
         [Parameter(Mandatory = false)]
         internal new SwitchParameter PassThru { get; set; }
         [Parameter(Mandatory = false)]
         internal new System.Windows.Automation.AutomationElement InputObject { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
-            if (this.All) {
-                try {
+            if (this.All)
+            {
+                try
+                {
 
                     Automation.RemoveAllEventHandlers();
 
                     // 20130109
-                    if (null != CurrentData.Events) {
+                    if (null != CurrentData.Events)
+                    {
 
                         CurrentData.Events.Clear();
 
                     }
                 }
-                catch {
+                catch
+                {
 
                     // 20130109
-                    if (null != CurrentData.Events) {
+                    if (null != CurrentData.Events)
+                    {
 
                         CurrentData.Events.Clear();
 
                     }
                     // 20130109
-//                    ErrorRecord err = 
-//                        new ErrorRecord(new Exception("Unable to unregister all registered handlers"),
-//                                        "UnableUnregisterEventhandlers",
-//                                        ErrorCategory.InvalidOperation,
-//                                        null);
-//                    err.ErrorDetails = 
-//                        new ErrorDetails("Unable to unregister all registerd event handlers");
-//                    WriteError(this, err, true);
-                    
+                    //                    ErrorRecord err = 
+                    //                        new ErrorRecord(new Exception("Unable to unregister all registered handlers"),
+                    //                                        "UnableUnregisterEventhandlers",
+                    //                                        ErrorCategory.InvalidOperation,
+                    //                                        null);
+                    //                    err.ErrorDetails = 
+                    //                        new ErrorDetails("Unable to unregister all registerd event handlers");
+                    //                    WriteError(this, err, true);
+
                     this.WriteError(
                         this,
                         "Unable to unregister all registered event handlers",
@@ -77,12 +82,16 @@ namespace UIAutomation.Commands
                         ErrorCategory.InvalidOperation,
                         true);
                 }
-            } else {
-                try {
+            }
+            else
+            {
+                try
+                {
 
-                    if (this.InputObject != null && 
+                    if (this.InputObject != null &&
                         (int)this.InputObject.Current.ProcessId > 0 &&
-                        this.EventHandler != null) {
+                        this.EventHandler != null)
+                    {
 
                         Automation.RemoveAutomationEventHandler(
                             null,
@@ -90,24 +99,26 @@ namespace UIAutomation.Commands
                             this.EventHandler);
 
                     }
-                } 
-                catch {
+                }
+                catch
+                {
 
-                    try {
+                    try
+                    {
 
                         // 20130109
-//                        ErrorRecord err = 
-//                            new ErrorRecord(
-//                                new Exception("Unable to remove an event handler " + 
-//                                              this.EventHandler.ToString()),
-//                                              "unableToUnregister",
-//                                              ErrorCategory.InvalidArgument,
-//                                              this.EventHandler);
-//                        err.ErrorDetails = 
-//                            new ErrorDetails("Unable to unregister the event handler: " +
-//                                             this.EventHandler.Target.ToString());
-//                        WriteError(this, err, true);
-                        
+                        //                        ErrorRecord err = 
+                        //                            new ErrorRecord(
+                        //                                new Exception("Unable to remove an event handler " + 
+                        //                                              this.EventHandler.ToString()),
+                        //                                              "unableToUnregister",
+                        //                                              ErrorCategory.InvalidArgument,
+                        //                                              this.EventHandler);
+                        //                        err.ErrorDetails = 
+                        //                            new ErrorDetails("Unable to unregister the event handler: " +
+                        //                                             this.EventHandler.Target.ToString());
+                        //                        WriteError(this, err, true);
+
                         this.WriteError(
                             this,
                             "Unable to remove the event handler " +
@@ -116,12 +127,12 @@ namespace UIAutomation.Commands
                             ErrorCategory.InvalidArgument,
                             true);
 
-                    } 
-                    catch {}
+                    }
+                    catch { }
                 }
             }
         }
-        
+
         /// <summary>
         /// This is a placeholder to prevent its base counterpart from being run.
         /// </summary>

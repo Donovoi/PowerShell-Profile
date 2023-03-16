@@ -24,8 +24,8 @@ namespace UIAutomation.Commands
         public NewUIAWizardCommand()
         {
         }
-        
-        
+
+
         #region Parameters
         [Parameter(Mandatory = true)]
         [ValidateNotNullOrEmpty]
@@ -47,16 +47,16 @@ namespace UIAutomation.Commands
         // 20130319
         //public ScriptBlock[] DefaultStepGetWindowAction { get; set; }
         public ScriptBlock[] GetWindowAction { get; set; }
-//        [Parameter(Mandatory = false)]
-//        internal int Order { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        internal int Order { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             UIANewWizardCommand command =
                 new UIANewWizardCommand(this);
             command.Execute();
         }
-        
+
     }
 }

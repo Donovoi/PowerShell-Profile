@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ShowUIAMetroMenuCommand.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation.Commands
         public ShowUIAMetroMenuCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
             this.keyCodes.Add(0xE0);

@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Pattern
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAValuePatternInvokeCommandTestFixture.
     /// </summary>
@@ -22,13 +22,13 @@ namespace UIAutomationTest.Commands.Pattern
         public InvokeUIAValuePatternInvokeCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         // Calendar
         // ComboBox
         // Custom
@@ -40,7 +40,7 @@ namespace UIAutomationTest.Commands.Pattern
         // Slider
         // Spinner
         // Text
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

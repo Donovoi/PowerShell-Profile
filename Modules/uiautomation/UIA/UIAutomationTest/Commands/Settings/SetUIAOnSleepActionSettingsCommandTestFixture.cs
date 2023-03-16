@@ -22,15 +22,15 @@ namespace UIAutomationTest.Commands.Settings
         public SetUIAOnSleepActionSettingsCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
-        
-        
+
+
+
         [TearDown]
         public void DisposeRunspace()
         {

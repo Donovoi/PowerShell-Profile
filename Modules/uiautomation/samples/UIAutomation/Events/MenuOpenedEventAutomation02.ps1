@@ -10,7 +10,7 @@ ipmo $global:uiautomationModule;
 Start-Process calc -PassThru | `
 	Get-UIAWindow | `
 	Register-UIAMenuOpenedEvent `
-		-EventAction { `
-			param($src, $e)
-			[System.Windows.Forms.MessageBox]::Show("menu opened: Name='" + $src.Cached.Name + "'; AutomationId='" + $src.Cached.AutomatioId + "'");}; 
+	-EventAction { `
+		param($src, $e)
+	[System.Windows.Forms.MessageBox]::Show("menu opened: Name='" + $src.Cached.Name + "'; AutomationId='" + $src.Cached.AutomatioId + "'"); }; 
 Get-UIAMenuItem -Name Vi* | Invoke-UIAMenuItemExpand;

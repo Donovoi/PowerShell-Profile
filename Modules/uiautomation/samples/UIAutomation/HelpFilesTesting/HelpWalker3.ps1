@@ -9,7 +9,7 @@ param(
 	[string]$FileName,
 	[string]$AppTitle,
 	[string]$HelpTitle
-     )
+)
 Set-StrictMode -Version Latest
 cls;
 
@@ -44,49 +44,44 @@ Start-Process $script:testNames.AppName -PassThru | Get-UIAWindow -Seconds 120 |
 	Get-UIAMenuItem -Name 'Help*Topic*' | INvoke-UIAMenuItemClick;
 #Get-UIAWindow -Name $testNames.HelpTitle -Seconds 120;
 
-function Invoke-TreeNodeExpand
-{
+function Invoke-TreeNodeExpand {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -DoubleClick -PassThru:$false);
 }
 
-function Invoke-TreeNodeCollapse
-{
+function Invoke-TreeNodeCollapse {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -DoubleClick -PassThru:$false);
 }
 
 
-function Invoke-TreeNodeShowRightPane
-{
+function Invoke-TreeNodeShowRightPane {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIAControlClick -PassThru:$false);
 }
 
-function Invoke-TreeNodeScrollTo
-{
+function Invoke-TreeNodeScrollTo {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element
+	)
 	[void]($element | Invoke-UIATreeItemScrollItem);
 }
 
-function Test-Hyperlinks
-{
+function Test-Hyperlinks {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$initialElement # the node where the checking of hyperlinks starts
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$initialElement # the node where the checking of hyperlinks starts
+	)
 
 	">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>processing element: $($initialElement.Current.Name):" >> $logFile;
 	Get-Date >> $logFile;
@@ -104,25 +99,26 @@ function Test-Hyperlinks
 		Get-Date >> $logFile;
 		
 		if ($hypNames.Contains("http")) {
-write-host "===========================http==============================";			
-		} else {
+			write-host "===========================http==============================";			
+		}
+		else {
 			$null = $rightPane | `
 				Get-UIAHyperlink -Name $hypNames[$i] -FromCache | Invoke-UIAHyperlinkClick;
-#			try {
+			#			try {
 			$null = $rightPane | `
 				Get-UIAText -Name $hypNames[$i] -TestResultName "checking link: $($hypNames[$i])" -FromCache;
-#			}
-#			catch {
-#				Close-TMXTestResult -Name "checking link: $($hypNames[$i])" -TestPassed:$false -TestLog;
-#			}
-#			try {
-				#Get-UIAWindow -Name $script:testNames.HelpTitle | `
-				$null = Get-UIAButton -Name '*Back*' -FromCache | `
-					Invoke-UIAButtonClick;
-#			}
-#			catch {
-#				Close-TMXTestResult -Name "wrong Back result from $($hypNames[$i]) to the original node: $($initialElement.Current.Name)" -TestPassed:$false -TestLog;
-#			}
+			#			}
+			#			catch {
+			#				Close-TMXTestResult -Name "checking link: $($hypNames[$i])" -TestPassed:$false -TestLog;
+			#			}
+			#			try {
+			#Get-UIAWindow -Name $script:testNames.HelpTitle | `
+			$null = Get-UIAButton -Name '*Back*' -FromCache | `
+				Invoke-UIAButtonClick;
+			#			}
+			#			catch {
+			#				Close-TMXTestResult -Name "wrong Back result from $($hypNames[$i]) to the original node: $($initialElement.Current.Name)" -TestPassed:$false -TestLog;
+			#			}
 			try {
 				$null = $rightPane | `
 					Get-UIAText -Name $($initialElement.Current.Name) -TestResultName "checking original node: $($initialElement.Current.Name)" -FromCache;
@@ -135,13 +131,12 @@ write-host "===========================http==============================";
 	Stop-UIACacheRequest;
 }
 
-function Invoke-TreeNodeChildrenProcess
-{
+function Invoke-TreeNodeChildrenProcess {
 	param(
-		  [ValidateNotNull()]
-		  [System.Windows.Automation.AutomationElement]$element,
-		  [string]$NodeHierarchy
-		 )
+		[ValidateNotNull()]
+		[System.Windows.Automation.AutomationElement]$element,
+		[string]$NodeHierarchy
+	)
 	
 	# children of the node or top-level nodes
 	$children = $element | Get-UIAControlChildren -ControlType TreeItem;
@@ -171,7 +166,8 @@ function Invoke-TreeNodeChildrenProcess
 				[string]$fullHierarchy = "";
 				if ($NodeHierarchy.Length -gt 0) {
 					$fullHierarchy = $NodeHierarchy + " -> " + $childNode.Current.Name;
-				} else {
+				}
+				else {
 					$fullHierarchy = $childNode.Current.Name;
 				}
 				Write-Host $fullHierarchy;

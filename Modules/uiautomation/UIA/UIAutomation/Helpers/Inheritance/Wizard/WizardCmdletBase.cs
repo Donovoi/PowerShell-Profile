@@ -20,8 +20,8 @@ namespace UIAutomation
         public WizardCmdletBase()
         {
         }
-        
-        
+
+
         #region Parameters
         [Parameter(Mandatory = true)]
         [ValidateNotNullOrEmpty]
@@ -29,20 +29,23 @@ namespace UIAutomation
         [Parameter(Mandatory = true,
                    ValueFromPipeline = true)]
         public new Wizard InputObject { get; set; }
-// [Parameter(Mandatory = false)]
-// public int Order { get; set; }
+        // [Parameter(Mandatory = false)]
+        // public int Order { get; set; }
         #endregion Parameters
-        
+
         //protected bool ValidateWizardName(string name)
         protected internal bool ValidateWizardName(string name)
         {
             bool result = false;
-            if (name == null || name == string.Empty) {
+            if (name == null || name == string.Empty)
+            {
                 WriteVerbose(this, "wizard name is empty");
                 return result;
             }
-            foreach (Wizard wzd in WizardCollection.Wizards) {
-                if (wzd.Name == name) {
+            foreach (Wizard wzd in WizardCollection.Wizards)
+            {
+                if (wzd.Name == name)
+                {
                     WriteVerbose(this, "wizard name is not unique");
                     return result;
                 }
@@ -51,16 +54,19 @@ namespace UIAutomation
             result = true;
             return result;
         }
-        
+
         protected internal Wizard GetWizard(string name)
         {
             Wizard result = null;
-            
-            if (name == null || name == string.Empty) {
+
+            if (name == null || name == string.Empty)
+            {
                 return result;
             }
-            foreach (Wizard wzd in WizardCollection.Wizards) {
-                if (wzd.Name == name) {
+            foreach (Wizard wzd in WizardCollection.Wizards)
+            {
+                if (wzd.Name == name)
+                {
                     result = wzd;
                     return result;
                 }

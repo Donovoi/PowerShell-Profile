@@ -26,12 +26,12 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = true)]
         public ScriptBlock[] ScriptBlock { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             // RunScriptBlocks(this);

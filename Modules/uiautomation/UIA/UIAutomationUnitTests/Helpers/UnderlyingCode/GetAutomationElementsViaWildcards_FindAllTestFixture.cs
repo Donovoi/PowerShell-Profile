@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests
     using PSTestLib;
     using UIAutomation;
     using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of GetAutomationElementsViaWildcards_FindAllTestFixture.
     /// </summary>
@@ -24,35 +24,35 @@ namespace UIAutomationUnitTests
         public GetAutomationElementsViaWildcards_FindAllTestFixture()
         {
         }
-        
+
         [SetUp]
         public void SetUp()
         {
             UnitTestingHelper.PrepareUnitTestDataStore();
         }
-        
+
         [TearDown]
         public void TearDown()
         {
         }
-        
-//        private GetControlCollectionCmdletBase getClass(
-//            
-//            string name, string automationId, string )
-//        {
-//            return new GetControlCollectionCmdletBase();
-//        }
-//        
-//        [Test]
-//        [Description("GetControlCollectionCmdletBase.GetAutomationElementsViaWildcards_FindAll(x6)")]
-//        [Category("Fast")]
-//        public void Nothing_to_compare()
-//        {
-//            Assert.AreEqual(
-//                false,
-//                getClass().elementOfPossibleControlType(
-//                    null,
-//                    null));
-//        }
+
+        //        private GetControlCollectionCmdletBase getClass(
+        //            
+        //            string name, string automationId, string )
+        //        {
+        //            return new GetControlCollectionCmdletBase();
+        //        }
+        //        
+        //        [Test]
+        //        [Description("GetControlCollectionCmdletBase.GetAutomationElementsViaWildcards_FindAll(x6)")]
+        //        [Category("Fast")]
+        //        public void Nothing_to_compare()
+        //        {
+        //            Assert.AreEqual(
+        //                false,
+        //                getClass().elementOfPossibleControlType(
+        //                    null,
+        //                    null));
+        //        }
     }
 }

@@ -28,44 +28,50 @@ namespace UIAutomation.Commands
             this.Y = 0;
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = true)]
         public int X { get; set; }
         [Parameter(Mandatory = true)]
         public int Y { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             // 20120823
-            foreach (AutomationElement inputObject in this.InputObject) {
-            
-            if (!this.CheckControl(this)) { // return;
-                // move to a position that is relative to the desktop
-                System.Windows.Forms.Cursor.Position = 
-                    new System.Drawing.Point(
-                        ((int)AutomationElement.RootElement.Current.BoundingRectangle.Left + this.X),
-                        ((int)AutomationElement.RootElement.Current.BoundingRectangle.Top + this.Y));
-                this.WriteObject(this, true);
-            }
-            else {
-                System.Windows.Forms.Cursor.Position = 
-                    new System.Drawing.Point(
-                        ((int)inputObject.Current.BoundingRectangle.Left + this.X),
-                        ((int)inputObject.Current.BoundingRectangle.Top + this.Y));
-                if (this.PassThru) {
-                    this.WriteObject(this, inputObject);
-                } else {
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
+                if (!this.CheckControl(this))
+                { // return;
+                  // move to a position that is relative to the desktop
+                    System.Windows.Forms.Cursor.Position =
+                        new System.Drawing.Point(
+                            ((int)AutomationElement.RootElement.Current.BoundingRectangle.Left + this.X),
+                            ((int)AutomationElement.RootElement.Current.BoundingRectangle.Top + this.Y));
                     this.WriteObject(this, true);
                 }
-            }
-                
+                else
+                {
+                    System.Windows.Forms.Cursor.Position =
+                        new System.Drawing.Point(
+                            ((int)inputObject.Current.BoundingRectangle.Left + this.X),
+                            ((int)inputObject.Current.BoundingRectangle.Top + this.Y));
+                    if (this.PassThru)
+                    {
+                        this.WriteObject(this, inputObject);
+                    }
+                    else
+                    {
+                        this.WriteObject(this, true);
+                    }
+                }
+
             } // 20120823
-                
+
             return;
         }
     }

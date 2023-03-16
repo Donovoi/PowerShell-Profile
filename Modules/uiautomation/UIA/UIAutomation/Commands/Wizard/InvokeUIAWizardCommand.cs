@@ -23,29 +23,31 @@ namespace UIAutomation.Commands
         public InvokeUIAWizardCommand()
         {
         }
-        
+
         #region Parameters
-//        [Parameter(Mandatory = false)]
-//        internal new Wizard InputObject { get; set; }
-//        
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter Automatic { get; set; }
-//        
-//        // 20130317
-//        [Parameter(Mandatory = false)]
-//        public SwitchParameter ForwardDirection { get; set; }
+        //        [Parameter(Mandatory = false)]
+        //        internal new Wizard InputObject { get; set; }
+        //        
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter Automatic { get; set; }
+        //        
+        //        // 20130317
+        //        [Parameter(Mandatory = false)]
+        //        public SwitchParameter ForwardDirection { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
-            if (null != this.Parameters && 0 < this.Parameters.Length) {
-                
+            if (null != this.Parameters && 0 < this.Parameters.Length)
+            {
+
                 this.WriteVerbose(
                     this,
                     "converting -Parameters hashtables to dictionaries");
-                
-                foreach (Hashtable parametersTable in this.Parameters) {
+
+                foreach (Hashtable parametersTable in this.Parameters)
+                {
 
                     Dictionary<string, object> dictParameters =
                         this.ConvertHashtableToDictionary(parametersTable);
@@ -53,32 +55,34 @@ namespace UIAutomation.Commands
                     this.ParametersDictionaries.Add(dictParameters);
                 }
             }
-            
+
             // 20130508
             this.WriteInfo(this, "accepted " + this.ParametersDictionaries.Count.ToString() + " step parameters");
-            
+
             // 20130322
-            if (null != this.Directions && 0 < this.Directions.Length) {
-                
+            if (null != this.Directions && 0 < this.Directions.Length)
+            {
+
                 this.WriteVerbose(
                     this,
                     "converting -Directions hashtables to dictionaries");
-                
-                foreach (Hashtable directionsTable in this.Directions) {
-                    
+
+                foreach (Hashtable directionsTable in this.Directions)
+                {
+
                     Dictionary<string, object> dictDirections =
                         this.ConvertHashtableToDictionary(directionsTable);
-                    
+
                     this.DirectionsDictionaries.Add(dictDirections);
                 }
             }
-            
+
             // 20130508
             this.WriteInfo(this, "accepted " + this.DirectionsDictionaries.Count.ToString() + " step directions");
 
-        	UIAInvokeWizardCommand command =
-        		new UIAInvokeWizardCommand(this);
-        	command.Execute();
+            UIAInvokeWizardCommand command =
+                new UIAInvokeWizardCommand(this);
+            command.Execute();
         }
     }
 }

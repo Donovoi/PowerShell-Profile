@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of UIACommand.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation
         {
             this.Cmdlet = cmdlet;
         }
-        
+
         internal CommonCmdletBase Cmdlet { get; set; }
         internal abstract void Execute();
     }

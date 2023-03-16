@@ -25,19 +25,19 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [ValidateNotNullOrEmpty()]
-        [Parameter(Mandatory = true, 
-            ValueFromPipeline = true, 
-            HelpMessage = "This is usually the output from Get-UIAControl" )] 
+        [Parameter(Mandatory = true,
+            ValueFromPipeline = true,
+            HelpMessage = "This is usually the output from Get-UIAControl")]
         public System.Windows.Automation.AutomationElement Control { get; set; }
         [Parameter(Mandatory = true)]
         public string Name { get; set; }
         #endregion Parameters
-        
+
         System.Windows.Automation.AutomationElement _control = null;
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -46,17 +46,17 @@ namespace UIAutomation.Commands
             object result = null; // ?
 
             if (!this.CheckControl(this)) { return; }
-            
+
             this.WriteVerbose(this, _control.Current);
-            this.WriteVerbose(this, 
+            this.WriteVerbose(this,
                          (_control.GetSupportedPatterns()).Length.ToString());
             foreach (System.Windows.Automation.AutomationPattern p in _control.GetSupportedPatterns())
             {
                 this.WriteVerbose(this, p.ProgrammaticName);
             }
-            System.Windows.Automation.AutomationPattern pattern = 
+            System.Windows.Automation.AutomationPattern pattern =
                 UIAHelper.GetPatternByName(Name);
-            result = 
+            result =
                 UIAHelper.GetCurrentPattern(ref _control,
                                             pattern);
             this.WriteVerbose(this, result);

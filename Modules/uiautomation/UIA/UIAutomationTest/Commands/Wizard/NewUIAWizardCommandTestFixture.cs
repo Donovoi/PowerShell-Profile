@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Wizard
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of NewUIAWizardCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Wizard
         public NewUIAWizardCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -31,7 +31,7 @@ namespace UIAutomationTest.Commands.Wizard
                 //@"[UIAutomation.WizardCollection]::Wizards.Clear();");
                 @"[UIAutomation.WizardCollection]::ResetData();");
         }
-        
+
         [Test] //[Test(Description="Creating a simple wizard object")]
         [Category("NoForms")]
         [Category("Slow")]
@@ -40,12 +40,12 @@ namespace UIAutomationTest.Commands.Wizard
         {
             string name = "wizard";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(New-UIAWizard -Name '" + 
-                name + 
+                @"(New-UIAWizard -Name '" +
+                name +
                 "' -StartAction {}).Name;",
                 name);
         }
-        
+
         [Test] //[Test(Description="Creating a simple wizard object with the complex name")]
         [Category("NoForms")]
         [Category("Slow")]
@@ -54,12 +54,12 @@ namespace UIAutomationTest.Commands.Wizard
         {
             string name = "wi*za*rd";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(New-UIAWizard -Name '" + 
-                name + 
+                @"(New-UIAWizard -Name '" +
+                name +
                 "' -StartAction {}).Name;",
                 name);
         }
-        
+
         [Test] //[Test(Description="Creating a simple wizard object with the complex name")]
         [Category("NoForms")]
         [Category("Slow")]
@@ -69,12 +69,12 @@ namespace UIAutomationTest.Commands.Wizard
             string name = @"``//\\`""`''#$(1)567";
             string answer = @"``//\\`""`'#$(1)567";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(New-UIAWizard -Name '" + 
-                name + 
+                @"(New-UIAWizard -Name '" +
+                name +
                 "' -StartAction {}).Name;",
                 answer);
         }
-        
+
         [Test] //[Test(Description="Creating a simple wizard object with an action")]
         [Category("NoForms")]
         [Category("Slow")]
@@ -84,16 +84,16 @@ namespace UIAutomationTest.Commands.Wizard
             string name = "wizard";
             string result = "StartAction";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-UIAWizard -Name '" + 
-                name + 
-                "' -StartAction {$global:wzdTest = '" + result + "'};" + 
+                @"$null = New-UIAWizard -Name '" +
+                name +
+                "' -StartAction {$global:wzdTest = '" + result + "'};" +
                 @"$null = Invoke-UIAWizard -Name '" +
-                name + 
-                "';" + 
+                name +
+                "';" +
                 @"$global:wzdTest;",
                 result);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

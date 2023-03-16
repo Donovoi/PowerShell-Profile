@@ -21,13 +21,13 @@ namespace UIAutomationTest.Commands.Transcript
         public StopUIATranscriptCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

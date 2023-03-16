@@ -10,7 +10,7 @@
 namespace UIAutomation
 {
     using System;
-    
+
     /// <summary>
     /// Description of ModuleSettingsCmdletBase.
     /// </summary>

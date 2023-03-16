@@ -10,7 +10,7 @@
 namespace PSTestLib
 {
     using System;
-    
+
     /// <summary>
     /// Description of IRecordedCodeSequence.
     /// </summary>
@@ -23,7 +23,7 @@ namespace PSTestLib
         System.Collections.Generic.List<string> Code { get; set; }
         bool ReadyToProduceCode { get; set; }
         bool CodeProduced { get; set; }
-        
+
         bool ContainsDataItem();
         string GenerateCode(CodeAmount codeAmount);
     }

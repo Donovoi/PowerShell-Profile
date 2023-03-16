@@ -11,7 +11,7 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
 {
     using System;
     using PSTestLib;
-    
+
     /// <summary>
     /// Description of MiddleLevelCode.
     /// </summary>
@@ -20,27 +20,27 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
         static MiddleLevelCode()
         {
         }
-        
+
         public static void PrepareRunspace()
         {
             CmdletUnitTest.TestRunspace.IitializeRunspace(Settings.RunspaceCommand);
             CmdletUnitTest.TestRunspace.RunPSCode("[PSTestLib.PSCmdletBase]::SetCmdletParametersCheckingOn($false);");
         }
-        
+
         public static void PrepareRunspaceForParamChecks()
         {
             PSCmdletBase.UnitTestMode = false;
-            
+
             CmdletUnitTest.TestRunspace.IitializeRunspace(Settings.RunspaceCommand);
             CmdletUnitTest.TestRunspace.RunPSCode("[PSTestLib.PSCmdletBase]::SetCmdletParametersCheckingOn($true);");
-//            CmdletUnitTest.TestRunspace.RunPSCode(
-//                @"Add-Type -Path '.\SePSXTest.dll';");
+            //            CmdletUnitTest.TestRunspace.RunPSCode(
+            //                @"Add-Type -Path '.\SePSXTest.dll';");
         }
-        
+
         public static void DisposeRunspace()
         {
             CmdletUnitTest.TestRunspace.RunPSCode(
-				@"[UIAutomation.CurrentData]::ResetData();");
+                @"[UIAutomation.CurrentData]::ResetData();");
             CmdletUnitTest.TestRunspace.CloseRunspace();
         }
     }

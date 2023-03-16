@@ -23,7 +23,7 @@ namespace UIAutomation.Commands
             this.Action = Preferences.OnSuccessAction;
             this.Delay = Preferences.OnSuccessDelay;
         }
-        
+
         protected override void BeginProcessing()
         {
             Preferences.OnSuccessAction = this.Action;

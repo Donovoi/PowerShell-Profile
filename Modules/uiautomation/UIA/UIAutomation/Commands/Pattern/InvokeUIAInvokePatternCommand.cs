@@ -33,7 +33,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAButtonClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAButtonClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomClickCommand.
     /// </summary>
@@ -51,7 +51,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHeaderItemClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAHeaderItemClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIALinkLabelClickCommand.
     /// </summary>
@@ -60,7 +60,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIALinkLabelClickCommand : InvokeUIAHyperlinkClickCommand
     { public InvokeUIALinkLabelClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAHyperlinkClickCommand.
     /// </summary>
@@ -69,7 +69,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHyperlinkClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAHyperlinkClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAImageClickCommand.
     /// </summary>
@@ -78,7 +78,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAImageClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAImageClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemClickCommand.
     /// </summary>
@@ -87,7 +87,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAListItemClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAListItemClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuItemClickCommand.
     /// </summary>
@@ -96,7 +96,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuItemClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIAMenuItemClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIASplitButtonClickCommand.
     /// </summary>
@@ -105,7 +105,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIASplitButtonClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIASplitButtonClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATabItemClickCommand.
     /// </summary>
@@ -114,7 +114,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIATabItemClickCommand : InvokeUIAInvokePatternCommand
     { public InvokeUIATabItemClickCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATreeItemClickCommand.
     /// </summary>

@@ -9,21 +9,21 @@ $VerbosePreference = [System.Management.Automation.ActionPreference]::Continue;
 #region Creating a wizard
 Write-Host "=======================================================================================";
 Write-Host "Creating a wizard`r`n";
-New-UIAWizard -Name wzd -StartAction {Get-UIAWindow -Title 'Maskinvara och ljud' | `
+New-UIAWizard -Name wzd -StartAction { Get-UIAWindow -Title 'Maskinvara och ljud' | `
 		Get-UIAPane -AutomationId 'CategoryPanel' -Title 'CPCategoryPanel' | `
 		Get-UIAHyperlink -AutomationId 'tasklink' -Title 'Lägg till en skrivare';
-			#InvokePattern
-			#ValuePattern
+	#InvokePattern
+	#ValuePattern
 
-		Get-UIATitleBar -AutomationId 'TitleBar' -Title 'Lägg till skrivare' | `
-			Invoke-UIAHyperlinkClick;
-				# no supported pattterns
-		} | `
-	Add-UIAWizardStep -Name step1 -Order 10 -WaitCriteria @{Name='aaa1';IsEnabled=$true} -StepAction {Write-Host "step 1";} | `
-	Add-UIAWizardStep -Name step2 -Order 10 -WaitCriteria @{Name='aaa2';IsEnabled=$true} -StepAction {Write-Host "step 2";} | `
-	Add-UIAWizardStep -Name step3 -Order 10 -WaitCriteria @{Name='aaa3';IsEnabled=$true},@{Name='aaa3';IsEnabled=$true} -StepAction {Write-Host "step 3";},{Write-Host "step 3";} | `
+	Get-UIATitleBar -AutomationId 'TitleBar' -Title 'Lägg till skrivare' | `
+		Invoke-UIAHyperlinkClick;
+	# no supported pattterns
+} | `
+	Add-UIAWizardStep -Name step1 -Order 10 -WaitCriteria @{Name = 'aaa1'; IsEnabled = $true } -StepAction { Write-Host "step 1"; } | `
+	Add-UIAWizardStep -Name step2 -Order 10 -WaitCriteria @{Name = 'aaa2'; IsEnabled = $true } -StepAction { Write-Host "step 2"; } | `
+	Add-UIAWizardStep -Name step3 -Order 10 -WaitCriteria @{Name = 'aaa3'; IsEnabled = $true }, @{Name = 'aaa3'; IsEnabled = $true } -StepAction { Write-Host "step 3"; }, { Write-Host "step 3"; } | `
 	Remove-UIAWizardStep -Name step2 | `
-	Add-UIAWizardStep -Name step4 -Order 10 -WaitCriteria @{Name='aaa4';IsEnabled=$true} -StepAction {Write-Host "step 4";};
+	Add-UIAWizardStep -Name step4 -Order 10 -WaitCriteria @{Name = 'aaa4'; IsEnabled = $true } -StepAction { Write-Host "step 4"; };
 Invoke-UIAWizard -Name wzd | `
 	Step-UIAWizard -Name step1 | `
 	Step-UIAWizard -Name step3 | `

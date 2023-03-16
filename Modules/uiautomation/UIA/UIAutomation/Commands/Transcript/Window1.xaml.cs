@@ -27,10 +27,10 @@ namespace UIAutomation.Commands
         {
             //InitializeComponent();
         }
-        
+
         void button1_Click(object sender, RoutedEventArgs e)
         {
-            
+
         }
     }
 }

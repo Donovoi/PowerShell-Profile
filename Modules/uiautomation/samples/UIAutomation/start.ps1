@@ -5,8 +5,8 @@
 ####################################################################################################
 
 $global:uiautomationModule = `
-#	"..\..\UIAutomation\bin\Release35\UIAutomation.dll";
+	#	"..\..\UIAutomation\bin\Release35\UIAutomation.dll";
 	"C:\Projects\PS\UIAutomation.Old\UIAutomation\bin\Release35\UIAutomation.dll";
 $global:tmxModule = `
-#	"..\..\UIAutomation\bin\Release35\TMX.dll";
+	#	"..\..\UIAutomation\bin\Release35\TMX.dll";
 	"C:\Projects\PS\UIAutomation.Old\UIAutomation\bin\Release35\TMX.dll";

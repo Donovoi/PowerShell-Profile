@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Get
     using System;
     using System.Diagnostics;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of GetUIADesktopCommandTestFixture.
     /// </summary>
@@ -22,13 +22,13 @@ namespace UIAutomationTest.Commands.Get
         public GetUIADesktopCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("Get_UIADesktop")]
@@ -38,7 +38,7 @@ namespace UIAutomationTest.Commands.Get
                 @"(Get-UIADesktop).Current.ClassName;",
                 @"#32769");
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("Get_UIADesktop")]
@@ -48,7 +48,7 @@ namespace UIAutomationTest.Commands.Get
                 @"(Get-UIADesktop).Current.ControlType.ProgrammaticName;",
                 @"ControlType.Pane");
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("Get_UIADesktop")]
@@ -59,7 +59,7 @@ namespace UIAutomationTest.Commands.Get
                 @"[UIAutomation.CurrentData]::CurrentWindow.Current.ClassName;",
                 @"#32769");
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("Get_UIADesktop")]
@@ -70,7 +70,7 @@ namespace UIAutomationTest.Commands.Get
                 @"[UIAutomation.CurrentData]::CurrentWindow.Current.ControlType.ProgrammaticName;",
                 @"ControlType.Pane");
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

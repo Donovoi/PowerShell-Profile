@@ -14,7 +14,7 @@ namespace UIAutomation.Commands
     //using System.Runtime.InteropServices;
     //using System.Text;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of ClearUIAControlTextCommand.
     /// </summary>
@@ -24,15 +24,17 @@ namespace UIAutomation.Commands
         public ClearUIAControlTextCommand()
         {
         }
-        
+
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
-            foreach (AutomationElement inputObject in this.InputObject) {
-                
-                if (0 == inputObject.Current.NativeWindowHandle) {
-                        
+
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
+                if (0 == inputObject.Current.NativeWindowHandle)
+                {
+
                     this.WriteError(
                         this,
                         "The handle of this control equals to zero",
@@ -40,19 +42,20 @@ namespace UIAutomation.Commands
                         ErrorCategory.InvalidArgument,
                         true);
                 }
-                
+
                 System.IntPtr handle =
                     new System.IntPtr(inputObject.Current.NativeWindowHandle);
-                
+
                 NativeMethods.SendMessage3(handle, NativeMethods.WM_SETTEXT, IntPtr.Zero, "");
-                
-                if (this.PassThru) {
+
+                if (this.PassThru)
+                {
                     this.WriteObject(
                         this,
                         inputObject);
                 }
             }
-            
+
         } // 20120823
     }
 }

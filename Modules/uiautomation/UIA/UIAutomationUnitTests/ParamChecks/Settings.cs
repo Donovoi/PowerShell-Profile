@@ -10,7 +10,7 @@
 namespace UIAutomationUnitTests.CheckCmdletParameters
 {
     using System;
-    
+
     /// <summary>
     /// Description of Settings.
     /// </summary>
@@ -19,10 +19,10 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
         public Settings()
         {
         }
-        
+
         public static string RunspaceCommand =
             @"Import-Module '.\UIAutomation.dll' -Force;";
 
-		
+
     }
 }

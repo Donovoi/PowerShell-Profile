@@ -19,8 +19,9 @@ namespace UIAutomation.Commands
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIASelectionItemPatternCommand : PatternCmdletBase
-    { public InvokeUIASelectionItemPatternCommand() { WhatToDo = "SelectionItem"; }
-        
+    {
+        public InvokeUIASelectionItemPatternCommand() { WhatToDo = "SelectionItem"; }
+
         #region Parameters
         // 20130507
         // 20130508
@@ -28,13 +29,13 @@ namespace UIAutomation.Commands
         [Parameter(Mandatory = false,
                    Position = 0)]
         public string[] ItemName { get; set; }
-//        [Parameter(Mandatory = true,
-//                   // 20130105
-//                   Position = 0)]
-//        public string[] ItemName { get; set; }
+        //        [Parameter(Mandatory = true,
+        //                   // 20130105
+        //                   Position = 0)]
+        //        public string[] ItemName { get; set; }
         #endregion Parameters
     }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomSelectItemCommand.
     /// </summary>
@@ -43,7 +44,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIACustomSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIACustomSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIADataItemSelectItemCommand.
     /// </summary>
@@ -52,7 +53,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIADataItemSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIADataItemSelectItemCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAImageSelectItemCommand.
     /// </summary>
@@ -61,7 +62,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAImageSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIAImageSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemSelectItemCommand.
     /// </summary>
@@ -70,7 +71,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAListItemSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIAListItemSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuItemSelectItemCommand.
     /// </summary>
@@ -79,7 +80,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuItemSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIAMenuItemSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIARadioButtonSelectItemCommand.
     /// </summary>
@@ -88,7 +89,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIARadioButtonSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIARadioButtonSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATabItemSelectItemCommand.
     /// </summary>
@@ -97,7 +98,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIATabItemSelectItemCommand : InvokeUIASelectionItemPatternCommand
     { public InvokeUIATabItemSelectItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATreeItemSelectItemCommand.
     /// </summary>

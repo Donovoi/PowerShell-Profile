@@ -6,7 +6,7 @@ function Update-PSProfile {
     Start-AsAdmin
     if (-not(Test-Path $PROFILE)) {
         New-Item $PROFILE -Force
-        $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\*"
+        $sourcefolder = $XWAYSUSB + "\Projects\Powershell-Profile\*"
         Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force          
     }
     try {    
@@ -17,7 +17,7 @@ function Update-PSProfile {
 
     }
     catch {
-        $sourcefolder = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\Projects\Powershell-Profile\*"
+        $sourcefolder = $XWAYSUSB + "\Projects\Powershell-Profile\*"
         Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
         Write-Error -Message "$_"
     }
@@ -28,7 +28,7 @@ function Update-PSProfile {
         $FunctionsFolder = Get-ChildItem -Path "$parentpathprofile/functions/*.ps*" -Recurse
         $FunctionsFolder.ForEach{ Import-Module $_.FullName }
         # Make sure chocolatey is correct path
-        $ENV:ChocolateyInstall = "$($(Get-Volume -FriendlyName 'X-Ways*').DriveLetter)`:\chocolatey apps\chocolatey\bin\"
+        $ENV:ChocolateyInstall = $XWAYSUSB + "\chocolatey apps\chocolatey\bin\"
         
     }
 }

@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of GetUIATestProfileCommand.
     /// </summary>
@@ -21,22 +21,25 @@ namespace UIAutomation.Commands
         public GetUIATestProfileCommand()
         {
         }
-        
+
         protected override void ProcessRecord()
         {
             Profile checkProfile = null;
-            
+
             if (this.Name != null &&
                 this.Name != string.Empty &&
-                this.Name.Length > 0) {
-                checkProfile = 
+                this.Name.Length > 0)
+            {
+                checkProfile =
                     CurrentData.GetProfile(this.Name);
-            } else if (this.InputObject != null &&
-                this.InputObject is Profile) {
-                checkProfile = 
+            }
+            else if (this.InputObject != null &&
+                this.InputObject is Profile)
+            {
+                checkProfile =
                     this.InputObject;
             }
-            
+
             WriteObject(this, checkProfile);
         }
     }

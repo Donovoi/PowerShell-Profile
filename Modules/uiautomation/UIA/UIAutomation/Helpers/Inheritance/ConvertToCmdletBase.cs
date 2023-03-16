@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// The ConvertCmdletBase class is the base for the ConvertFrom- and ConvertTo- cmdlets.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation
         public ConvertCmdletBase()
         {
             Delimiter = ',';
-            
+
             // temporary!!!
             SelectedOnly = false;
         }
@@ -30,7 +30,7 @@ namespace UIAutomation
         #region Parameters
         [Parameter(Mandatory = false)]
         public char Delimiter { get; set; }
-        
+
         // temporary!!!
         [Parameter(Mandatory = false)]
         public SwitchParameter SelectedOnly { get; set; }

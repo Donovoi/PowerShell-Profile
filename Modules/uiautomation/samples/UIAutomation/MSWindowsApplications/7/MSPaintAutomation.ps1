@@ -9,8 +9,9 @@ ipmo $global:uiautomationModule;
 
 # create a new picture
 Get-UIAWindow -pn mspaint | Get-UIACustom -Name 'Application menu' | Invoke-UIACustomClick | Get-UIAMenuItem -Name 'New' | Invoke-UIAMenuItemClick;
-try{
+try {
 	Get-UIAWindow -Name 'Paint' -Seconds 3 | Get-UIAButton -Name "Don`'t Save" | Invoke-UIAButtonClick;
-} catch {
+}
+catch {
 	Write-Host "the previous picture was as clean as snow";
 }

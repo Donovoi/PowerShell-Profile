@@ -14,21 +14,23 @@ namespace UIAutomationTestForms
         /// Designer variable used to keep track of non-visual components.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
-        
+
         /// <summary>
         /// Disposes resources used by the form.
         /// </summary>
         /// <param name="disposing" > true if managed resources should be disposed; otherwise, false.</param > 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) {
-                if (components != null) {
+            if (disposing)
+            {
+                if (components != null)
+                {
                     components.Dispose();
                 }
             }
             base.Dispose(disposing);
         }
-        
+
         /// <summary>
         /// This method is required for Windows Forms designer support.
         /// Do not change the method contents inside the source code editor. The Forms designer might
@@ -44,14 +46,14 @@ namespace UIAutomationTestForms
             this.ClientSize = new System.Drawing.Size(400, 400);
             this.Name = "WinFormsForm";
             this.Text = "WinFormsForm";
-            
+
             //if (this.FormName != string.Empty){
-                this.Name = this.FormName;
+            this.Name = this.FormName;
             //}
             //if (this.FormTitle != string.Empty){
-                this.Text = this.FormTitle;
+            this.Text = this.FormTitle;
             //}
-            
+
             this.Shown += new System.EventHandler(this.WinFormsFormShown);
             this.ResumeLayout(false);
         }

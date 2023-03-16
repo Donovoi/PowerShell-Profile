@@ -11,10 +11,10 @@ namespace UIAutomationAliases
 {
     using System;
     using System.Management.Automation;
-    
+
     using System.Reflection;
     using System.Reflection.Emit;
-    
+
     /// <summary>
     /// Description of Preferences.
     /// </summary>
@@ -23,10 +23,11 @@ namespace UIAutomationAliases
         static Preferences()
         {
         }
-        
+
         public static void SetLanguagePack(LanguagePacks langPackId)
         {
-            switch (langPackId) {
+            switch (langPackId)
+            {
                 case LanguagePacks.En_US:
                     //Activator.CreateInstance(new System.typ
                     //LanguagePack = (LanguagePack)(new LanguagePack_En_US());
@@ -38,33 +39,33 @@ namespace UIAutomationAliases
                     throw new Exception("Invalid value for LanguagePacks");
             }
         }
-        
+
         public static string temp { get; set; }
     }
-    
-//    [AttributeUsage (Inherited = True)]
-//    Attribute MyCmdletAttribute : CmdletAttribute
-//    {
-//        string _SpecialName;
-//        public string SpecialName
-//        { 
-//            get { return _SpecialName; }
-//            set { _SpecialName = value; }
-//        }
-//    }
-    
-//    [System.AttributeUsage(System.AttributeTargets.Class |
-//                           System.AttributeTargets.Struct)
-//    ]
-//    public class Author : CmdletAttribute //System.Attribute
-//    {
-//        private string name;
-//        public double version;
-//    
-//        public Author(string name)
-//        {
-//            this.name = name;
-//            version = 1.0;
-//        }
-//    }
+
+    //    [AttributeUsage (Inherited = True)]
+    //    Attribute MyCmdletAttribute : CmdletAttribute
+    //    {
+    //        string _SpecialName;
+    //        public string SpecialName
+    //        { 
+    //            get { return _SpecialName; }
+    //            set { _SpecialName = value; }
+    //        }
+    //    }
+
+    //    [System.AttributeUsage(System.AttributeTargets.Class |
+    //                           System.AttributeTargets.Struct)
+    //    ]
+    //    public class Author : CmdletAttribute //System.Attribute
+    //    {
+    //        private string name;
+    //        public double version;
+    //    
+    //        public Author(string name)
+    //        {
+    //            this.name = name;
+    //            version = 1.0;
+    //        }
+    //    }
 }

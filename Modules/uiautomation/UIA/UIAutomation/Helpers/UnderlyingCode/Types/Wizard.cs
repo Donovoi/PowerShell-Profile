@@ -26,7 +26,7 @@ namespace UIAutomation
             this.Steps = new List<WizardStep>();
             WizardCollection.Wizards.Add(this);
         }
-        
+
         public string Name { get; set; }
         public List<WizardStep> Steps { get; set; }
         public ScriptBlock[] StartAction { get; set; }
@@ -56,118 +56,131 @@ namespace UIAutomation
         // 20130325
         public object[] StartActionParameters { get; set; }
         public object[] StopActionParameters { get; set; }
-        
+
         public void ClearSteps()
         {
             this.Steps = new List<WizardStep>();
         }
-        
+
         public void ClearStepsData()
         {
-            foreach (WizardStep step in this.Steps) {
-                
+            foreach (WizardStep step in this.Steps)
+            {
+
                 step.StepForwardAction = null;
                 step.StepBackwardAction = null;
             }
         }
-        
+
         public void ClearStepsData(bool forward, bool backward)
         {
-            foreach (WizardStep step in this.Steps) {
-                
-                if (forward) {
+            foreach (WizardStep step in this.Steps)
+            {
+
+                if (forward)
+                {
                     step.StepForwardAction = null;
                 }
-                if (backward) {
+                if (backward)
+                {
                     step.StepBackwardAction = null;
                 }
             }
         }
-        
+
         public WizardStep GetStep(string name)
         {
             WizardStep resultStep = null;
-            
-            foreach (WizardStep step in this.Steps) {
-                
-                if (name.ToUpper() == step.Name.ToUpper()) {
-                    
+
+            foreach (WizardStep step in this.Steps)
+            {
+
+                if (name.ToUpper() == step.Name.ToUpper())
+                {
+
                     resultStep = step;
                     break;
                 }
             }
-            
+
             return resultStep;
         }
-        
+
         public WizardStep GetActiveStep()
         {
             this.StopImmediately = false;
-            
-        	WizardStep resultStep = null;
-        	
-        	//GetControlCmdletBase cmdletCtrl =
-        	//	new GetControlCmdletBase();
-        	UIAutomation.Commands.GetUIAControlCommand cmdletCtrl =
-        	    new UIAutomation.Commands.GetUIAControlCommand();
 
-        	cmdletCtrl.InputObject =
-        		new AutomationElement[]{ CurrentData.CurrentWindow };
+            WizardStep resultStep = null;
 
-        	cmdletCtrl.Timeout = 0;
-        	
-        	foreach (WizardStep step in this.Steps) {
+            //GetControlCmdletBase cmdletCtrl =
+            //	new GetControlCmdletBase();
+            UIAutomation.Commands.GetUIAControlCommand cmdletCtrl =
+                new UIAutomation.Commands.GetUIAControlCommand();
 
-        	    if (this.StopImmediately) {
-        	        resultStep = step;
-        	        break;
-        	    }
-        	    
-        	    // 20130320
-			    // sleep interval
-			    System.Threading.Thread.Sleep(Preferences.OnSelectWizardStepDelay);
-        	    
-        		cmdletCtrl.SearchCriteria = step.SearchCriteria;
+            cmdletCtrl.InputObject =
+                new AutomationElement[] { CurrentData.CurrentWindow };
 
-	        	ArrayList controlsList = null;
-	        	
-	        	try {
+            cmdletCtrl.Timeout = 0;
 
-	        		controlsList =
-	        			cmdletCtrl.GetControl(cmdletCtrl);
+            foreach (WizardStep step in this.Steps)
+            {
 
-	        	}
-	        	catch {}
-        		
-	        	if (null != controlsList && 0 < controlsList.Count) {
+                if (this.StopImmediately)
+                {
+                    resultStep = step;
+                    break;
+                }
 
-	        	    if (step == this.ActiveStep) {
-	        	        
-	        	        // 20130423
-	        	        if (Preferences.HighlightCheckedControl) {
-	        	            foreach (AutomationElement elementChecked in controlsList) {
-	        	                UIAHelper.HighlightCheckedControl(elementChecked);
-	        	            }
-	        	        }
-	        	        
-	        	        continue;
-	        	    }
-	        	    
-	        		resultStep = step;
-	        		this.ActiveStep = step;
-	        		break;
-	        	}
-        	}
-        	
-        	// 20130515
-        	// moving the current step to the end of the step collection
-        	int currentIndex = this.Steps.IndexOf(resultStep);
-        	this.Steps.Insert(this.Steps.Count, resultStep);
-        	this.Steps.RemoveAt(currentIndex);
-        	
-        	return resultStep;
+                // 20130320
+                // sleep interval
+                System.Threading.Thread.Sleep(Preferences.OnSelectWizardStepDelay);
+
+                cmdletCtrl.SearchCriteria = step.SearchCriteria;
+
+                ArrayList controlsList = null;
+
+                try
+                {
+
+                    controlsList =
+                        cmdletCtrl.GetControl(cmdletCtrl);
+
+                }
+                catch { }
+
+                if (null != controlsList && 0 < controlsList.Count)
+                {
+
+                    if (step == this.ActiveStep)
+                    {
+
+                        // 20130423
+                        if (Preferences.HighlightCheckedControl)
+                        {
+                            foreach (AutomationElement elementChecked in controlsList)
+                            {
+                                UIAHelper.HighlightCheckedControl(elementChecked);
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    resultStep = step;
+                    this.ActiveStep = step;
+                    break;
+                }
+            }
+
+            // 20130515
+            // moving the current step to the end of the step collection
+            int currentIndex = this.Steps.IndexOf(resultStep);
+            this.Steps.Insert(this.Steps.Count, resultStep);
+            this.Steps.RemoveAt(currentIndex);
+
+            return resultStep;
         }
-        
+
         public void Stop()
         {
             this.StopImmediately = true;

@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ModuleSettingsActionCmdletBase.
     /// </summary>
@@ -20,11 +20,11 @@ namespace UIAutomation
         public ModuleSettingsActionCmdletBase()
         {
         }
-        
+
         #region Parameters
-        [Parameter(Mandatory=false)]
+        [Parameter(Mandatory = false)]
         public ScriptBlock[] Action { get; set; }
-        [Parameter(Mandatory=false)]
+        [Parameter(Mandatory = false)]
         public int Delay { get; set; }
         #endregion Parameters
     }

@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Common
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAControlClickCommandTestFixture.
     /// </summary>
@@ -22,44 +22,46 @@ namespace UIAutomationTest.Commands.Common
         public InvokeUIAControlClickCommandTestFixture()
         {
         }
-        
-        
+
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         // Button
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("WinForms")]
-        [Category("Slow")][Category("Control")]
+        [Category("Slow")]
+        [Category("WinForms")]
+        [Category("Slow")]
+        [Category("Control")]
         public void Invoke_Control_Click_Button()
         {
             string expectedResult = "Invoked";
             MiddleLevelCode.StartProcessWithForm(
-                UIAutomationTestForms.Forms.WinFormsFull, 
+                UIAutomationTestForms.Forms.WinFormsFull,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = Get-UIAWindow -pn " + 
+                @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                " | Get-UIAButton -Name button1 | Invoke-UIAControlClick;" + 
-                @"Get-UIAWindow -pn " + 
+                " | Get-UIAButton -Name button1 | Invoke-UIAControlClick;" +
+                @"Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                " | Get-UIAList -AutomationId listBox1 | " + 
-                "Get-UIAListItem -Name " + 
+                " | Get-UIAList -AutomationId listBox1 | " +
+                "Get-UIAListItem -Name " +
                 expectedResult +
                 " | Read-UIAControlName;",
                 expectedResult);
         }
-        
-        
+
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
         }
-        
-        
+
+
     }
 }

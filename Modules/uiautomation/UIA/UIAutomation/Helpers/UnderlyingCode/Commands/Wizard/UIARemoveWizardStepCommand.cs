@@ -12,21 +12,21 @@ namespace UIAutomation
     using System;
     using System.Management.Automation;
     using UIAutomation.Commands;
-    
+
     /// <summary>
     /// Description of UIARemoveWizardStepCommand.
     /// </summary>
     internal class UIARemoveWizardStepCommand : UIACommand
     {
-        internal UIARemoveWizardStepCommand(CommonCmdletBase cmdlet) : base (cmdlet)
+        internal UIARemoveWizardStepCommand(CommonCmdletBase cmdlet) : base(cmdlet)
         {
         }
-        
+
         internal override void Execute()
         {
             RemoveUIAWizardStepCommand cmdlet =
                 (RemoveUIAWizardStepCommand)this.Cmdlet;
-            
+
             WizardHelper.RemoveWizardStep(cmdlet);
         }
     }

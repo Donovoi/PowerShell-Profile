@@ -33,8 +33,8 @@ namespace UIAutomation
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new SwitchParameter PassThru { get; set; }
-        
-        
+
+
         [Parameter(Mandatory = false)]
         public SwitchParameter WriteCurrentPattern { get; set; }
         [Parameter(Mandatory = false)]
@@ -46,31 +46,31 @@ namespace UIAutomation
         [Parameter(Mandatory = false)]
         public SwitchParameter NoUI { get; set; }
         #endregion Parameters
-        
+
         internal bool Paused { get; set; }
-        
-// protected internal System.Collections.ArrayList lastRecordedItem = 
-// new System.Collections.ArrayList();
-        public System.Collections.ArrayList LastRecordedItem = 
+
+        // protected internal System.Collections.ArrayList lastRecordedItem = 
+        // new System.Collections.ArrayList();
+        public System.Collections.ArrayList LastRecordedItem =
             new System.Collections.ArrayList();
 
         // the list of all recorded controls' patterns
-// protected internal System.Collections.ArrayList recordingPatterns = 
-// new System.Collections.ArrayList();
-        public System.Collections.ArrayList RecordingPatterns = 
+        // protected internal System.Collections.ArrayList recordingPatterns = 
+        // new System.Collections.ArrayList();
+        public System.Collections.ArrayList RecordingPatterns =
             new System.Collections.ArrayList();
-        
-// internal System.Collections.ArrayList recording = 
-// new System.Collections.ArrayList();
-        
+
+        // internal System.Collections.ArrayList recording = 
+        // new System.Collections.ArrayList();
+
         protected internal AutomationElement thePreviouslyUsedElement = null;
-        
+
         internal new void StopProcessing()
         {
             Global.GTranscript = false;
             //EndProcessing(); // 20120601
         }
-        
+
         public string WritingRecord(
             object recordingItemCode,
             object recordingItemPatterns,
@@ -78,29 +78,36 @@ namespace UIAutomation
             System.IO.StreamWriter writerToShortFile)
         {
             string result = string.Empty;
-            try {
+            try
+            {
                 System.Collections.ArrayList recordList = (System.Collections.ArrayList)recordingItemCode;
                 string longRecordingString = String.Empty;
                 string shortRecordingString = String.Empty;
                 string tempString = String.Empty;
-                for (int i = (recordList.Count - 1); i  >= 0; i--) {
+                for (int i = (recordList.Count - 1); i >= 0; i--)
+                {
                     tempString = String.Empty;
                     tempString += recordList[i];
-                    if (i < (recordList.Count - 1)) {
-                        if (tempString.Contains("Get-UIAWindow")) {
-                            tempString = 
+                    if (i < (recordList.Count - 1))
+                    {
+                        if (tempString.Contains("Get-UIAWindow"))
+                        {
+                            tempString =
                                 tempString.Replace("Get-UIAWindow",
                                                       "Get-UIAChildWindow");
                         }
                         // if the second or further in the pipeline
-                        tempString = 
+                        tempString =
                             "\t" + tempString;
                     }
                     longRecordingString += tempString;
-                    if (i > 0) {
+                    if (i > 0)
+                    {
                         // all but the last in the pipeline
                         longRecordingString += " | `\r\n";
-                    } else {
+                    }
+                    else
+                    {
                         // the last in the pipeline
                         longRecordingString += ";";
                     }
@@ -120,45 +127,53 @@ namespace UIAutomation
                         tempString.Contains("Combo"))
                     {
                         shortRecordingString += tempString;
-                        if (i > 0) {
+                        if (i > 0)
+                        {
                             // all but the last in the pipeline
                             shortRecordingString += " | `\r\n";
-                        } else {
+                        }
+                        else
+                        {
                             // the last in the pipeline
                             shortRecordingString += ";";
                         }
                     }
                 }
-                if (WriteCurrentPattern) {
-                    try {
+                if (WriteCurrentPattern)
+                {
+                    try
+                    {
                         longRecordingString +=
                             //recordingPatterns[j];
                             recordingItemPatterns;
                         shortRecordingString +=
                             //recordingPatterns[j];
                             recordingItemPatterns;
-                        }
-                    catch (Exception eWritingPattern) {
+                    }
+                    catch (Exception eWritingPattern)
+                    {
                         //throw (eWritingPattern);
-                        Exception eWritingPattern2 = 
+                        Exception eWritingPattern2 =
                             new Exception(
-                                "Adding stings with patterns\r\n" + 
+                                "Adding stings with patterns\r\n" +
                                 eWritingPattern.Message);
                         throw (eWritingPattern2);
                     }
                 }
                 result = longRecordingString;
-                if (writerToLongFile != null && writerToShortFile != null) {
+                if (writerToLongFile != null && writerToShortFile != null)
+                {
                     writerToLongFile.WriteLine(longRecordingString); writerToLongFile.Flush();
                     writerToShortFile.WriteLine(shortRecordingString); writerToShortFile.Flush();
                 }
-            } 
-            catch (Exception eBuildingRecordingString) {
+            }
+            catch (Exception eBuildingRecordingString)
+            {
                 WriteDebug(eBuildingRecordingString.Message);
                 //throw (eBuildingRecordingString);
-                Exception eBuildingRecordingString2 = 
+                Exception eBuildingRecordingString2 =
                     new Exception(
-                        "Building record strings\r\n" + 
+                        "Building record strings\r\n" +
                         eBuildingRecordingString.Message);
                 throw (eBuildingRecordingString2);
             }
