@@ -17,11 +17,14 @@
 function Get-Everything {
     [CmdletBinding()]
     param (
-        
+        # Everything executable path
+        [Parameter(Mandatory = $true)]
+        [ParameterType]
+        $EverythingEXE
     )
     
     begin {
-        
+        # we need to check if the Everything executable is present
     }
     
     process {
