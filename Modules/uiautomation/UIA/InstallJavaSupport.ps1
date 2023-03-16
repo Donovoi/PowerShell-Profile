@@ -37,7 +37,8 @@ if ($env:PROCESSOR_ARCHITECTURE.Contains("64")) {
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge-64.jar" -Destination "$($JAVAHOME64)\lib\ext"
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME32)\lib\ext"
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME64)\lib\ext"
-} else {
+}
+else {
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge.dll" -Destination "$($WINDOWSHOME)\System32";
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge.dll" -Destination "$($JAVAHOME)\bin"
 	Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge.dll" -Destination "$($JAVAHOME)\bin"

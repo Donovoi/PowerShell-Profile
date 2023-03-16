@@ -28,7 +28,7 @@ namespace UIAutomation
 
         #region Parameters
         #endregion Parameters
-        
+
         protected void WaitIfCondition(
             AutomationElement _control,
             bool isEnabledOrIsVisible)
@@ -36,13 +36,16 @@ namespace UIAutomation
             // 20120824
             //_control = this.InputObject;
             _control = this.InputObject[0];
-            
-            
+
+
             // 20120620
             //this.Wait = !(_control.Current).IsEnabled;
-            if (isEnabledOrIsVisible) {
+            if (isEnabledOrIsVisible)
+            {
                 this.Wait = !(_control.Current).IsEnabled;
-            } else {
+            }
+            else
+            {
                 this.Wait = (_control.Current).IsOffscreen;
             }
             do
@@ -52,28 +55,33 @@ namespace UIAutomation
                 SleepAndRunScriptBlocks(this);
                 // if (
                 System.DateTime nowDate = System.DateTime.Now;
-                try {
+                try
+                {
                     string tempIsReport = string.Empty;
-                    if (isEnabledOrIsVisible) {
+                    if (isEnabledOrIsVisible)
+                    {
                         tempIsReport = _control.Current.IsEnabled.ToString();
-                    } else {
+                    }
+                    else
+                    {
                         tempIsReport = _control.Current.IsOffscreen.ToString();
                     }
                     WriteVerbose(this,
-                                 "AutomationID: " + 
+                                 "AutomationID: " +
                                  _control.Current.AutomationId +
-                                 ", title: " + 
-                                 _control.Current.Name + 
-                                 ", Enabled = " + 
+                                 ", title: " +
+                                 _control.Current.Name +
+                                 ", Enabled = " +
                                  //_control.Current.IsEnabled.ToString() +
                                  tempIsReport +
-                                 ", seconds: " + 
+                                 ", seconds: " +
                                  ((nowDate - StartDate).TotalSeconds).ToString());
-                } catch { }
+                }
+                catch { }
                 if (!this.CheckControl(this))
                 {
                     WriteObject(this, false);
-                    
+
                     // 20121001
                     //UIAHelper.GetScreenshotOfAutomationElement(this, CmdletName(this) + "_NoControl", true, 0, 0, 0, 0, string.Empty, System.Drawing.Imaging.ImageFormat.Jpeg);
                     this.WriteError(
@@ -82,36 +90,39 @@ namespace UIAutomation
                         "CheckingControl",
                         ErrorCategory.InvalidResult,
                         true);
-                    
+
                     return;
                 }
                 // 20120620
                 //this.Wait = !(_control.Current).IsEnabled;
-                if (isEnabledOrIsVisible) {
+                if (isEnabledOrIsVisible)
+                {
                     this.Wait = !(_control.Current).IsEnabled;
-                } else {
+                }
+                else
+                {
                     this.Wait = (_control.Current).IsOffscreen;
                 }
                 if ((nowDate - StartDate).TotalSeconds > this.Timeout / 1000)
                 {
-                    WriteVerbose(this, "timeout expired for AutomationId: " + 
+                    WriteVerbose(this, "timeout expired for AutomationId: " +
                                  _control.Current.AutomationId +
                                 ", title: " +
                                  _control.Current.Name);
-                    
+
                     // 20120927
-//                    UIAHelper.GetScreenshotOfAutomationElement(this, CmdletName(this) + "_Timeout", true, 0, 0, 0, 0, string.Empty, System.Drawing.Imaging.ImageFormat.Jpeg);
-//                    WriteError(this, new ErrorRecord(new Exception(),
-//                                               CmdletName(this) + ": timeout expired for AutomationId: " + 
-//                                               _control.Current.AutomationId +
-//                                               ", title: " +
-//                                               _control.Current.Name,
-//                                               ErrorCategory.OperationTimeout,
-//                                               _control), true);
-                    
+                    //                    UIAHelper.GetScreenshotOfAutomationElement(this, CmdletName(this) + "_Timeout", true, 0, 0, 0, 0, string.Empty, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    //                    WriteError(this, new ErrorRecord(new Exception(),
+                    //                                               CmdletName(this) + ": timeout expired for AutomationId: " + 
+                    //                                               _control.Current.AutomationId +
+                    //                                               ", title: " +
+                    //                                               _control.Current.Name,
+                    //                                               ErrorCategory.OperationTimeout,
+                    //                                               _control), true);
+
                     this.WriteError(
                         this,
-                        CmdletName(this) + ": timeout expired for AutomationId: " + 
+                        CmdletName(this) + ": timeout expired for AutomationId: " +
                         _control.Current.AutomationId +
                         ", title: " +
                         _control.Current.Name,
@@ -119,22 +130,23 @@ namespace UIAutomation
                         ErrorCategory.OperationTimeout,
                         true);
                 }
-                if (_control == null) {
+                if (_control == null)
+                {
                     WriteVerbose(this, "the control is unavailable");
-                    
+
                     // 20120927
-//                    UIAHelper.GetScreenshotOfAutomationElement(this, CmdletName(this) + "_ControlEqNull", true, 0, 0, 0, 0, string.Empty, System.Drawing.Imaging.ImageFormat.Jpeg);
-//                    WriteError(this, new ErrorRecord(new Exception(),
-//                                               CmdletName(this) + ": control is unavailable. AutomationId: " + 
-//                                               _control.Current.AutomationId +
-//                                               ", title: " +
-//                                               _control.Current.Name,
-//                                               ErrorCategory.OperationTimeout,
-//                                               _control), true);
-                    
+                    //                    UIAHelper.GetScreenshotOfAutomationElement(this, CmdletName(this) + "_ControlEqNull", true, 0, 0, 0, 0, string.Empty, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    //                    WriteError(this, new ErrorRecord(new Exception(),
+                    //                                               CmdletName(this) + ": control is unavailable. AutomationId: " + 
+                    //                                               _control.Current.AutomationId +
+                    //                                               ", title: " +
+                    //                                               _control.Current.Name,
+                    //                                               ErrorCategory.OperationTimeout,
+                    //                                               _control), true);
+
                     this.WriteError(
                         this,
-                        CmdletName(this) + ": control is unavailable. AutomationId: " + 
+                        CmdletName(this) + ": control is unavailable. AutomationId: " +
                         _control.Current.AutomationId +
                         ", title: " +
                         _control.Current.Name,

@@ -9,48 +9,50 @@
 
 namespace UIAutomationSpy
 {
-	//extern alias UIACOM;
-	using System;
-	using System.Windows.Automation;
-	using System.Windows.Forms;
-	using System.Drawing;
-	//using UIACOM3;
-	//using UIAutomationClient;
-	
-	using System.Management.Automation;
+    //extern alias UIACOM;
+    using System;
+    using System.Windows.Automation;
+    using System.Windows.Forms;
+    using System.Drawing;
+    //using UIACOM3;
+    //using UIAutomationClient;
+
+    using System.Management.Automation;
     using System.Security.Cryptography;
 
     partial class SpyForm
     {
         private bool stopNow = false;
-        
+
         private string scriptCurrentString = string.Empty;
         private string scriptPreviousString = string.Empty;
-        
-        System.Collections.Generic.List<string> ancestorsNodesList = 
+
+        System.Collections.Generic.List<string> ancestorsNodesList =
             new System.Collections.Generic.List<string>();
-        System.Collections.Generic.List<string> ancestorsCodeList = 
+        System.Collections.Generic.List<string> ancestorsCodeList =
             new System.Collections.Generic.List<string>();
-        
+
         /// <summary>
         /// Designer variable used to keep track of non-visual components.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
-        
+
         /// <summary>
         /// Disposes resources used by the form.
         /// </summary>
         /// <param name="disposing" > true if managed resources should be disposed; otherwise, false.</param > 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) {
-                if (components  !=  null) {
+            if (disposing)
+            {
+                if (components != null)
+                {
                     components.Dispose();
                 }
             }
             base.Dispose(disposing);
         }
-        
+
         /// <summary>
         /// This method is required for Windows Forms designer support.
         /// Do not change the method contents inside the source code editor. The Forms designer might
@@ -912,7 +914,7 @@ namespace UIAutomationSpy
         private System.Windows.Forms.Button btnStop;
         private System.Windows.Forms.RichTextBox richControlCode;
         private System.Windows.Forms.Button btnStart;
-        
+
     }
-    
+
 }

@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAScrollItemPatternCommand.
     /// </summary>
@@ -19,13 +19,14 @@ namespace UIAutomation.Commands
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAScrollItemPatternCommand : PatternCmdletBase
-    { public InvokeUIAScrollItemPatternCommand() 
-      { 
+    {
+        public InvokeUIAScrollItemPatternCommand()
+        {
             WhatToDo = "ScrollItem";
-            
+
             this.PassThru = true;
             //base.Child = this;
-      }
+        }
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIACustomScrollItemCommand : InvokeUIAScrollItemPatternCommand
     { public InvokeUIACustomScrollItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIADataItemScrollItemCommand.
     /// </summary>
@@ -45,7 +46,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIADataItemScrollItemCommand : InvokeUIAScrollItemPatternCommand
     { public InvokeUIADataItemScrollItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemScrollItemCommand.
     /// </summary>
@@ -54,7 +55,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAListItemScrollItemCommand : InvokeUIAScrollItemPatternCommand
     { public InvokeUIAListItemScrollItemCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATreeItemScrollItemCommand.
     /// </summary>

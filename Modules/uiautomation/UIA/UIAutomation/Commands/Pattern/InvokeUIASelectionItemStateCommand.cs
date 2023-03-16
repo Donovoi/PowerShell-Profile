@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIASelectionItemStateCommand.
     /// </summary>
@@ -23,7 +23,7 @@ namespace UIAutomation.Commands
             WhatToDo = "SelectionItemState";
         }
     }
-    
+
     /// <summary>
     /// Description of InvokeUIACustomSelectionItemStateCommand.
     /// </summary>
@@ -32,7 +32,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIACustomSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIACustomSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIADataItemSelectionItemStateCommand.
     /// </summary>
@@ -41,7 +41,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIADataItemSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIADataItemSelectionItemStateCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAImageSelectionItemStateCommand.
     /// </summary>
@@ -50,7 +50,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAImageSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIAImageSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAListItemSelectionItemStateCommand.
     /// </summary>
@@ -59,7 +59,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAListItemSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIAListItemSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAMenuItemSelectionItemStateCommand.
     /// </summary>
@@ -68,7 +68,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuItemSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIAMenuItemSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIARadioButtonSelectionItemStateCommand.
     /// </summary>
@@ -77,7 +77,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIARadioButtonSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIARadioButtonSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATabItemSelectionItemStateCommand.
     /// </summary>
@@ -86,7 +86,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIATabItemSelectionItemStateCommand : InvokeUIASelectionItemStateCommand
     { public InvokeUIATabItemSelectionItemStateCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIATreeItemSelectionItemStateCommand.
     /// </summary>

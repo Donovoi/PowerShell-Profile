@@ -85,7 +85,7 @@ Get-UIAWindow -pn calc -Class "#32770";
 
 
 
-Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCriteria @{controlType="text";name="*complete*"} -Seconds 300;
+Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCriteria @{controlType = "text"; name = "*complete*" } -Seconds 300;
 
 
 
@@ -93,7 +93,7 @@ Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCrite
 
 # start calc.exe and ensure that it's in the Standard mode
 # run code:
-Get-UIAWindow -pn calc -Seconds 60 -WithControl @{controltype="button";name="clear*all*"}
+Get-UIAWindow -pn calc -Seconds 60 -WithControl @{controltype = "button"; name = "clear*all*" }
 # change mode to Statistics: menu item View -> Statistics
 # the Get-UIAWindow cmdlet immediately returns the window. The CAD button is the button that has name "Clear all..."
 

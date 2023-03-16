@@ -19,7 +19,7 @@ namespace UIAutomationTest
         public StartUp()
         {
         }
-        
+
         //[Suite]
         public void SuiteSetUp()
         {

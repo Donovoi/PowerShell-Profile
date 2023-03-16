@@ -9,7 +9,8 @@
 
 namespace PSTestLib
 {
-    public enum RecordingTypes {
+    public enum RecordingTypes
+    {
         /// <summary>
         /// Represents an element to be written
         /// </summary>
@@ -31,21 +32,24 @@ namespace PSTestLib
         /// </summary>
         Data
     }
-    
-    public enum ActionTypes {
+
+    public enum ActionTypes
+    {
         Click,
         DoubleClick,
         TextInput,
         KeyboardDown
     }
-    
-    public enum CodeAmount {
+
+    public enum CodeAmount
+    {
         OnlyCode,
         DataCode,
         HeaderDataFooterCode
     }
-    
-    public enum LogLevels {
+
+    public enum LogLevels
+    {
         Fatal,
         Error,
         Warn,

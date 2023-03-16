@@ -25,10 +25,10 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             object result = null;

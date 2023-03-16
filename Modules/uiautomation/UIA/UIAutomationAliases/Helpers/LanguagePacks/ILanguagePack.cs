@@ -10,14 +10,14 @@
 namespace UIAutomationAliases
 {
     using System;
-    
+
     /// <summary>
     /// Description of ILanguagePack.
     /// </summary>
     public interface ILanguagePack
     {
         //LanguagePacks LanguagePack { get; set; }
-        
+
         string Button { get; }
         string Calendar { get; }
         string Custom { get; }

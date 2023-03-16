@@ -27,28 +27,31 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter]
         internal new int Timeout { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
         protected override void ProcessRecord()
         {
             if (!this.CheckControl(this)) { return; }
-            
-            bool result = 
+
+            bool result =
                 TestControlByPropertiesFromHashtable(
                     // 20130315
                     this.InputObject,
                     this.SearchCriteria,
                     Preferences.Timeout);
-            if (result) {
+            if (result)
+            {
                 this.WriteObject(this, true);
-            } else {
+            }
+            else
+            {
                 this.WriteObject(this, false);
             }
         }

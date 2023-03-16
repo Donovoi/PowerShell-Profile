@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Profile
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of GetUIATestProfileCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Profile
         public GetUIATestProfileCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -32,69 +32,77 @@ namespace UIAutomationTest.Commands.Profile
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.CurrentData]::Profiles.Clear());");
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Profile")]
-        [Category("Slow")][Category("Get_UIATestProfile")]
+        [Category("Slow")]
+        [Category("Profile")]
+        [Category("Slow")]
+        [Category("Get_UIATestProfile")]
         public void GetTestProfile_ByName_Simple()
         {
             string name = @"prof";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-UIATestProfile -Name '" + 
+                @"$null = New-UIATestProfile -Name '" +
                 name +
-                "'; " + 
-                "(Get-UIATestProfile -Name '" + 
-                name + 
+                "'; " +
+                "(Get-UIATestProfile -Name '" +
+                name +
                 "').Name;",
                 name);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Profile")]
-        [Category("Slow")][Category("Get_UIATestProfile")]
+        [Category("Slow")]
+        [Category("Profile")]
+        [Category("Slow")]
+        [Category("Get_UIATestProfile")]
         public void GetTestProfile_ByName_Complex()
         {
             string name = @"<<p`r*o''f>>";
             string answer = @"<<p`r*o'f>>";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"$null = New-UIATestProfile -Name '" + 
+                @"$null = New-UIATestProfile -Name '" +
                 name +
-                "'; " + 
-                "(Get-UIATestProfile -Name '" + 
-                name + 
+                "'; " +
+                "(Get-UIATestProfile -Name '" +
+                name +
                 "').Name;",
                 answer);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Profile")]
-        [Category("Slow")][Category("Get_UIATestProfile")]
+        [Category("Slow")]
+        [Category("Profile")]
+        [Category("Slow")]
+        [Category("Get_UIATestProfile")]
         public void GetTestProfile_FromPipeline_Simple()
         {
             string name = @"prof";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(New-UIATestProfile -Name '" + 
+                @"(New-UIATestProfile -Name '" +
                 name +
-                "' | " + 
+                "' | " +
                 "Get-UIATestProfile).Name;",
                 name);
         }
-        
+
         [Test] //[Test(Description="TBD")]
-        [Category("Slow")][Category("Profile")]
-        [Category("Slow")][Category("Get_UIATestProfile")]
+        [Category("Slow")]
+        [Category("Profile")]
+        [Category("Slow")]
+        [Category("Get_UIATestProfile")]
         public void GetTestProfile_FromPipeline_Complex()
         {
             string name = @"<<p`r*o''f>>";
             string answer = @"<<p`r*o'f>>";
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
-                @"(New-UIATestProfile -Name '" + 
+                @"(New-UIATestProfile -Name '" +
                 name +
-                "' | " + 
+                "' | " +
                 "Get-UIATestProfile).Name;",
                 answer);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

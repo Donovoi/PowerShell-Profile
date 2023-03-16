@@ -12,7 +12,7 @@ namespace UIAutomation.Commands
     using System;
     using System.Management.Automation;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of StartUIACacheRequestCommand.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation.Commands
     {
         public StartUIACacheRequestCommand()
         {
-            System.Collections.ArrayList defaultPropertiesList = 
+            System.Collections.ArrayList defaultPropertiesList =
                 new System.Collections.ArrayList();
             defaultPropertiesList.Add("Name");
             defaultPropertiesList.Add("AutomationId");
@@ -33,8 +33,8 @@ namespace UIAutomation.Commands
             defaultPropertiesList.Add("IsEnabled");
             defaultPropertiesList.Add("IsOffscreen");
             this.Property = (string[])defaultPropertiesList.ToArray(typeof(string));
-            
-            System.Collections.ArrayList defaultPatternsList = 
+
+            System.Collections.ArrayList defaultPatternsList =
                 new System.Collections.ArrayList();
             defaultPatternsList.Add("ExpandCollapsePattern");
             defaultPatternsList.Add("InvokePattern");
@@ -45,12 +45,12 @@ namespace UIAutomation.Commands
             defaultPatternsList.Add("TogglePattern");
             defaultPatternsList.Add("ValuePattern");
             this.Pattern = (string[])defaultPatternsList.ToArray(typeof(string));
-            
+
             this.Scope = "SUBTREE";
-            
+
             this.Filter = "RAW";
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         public string[] Property { get; set; }
@@ -61,27 +61,30 @@ namespace UIAutomation.Commands
         [Parameter(Mandatory = false)]
         public string Filter { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
-            try {
+            try
+            {
                 //CurrentData.CacheRequest = new CacheRequest();
-                
-                if (CurrentData.CacheRequest != null) {
-                    ErrorRecord err = 
+
+                if (CurrentData.CacheRequest != null)
+                {
+                    ErrorRecord err =
                         new ErrorRecord(
                             new Exception("There is already active CacheRequest"),
                             "cacheRequestIsOpen",
                             ErrorCategory.InvalidOperation,
                             CurrentData.CacheRequest);
-                    err.ErrorDetails = 
+                    err.ErrorDetails =
                         new ErrorDetails("There is already active CacheRequest. Please close it first");
                     WriteError(this, err, true);
                 }
-                
+
                 CurrentData.CacheRequest = new CacheRequest();
                 CurrentData.CacheRequest.AutomationElementMode = AutomationElementMode.Full;
-                switch (this.Filter.ToUpper()) {
+                switch (this.Filter.ToUpper())
+                {
                     case "RAW":
                         CurrentData.CacheRequest.TreeFilter = Automation.RawViewCondition;
                         break;
@@ -93,13 +96,14 @@ namespace UIAutomation.Commands
                         break;
                 }
                 //CurrentData.CacheRequest.TreeFilter = Automation.RawViewCondition;
-                switch (this.Scope.ToUpper()) {
+                switch (this.Scope.ToUpper())
+                {
                     case "SUBTREE":
                         CurrentData.CacheRequest.TreeScope = TreeScope.Subtree;
                         break;
-//                    case "ANCESTORS":
-//                        CurrentData.CacheRequest.TreeScope = TreeScope.Ancestors;
-//                        break;
+                    //                    case "ANCESTORS":
+                    //                        CurrentData.CacheRequest.TreeScope = TreeScope.Ancestors;
+                    //                        break;
                     case "CHILDREN":
                         CurrentData.CacheRequest.TreeScope = TreeScope.Children;
                         break;
@@ -109,13 +113,14 @@ namespace UIAutomation.Commands
                     case "ELEMENT":
                         CurrentData.CacheRequest.TreeScope = TreeScope.Element;
                         break;
-//                    case "PARENT":
-//                        CurrentData.CacheRequest.TreeScope = TreeScope.Parent;
-//                        break;
+                        //                    case "PARENT":
+                        //                        CurrentData.CacheRequest.TreeScope = TreeScope.Parent;
+                        //                        break;
                 }
                 //CurrentData.CacheRequest.TreeScope = TreeScope.Subtree;
-                
-                if (this.Property.Length == 0) {
+
+                if (this.Property.Length == 0)
+                {
                     CurrentData.CacheRequest.Add(AutomationElement.NameProperty);
                     CurrentData.CacheRequest.Add(AutomationElement.AutomationIdProperty);
                     CurrentData.CacheRequest.Add(AutomationElement.ClassNameProperty);
@@ -125,9 +130,13 @@ namespace UIAutomation.Commands
                     CurrentData.CacheRequest.Add(AutomationElement.ClickablePointProperty);
                     CurrentData.CacheRequest.Add(AutomationElement.IsEnabledProperty);
                     CurrentData.CacheRequest.Add(AutomationElement.IsOffscreenProperty);
-                } else {
-                    for (int i = 0; i < this.Property.Length; i++) {
-                        switch (this.Property[i].ToUpper()) {
+                }
+                else
+                {
+                    for (int i = 0; i < this.Property.Length; i++)
+                    {
+                        switch (this.Property[i].ToUpper())
+                        {
                             case "NAME":
                                 CurrentData.CacheRequest.Add(AutomationElement.NameProperty);
                                 break;
@@ -166,8 +175,9 @@ namespace UIAutomation.Commands
                         }
                     }
                 }
-                
-                if (this.Pattern.Length == 0) {
+
+                if (this.Pattern.Length == 0)
+                {
                     CurrentData.CacheRequest.Add(ExpandCollapsePattern.Pattern);
                     CurrentData.CacheRequest.Add(InvokePattern.Pattern);
                     CurrentData.CacheRequest.Add(ScrollItemPattern.Pattern);
@@ -176,9 +186,13 @@ namespace UIAutomation.Commands
                     CurrentData.CacheRequest.Add(TextPattern.Pattern);
                     CurrentData.CacheRequest.Add(TogglePattern.Pattern);
                     CurrentData.CacheRequest.Add(ValuePattern.Pattern);
-                } else {
-                    for (int i = 0; i < this.Pattern.Length; i++) {
-                        switch (this.Pattern[i].ToUpper()) {
+                }
+                else
+                {
+                    for (int i = 0; i < this.Pattern.Length; i++)
+                    {
+                        switch (this.Pattern[i].ToUpper())
+                        {
                             case "DOCK":
                             case "DOCKPATTERN":
                                 CurrentData.CacheRequest.Add(DockPattern.Pattern);
@@ -262,14 +276,15 @@ namespace UIAutomation.Commands
                 CurrentData.CacheRequest.Push();
                 //WriteObject(this, returnObject);
             }
-            catch (Exception eCacheRequest) {
-                ErrorRecord err = 
+            catch (Exception eCacheRequest)
+            {
+                ErrorRecord err =
                     new ErrorRecord(
                         new Exception("Unable to start cache request"),
                         "CacheRequestFailedToPush",
                         ErrorCategory.InvalidOperation,
                         null);
-                err.ErrorDetails = 
+                err.ErrorDetails =
                     new ErrorDetails(
                         "Failed to start a cache request\r\n" +
                         eCacheRequest.Message);

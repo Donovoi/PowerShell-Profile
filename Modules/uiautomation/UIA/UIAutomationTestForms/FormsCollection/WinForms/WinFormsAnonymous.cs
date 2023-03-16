@@ -18,38 +18,38 @@ namespace UIAutomationTestForms
     /// </summary>
     public partial class WinFormsAnonymous : WinFormsForm // Form
     {
-//        public WinFormsAnonymous(
-//            System.Windows.Automation.ControlType controlType,
-//            int controlDelay)
-//        {
-//            this.ControlType = controlType;
-//            this.ControlDelay = controlDelay;
-//            //  // The InitializeComponent() call is required for Windows Forms designer support.
-//            // 
-//            InitializeComponent();
-//            
-//            //  // TODO: Add constructor code after the InitializeComponent() call.
-//            // 
-//        }
+        //        public WinFormsAnonymous(
+        //            System.Windows.Automation.ControlType controlType,
+        //            int controlDelay)
+        //        {
+        //            this.ControlType = controlType;
+        //            this.ControlDelay = controlDelay;
+        //            //  // The InitializeComponent() call is required for Windows Forms designer support.
+        //            // 
+        //            InitializeComponent();
+        //            
+        //            //  // TODO: Add constructor code after the InitializeComponent() call.
+        //            // 
+        //        }
 
         public WinFormsAnonymous(
             System.Windows.Automation.ControlType controlType,
-            int controlDelay) : base ("WinFormsAnonymous", "", controlType, controlDelay)
+            int controlDelay) : base("WinFormsAnonymous", "", controlType, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsAnonymous(
             System.Windows.Automation.ControlType controlType,
             string controlName,
             string controlAutomationId,
-            int controlDelay) : base ("WinFormsAnonymous", "", controlType, controlName, controlAutomationId, controlDelay)
+            int controlDelay) : base("WinFormsAnonymous", "", controlType, controlName, controlAutomationId, controlDelay)
         {
             base.ChildForm = this;
         }
-        
+
         public WinFormsAnonymous(
-            ControlToForm[] controls) : base ("WinFormsAnonymous", "WinFormsAnonymous", controls)
+            ControlToForm[] controls) : base("WinFormsAnonymous", "WinFormsAnonymous", controls)
         {
             base.ChildForm = this;
         }

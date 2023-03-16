@@ -15,22 +15,22 @@ ipmo C:\Projects\PS\STUPS\UIA\UIAutomationSpy\bin\Release35\UIAutomation.dll
 #[System.EventHandler]$printScientific = {$global:scientificResult;};
 
 
-New-UIAWizard -Name $wizardName -StartAction {Start-Process calc -PassThru | Get-UIAWindow};
+New-UIAWizard -Name $wizardName -StartAction { Start-Process calc -PassThru | Get-UIAWindow };
 
-Add-UIAWizardStep -Name $stepScientific -SearchCriteria @{ControlType="RadioButton";Name="Degrees"} `
-	-StepForwardAction {Get-UIAButton -n 1 | Set-UIAFocus | `
-	Set-UIAControlKeys -Text "1{+}1{=}"; [UIAutomation.UserData]::UserDictionary.Add("scientificResult", (Get-UIAText -AutomationId 150 | Get-UIATextText));} `
+Add-UIAWizardStep -Name $stepScientific -SearchCriteria @{ControlType = "RadioButton"; Name = "Degrees" } `
+	-StepForwardAction { Get-UIAButton -n 1 | Set-UIAFocus | `
+		Set-UIAControlKeys -Text "1{+}1{=}"; [UIAutomation.UserData]::UserDictionary.Add("scientificResult", (Get-UIAText -AutomationId 150 | Get-UIATextText)); } `
 	-InputObject (Get-UIAWizard -Name $wizardName) `
-	-OnSuccessAction {[UIAutomation.UserData]::UserDictionary["scientificResult"];}
+	-OnSuccessAction { [UIAutomation.UserData]::UserDictionary["scientificResult"]; }
 
-Add-UIAWizardStep -Name $stepProgrammer -SearchCriteria @{ControlType="RadioButton";Name="Hex"} `
-	-StepForwardAction {Get-UIAButton -n 1 | Set-UIAFocus | `
-	Set-UIAControlKeys -Text "2{+}2{=}"; {$global:programmerResult = Get-UIAText -AutomationId 150 | Get-UIATextText; $global:programmerResult;}.INvoke();} `
+Add-UIAWizardStep -Name $stepProgrammer -SearchCriteria @{ControlType = "RadioButton"; Name = "Hex" } `
+	-StepForwardAction { Get-UIAButton -n 1 | Set-UIAFocus | `
+		Set-UIAControlKeys -Text "2{+}2{=}"; { $global:programmerResult = Get-UIAText -AutomationId 150 | Get-UIATextText; $global:programmerResult; }.INvoke(); } `
 	-InputObject (Get-UIAWizard -Name $wizardName);
 
-Add-UIAWizardStep -Name $stepStatistics -SearchCriteria @{ControlType="Button";Name="Average"} `
-	-StepForwardAction {Get-UIAButton -n 1 | Set-UIAFocus | `
-	Set-UIAControlKeys -Text "3{+}3{=}"; $global:statisticsResult = Get-UIAText -AutomationId 150 | Get-UIATextText; $global:statisticsResult;} `
+Add-UIAWizardStep -Name $stepStatistics -SearchCriteria @{ControlType = "Button"; Name = "Average" } `
+	-StepForwardAction { Get-UIAButton -n 1 | Set-UIAFocus | `
+		Set-UIAControlKeys -Text "3{+}3{=}"; $global:statisticsResult = Get-UIAText -AutomationId 150 | Get-UIATextText; $global:statisticsResult; } `
 	-InputObject (Get-UIAWizard -Name $wizardName);
 
 Invoke-UIAWizard -Name $wizardName;

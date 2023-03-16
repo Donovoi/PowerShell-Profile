@@ -23,50 +23,50 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAStructureChangedEventCommand()
         {
-            base.AutomationEventType = 
+            base.AutomationEventType =
                 AutomationElement.StructureChangedEvent;
             // base.AutomationEventHandler = OnUIStructureChangedEvent;
-            base.StructureChangedEventHandler = 
+            base.StructureChangedEventHandler =
                 OnUIStructureChangedEvent;
-            
-// ChildAdded = false;
-// ChildRemoved = false;
-// ChildrenBulkAdded = false;
-// ChildrenBulkRemoved = false;
-// ChildrenInvalidated = false;
-// ChildrenReordered = false;
-            
-// base.ChildAdded = this.ChildAdded;
-// base.ChildRemoved = this.ChildRemoved;
-// base.ChildrenBulkAdded = this.ChildrenBulkAdded;
-// base.ChildrenBulkRemoved = this.ChildrenBulkRemoved;
-// base.ChildrenInvalidated = this.ChildrenInvalidated;
-// base.ChildrenReordered = this.ChildrenReordered;
 
-// this.childAdded = this.ChildAdded;
-// this.childRemoved = this.ChildRemoved;
-// this.childrenBulkAdded = this.ChildrenBulkAdded;
-// this.childrenBulkRemoved = this.ChildrenBulkRemoved;
-// this.childrenInvalidated = this.ChildrenInvalidated;
-// this.childrenReordered = this.ChildrenReordered;
-            
+            // ChildAdded = false;
+            // ChildRemoved = false;
+            // ChildrenBulkAdded = false;
+            // ChildrenBulkRemoved = false;
+            // ChildrenInvalidated = false;
+            // ChildrenReordered = false;
+
+            // base.ChildAdded = this.ChildAdded;
+            // base.ChildRemoved = this.ChildRemoved;
+            // base.ChildrenBulkAdded = this.ChildrenBulkAdded;
+            // base.ChildrenBulkRemoved = this.ChildrenBulkRemoved;
+            // base.ChildrenInvalidated = this.ChildrenInvalidated;
+            // base.ChildrenReordered = this.ChildrenReordered;
+
+            // this.childAdded = this.ChildAdded;
+            // this.childRemoved = this.ChildRemoved;
+            // this.childrenBulkAdded = this.ChildrenBulkAdded;
+            // this.childrenBulkRemoved = this.ChildrenBulkRemoved;
+            // this.childrenInvalidated = this.ChildrenInvalidated;
+            // this.childrenReordered = this.ChildrenReordered;
+
             base.Child = this;
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildAdded {get; set; }
+        public SwitchParameter ChildAdded { get; set; }
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildRemoved {get; set; }
+        public SwitchParameter ChildRemoved { get; set; }
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildrenInvalidated {get; set; }
+        public SwitchParameter ChildrenInvalidated { get; set; }
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildrenBulkAdded {get; set; }
+        public SwitchParameter ChildrenBulkAdded { get; set; }
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildrenBulkRemoved {get; set; }
+        public SwitchParameter ChildrenBulkRemoved { get; set; }
         [Parameter(Mandatory = false)]
-        public SwitchParameter ChildrenReordered {get; set; }
+        public SwitchParameter ChildrenReordered { get; set; }
         #endregion Parameters
     }
 }

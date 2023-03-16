@@ -25,22 +25,22 @@ namespace UIAutomation.Commands
             //this.InputObject = 0;
         }
         #endregion Constructor
-        
+
         #region Parameters
-//        [Parameter(Mandatory = true,
-//                   ValueFromPipeline = true)]
-//        [Alias("Handle")]
-//        public new int InputObject { get; set; }
+        //        [Parameter(Mandatory = true,
+        //                   ValueFromPipeline = true)]
+        //        [Alias("Handle")]
+        //        public new int InputObject { get; set; }
         [ValidateNotNullOrEmpty()]
-        [Alias ("Handle")]
-        [Parameter(Mandatory = false, 
-            ValueFromPipeline = true, 
-            Position = 0)] 
+        [Alias("Handle")]
+        [Parameter(Mandatory = false,
+            ValueFromPipeline = true,
+            Position = 0)]
         // 20120824
         //public new int InputObject { get; set; }
         public new int[] InputObject { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -49,23 +49,25 @@ namespace UIAutomation.Commands
             System.Windows.Automation.AutomationElement result = null;
             // 20120824
             //try{ WriteVerbose(this, "handle = " + this.InputObject.ToString()); } catch {}
-            
+
             // 20120824
-            foreach (int handle in this.InputObject) {
-                result = 
+            foreach (int handle in this.InputObject)
+            {
+                result =
                     UIAHelper.GetAutomationElementFromHandle(
                         this,
                         // 20120824
                         //this.InputObject);
                         handle);
-                if (result != null) {
+                if (result != null)
+                {
                     WriteVerbose(this, "got the control: " + result.Current.Name);
                 }
                 WriteObject(this, result);
             } // 20120824
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAWindowFromHandleCommand.
     /// </summary>
@@ -88,16 +90,18 @@ namespace UIAutomation.Commands
             System.Windows.Automation.AutomationElement result = null;
             // 20120824
             //try{ WriteVerbose(this, "handle = " + this.InputObject.ToString()); } catch {}
-            
+
             // 20120824
-            foreach (int handle in this.InputObject) {
-                result = 
+            foreach (int handle in this.InputObject)
+            {
+                result =
                     UIAHelper.GetAutomationElementFromHandle(
                         this,
                         // 20120824
                         //this.InputObject);
                         handle);
-                if (result != null) {
+                if (result != null)
+                {
                     this.WriteVerbose(this, "got the window");
                 }
                 UIAutomation.CurrentData.CurrentWindow = result;  // ????? 20120728

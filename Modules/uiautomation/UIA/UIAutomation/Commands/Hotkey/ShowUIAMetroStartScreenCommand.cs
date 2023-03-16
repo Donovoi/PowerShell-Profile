@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ShowUIAMetroStartScreenCommand.
     /// </summary>
@@ -21,7 +21,7 @@ namespace UIAutomation.Commands
         public ShowUIAMetroStartScreenCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
             this.keyCodes.Add(0xE0);

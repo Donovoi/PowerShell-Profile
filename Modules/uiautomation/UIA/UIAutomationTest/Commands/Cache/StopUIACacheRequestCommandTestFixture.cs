@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Cache
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of StopUIACacheRequestCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Cache
         public StopUIACacheRequestCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -30,7 +30,7 @@ namespace UIAutomationTest.Commands.Cache
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.CurrentData]::ResetData());");
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

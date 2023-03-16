@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Profile
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of SetUIACurrentTestProfileCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Profile
         public SetUIACurrentTestProfileCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -32,9 +32,9 @@ namespace UIAutomationTest.Commands.Profile
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.CurrentData]::Profiles.Clear());");
         }
-        
-        
-        
+
+
+
         [TearDown]
         public void DisposeRunspace()
         {

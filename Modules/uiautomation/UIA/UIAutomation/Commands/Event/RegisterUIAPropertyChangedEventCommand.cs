@@ -23,21 +23,21 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAPropertyChangedEventCommand()
         {
-//            base.AutomationEventType = 
-//                AutomationElement.AutomationPropertyChangedEvent;
-            this.AutomationEventType = 
+            //            base.AutomationEventType = 
+            //                AutomationElement.AutomationPropertyChangedEvent;
+            this.AutomationEventType =
                 AutomationElement.AutomationPropertyChangedEvent;
             // base.AutomationEventHandler = OnUIAutomationPropertyChangedEvent;
-//            base.AutomationPropertyChangedEventHandler = 
-//                OnUIAutomationPropertyChangedEvent;
-            this.AutomationPropertyChangedEventHandler = 
+            //            base.AutomationPropertyChangedEventHandler = 
+            //                OnUIAutomationPropertyChangedEvent;
+            this.AutomationPropertyChangedEventHandler =
                 OnUIAutomationPropertyChangedEvent;
         }
         #endregion Constructor
     }
-    
-    
-    
+
+
+
     /// <summary>
     /// Description of RegisterUIAGridRowCountChangedEventCommand.
     /// </summary>
@@ -48,12 +48,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAGridRowCountChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 TablePattern.RowCountProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIAGridColumnCountChangedEventCommand.
     /// </summary>
@@ -64,12 +64,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAGridColumnCountChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 TablePattern.ColumnCountProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIARangeValueChangedEventCommand.
     /// </summary>
@@ -80,12 +80,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIARangeValueChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 RangeValuePattern.ValueProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIATableRowCountChangedEventCommand.
     /// </summary>
@@ -96,12 +96,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIATableRowCountChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 TablePattern.RowCountProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIATableColumnCountChangedEventCommand.
     /// </summary>
@@ -112,12 +112,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIATableColumnCountChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 TablePattern.ColumnCountProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIAToggleStateChangedEventCommand.
     /// </summary>
@@ -128,12 +128,12 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAToggleStateChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 TogglePattern.ToggleStateProperty;
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of RegisterUIAValueChangedEventCommand.
     /// </summary>
@@ -144,7 +144,7 @@ namespace UIAutomation.Commands
         #region Constructor
         public RegisterUIAValueChangedEventCommand()
         {
-            base.AutomationProperty = 
+            base.AutomationProperty =
                 ValuePattern.ValueProperty;
         }
         #endregion Constructor

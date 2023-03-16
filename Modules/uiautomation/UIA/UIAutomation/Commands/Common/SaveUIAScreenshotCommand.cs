@@ -13,7 +13,7 @@ namespace UIAutomation.Commands
     using System.Management.Automation;
     using System.Runtime.InteropServices;
     using System.Windows.Automation;
-    
+
     /// <summary>
     /// Description of SaveUIAScreenshotCommand.
     /// </summary>
@@ -28,7 +28,7 @@ namespace UIAutomation.Commands
             this.As = System.Drawing.Imaging.ImageFormat.Bmp;
         }
         #endregion Constructor
-        
+
         #region Parameters
         //[Parameter(Mandatory = false,
         //           Position = 0,
@@ -40,28 +40,28 @@ namespace UIAutomation.Commands
         public string Description { get; set; }
         [Parameter(Mandatory = false)] //,
         //           ParameterSetName = "Screenshot")]
-        public int Left {get; set; }
+        public int Left { get; set; }
         [Parameter(Mandatory = false)] //,
         //           ParameterSetName = "Screenshot")]
-        public int Top {get; set; }
+        public int Top { get; set; }
         [Parameter(Mandatory = false)] //,
         //           ParameterSetName = "Screenshot")]
-        public int Height {get; set; }
+        public int Height { get; set; }
         [Parameter(Mandatory = false)] //,
-         //          ParameterSetName = "Screenshot")]
-        public int Width {get; set; }
-        
+                                       //          ParameterSetName = "Screenshot")]
+        public int Width { get; set; }
+
         [Parameter(Mandatory = false,
                    ParameterSetName = "File")]
         public string Path { get; set; }
         [Parameter(Mandatory = false,
                    ParameterSetName = "File")]
         public new string Name { get; set; }
-        
+
         [Parameter(Mandatory = false)]
         public System.Drawing.Imaging.ImageFormat As { get; set; }
         #endregion Parameters
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -70,10 +70,11 @@ namespace UIAutomation.Commands
             //if (this.InputObject == null ||
             // !(this.InputObject is AutomationElement)) {
             bool save = false;
-            if (this.GetType().Name == "SaveUIAScreenshotCommand") {
+            if (this.GetType().Name == "SaveUIAScreenshotCommand")
+            {
                 save = true;
             }
-            
+
             //UIAHelper.GetScreenshotOfAutomationElement(
             UIAHelper.GetScreenshotOfCmdletInput(
                 this,
@@ -91,7 +92,7 @@ namespace UIAutomation.Commands
             //}
         }
     }
-    
+
     /// <summary>
     /// Description of SaveUIAScreenshotCommand.
     /// </summary>
@@ -105,7 +106,7 @@ namespace UIAutomation.Commands
         }
         #endregion Constructor
     }
-    
+
     /// <summary>
     /// Description of GetUIAScreenshotCommand.
     /// </summary>
@@ -119,7 +120,7 @@ namespace UIAutomation.Commands
             this.Path = string.Empty; // ?
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new string Path { get; set; }

@@ -9,5 +9,5 @@ ipmo $global:uiautomationModule;
 
 Start-Process calc -PassThru | `
 	Get-UIAWindow | `
-	Register-UIAMenuOpenedEvent -EventAction {;};
+	Register-UIAMenuOpenedEvent -EventAction { ; };
 (Wait-UIAEventRaised -Name View).Cached;

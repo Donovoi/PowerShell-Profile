@@ -14,7 +14,7 @@ namespace UIAutomation.Commands
     //using System.Runtime.InteropServices;
     using System.Windows.Automation;
     //using UIAutomationClient;
-    
+
     /// <summary>
     /// Description of GetUIAFocusCommand.
     /// </summary>
@@ -26,12 +26,12 @@ namespace UIAutomation.Commands
         {
         }
         #endregion Constructor
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new AutomationElement InputObject { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             this.WriteObject(this, AutomationElement.FocusedElement);

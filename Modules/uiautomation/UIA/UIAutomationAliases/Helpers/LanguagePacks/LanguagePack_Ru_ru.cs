@@ -10,7 +10,7 @@
 namespace UIAutomationAliases
 {
     using System;
-    
+
     /// <summary>
     /// Description of LanguagePack_Ru_ru.
     /// </summary>
@@ -19,10 +19,10 @@ namespace UIAutomationAliases
         public LanguagePack_Ru_ru()
         {
         }
-        
-        public string Button { get {return @"Кнопку";} }
-        public string Calendar { get {return @"Календарь";} }
-        public string Custom { get {return @"Прочий";} }
-        public string Edit { get {return @"ПолеВвода";} }
+
+        public string Button { get { return @"Кнопку"; } }
+        public string Calendar { get { return @"Календарь"; } }
+        public string Custom { get { return @"Прочий"; } }
+        public string Edit { get { return @"ПолеВвода"; } }
     }
 }

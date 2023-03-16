@@ -28,7 +28,7 @@ namespace UIAutomation
             // 20120827
             //this.InputObject[0] = CurrentData.CurrentWindow;
 
-            this.InputObject = 
+            this.InputObject =
                 new System.Windows.Automation.AutomationElement[] { CurrentData.CurrentWindow };
             this.AutomationEventType = null;
             this.AutomationProperty = null;
@@ -41,17 +41,17 @@ namespace UIAutomation
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new SwitchParameter OnErrorScreenShot { get; set; }
-// [Parameter(Mandatory = false)]
-// public new ScriptBlock[] EventAction { get; set; }
+        // [Parameter(Mandatory = false)]
+        // public new ScriptBlock[] EventAction { get; set; }
 
         // 20130328
         [Parameter(Mandatory = false)]
         public Hashtable[] SearchCriteria { get; set; }
         #endregion Parameters
-        
+
         #region Properties
         #endregion Properties
-        
+
         /// <summary>
         /// Processes the pipeline.
         /// </summary>
@@ -61,16 +61,17 @@ namespace UIAutomation
             //WriteVerbose(this,
             // "subscribing to the event " + 
             // this.AutomationEventType.ProgrammaticName);
-            
-            // 20120824
-            foreach (AutomationElement inputObject in this.InputObject) {
 
-            SubscribeToEvents(this,
-                              // 20120824
-                              //this.InputObject, 
-                              inputObject,
-                              this.AutomationEventType,
-                              this.AutomationProperty);
+            // 20120824
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
+                SubscribeToEvents(this,
+                                  // 20120824
+                                  //this.InputObject, 
+                                  inputObject,
+                                  this.AutomationEventType,
+                                  this.AutomationProperty);
 
             } // 20120824
         }

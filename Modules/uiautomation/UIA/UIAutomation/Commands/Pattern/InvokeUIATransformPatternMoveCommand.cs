@@ -27,12 +27,12 @@ namespace UIAutomation.Commands
             TransformMoveY = 1;
             base.Child = this;
         }
-        
+
         [Parameter(Mandatory = true)]
         public double TransformMoveX { get; set; }
         [Parameter(Mandatory = true)]
         public double TransformMoveY { get; set; }
-        
+
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIACustomTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIACustomTransformMoveCommand() { } }
-    
+
     /// <summary>
     /// Description of InvokeUIAHeaderTransformMoveCommand.
     /// </summary>
@@ -52,7 +52,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHeaderTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAHeaderTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAHeaderItemTransformMoveCommand.
     /// </summary>
@@ -61,7 +61,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAHeaderItemTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAHeaderItemTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAMenuBarTransformMoveCommand.
     /// </summary>
@@ -70,7 +70,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAMenuBarTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAMenuBarTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAPaneTransformMoveCommand.
     /// </summary>
@@ -79,7 +79,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAPaneTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAPaneTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAThumbTransformMoveCommand.
     /// </summary>
@@ -88,7 +88,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAThumbTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAThumbTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAToolBarTransformMoveCommand.
     /// </summary>
@@ -97,7 +97,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAToolBarTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAToolBarTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAWindowTransformMoveCommand.
     /// </summary>
@@ -106,7 +106,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAWindowTransformMoveCommand : InvokeUIATransformPatternMoveCommand
     { public InvokeUIAWindowTransformMoveCommand() { } }
-        
+
     /// <summary>
     /// Description of InvokeUIAChildWindowTransformMoveCommand.
     /// </summary>
@@ -115,5 +115,5 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIAChildWindowTransformMoveCommand : InvokeUIAWindowTransformMoveCommand
     { public InvokeUIAChildWindowTransformMoveCommand() { } }
-    
+
 }

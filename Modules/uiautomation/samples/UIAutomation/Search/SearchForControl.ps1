@@ -14,4 +14,4 @@ Start-Process calc -PassThru | Get-UIAWindow | Search-UIAControl -ControlType bu
 
 # this code should return the same as the first code snippet, 
 # because there are only two types of controls whose names start with 'a'
-Start-Process calc -PassThru | Get-UIAWindow | Search-UIAControl -ControlType button,menubar -Name A*;
+Start-Process calc -PassThru | Get-UIAWindow | Search-UIAControl -ControlType button, menubar -Name A*;

@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
     using PSTestLib;
     using UIAutomation;
     using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of WaitUIAWindowCommandTestFixture.
     /// </summary>
@@ -23,36 +23,36 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
         public WaitUIAWindowCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspaceForParamChecks();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
         }
-        
-        
-        
-//        [Test]
-//        [Category("Fast")]
-//        public void Get_UIAWindow_NoParameters()
-//        {
-//            //CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParameterMissing(
-//            CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParameterMissing(
-//        		"Get-UIAWindow;");
-//        }
-//        
-//        [Test]
-//        [Category("Fast")]
-//        public void Get_UIAWindow_ProcessName()
-//        {
-//            CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_FailureOutput(
-//        		"Get-UIAWindow -ProcessName processName;");
-//        }
+
+
+
+        //        [Test]
+        //        [Category("Fast")]
+        //        public void Get_UIAWindow_NoParameters()
+        //        {
+        //            //CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParameterMissing(
+        //            CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParameterMissing(
+        //        		"Get-UIAWindow;");
+        //        }
+        //        
+        //        [Test]
+        //        [Category("Fast")]
+        //        public void Get_UIAWindow_ProcessName()
+        //        {
+        //            CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_FailureOutput(
+        //        		"Get-UIAWindow -ProcessName processName;");
+        //        }
     }
 }

@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of InvokeUIAToggleStateGetCommand.
     /// </summary>
@@ -23,67 +23,67 @@ namespace UIAutomation.Commands
             WhatToDo = "ToggleStateGet";
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAButtonToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIAButtonToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIAButtonToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIAButtonToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIAButtonToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIACheckBoxToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIACheckBoxToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIACheckBoxToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIACheckBoxToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIACheckBoxToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIACustomToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIACustomToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIACustomToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIACustomToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIACustomToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIADataItemToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIADataItemToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIADataItemToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIADataItemToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIADataItemToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAListItemToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIAListItemToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIAListItemToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIAListItemToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIAListItemToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAMenuItemToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIAMenuItemToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIAMenuItemToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIAMenuItemToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIAMenuItemToggleStateCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIARadioButtonToggleStateCommand.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "UIARadioButtonToggleState")]
     //[OutputType(typeof(bool))]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
-    public class GetUIARadioButtonToggleStateCommand : InvokeUIAToggleStateGetCommand 
+    public class GetUIARadioButtonToggleStateCommand : InvokeUIAToggleStateGetCommand
     { public GetUIARadioButtonToggleStateCommand() { } }
 }

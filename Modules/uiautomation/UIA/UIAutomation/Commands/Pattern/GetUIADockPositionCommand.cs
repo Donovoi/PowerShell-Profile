@@ -20,7 +20,7 @@ namespace UIAutomation.Commands
     {
         public GetUIADockPositionCommand() { WhatToDo = "DockGet"; }
     }
-    
+
     /// <summary>
     /// Description of GetUIACustomDockPositionCommand.
     /// </summary>
@@ -29,7 +29,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIACustomDockPositionCommand : InvokeUIADockPatternCommand
     { public GetUIACustomDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAMenuBarDockPositionCommand.
     /// </summary>
@@ -38,7 +38,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAMenuBarDockPositionCommand : InvokeUIADockPatternCommand
     { public GetUIAMenuBarDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAPaneDockPositionCommand.
     /// </summary>
@@ -47,7 +47,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAPaneDockPositionCommand : InvokeUIADockPatternCommand
     { public GetUIAPaneDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAToolBarDockPositionCommand.
     /// </summary>
@@ -56,7 +56,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAToolBarDockPositionCommand : InvokeUIADockPatternCommand
     { public GetUIAToolBarDockPositionCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAWindowDockPositionCommand.
     /// </summary>

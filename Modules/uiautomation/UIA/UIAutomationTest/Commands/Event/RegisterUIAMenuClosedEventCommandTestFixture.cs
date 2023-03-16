@@ -12,7 +12,7 @@ namespace UIAutomationTest.Commands.Event
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of RegisterUIAMenuClosedEventCommandTestFixture.
     /// </summary>
@@ -22,7 +22,7 @@ namespace UIAutomationTest.Commands.Event
         public RegisterUIAMenuClosedEventCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
@@ -32,7 +32,7 @@ namespace UIAutomationTest.Commands.Event
             CmdletUnitTest.TestRunspace.RunPSCode(
                 @"[void]([UIAutomation.Preferences]::Timeout = 15000);");
         }
-        
+
         [Test] //[Test(Description="TBD")]
         [Category("Slow")]
         [Category("WinForms")]
@@ -43,20 +43,20 @@ namespace UIAutomationTest.Commands.Event
         {
             //string name = "FileDropDown";
             string text = "File";
-            string eventType = 
+            string eventType =
                 "AutomationElementIdentifiers.MenuClosedEvent";
 
             MiddleLevelCode.StartProcessWithForm(
-                UIAutomationTestForms.Forms.WinFormsFull, 
+                UIAutomationTestForms.Forms.WinFormsFull,
                 0);
             CmdletUnitTest.TestRunspace.RunAndEvaluateAreEqual(
                 @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
-                @" | Register-UIAMenuClosedEvent " + 
-                @"-EventAction {$i = 1;}; " + 
-                @"$null = Get-UIAMenuItem -Name '" + 
+                @" | Register-UIAMenuClosedEvent " +
+                @"-EventAction {$i = 1;}; " +
+                @"$null = Get-UIAMenuItem -Name '" +
                 text +
-                @"' | Invoke-UIAMenuItemClick -PassThru | Invoke-UIAMenuItemClick; " + 
+                @"' | Invoke-UIAMenuItemClick -PassThru | Invoke-UIAMenuItemClick; " +
                 @"$null = Get-UIAWindow -pn " +
                 MiddleLevelCode.TestFormProcess +
                 @" | Invoke-UIAControlClick; " +
@@ -66,7 +66,7 @@ namespace UIAutomationTest.Commands.Event
                 @"[UIAutomation.CurrentData]::LastEventType",
                 eventType);
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

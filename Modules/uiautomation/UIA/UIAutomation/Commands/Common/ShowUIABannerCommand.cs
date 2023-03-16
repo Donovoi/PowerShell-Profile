@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ShowUIABannerCommand.
     /// </summary>
@@ -21,14 +21,14 @@ namespace UIAutomation.Commands
         public ShowUIABannerCommand()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = true,
                    Position = 0)]
         [ValidateNotNullOrEmpty()]
         public string Message { get; set; }
         #endregion Parameters
-        
+
         protected override void BeginProcessing()
         {
             UIAHelper.ShowBanner(this.Message);

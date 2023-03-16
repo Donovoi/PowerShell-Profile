@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
     using PSTestLib;
     using UIAutomation;
     using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of GetUIAEditTextCommandTestFixture.
     /// </summary>
@@ -24,26 +24,26 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
         public GetUIAEditTextCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspaceForParamChecks();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
         }
-        
+
         [Test]
         [Category("Fast")]
         [Description("Get-UIAEditText")]
         public void Get_UIAEditText_NoParameters()
         {
             CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParamsOK_CmdletException(
-        		"Get-UIAEditText;");
+                "Get-UIAEditText;");
         }
     }
 }

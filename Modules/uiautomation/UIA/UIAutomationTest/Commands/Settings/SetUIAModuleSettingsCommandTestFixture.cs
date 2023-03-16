@@ -23,15 +23,15 @@ namespace UIAutomationTest.Commands.Settings
         public SetUIAModuleSettingsCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
-        
-        
+
+
+
         [TearDown]
         public void DisposeRunspace()
         {

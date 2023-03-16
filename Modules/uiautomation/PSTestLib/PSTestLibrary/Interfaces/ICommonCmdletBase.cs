@@ -11,13 +11,13 @@ namespace PSTestLib
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of ICommonCmdletBase.
     /// </summary>
     public interface ICommonCmdletBase
     {
-        
+
         bool WriteObjectMethod010CheckOutputObject(object outputObject);
         void WriteObjectMethod020Highlight(PSCmdletBase cmdlet, object outputObject);
         void WriteObjectMethod030RunScriptBlocks(PSCmdletBase cmdlet, object outputObject);
@@ -27,7 +27,7 @@ namespace PSTestLib
         void WriteObjectMethod060OutputResult(PSCmdletBase cmdlet, object outputObject);
         void WriteObjectMethod070Report(PSCmdletBase cmdlet, object outputObject);
         void WriteObjectMethod080ReportFailure();
-        
+
         void WriteErrorMethod010RunScriptBlocks(PSCmdletBase cmdlet);
         void WriteErrorMethod020SetTestResult(PSCmdletBase cmdlet, ErrorRecord errorRecord);
         void WriteErrorMethod030ChangeTimeoutSettings(PSCmdletBase cmdlet, bool terminating);
@@ -36,7 +36,7 @@ namespace PSTestLib
         void WriteErrorMethod050OnErrorDelay(PSCmdletBase cmdlet);
         void WriteErrorMethod060OutputResult(PSCmdletBase cmdlet, ErrorRecord errorRecord, bool terminating);
         void WriteErrorMethod070Report(PSCmdletBase cmdlet);
-        
+
         void WriteLog(string logRecord);
     }
 }

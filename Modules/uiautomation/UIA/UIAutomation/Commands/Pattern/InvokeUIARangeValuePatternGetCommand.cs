@@ -18,12 +18,13 @@ namespace UIAutomation.Commands
     [Cmdlet(VerbsCommon.Get, "UIARangeValuePatternGet")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class InvokeUIARangeValuePatternGetCommand : PatternCmdletBase
-    { public InvokeUIARangeValuePatternGetCommand() { WhatToDo = "RangeValueGet"; this.PassThru = false; }
-        
+    {
+        public InvokeUIARangeValuePatternGetCommand() { WhatToDo = "RangeValueGet"; this.PassThru = false; }
+
         [Parameter]
-        internal new SwitchParameter PassThru {get; set; }
+        internal new SwitchParameter PassThru { get; set; }
     }
-    
+
     /// <summary>
     /// Description of GetUIACustomRangeValueCommand.
     /// </summary>
@@ -41,7 +42,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAEditRangeValueCommand : InvokeUIARangeValuePatternGetCommand
     { public GetUIAEditRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIATextBoxRangeValueCommand.
     /// </summary>
@@ -50,7 +51,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIATextBoxRangeValueCommand : GetUIAEditRangeValueCommand
     { public GetUIATextBoxRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAProgressBarRangeValueCommand.
     /// </summary>
@@ -59,7 +60,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAProgressBarRangeValueCommand : InvokeUIARangeValuePatternGetCommand
     { public GetUIAProgressBarRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIAScrollBarRangeValueCommand.
     /// </summary>
@@ -68,7 +69,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIAScrollBarRangeValueCommand : InvokeUIARangeValuePatternGetCommand
     { public GetUIAScrollBarRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIASliderRangeValueCommand.
     /// </summary>
@@ -77,7 +78,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIASliderRangeValueCommand : InvokeUIARangeValuePatternGetCommand
     { public GetUIASliderRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIASpinnerRangeValueCommand.
     /// </summary>
@@ -86,7 +87,7 @@ namespace UIAutomation.Commands
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "UIA")]
     public class GetUIASpinnerRangeValueCommand : InvokeUIARangeValuePatternGetCommand
     { public GetUIASpinnerRangeValueCommand() { } }
-    
+
     /// <summary>
     /// Description of GetUIATextRangeValueCommand.
     /// </summary>

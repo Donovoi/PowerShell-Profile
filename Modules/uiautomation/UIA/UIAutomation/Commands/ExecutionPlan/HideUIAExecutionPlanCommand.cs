@@ -12,20 +12,20 @@ namespace UIAutomation.Commands
     using System;
     using System.Management.Automation;
 
-	/// <summary>
-	/// Description of HideUIAExecutionPlanCommand.
-	/// </summary>
-	[Cmdlet(VerbsCommon.Hide, "UIAExecutionPlan")]
-	public class HideUIAExecutionPlanCommand : ExecutionPlanCmdletBase
-	{
-		public HideUIAExecutionPlanCommand()
-		{
-		}
-		
-		protected override void BeginProcessing()
-		{
-			UIAutomation.ExecutionPlan.DisposeHighlighers();
-			UIAutomation.Preferences.ShowExecutionPlan = false;
-		}
-	}
+    /// <summary>
+    /// Description of HideUIAExecutionPlanCommand.
+    /// </summary>
+    [Cmdlet(VerbsCommon.Hide, "UIAExecutionPlan")]
+    public class HideUIAExecutionPlanCommand : ExecutionPlanCmdletBase
+    {
+        public HideUIAExecutionPlanCommand()
+        {
+        }
+
+        protected override void BeginProcessing()
+        {
+            UIAutomation.ExecutionPlan.DisposeHighlighers();
+            UIAutomation.Preferences.ShowExecutionPlan = false;
+        }
+    }
 }

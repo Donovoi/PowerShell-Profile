@@ -11,7 +11,7 @@ namespace PSTestLibraryTest.Commands.C_
 {
     using System;
     using MbUnit.Framework;//using MbUnit.Framework; // using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of NewPSClassCommandTestFixture.
     /// </summary>
@@ -21,15 +21,15 @@ namespace PSTestLibraryTest.Commands.C_
         public NewPSClassCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
-        
-        
+
+
+
         [TearDown]
         public void DisposeRunspace()
         {

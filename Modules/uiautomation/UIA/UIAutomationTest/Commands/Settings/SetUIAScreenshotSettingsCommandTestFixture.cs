@@ -22,14 +22,14 @@ namespace UIAutomationTest.Commands.Settings
         public SetUIAScreenshotSettingsCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
-        
+
+
         [TearDown]
         public void DisposeRunspace()
         {

@@ -1,18 +1,18 @@
 ﻿cls
 ipmo $global:uiautomationModule;
 
-function Out-ElementDetail
-{
+function Out-ElementDetail {
 	param(
-		  [System.Windows.Automation.AutomationElement]$element,
-		  [int]$level,
-		  [string]$parentAccessKey
-		 )
+		[System.Windows.Automation.AutomationElement]$element,
+		[int]$level,
+		[string]$parentAccessKey
+	)
 
 	[string]$accessKey = $element.Current.AccessKey;
 	if ($accessKey.Length -eq 0) {
 		$accessKey = "None";
-	} else {
+	}
+ else {
 		if ($parentAccessKey.Length -gt 0) {
 			$accessKey = `
 				$parentAccessKey + "=>" + $accessKey;
@@ -32,12 +32,11 @@ function Out-ElementDetail
 	}
 }
 
-function Enum-Children
-{
+function Enum-Children {
 	param(
-		  [System.Windows.Automation.AutomationElement]$windowElement,
-		  [int]$level
-		 )
+		[System.Windows.Automation.AutomationElement]$windowElement,
+		[int]$level
+	)
 
 	try {
 		$apppid = $windowElement.Current.ProcessId;
@@ -48,10 +47,10 @@ function Enum-Children
 				$null = $windowElement | Invoke-UIAMenuItemClick;
 				$elements = `
 					Get-UIAWindow -ProcessId $apppid | `
-					Get-UIAControlDescendants -ControlType MenuItem,SplitButton,Custom,ListItem;
+					Get-UIAControlDescendants -ControlType MenuItem, SplitButton, Custom, ListItem;
 			}
 			catch {
-				$elements = $windowElement | Invoke-UIAMenuItemExpand | Get-UIAControlDescendants -ControlType MenuItem,SplitButton,Custom; #,ListItem;
+				$elements = $windowElement | Invoke-UIAMenuItemExpand | Get-UIAControlDescendants -ControlType MenuItem, SplitButton, Custom; #,ListItem;
 			}
 		}
 		if ($elements -ne $null -and $elements.Count -gt 0) {
@@ -65,7 +64,7 @@ function Enum-Children
 			} 
 		}
 		if ($level -eq 0) {
-			try{ 
+			try { 
 				$null = $windowElement | Invoke-UIAMenuItemClick; 
 			} 
 			catch {
@@ -76,12 +75,11 @@ function Enum-Children
 	catch {}
 }
 
-function Report-AccessKeys
-{
+function Report-AccessKeys {
 	param(
-		  [string]$startName,
-		  [string]$stopName
-		 )
+		[string]$startName,
+		[string]$stopName
+	)
 	
 	if ($stopName.Length -eq 0) {
 		$stopName = $startName;
@@ -90,12 +88,12 @@ function Report-AccessKeys
 	[UIAutomation.Preferences]::OnSuccessDelay = 300;
 	Write-Host "Access Key report for $($startName)";
 	Write-Host "Level`tControlType`tName`tAutomationId`tAcceleratorKey`tAccessKey";
-	[System.Collections.Generic.Dictionary``2[System.String,System.String]]$global:dict = `
+	[System.Collections.Generic.Dictionary``2[System.String, System.String]]$global:dict = `
 		New-Object "System.Collections.Generic.Dictionary``2[System.String,System.String]";
 	$topLevelMenuItems = Start-Process $startName -PassThru | `
 		Get-UIAWindow | `
-		Get-UIAControlDescendants -ControlType ToolBar,MenuBar | `
-		Get-UIAControlDescendants -ControlType MenuItem,SplitButton,Custom,ListItem;
+		Get-UIAControlDescendants -ControlType ToolBar, MenuBar | `
+		Get-UIAControlDescendants -ControlType MenuItem, SplitButton, Custom, ListItem;
 	
 	foreach ($element in $topLevelMenuItems) {
 		Enum-Children $element 0;

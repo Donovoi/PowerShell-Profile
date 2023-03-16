@@ -34,7 +34,7 @@ namespace UIAutomation.Commands
             GetAutomationElements(TreeScope.Children);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlDescendantsCommand.
     /// </summary>
@@ -56,7 +56,7 @@ namespace UIAutomation.Commands
             GetAutomationElements(TreeScope.Descendants);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlParentCommand.
     /// </summary>
@@ -78,7 +78,7 @@ namespace UIAutomation.Commands
             GetAutomationElements(TreeScope.Parent);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlAncestorsCommand.
     /// </summary>
@@ -100,7 +100,7 @@ namespace UIAutomation.Commands
             GetAutomationElements(TreeScope.Ancestors);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlNextSiblingCommand.
     /// </summary>
@@ -122,7 +122,7 @@ namespace UIAutomation.Commands
             GetAutomationElementsSiblings(true);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlPreviousSiblingCommand.
     /// </summary>
@@ -144,7 +144,7 @@ namespace UIAutomation.Commands
             GetAutomationElementsSiblings(false);
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlFirstChildCommand.
     /// </summary>
@@ -164,14 +164,15 @@ namespace UIAutomation.Commands
         protected override void ProcessRecord()
         {
             // 20120824
-            foreach (AutomationElement inputObject in this.InputObject) {
-            
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
+
                 GetAutomationElementsChildren(inputObject, true);
-            
+
             } // 20120824
         }
     }
-    
+
     /// <summary>
     /// Description of GetUIAControlLastChildCommand.
     /// </summary>
@@ -191,10 +192,11 @@ namespace UIAutomation.Commands
         protected override void ProcessRecord()
         {
             // 20120824
-            foreach (AutomationElement inputObject in this.InputObject) {
+            foreach (AutomationElement inputObject in this.InputObject)
+            {
                 GetAutomationElementsChildren(inputObject, false);
             } // 20120824
-            
+
         }
     }
 }

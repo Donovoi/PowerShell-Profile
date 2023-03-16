@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
     using PSTestLib;
     using UIAutomation;
     using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of NewUIAWizardCommandTestFixture.
     /// </summary>
@@ -23,34 +23,34 @@ namespace UIAutomationUnitTests.CheckCmdletParameters
         public NewUIAWizardCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspaceForParamChecks();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {
             MiddleLevelCode.DisposeRunspace();
             WizardCollection.ResetData();
         }
-        
+
         [Test]
         [Category("Fast")]
         public void NewWizard_Name_StartAction()
         {
             CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParamsAccepted(
-        		@"New-UIAWizard -Name 'wizardName' -StartAction { 'var' };");
+                @"New-UIAWizard -Name 'wizardName' -StartAction { 'var' };");
         }
-        
+
         [Test]
         [Category("Fast")]
         public void NewWizard_Name_StartActionX3()
         {
             CmdletUnitTest.TestRunspace.RunAndCheckCmdletParameters_ParamsAccepted(
-        		@"New-UIAWizard -Name 'wizardName' -StartAction { 'var1' },{ 'var2' },{ 'var3' };");
+                @"New-UIAWizard -Name 'wizardName' -StartAction { 'var1' },{ 'var2' },{ 'var3' };");
         }
     }
 }

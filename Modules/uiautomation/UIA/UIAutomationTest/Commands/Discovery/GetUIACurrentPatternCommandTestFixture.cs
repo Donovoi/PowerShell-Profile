@@ -22,13 +22,13 @@ namespace UIAutomationTest.Commands.Discovery
         public GetUIACurrentPatternCommandTestFixture()
         {
         }
-        
+
         [SetUp]
         public void PrepareRunspace()
         {
             MiddleLevelCode.PrepareRunspace();
         }
-        
+
         [TearDown]
         public void DisposeRunspace()
         {

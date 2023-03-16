@@ -11,7 +11,7 @@ namespace UIAutomation.Commands
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of NewUIATestProfileCommand.
     /// </summary>
@@ -21,29 +21,32 @@ namespace UIAutomation.Commands
         public NewUIATestProfileCommand()
         {
         }
-        
+
         protected override void BeginProcessing()
         {
             Profile profile = new Profile(this.Name);
-            
-            Profile checkProfile = 
+
+            Profile checkProfile =
                 CurrentData.GetProfile(profile.Name);
-            
-            if (checkProfile == null) {
+
+            if (checkProfile == null)
+            {
                 CurrentData.Profiles.Add(profile);
                 WriteObject(this, profile);
-            } else {
+            }
+            else
+            {
                 // 20130323
-//                ErrorRecord err = 
-//                    new ErrorRecord(
-//                        new Exception("The profile already exists"),
-//                        "ProfileAlreadyExists",
-//                        ErrorCategory.InvalidArgument,
-//                        profile);
-//                err.ErrorDetails = 
-//                    new ErrorDetails("The profile already exists");
-//                WriteError(this, err, true);
-                
+                //                ErrorRecord err = 
+                //                    new ErrorRecord(
+                //                        new Exception("The profile already exists"),
+                //                        "ProfileAlreadyExists",
+                //                        ErrorCategory.InvalidArgument,
+                //                        profile);
+                //                err.ErrorDetails = 
+                //                    new ErrorDetails("The profile already exists");
+                //                WriteError(this, err, true);
+
                 this.WriteError(
                     this,
                     "The profile already exists",

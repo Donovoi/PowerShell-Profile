@@ -11,7 +11,7 @@ namespace UIAutomation
 {
     using System;
     using System.Management.Automation;
-    
+
     /// <summary>
     /// Description of GetRelativesCmdletBase.
     /// </summary>
@@ -20,7 +20,7 @@ namespace UIAutomation
         public GetRelativesCmdletBase()
         {
         }
-        
+
         #region Parameters
         [Parameter(Mandatory = false)]
         internal new SwitchParameter CaseSensitive { get; set; }

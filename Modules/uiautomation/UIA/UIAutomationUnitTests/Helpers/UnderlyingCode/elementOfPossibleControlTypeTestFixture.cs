@@ -14,7 +14,7 @@ namespace UIAutomationUnitTests
     using PSTestLib;
     using UIAutomation;
     using MbUnit.Framework;
-    
+
     /// <summary>
     /// Description of elementOfPossibleControlTypeTestFixture.
     /// </summary>
@@ -24,23 +24,23 @@ namespace UIAutomationUnitTests
         public elementOfPossibleControlTypeTestFixture()
         {
         }
-        
+
         [SetUp]
         public void SetUp()
         {
             UnitTestingHelper.PrepareUnitTestDataStore();
         }
-        
+
         [TearDown]
         public void TearDown()
         {
         }
-        
+
         private GetControlCollectionCmdletBase getClass()
         {
             return new GetControlCollectionCmdletBase();
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -52,7 +52,7 @@ namespace UIAutomationUnitTests
                     null,
                     null));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -64,7 +64,7 @@ namespace UIAutomationUnitTests
                     null,
                     "Button"));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -73,10 +73,10 @@ namespace UIAutomationUnitTests
             Assert.AreEqual(
                 false,
                 getClass().elementOfPossibleControlType(
-                    (new string[]{ "Button" }),
+                    (new string[] { "Button" }),
                     null));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -85,10 +85,10 @@ namespace UIAutomationUnitTests
             Assert.AreEqual(
                 true,
                 getClass().elementOfPossibleControlType(
-                    (new string[]{ "Button" }),
+                    (new string[] { "Button" }),
                     "Button"));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -97,10 +97,10 @@ namespace UIAutomationUnitTests
             Assert.AreEqual(
                 false,
                 getClass().elementOfPossibleControlType(
-                    (new string[]{ "Button" }),
+                    (new string[] { "Button" }),
                     "CheckBox"));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -109,10 +109,10 @@ namespace UIAutomationUnitTests
             Assert.AreEqual(
                 true,
                 getClass().elementOfPossibleControlType(
-                    (new string[]{ "TreeItem", "Button", "Edit" }),
+                    (new string[] { "TreeItem", "Button", "Edit" }),
                     "Button"));
         }
-        
+
         [Test]
         [Description("GetControlCollectionCmdletBase.elementOfPossibleControlType(string[], string)")]
         [Category("Fast")]
@@ -121,7 +121,7 @@ namespace UIAutomationUnitTests
             Assert.AreEqual(
                 false,
                 getClass().elementOfPossibleControlType(
-                    (new string[]{ "TreeItem", "ComboBox", "Edit" }),
+                    (new string[] { "TreeItem", "ComboBox", "Edit" }),
                     "Button"));
         }
     }
