@@ -53,4 +53,4 @@ function Set-ACLs {
 
     
 }
-Set-ACLs -Verbose
+#Set-ACLs -Verbose
