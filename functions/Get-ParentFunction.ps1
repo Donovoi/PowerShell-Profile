@@ -1,5 +1,5 @@
-Function Get-ParentFunction {
-    <#
+function Get-ParentFunction {
+<#
     .SYNOPSIS
     Returns details of the calling function from a variable scope
 
@@ -32,21 +32,21 @@ Function Get-ParentFunction {
     .NOTES
 
     #>
-    [CmdletBinding()]
-    Param(
-        # The scope number from which to retrieve the parent function name
-        [Parameter(
-            Mandatory = $false,
-            ValueFromPipelineByPropertyName = $true
-        )]
-        [Int]
-        $Scope = 2
-    )
+  [CmdletBinding()]
+  param(
+    # The scope number from which to retrieve the parent function name
+    [Parameter(
+      Mandatory = $false,
+      ValueFromPipelineByPropertyName = $true
+    )]
+    [int]
+    $Scope = 2
+  )
 
-    Process {
-        [PSCustomObject]@{
-            FunctionName     = (Get-Variable MyInvocation -Scope $Scope).Value.MyCommand.Name
-            ParameterSetName = (Get-Variable PSCmdlet -Scope $Scope -ErrorAction SilentlyContinue).Value.ParameterSetName
-        }
+  process {
+    [pscustomobject]@{
+      FunctionName = (Get-Variable MyInvocation -Scope $Scope).Value.MyCommand.Name
+      ParameterSetName = (Get-Variable PSCmdlet -Scope $Scope -ErrorAction SilentlyContinue).Value.ParameterSetName
     }
+  }
 }

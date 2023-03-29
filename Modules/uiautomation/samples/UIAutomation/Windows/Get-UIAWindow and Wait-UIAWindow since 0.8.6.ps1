@@ -4,12 +4,12 @@ Get-UIAWindow -Class Console* | Read-UIAControlName;
 Get-UIAWindow -Class *frame* | Read-UIAControlName;
 
 
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem -Name help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name *about* | Invoke-UIAMenuItemClick;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem -Name help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name *about* | Invoke-UIAMenuItemClick;
 Get-UIAWindow -pn calc -Recurse | Read-UIAControlName;
 Get-UIAWindow -pn calc -n *about* | Read-UIAControlName;
 
 
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
 # -Recurse = $false, though you can set it $true
 Get-UIAWindow -pn calc;
 Get-UIAWindow -pid (Get-Process calc).Id;
@@ -21,8 +21,8 @@ Get-UIAWindow -pn calc -Name *calc*; # two windows
 Get-UIAWindow -pn calc | Get-UIAChildWindow -Name *about*; # one window
 
 
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
-Start-Process calc -PassThru;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
+Start-Process calc -Passthru;
 
 # by process name
 # $true
@@ -59,7 +59,7 @@ Wait-UIAWindow -n *about*
 
 
 
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem help | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -n *about* | Invoke-UIAMenuItemClick;
 
 # the good old way to get a window by process name
 Get-UIAWindow -pn calc;
@@ -85,7 +85,7 @@ Get-UIAWindow -pn calc -Class "#32770";
 
 
 
-Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCriteria @{controlType = "text"; name = "*complete*" } -Seconds 300;
+Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCriteria @{ controlType = "text"; Name = "*complete*" } -Seconds 300;
 
 
 
@@ -93,7 +93,7 @@ Get-UIAWindow -n *wizard*title* -Seconds 120 | Wait-UIAControlState -SearchCrite
 
 # start calc.exe and ensure that it's in the Standard mode
 # run code:
-Get-UIAWindow -pn calc -Seconds 60 -WithControl @{controltype = "button"; name = "clear*all*" }
+Get-UIAWindow -pn calc -Seconds 60 -WithControl @{ controlType = "button"; Name = "clear*all*" }
 # change mode to Statistics: menu item View -> Statistics
 # the Get-UIAWindow cmdlet immediately returns the window. The CAD button is the button that has name "Clear all..."
 

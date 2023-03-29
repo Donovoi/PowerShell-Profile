@@ -5,8 +5,8 @@
 ####################################################################################################
 
 Set-StrictMode -Version Latest;
-ipmo $global:uiautomationModule;
-ipmo $global:tmxModule;
+Import-Module $global:uiautomationModule;
+Import-Module $global:tmxModule;
 
 # Let's create a new test suite
 # to clean up the data that are posibly out of the current interest
@@ -14,52 +14,52 @@ ipmo $global:tmxModule;
 [UIAutomation.Mode]::Profile = [UIAutomation.Modes]::Presentation;
 New-TMXTestSuite -Name 'Calculator testing' -Id calc;
 Add-TMXTestScenario -Name 'Calculator menu' -Id calcmenu;
-Add-TMXTestScenario	-Name 'Caclucator simple calculations' -Id maths;
+Add-TMXTestScenario -Name 'Caclucator simple calculations' -Id maths;
 
 # start the application under test (AUT)
-Start-Process calc -PassThru | Get-UIAWindow; 
+Start-Process calc -Passthru | Get-UIAWindow;
 # now we've got the window in the
 # [UIAutomation.CurrentData]::CurrentWindow variable
 
 # set the initial state: Standard
-Open-TMXTestScenario -Id calcmenu; 
+Open-TMXTestScenario -Id calcmenu;
 # we are going to save our test result regarding how the menu works here
 
 # the main menu here is expandable/collapsible
 # what can be learnt by issuing the following line of code:
 # (Get-UIAMenuItem -Name View).GetSupportedPatterns()
 Get-UIAMenuItem -Name View | `
-	Invoke-UIAMenuItemExpand | `
-	Get-UIAMenuItem -Name Standard | `
-	Invoke-UIAMenuItemClick -TestResultName 'The Standard menu item is available' `
-	-TestPassed -TestLog;
+   Invoke-UIAMenuItemExpand | `
+   Get-UIAMenuItem -Name Standard | `
+   Invoke-UIAMenuItemClick -TestResultName 'The Standard menu item is available' `
+   -TestPassed -TestLog;
 # the TestLog parameters logs the last line of code
 # the TestPassed parameter informs that we have gotten the result we expected
 # the TestResultName parameter gives the name to our test result
 # test result Id is generated as we don't need to set it manually, this is just result
 
 function calculateExpression {
-	param(
-		[string]$modeName
-	)
-	# produce the input
-	Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
-	Get-UIAButton -Name Add | Invoke-UIAButtonClick -TestResultName "The Add button is clickable $($modeName)" -TestPassed;
-	Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
-	Get-UIAButton -Name Divide | Invoke-UIAButtonClick;
-	Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
-	Get-UIAButton -Name Equals | Invoke-UIAButtonClick -TestResultName "The Equals button is clickable $($modeName)" -TestPassed;
+  param(
+    [string]$modeName
+  )
+  # produce the input
+  Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
+  Get-UIAButton -Name Add | Invoke-UIAButtonClick -TestResultName "The Add button is clickable $($modeName)" -TestPassed;
+  Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
+  Get-UIAButton -Name Divide | Invoke-UIAButtonClick;
+  Get-UIAButton -Name 2 | Invoke-UIAButtonClick;
+  Get-UIAButton -Name Equals | Invoke-UIAButtonClick -TestResultName "The Equals button is clickable $($modeName)" -TestPassed;
 
-	# now we need to get the result
-	# there is a difficulty: the name of a Text element (i.e., Label in .NET) is its value
-	# okay, let's find all of them and our module highlight each
-	#Get-UIAControlDescendants -ControlType Text | `
-	#	%{Get-UIAText -AutomationId $_.Current.AutomationId; `
-	#		sleep -Seconds 2; `
-	#		Write-Host "this was " $_.Current.Name $_.Current.AutomationId;}
-	# the last, with Id = 158, is ours
-	[int]$result = (Get-UIAText -AutomationId 158).Current.Name;
-	$result;
+  # now we need to get the result
+  # there is a difficulty: the name of a Text element (i.e., Label in .NET) is its value
+  # okay, let's find all of them and our module highlight each
+  #Get-UIAControlDescendants -ControlType Text | `
+  #	%{Get-UIAText -AutomationId $_.Current.AutomationId; `
+  #		sleep -Seconds 2; `
+  #		Write-Host "this was " $_.Current.Name $_.Current.AutomationId;}
+  # the last, with Id = 158, is ours
+  [int]$result = (Get-UIAText -AutomationId 158).Current.Name;
+  $result;
 }
 
 # we must determine where we are
@@ -82,11 +82,11 @@ function calculateExpression {
 # we are working with the actual window
 Get-UIAWindow -ProcessName calc;
 if ((Get-UIAControlDescendants -ControlType Button).Count -eq 31) {
-	Close-TMXTestResult -Name $testResultName -TestPassed;
+  Close-TMXTestResult -Name $testResultName -TestPassed;
 }
 else {
-	Close-TMXTestResult -Name $testResultName -TestPassed:$false;
-	# do additional actions if needed
+  Close-TMXTestResult -Name $testResultName -TestPassed:$false;
+  # do additional actions if needed
 }
 
 # now we are going to test calculations so that
@@ -97,12 +97,12 @@ Open-TMXTestScenario -Id maths;
 calculateExpression $modeName; # in the Standard mode
 
 # test the same in the Scientific mode
-Open-TMXTestScenario -Id calcmenu; 
+Open-TMXTestScenario -Id calcmenu;
 Get-UIAMenuItem -Name View | `
-	Invoke-UIAMenuItemExpand | `
-	Get-UIAMenuItem -Name Scientific | `
-	Invoke-UIAMenuItemClick -TestResultName 'The Scientific menu item is available' `
-	-TestPassed -TestLog;
+   Invoke-UIAMenuItemExpand | `
+   Get-UIAMenuItem -Name Scientific | `
+   Invoke-UIAMenuItemClick -TestResultName 'The Scientific menu item is available' `
+   -TestPassed -TestLog;
 
 # check the mode we are in now
 $testResultName = 'The Scientific mode is available';
@@ -110,11 +110,11 @@ $testResultName = 'The Scientific mode is available';
 # we are working with the actual window
 Get-UIAWindow -ProcessName calc;
 if ((Get-UIAControlDescendants -ControlType Button).Count -eq 53) {
-	Close-TMXTestResult -Name $testResultName -TestPassed;
+  Close-TMXTestResult -Name $testResultName -TestPassed;
 }
 else {
-	Close-TMXTestResult -Name $testResultName -TestPassed:$false;
-	# do additional actions if needed
+  Close-TMXTestResult -Name $testResultName -TestPassed:$false;
+  # do additional actions if needed
 }
 
 Open-TMXTestScenario -Id maths;

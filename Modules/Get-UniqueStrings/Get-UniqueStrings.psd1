@@ -9,25 +9,25 @@
 @{
 
   # Script module or binary module file associated with this manifest.
-  RootModule        = 'Get-UniqueStrings.psm1'
+  RootModule = 'Get-UniqueStrings.psm1'
 
   # Version number of this module.
-  ModuleVersion     = '0.0.1'
+  ModuleVersion = '0.0.1'
 
   # Supported PSEditions
   # CompatiblePSEditions = @()
 
   # ID used to uniquely identify this module
-  GUID              = '6b51921f-a7e2-4014-9175-facf33dda760'
+  GUID = '6b51921f-a7e2-4014-9175-facf33dda760'
 
   # Author of this module
-  Author            = 'micha'
+  Author = 'micha'
 
   # Company or vendor of this module
-  CompanyName       = 'Unknown'
+  CompanyName = 'Unknown'
 
   # Copyright statement for this module
-  Copyright         = '(c) micha. All rights reserved.'
+  Copyright = '(c) micha. All rights reserved.'
 
   # Description of the functionality provided by this module
   # Description = ''
@@ -72,13 +72,13 @@
   FunctionsToExport = '*'
 
   # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-  CmdletsToExport   = '*'
+  CmdletsToExport = '*'
 
   # Variables to export from this module
   VariablesToExport = '*'
 
   # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-  AliasesToExport   = '*'
+  AliasesToExport = '*'
 
   # DSC resources to export from this module
   # DscResourcesToExport = @()
@@ -90,7 +90,7 @@
   # FileList = @()
 
   # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
-  PrivateData       = @{
+  PrivateData = @{
 
     PSData = @{
 

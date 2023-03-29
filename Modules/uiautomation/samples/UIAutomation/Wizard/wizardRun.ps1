@@ -10,22 +10,22 @@ $VerbosePreference = [System.Management.Automation.ActionPreference]::Continue;
 Write-Host "=======================================================================================";
 Write-Host "Creating a wizard`r`n";
 New-UIAWizard -Name wzd -StartAction { Write-Host "starting the wizard code"; } | `
-	Add-UIAWizardStep -Name step1 -Order 10 -WaitCriteria @{Name = 'welcomePane'; IsEnabled = $true } -StepForwardAction { Write-Host "step forward 1 code"; } | `
-	Add-UIAWizardStep -Name step2 -Order 20 -WaitCriteria @{Name = 'I accept'; IsEnabled = $false } -StepForwardAction { Write-Host "step forward 2 code"; } | `
-	Add-UIAWizardStep -Name step3 -Order 30 -WaitCriteria @{Name = 'User name'; IsEnabled = $true }, @{Name = 'Organization'; IsEnabled = $true } -StepForwardAction { Write-Host "step forward 3 code 1"; }, { Write-Host "step forward 3 code 2"; } -StepBackwardAction { Write-Host "step backward 3 code 3" } | `
-	Remove-UIAWizardStep -Name step2 | `
-	Add-UIAWizardStep -Name step4 -Order 40 -WaitCriteria @{ControlType = Tree } -StepForwardAction { Write-Host "step forward 4 code"; };
+   Add-UIAWizardStep -Name step1 -Order 10 -WaitCriteria @{ Name = 'welcomePane'; IsEnabled = $true } -StepForwardAction { Write-Host "step forward 1 code"; } | `
+   Add-UIAWizardStep -Name step2 -Order 20 -WaitCriteria @{ Name = 'I accept'; IsEnabled = $false } -StepForwardAction { Write-Host "step forward 2 code"; } | `
+   Add-UIAWizardStep -Name step3 -Order 30 -WaitCriteria @{ Name = 'User name'; IsEnabled = $true },@{ Name = 'Organization'; IsEnabled = $true } -StepForwardAction { Write-Host "step forward 3 code 1"; },{ Write-Host "step forward 3 code 2"; } -StepBackwardAction { Write-Host "step backward 3 code 3" } | `
+   Remove-UIAWizardStep -Name step2 | `
+   Add-UIAWizardStep -Name step4 -Order 40 -WaitCriteria @{ controlType = Tree } -StepForwardAction { Write-Host "step forward 4 code"; };
 #endregion Creating a wizard
 
 #region Running the wizard
 Write-Host "=======================================================================================";
 Write-Host "Running the wizard`r`n";
 Invoke-UIAWizard -Name wzd | `
-	Step-UIAWizard -Name step1 | `
-	Step-UIAWizard -Name step3 | `
-	Step-UIAWizard -Name step4 | `
-	Step-UIAWizard -Name step3 -Forward:$false | `
-	Step-UIAWizard -Name step4;
+   Step-UIAWizard -Name step1 | `
+   Step-UIAWizard -Name step3 | `
+   Step-UIAWizard -Name step4 | `
+   Step-UIAWizard -Name step3 -Forward:$false | `
+   Step-UIAWizard -Name step4;
 #endregion Running the wizard	
 
 #region How to access and/or modify the variables

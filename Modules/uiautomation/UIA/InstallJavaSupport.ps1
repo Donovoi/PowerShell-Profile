@@ -25,24 +25,24 @@
 
 # Step 1
 if ($env:PROCESSOR_ARCHITECTURE.Contains("64")) {
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge-32.dll" -Destination "$($WINDOWSHOME)\SysWOW64";
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge-64.dll" -Destination "$($WINDOWSHOME)\System32";
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge-32.dll" -Destination "$($JAVAHOME32)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge-64.dll" -Destination "$($JAVAHOME64)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge-32.dll" -Destination "$($JAVAHOME32)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge-64.dll" -Destination "$($JAVAHOME64)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME32)\lib"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME64)\lib"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge-32.jar" -Destination "$($JAVAHOME32)\lib\ext"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge-64.jar" -Destination "$($JAVAHOME64)\lib\ext"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME32)\lib\ext"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME64)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge-32.dll" -Destination "$($WINDOWSHOME)\SysWOW64";
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge-64.dll" -Destination "$($WINDOWSHOME)\System32";
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge-32.dll" -Destination "$($JAVAHOME32)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge-64.dll" -Destination "$($JAVAHOME64)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge-32.dll" -Destination "$($JAVAHOME32)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge-64.dll" -Destination "$($JAVAHOME64)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME32)\lib"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME64)\lib"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge-32.jar" -Destination "$($JAVAHOME32)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge-64.jar" -Destination "$($JAVAHOME64)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME32)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME64)\lib\ext"
 }
 else {
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge.dll" -Destination "$($WINDOWSHOME)\System32";
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge.dll" -Destination "$($JAVAHOME)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge.dll" -Destination "$($JAVAHOME)\bin"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME)\lib"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge.jar" -Destination "$($JAVAHOME)\lib\ext"
-	Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\WindowsAccessBridge.dll" -Destination "$($WINDOWSHOME)\System32";
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JavaAccessBridge.dll" -Destination "$($JAVAHOME)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\JAWTAccessBridge.dll" -Destination "$($JAVAHOME)\bin"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\accessibility.properties" -Destination "$($JAVAHOME)\lib"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge.jar" -Destination "$($JAVAHOME)\lib\ext"
+  Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME)\lib\ext"
 }

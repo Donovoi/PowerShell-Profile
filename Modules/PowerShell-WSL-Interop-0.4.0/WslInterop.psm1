@@ -1,5 +1,5 @@
-function global:Import-WslCommand() {
-    <#
+﻿function global:Import-WslCommand () {
+<#
     .SYNOPSIS
     Import Linux commands into the session as PowerShell functions with argument completion.
 
@@ -48,15 +48,15 @@ function global:Import-WslCommand() {
     Import-WslCommand "awk", "emacs", "grep", "head", "less", "ls", "man", "sed", "seq", "ssh", "tail", "vim"
     #>
 
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [string[]]$Command
-    )
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$Command
+  )
 
-    # Register a function for each command.
-    $Command | ForEach-Object { Invoke-Expression @"
+  # Register a function for each command.
+  $Command | ForEach-Object { Invoke-Expression @"
     Remove-Alias $_ -Scope Global -Force -ErrorAction Ignore
     function global:$_() {
         # Translate path arguments and format special characters.
@@ -103,141 +103,141 @@ function global:Import-WslCommand() {
         }
     }
 "@
+  }
+
+  # Register an ArgumentCompleter that shims bash's programmable completion.
+  Register-ArgumentCompleter -CommandName $Command -ScriptBlock {
+    param($wordToComplete,$commandAst,$cursorPosition)
+
+    # Identify the command.
+    $command = $commandAst.CommandElements[0].Value
+
+    # Initialize the bash completion function cache.
+    $WslCompletionFunctionsCache = "$Env:APPDATA\PowerShell WSL Interop\WslCompletionFunctions"
+    if ($null -eq $global:WslCompletionFunctions) {
+      if (Test-Path $WslCompletionFunctionsCache) {
+        $global:WslCompletionFunctions = Import-Clixml $WslCompletionFunctionsCache
+      }
+      else {
+        $global:WslCompletionFunctions = @{}
+      }
     }
-    
-    # Register an ArgumentCompleter that shims bash's programmable completion.
-    Register-ArgumentCompleter -CommandName $Command -ScriptBlock {
-        param($wordToComplete, $commandAst, $cursorPosition)
-        
-        # Identify the command.
-        $command = $commandAst.CommandElements[0].Value
 
-        # Initialize the bash completion function cache.
-        $WslCompletionFunctionsCache = "$Env:APPDATA\PowerShell WSL Interop\WslCompletionFunctions"
-        if ($null -eq $global:WslCompletionFunctions) {
-            if (Test-Path $WslCompletionFunctionsCache) {
-                $global:WslCompletionFunctions = Import-Clixml $WslCompletionFunctionsCache
-            }
-            else {
-                $global:WslCompletionFunctions = @{}
-            }
+    # Map the command to the appropriate bash completion function.
+    if (-not $global:WslCompletionFunctions.Contains($command)) {
+      # Try to find the completion function.
+      $global:WslCompletionFunctions[$command] = wsl.exe bash -c ". /usr/share/bash-completion/bash_completion 2> /dev/null; __load_completion $command 2> /dev/null; complete -p $command 2> /dev/null | sed -E 's/^complete.*-F ([^ ]+).*`$/\1/'"
+
+      # If we can't find a completion function, resort to the default completion function.
+      if ($null -eq $global:WslCompletionFunctions[$command] -or $global:WslCompletionFunctions[$command] -like "complete*") {
+        $global:WslCompletionFunctions["-D"] = wsl.exe bash -c ". /usr/share/bash-completion/bash_completion 2> /dev/null; complete -p -D 2> /dev/null | sed -E 's/^complete.*-F ([^ ]+).*`$/\1/'"
+
+        # If the default completion function was overridden, use that.
+        if ($global:WslCompletionFunctions["-D"] -ne "_completion_loader") {
+          $global:WslCompletionFunctions[$command] = $global:WslCompletionFunctions["-D"]
+          # Otherwise, resort to _minimal which will return Linux file paths.
         }
-
-        # Map the command to the appropriate bash completion function.
-        if (-not $global:WslCompletionFunctions.Contains($command)) {
-            # Try to find the completion function.
-            $global:WslCompletionFunctions[$command] = wsl.exe bash -c ". /usr/share/bash-completion/bash_completion 2> /dev/null; __load_completion $command 2> /dev/null; complete -p $command 2> /dev/null | sed -E 's/^complete.*-F ([^ ]+).*`$/\1/'"
-            
-            # If we can't find a completion function, resort to the default completion function.
-            if ($null -eq $global:WslCompletionFunctions[$command] -or $global:WslCompletionFunctions[$command] -like "complete*") {
-                $global:WslCompletionFunctions["-D"] = wsl.exe bash -c ". /usr/share/bash-completion/bash_completion 2> /dev/null; complete -p -D 2> /dev/null | sed -E 's/^complete.*-F ([^ ]+).*`$/\1/'"
-
-                # If the default completion function was overridden, use that.
-                if ($global:WslCompletionFunctions["-D"] -ne "_completion_loader") {
-                    $global:WslCompletionFunctions[$command] = $global:WslCompletionFunctions["-D"]
-                    # Otherwise, resort to _minimal which will return Linux file paths.
-                }
-                else {
-                    $global:WslCompletionFunctions[$command] = "_minimal"
-                }
-            }
-
-            # Update the bash completion function cache.
-            New-Item $WslCompletionFunctionsCache -Force | Out-Null
-            $global:WslCompletionFunctions | Export-Clixml $WslCompletionFunctionsCache
+        else {
+          $global:WslCompletionFunctions[$command] = "_minimal"
         }
+      }
 
-        # Populate bash programmable completion variables.
-        $COMP_LINE = "`"$($commandAst.Extent.Text.PadRight($cursorPosition))`""
-        $COMP_WORDS = "('$($commandAst.CommandElements.Extent.Text -join "' '")')" -replace "''", "'"
-        $previousWord = $commandAst.CommandElements[0].Value
-        $COMP_CWORD = 1
-        $COMP_POINT = $cursorPosition - $commandAst.Extent.StartOffset
-        for ($i = 1; $i -lt $commandAst.CommandElements.Count; $i++) {
-            $extent = $commandAst.CommandElements[$i].Extent
-            if ($cursorPosition -lt $extent.EndColumnNumber) {
-                # The cursor is in the middle of a word to complete.
-                $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
-                $COMP_CWORD = $i
-                break
-            }
-            elseif ($cursorPosition -eq $extent.EndColumnNumber) {
-                # The cursor is immediately after the current word.
-                $previousWord = $extent.Text
-                $COMP_CWORD = $i + 1
-                break
-            }
-            elseif ($cursorPosition -lt $extent.StartColumnNumber) {
-                # The cursor is within whitespace between the previous and current words.
-                $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
-                $COMP_CWORD = $i
-                break
-            }
-            elseif ($i -eq $commandAst.CommandElements.Count - 1 -and $cursorPosition -gt $extent.EndColumnNumber) {
-                # The cursor is within whitespace at the end of the line.
-                $previousWord = $extent.Text
-                $COMP_CWORD = $i + 1
-                break
-            }
-        }
-
-        # Repopulate bash programmable completion variables for scenarios like '/mnt/c/Program Files'/<TAB> where <TAB> should continue completing the quoted path.
-        $currentExtent = $commandAst.CommandElements[$COMP_CWORD].Extent
-        $previousExtent = $commandAst.CommandElements[$COMP_CWORD - 1].Extent
-        if ($currentExtent.Text -like "/*" -and $currentExtent.StartColumnNumber -eq $previousExtent.EndColumnNumber) {
-            $COMP_LINE = $COMP_LINE -replace "$($previousExtent.Text)$($currentExtent.Text)", $wordToComplete
-            $COMP_WORDS = $COMP_WORDS -replace "$($previousExtent.Text) '$($currentExtent.Text)'", $wordToComplete
-            $previousWord = $commandAst.CommandElements[$COMP_CWORD - 2].Extent.Text
-            $COMP_CWORD -= 1
-        }
-
-        # Build the command to pass to WSL.
-        $bashCompletion = ". /usr/share/bash-completion/bash_completion 2> /dev/null"
-        $commandCompletion = "__load_completion $command 2> /dev/null"
-        $COMPINPUT = "COMP_LINE=$COMP_LINE; COMP_WORDS=$COMP_WORDS; COMP_CWORD=$COMP_CWORD; COMP_POINT=$COMP_POINT"
-        $COMPGEN = "bind `"set completion-ignore-case on`" 2> /dev/null; $($WslCompletionFunctions[$command]) `"$command`" `"$wordToComplete`" `"$previousWord`" 2> /dev/null"
-        $COMPREPLY = "IFS=`$'\n'; echo `"`${COMPREPLY[*]}`""
-        $commandLine = "$bashCompletion; $commandCompletion; $COMPINPUT; $COMPGEN; $COMPREPLY"
-
-        # Invoke bash completion.
-        $completions = ($commandLine | wsl.exe bash -s)
-        
-        # If no results were returned by an overridden default completion function, emulate `-o default` by resorting to _minimal.
-        if ($completions -eq "" -and $WslCompletionFunctions[$command] -eq $global:WslCompletionFunctions["-D"]) {
-            $completions = ($commandLine -replace $WslCompletionFunctions[$command], "_minimal" | wsl.exe bash -s)
-        }
-
-        # Return CompletionResults.
-        $previousCompletionText = ""
-        $completions -split '\n' |
-        Sort-Object -Unique -CaseSensitive |
-        ForEach-Object {
-            if ($_ -eq "") {
-                continue
-            }
-
-            if ($wordToComplete -match "(.*=).*") {
-                $completionText = Format-WslArgument ($Matches[1] + $_) $true
-                $listItemText = $_
-            }
-            else {
-                $completionText = Format-WslArgument $_ $true
-                $listItemText = $completionText
-            }
-
-            if ($completionText -eq $previousCompletionText) {
-                # Differentiate completions that differ only by case otherwise PowerShell will view them as duplicate.
-                $listItemText += ' '
-            }
-
-            $previousCompletionText = $completionText
-            [System.Management.Automation.CompletionResult]::new($completionText, $listItemText, 'ParameterName', $completionText)
-        }
+      # Update the bash completion function cache.
+      New-Item $WslCompletionFunctionsCache -Force | Out-Null
+      $global:WslCompletionFunctions | Export-Clixml $WslCompletionFunctionsCache
     }
+
+    # Populate bash programmable completion variables.
+    $COMP_LINE = "`"$($commandAst.Extent.Text.PadRight($cursorPosition))`""
+    $COMP_WORDS = "('$($commandAst.CommandElements.Extent.Text -join "' '")')" -replace "''","'"
+    $previousWord = $commandAst.CommandElements[0].Value
+    $COMP_CWORD = 1
+    $COMP_POINT = $cursorPosition - $commandAst.Extent.StartOffset
+    for ($i = 1; $i -lt $commandAst.CommandElements.Count; $i++) {
+      $extent = $commandAst.CommandElements[$i].Extent
+      if ($cursorPosition -lt $extent.EndColumnNumber) {
+        # The cursor is in the middle of a word to complete.
+        $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
+        $COMP_CWORD = $i
+        break
+      }
+      elseif ($cursorPosition -eq $extent.EndColumnNumber) {
+        # The cursor is immediately after the current word.
+        $previousWord = $extent.Text
+        $COMP_CWORD = $i + 1
+        break
+      }
+      elseif ($cursorPosition -lt $extent.StartColumnNumber) {
+        # The cursor is within whitespace between the previous and current words.
+        $previousWord = $commandAst.CommandElements[$i - 1].Extent.Text
+        $COMP_CWORD = $i
+        break
+      }
+      elseif ($i -eq $commandAst.CommandElements.Count - 1 -and $cursorPosition -gt $extent.EndColumnNumber) {
+        # The cursor is within whitespace at the end of the line.
+        $previousWord = $extent.Text
+        $COMP_CWORD = $i + 1
+        break
+      }
+    }
+
+    # Repopulate bash programmable completion variables for scenarios like '/mnt/c/Program Files'/<TAB> where <TAB> should continue completing the quoted path.
+    $currentExtent = $commandAst.CommandElements[$COMP_CWORD].Extent
+    $previousExtent = $commandAst.CommandElements[$COMP_CWORD - 1].Extent
+    if ($currentExtent.Text -like "/*" -and $currentExtent.StartColumnNumber -eq $previousExtent.EndColumnNumber) {
+      $COMP_LINE = $COMP_LINE -replace "$($previousExtent.Text)$($currentExtent.Text)",$wordToComplete
+      $COMP_WORDS = $COMP_WORDS -replace "$($previousExtent.Text) '$($currentExtent.Text)'",$wordToComplete
+      $previousWord = $commandAst.CommandElements[$COMP_CWORD - 2].Extent.Text
+      $COMP_CWORD -= 1
+    }
+
+    # Build the command to pass to WSL.
+    $bashCompletion = ". /usr/share/bash-completion/bash_completion 2> /dev/null"
+    $commandCompletion = "__load_completion $command 2> /dev/null"
+    $COMPINPUT = "COMP_LINE=$COMP_LINE; COMP_WORDS=$COMP_WORDS; COMP_CWORD=$COMP_CWORD; COMP_POINT=$COMP_POINT"
+    $COMPGEN = "bind `"set completion-ignore-case on`" 2> /dev/null; $($WslCompletionFunctions[$command]) `"$command`" `"$wordToComplete`" `"$previousWord`" 2> /dev/null"
+    $COMPREPLY = "IFS=`$'\n'; echo `"`${COMPREPLY[*]}`""
+    $commandLine = "$bashCompletion; $commandCompletion; $COMPINPUT; $COMPGEN; $COMPREPLY"
+
+    # Invoke bash completion.
+    $completions = ($commandLine | wsl.exe bash -s)
+
+    # If no results were returned by an overridden default completion function, emulate `-o default` by resorting to _minimal.
+    if ($completions -eq "" -and $WslCompletionFunctions[$command] -eq $global:WslCompletionFunctions["-D"]) {
+      $completions = ($commandLine -replace $WslCompletionFunctions[$command],"_minimal" | wsl.exe bash -s)
+    }
+
+    # Return CompletionResults.
+    $previousCompletionText = ""
+    $completions -split '\n' |
+    Sort-Object -Unique -CaseSensitive |
+    ForEach-Object {
+      if ($_ -eq "") {
+        continue
+      }
+
+      if ($wordToComplete -match "(.*=).*") {
+        $completionText = Format-WslArgument ($Matches[1] + $_) $true
+        $listItemText = $_
+      }
+      else {
+        $completionText = Format-WslArgument $_ $true
+        $listItemText = $completionText
+      }
+
+      if ($completionText -eq $previousCompletionText) {
+        # Differentiate completions that differ only by case otherwise PowerShell will view them as duplicate.
+        $listItemText += ' '
+      }
+
+      $previousCompletionText = $completionText
+      [System.Management.Automation.CompletionResult]::new($completionText,$listItemText,'ParameterName',$completionText)
+    }
+  }
 }
 
-function global:Format-WslArgument([string]$arg, [bool]$interactive) {
-    <#
+function global:Format-WslArgument ([string]$arg,[bool]$interactive) {
+<#
     .SYNOPSIS
     Format arguments passed to WSL to prevent them from being misinterpreted.
 
@@ -250,25 +250,25 @@ function global:Format-WslArgument([string]$arg, [bool]$interactive) {
     quoting rules will be applied.
     #>
 
-    $arg = $arg.Trim()
+  $arg = $arg.Trim()
 
-    if ($arg -like "[""']*[""']") {
-        return $arg
-    }
-    
-    if ($interactive) {
-        $arg = (($arg -replace '([ ,(){}|&;])', '`$1'), "'$arg'")[$arg.Contains(" ")]
-    }
-    else {
-        $arg = $arg -replace '(\\\\|\\[ ,(){}|&;])', '\\$1'
-
-        while ($arg -match '([^\\](\\\\)*)([ ,(){}|&;])') {
-            $arg = $arg -replace '([^\\](\\\\)*)([ ,(){}|&;])', '$1\$3'
-        }
-        $arg = $arg -replace '^((\\\\)*)([ ,(){}|&;])', '$1\$3'
-
-        $arg = $arg -replace '(\\[a-zA-Z0-9.*+?^$])', '\$1'
-    }
-
+  if ($arg -like "[""']*[""']") {
     return $arg
+  }
+
+  if ($interactive) {
+    $arg = (($arg -replace '([ ,(){}|&;])','`$1'),"'$arg'")[$arg.Contains(" ")]
+  }
+  else {
+    $arg = $arg -replace '(\\\\|\\[ ,(){}|&;])','\\$1'
+
+    while ($arg -match '([^\\](\\\\)*)([ ,(){}|&;])') {
+      $arg = $arg -replace '([^\\](\\\\)*)([ ,(){}|&;])','$1\$3'
+    }
+    $arg = $arg -replace '^((\\\\)*)([ ,(){}|&;])','$1\$3'
+
+    $arg = $arg -replace '(\\[a-zA-Z0-9.*+?^$])','\$1'
+  }
+
+  return $arg
 }

@@ -18,15 +18,15 @@ function Get-UniqueStrings {
   )
 
   $Directory = $Path
-  if (-Not ([string]::IsNullOrWhiteSpace($Directory))) {
+  if (-not ([string]::IsNullOrWhiteSpace($Directory))) {
     [string[]]$Content = Import-Content -Path $Directory
     [string[]]$StringsOnly = $Content | GetStrings -MinimumLength $MinLength
     if (-not ([string]::IsNullOrWhiteSpace($StringsOnly))) {
       [string[]]$Words = if (-not ([string]::IsNullOrWhiteSpace($StringsOnly))) {
         $StringsOnly.Split()
       }
-      if (-Not ([string]::IsNullOrWhiteSpace($Words))) {
-        $UniqueWordList = [System.Collections.Generic.HashSet[string]]::new([string[]]($Words), [System.StringComparer]::OrdinalIgnoreCase)
+      if (-not ([string]::IsNullOrWhiteSpace($Words))) {
+        $UniqueWordList = [System.Collections.Generic.HashSet[string]]::new([string[]]($Words),[System.StringComparer]::OrdinalIgnoreCase)
       }
 
     }

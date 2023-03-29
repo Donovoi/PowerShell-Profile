@@ -5,17 +5,17 @@
 ####################################################################################################
 
 Set-StrictMode -Version Latest;
-ipmo $global:uiautomationModule;
+Import-Module $global:uiautomationModule;
 
 [string]$appName = "services.msc";
 
 # you need to run a PowerShell console as Administrator
 
-Start-Process $appName -PassThru | `
-	Get-UIAWindow | `
-	Register-UIAWindowOpenedEvent -EventAction { param($src, $e) [System.Windows.Forms.MessageBox]::Show("A new window is open: $($src.Cached.Name)"); };
+Start-Process $appName -Passthru | `
+   Get-UIAWindow | `
+   Register-UIAWindowOpenedEvent -EventAction { param($src,$e) [System.Windows.Forms.MessageBox]::show("A new window is open: $($src.Cached.Name)"); };
 Get-UIAMenuItem -Name File | `
-	Invoke-UIAMenuItemClick | `
-	Get-UIAMenuItem -Name Opt* | `
-	Invoke-UIAMenuItemClick;
+   Invoke-UIAMenuItemClick | `
+   Get-UIAMenuItem -Name Opt* | `
+   Invoke-UIAMenuItemClick;
 

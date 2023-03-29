@@ -9,15 +9,15 @@
 
 namespace UIAutomationTest.Commands.ExecutionPlan
 {
-	using System;
-	
-	/// <summary>
-	/// Description of ShowUIAExecutionPlanCommandTestFixture.
-	/// </summary>
-	public class ShowUIAExecutionPlanCommandTestFixture
-	{
-		public ShowUIAExecutionPlanCommandTestFixture()
-		{
-		}
-	}
+    using System;
+
+    /// <summary>
+    /// Description of ShowUIAExecutionPlanCommandTestFixture.
+    /// </summary>
+    public class ShowUIAExecutionPlanCommandTestFixture
+    {
+        public ShowUIAExecutionPlanCommandTestFixture()
+        {
+        }
+    }
 }
