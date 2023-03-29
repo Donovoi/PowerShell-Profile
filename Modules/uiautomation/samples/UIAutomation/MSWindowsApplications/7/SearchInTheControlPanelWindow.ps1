@@ -1,4 +1,4 @@
-﻿ipmo $global:uiautomationModule;
+﻿Import-Module $global:uiautomationModule;
 
 [UIAutomation.Mode]::Profile = [UIAutomation.Modes]::Normal;
 
@@ -22,7 +22,7 @@ sleep -Seconds 1; # for the Normal mode only
 #Get-UIAHyperlink -AutomationId 'name' -Name 'Sound' | Invoke-UIAHyperlinkClick;
 #$w | Get-UIAHyperlink -Name 'Sound' | Invoke-UIAHyperlinkClick;
 $w | Search-UIAControl -Name 'Sound' -Highlight | Invoke-UIAHyperlinkClick;
-	
+
 # search for the Speakers device
 $neededItem = Get-UIAWindow -Name 'Sound' | Search-UIAControl -Name 'Speak*' -Highlight;
 $neededItem | Read-UIAControlName;

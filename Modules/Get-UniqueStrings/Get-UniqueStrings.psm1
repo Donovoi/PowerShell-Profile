@@ -4,7 +4,7 @@ function GetStrings {
   [CmdletBinding()]
   param
   (
-    [Parameter(Position = 1, Mandatory = $True, ValueFromPipeline = $True)]
+    [Parameter(Position = 1,Mandatory = $True,ValueFromPipeline = $True)]
     [String[]]
     $Path,
 

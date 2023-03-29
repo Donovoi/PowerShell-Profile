@@ -7,11 +7,11 @@ $global:GitPromptValues = [PoshGitPromptValues]::new()
 # Override some of the normal colors if the background color is set to the default DarkMagenta.
 $s = $global:GitPromptSettings
 if ($Host.UI.RawUI.BackgroundColor -eq [ConsoleColor]::DarkMagenta) {
-    $s.LocalDefaultStatusSymbol.ForegroundColor = 'Green'
-    $s.LocalWorkingStatusSymbol.ForegroundColor = 'Red'
-    $s.BeforeIndex.ForegroundColor = 'Green'
-    $s.IndexColor.ForegroundColor = 'Green'
-    $s.WorkingColor.ForegroundColor = 'Red'
+  $s.LocalDefaultStatusSymbol.ForegroundColor = 'Green'
+  $s.LocalWorkingStatusSymbol.ForegroundColor = 'Red'
+  $s.BeforeIndex.ForegroundColor = 'Green'
+  $s.IndexColor.ForegroundColor = 'Green'
+  $s.WorkingColor.ForegroundColor = 'Red'
 }
 
 <#
@@ -29,7 +29,7 @@ if ($Host.UI.RawUI.BackgroundColor -eq [ConsoleColor]::DarkMagenta) {
     This will reset the current $GitPromptSettings back to its default.
 #>
 function New-GitPromptSettings {
-    [PoshGitPromptSettings]::new()
+  [PoshGitPromptSettings]::new()
 }
 
 <#
@@ -57,118 +57,118 @@ function New-GitPromptSettings {
     "`e[96m`e[40mPS > `e[0m".
 #>
 function Write-Prompt {
-    [CmdletBinding(DefaultParameterSetName = "Default")]
-    param(
-        # Specifies objects to display in the console or render as a string if
-        # $GitPromptSettings.AnsiConsole is enabled. If the Object is of type
-        # [PoshGitTextSpan] the other color parameters are ignored since a
-        # [PoshGitTextSpan] provides the colors.
-        [Parameter(Mandatory, Position = 0)]
-        $Object,
+  [CmdletBinding(DefaultParameterSetName = "Default")]
+  param(
+    # Specifies objects to display in the console or render as a string if
+    # $GitPromptSettings.AnsiConsole is enabled. If the Object is of type
+    # [PoshGitTextSpan] the other color parameters are ignored since a
+    # [PoshGitTextSpan] provides the colors.
+    [Parameter(Mandatory,Position = 0)]
+    $Object,
 
-        # Specifies the foreground color.
-        [Parameter(ParameterSetName = "Default")]
-        $ForegroundColor = $null,
+    # Specifies the foreground color.
+    [Parameter(ParameterSetName = "Default")]
+    $ForegroundColor = $null,
 
-        # Specifies the background color.
-        [Parameter(ParameterSetName = "Default")]
-        $BackgroundColor = $null,
+    # Specifies the background color.
+    [Parameter(ParameterSetName = "Default")]
+    $BackgroundColor = $null,
 
-        # Specifies both the background and foreground colors via [PoshGitCellColor] object.
-        [Parameter(ParameterSetName = "CellColor")]
-        [ValidateNotNull()]
-        [PoshGitCellColor]
-        $Color,
+    # Specifies both the background and foreground colors via [PoshGitCellColor] object.
+    [Parameter(ParameterSetName = "CellColor")]
+    [ValidateNotNull()]
+    [PoshGitCellColor]
+    $Color,
 
-        # When specified and $GitPromptSettings.AnsiConsole is enabled, the Object parameter
-        # is written to the StringBuilder along with the appropriate ANSI/VT sequences for
-        # the specified foreground and background colors.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder
-    )
+    # When specified and $GitPromptSettings.AnsiConsole is enabled, the Object parameter
+    # is written to the StringBuilder along with the appropriate ANSI/VT sequences for
+    # the specified foreground and background colors.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder
+  )
 
-    if (!$Object -or (($Object -is [PoshGitTextSpan]) -and !$Object.Text)) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
-    }
-
-    if ($PSCmdlet.ParameterSetName -eq "CellColor") {
-        $bgColor = $Color.BackgroundColor
-        $fgColor = $Color.ForegroundColor
-    }
-    else {
-        $bgColor = $BackgroundColor
-        $fgColor = $ForegroundColor
-    }
-
-    $s = $global:GitPromptSettings
-    if ($s) {
-        if ($null -eq $fgColor) {
-            $fgColor = $s.DefaultColor.ForegroundColor
-        }
-
-        if ($null -eq $bgColor) {
-            $bgColor = $s.DefaultColor.BackgroundColor
-        }
-
-        if ($s.AnsiConsole) {
-            if ($Object -is [PoshGitTextSpan]) {
-                $str = $Object.ToAnsiString()
-            }
-            else {
-                # If we know which colors were changed, we can reset only these and leave others be.
-                $reset = [System.Collections.Generic.List[string]]::new()
-                $e = [char]27 + "["
-
-                $fg = $fgColor
-                if (($null -ne $fg) -and !(Test-VirtualTerminalSequece $fg)) {
-                    $fg = Get-ForegroundVirtualTerminalSequence $fg
-                    $reset.Add('39')
-                }
-
-                $bg = $bgColor
-                if (($null -ne $bg) -and !(Test-VirtualTerminalSequece $bg)) {
-                    $bg = Get-BackgroundVirtualTerminalSequence $bg
-                    $reset.Add('49')
-                }
-
-                $str = "${Object}"
-                if (Test-VirtualTerminalSequece $str -Force) {
-                    $reset.Clear()
-                    $reset.Add('0')
-                }
-
-                $str = "${fg}${bg}" + $str
-                if ($reset.Count -gt 0) {
-                    $str += "${e}$($reset -join ';')m"
-                }
-            }
-
-            return $(if ($StringBuilder) { $StringBuilder.Append($str) } else { $str })
-        }
-    }
-
-    if ($Object -is [PoshGitTextSpan]) {
-        $bgColor = $Object.BackgroundColor
-        $fgColor = $Object.ForegroundColor
-        $Object = $Object.Text
-    }
-
-    $writeHostParams = @{
-        Object    = $Object;
-        NoNewLine = $true;
-    }
-
-    if ($bgColor -and ($bgColor -ge 0) -and ($bgColor -le 15)) {
-        $writeHostParams.BackgroundColor = $bgColor
-    }
-
-    if ($fgColor -and ($fgColor -ge 0) -and ($fgColor -le 15)) {
-        $writeHostParams.ForegroundColor = $fgColor
-    }
-
-    Write-Host @writeHostParams
+  if (!$Object -or (($Object -is [PoshGitTextSpan]) -and !$Object.Text)) {
     return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
+
+  if ($PSCmdlet.ParameterSetName -eq "CellColor") {
+    $bgColor = $Color.BackgroundColor
+    $fgColor = $Color.ForegroundColor
+  }
+  else {
+    $bgColor = $BackgroundColor
+    $fgColor = $ForegroundColor
+  }
+
+  $s = $global:GitPromptSettings
+  if ($s) {
+    if ($null -eq $fgColor) {
+      $fgColor = $s.DefaultColor.ForegroundColor
+    }
+
+    if ($null -eq $bgColor) {
+      $bgColor = $s.DefaultColor.BackgroundColor
+    }
+
+    if ($s.AnsiConsole) {
+      if ($Object -is [PoshGitTextSpan]) {
+        $str = $Object.ToAnsiString()
+      }
+      else {
+        # If we know which colors were changed, we can reset only these and leave others be.
+        $reset = [System.Collections.Generic.List[string]]::new()
+        $e = [char]27 + "["
+
+        $fg = $fgColor
+        if (($null -ne $fg) -and !(Test-VirtualTerminalSequece $fg)) {
+          $fg = Get-ForegroundVirtualTerminalSequence $fg
+          $reset.Add('39')
+        }
+
+        $bg = $bgColor
+        if (($null -ne $bg) -and !(Test-VirtualTerminalSequece $bg)) {
+          $bg = Get-BackgroundVirtualTerminalSequence $bg
+          $reset.Add('49')
+        }
+
+        $str = "${Object}"
+        if (Test-VirtualTerminalSequece $str -Force) {
+          $reset.Clear()
+          $reset.Add('0')
+        }
+
+        $str = "${fg}${bg}" + $str
+        if ($reset.Count -gt 0) {
+          $str += "${e}$($reset -join ';')m"
+        }
+      }
+
+      return $(if ($StringBuilder) { $StringBuilder.Append($str) } else { $str })
+    }
+  }
+
+  if ($Object -is [PoshGitTextSpan]) {
+    $bgColor = $Object.BackgroundColor
+    $fgColor = $Object.ForegroundColor
+    $Object = $Object.Text
+  }
+
+  $writeHostParams = @{
+    Object = $Object;
+    NoNewLine = $true;
+  }
+
+  if ($bgColor -and ($bgColor -ge 0) -and ($bgColor -le 15)) {
+    $writeHostParams.BackgroundColor = $bgColor
+  }
+
+  if ($fgColor -and ($fgColor -ge 0) -and ($fgColor -le 15)) {
+    $writeHostParams.ForegroundColor = $fgColor
+  }
+
+  Write-Host @writeHostParams
+  return $(if ($StringBuilder) { $StringBuilder } else { "" })
 }
 
 <#
@@ -200,59 +200,59 @@ function Write-Prompt {
         This command returns a System.String object.
 #>
 function Write-GitStatus {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status
-    )
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return
+  }
+
+  $sb = [System.Text.StringBuilder]::new(150)
+
+  # When prompt is first (default), place the separator before the status summary
+  if (!$s.DefaultPromptWriteStatusFirst) {
+    $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
+  }
+
+  $sb | Write-Prompt $s.BeforeStatus > $null
+  $sb | Write-GitBranchName $Status -NoLeadingSpace > $null
+  $sb | Write-GitBranchStatus $Status > $null
+
+  $sb | Write-Prompt $s.BeforeIndex > $null
+
+  if ($s.EnableFileStatus -and $Status.HasIndex) {
+    $sb | Write-GitIndexStatus $Status > $null
+
+    if ($Status.HasWorking) {
+      $sb | Write-Prompt $s.DelimStatus > $null
     }
+  }
 
-    $sb = [System.Text.StringBuilder]::new(150)
+  if ($s.EnableFileStatus -and $Status.HasWorking) {
+    $sb | Write-GitWorkingDirStatus $Status > $null
+  }
 
-    # When prompt is first (default), place the separator before the status summary
-    if (!$s.DefaultPromptWriteStatusFirst) {
-        $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
-    }
+  $sb | Write-GitWorkingDirStatusSummary $Status > $null
 
-    $sb | Write-Prompt $s.BeforeStatus > $null
-    $sb | Write-GitBranchName $Status -NoLeadingSpace > $null
-    $sb | Write-GitBranchStatus $Status > $null
+  if ($s.EnableStashStatus -and ($Status.StashCount -gt 0)) {
+    $sb | Write-GitStashCount $Status > $null
+  }
 
-    $sb | Write-Prompt $s.BeforeIndex > $null
+  $sb | Write-Prompt $s.AfterStatus > $null
 
-    if ($s.EnableFileStatus -and $Status.HasIndex) {
-        $sb | Write-GitIndexStatus $Status > $null
+  # When status is first, place the separator after the status summary
+  if ($s.DefaultPromptWriteStatusFirst) {
+    $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
+  }
 
-        if ($Status.HasWorking) {
-            $sb | Write-Prompt $s.DelimStatus > $null
-        }
-    }
-
-    if ($s.EnableFileStatus -and $Status.HasWorking) {
-        $sb | Write-GitWorkingDirStatus $Status > $null
-    }
-
-    $sb | Write-GitWorkingDirStatusSummary $Status > $null
-
-    if ($s.EnableStashStatus -and ($Status.StashCount -gt 0)) {
-        $sb | Write-GitStashCount $Status > $null
-    }
-
-    $sb | Write-Prompt $s.AfterStatus > $null
-
-    # When status is first, place the separator after the status summary
-    if ($s.DefaultPromptWriteStatusFirst) {
-        $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
-    }
-
-    if ($sb.Length -gt 0) {
-        $sb.ToString()
-    }
+  if ($sb.Length -gt 0) {
+    $sb.ToString()
+  }
 }
 
 <#
@@ -273,25 +273,25 @@ function Write-GitStatus {
         This command returns a System.String object.
 #>
 function Format-GitBranchName {
-    param(
-        # The branch name to format according to the GitPromptSettings:
-        # BranchNameLimit and TruncatedBranchSuffix.
-        [Parameter(Position = 0)]
-        [string]
-        $BranchName
-    )
+  param(
+    # The branch name to format according to the GitPromptSettings:
+    # BranchNameLimit and TruncatedBranchSuffix.
+    [Parameter(Position = 0)]
+    [string]
+    $BranchName
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$s -or !$BranchName) {
-        return "$BranchName"
-    }
+  $s = $global:GitPromptSettings
+  if (!$s -or !$BranchName) {
+    return "$BranchName"
+  }
 
-    $res = $BranchName
-    if (($s.BranchNameLimit -gt 0) -and ($BranchName.Length -gt $s.BranchNameLimit)) {
-        $res = "{0}{1}" -f $BranchName.Substring(0, $s.BranchNameLimit), $s.TruncatedBranchSuffix
-    }
+  $res = $BranchName
+  if (($s.BranchNameLimit -gt 0) -and ($BranchName.Length -gt $s.BranchNameLimit)) {
+    $res = "{0}{1}" -f $BranchName.Substring(0,$s.BranchNameLimit),$s.TruncatedBranchSuffix
+  }
 
-    $res
+  $res
 }
 
 <#
@@ -318,35 +318,35 @@ function Format-GitBranchName {
         branch status symbols.
 #>
 function Get-GitBranchStatusColor {
-    param(
-        # The Git status object that provides branch status information.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status
-    )
+  param(
+    # The Git status object that provides branch status information.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$s) {
-        return [PoshGitTextSpan]::new()
-    }
+  $s = $global:GitPromptSettings
+  if (!$s) {
+    return [PoshGitTextSpan]::new()
+  }
 
-    $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchColor)
+  $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchColor)
 
-    if (($Status.BehindBy -ge 1) -and ($Status.AheadBy -ge 1)) {
-        # We are both behind and ahead of remote
-        $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchBehindAndAheadStatusSymbol)
-    }
-    elseif ($Status.BehindBy -ge 1) {
-        # We are behind remote
-        $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchBehindStatusSymbol)
-    }
-    elseif ($Status.AheadBy -ge 1) {
-        # We are ahead of remote
-        $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchAheadStatusSymbol)
-    }
+  if (($Status.BehindBy -ge 1) -and ($Status.AheadBy -ge 1)) {
+    # We are both behind and ahead of remote
+    $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchBehindAndAheadStatusSymbol)
+  }
+  elseif ($Status.BehindBy -ge 1) {
+    # We are behind remote
+    $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchBehindStatusSymbol)
+  }
+  elseif ($Status.AheadBy -ge 1) {
+    # We are ahead of remote
+    $branchStatusTextSpan = [PoshGitTextSpan]::new($s.BranchAheadStatusSymbol)
+  }
 
-    $branchStatusTextSpan.Text = ''
-    $branchStatusTextSpan
+  $branchStatusTextSpan.Text = ''
+  $branchStatusTextSpan
 }
 
 <#
@@ -370,45 +370,45 @@ function Get-GitBranchStatusColor {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitBranchName {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the branch name is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder,
+    # If specified the branch name is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder,
 
-        # If specified, suppresses the output of the leading space character.
-        [Parameter()]
-        [switch]
-        $NoLeadingSpace
-    )
+    # If specified, suppresses the output of the leading space character.
+    [Parameter()]
+    [switch]
+    $NoLeadingSpace
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
-    }
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
 
-    $str = ""
+  $str = ""
 
-    # Use the branch status colors (or CustomAnsi) to display the branch name
-    $branchNameTextSpan = Get-GitBranchStatusColor $Status
-    $branchNameTextSpan.Text = Format-GitBranchName $Status.Branch
-    if (!$NoLeadingSpace) {
-        $branchNameTextSpan.Text = " " + $branchNameTextSpan.Text
-    }
+  # Use the branch status colors (or CustomAnsi) to display the branch name
+  $branchNameTextSpan = Get-GitBranchStatusColor $Status
+  $branchNameTextSpan.Text = Format-GitBranchName $Status.branch
+  if (!$NoLeadingSpace) {
+    $branchNameTextSpan.Text = " " + $branchNameTextSpan.Text
+  }
 
-    if ($StringBuilder) {
-        $StringBuilder | Write-Prompt $branchNameTextSpan > $null
-    }
-    else {
-        $str = Write-Prompt $branchNameTextSpan
-    }
+  if ($StringBuilder) {
+    $StringBuilder | Write-Prompt $branchNameTextSpan > $null
+  }
+  else {
+    $str = Write-Prompt $branchNameTextSpan
+  }
 
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 <#
@@ -431,92 +431,92 @@ function Write-GitBranchName {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitBranchStatus {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the branch status is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder,
+    # If specified the branch status is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder,
 
-        # If specified, suppresses the output of the leading space character.
-        [Parameter()]
-        [switch]
-        $NoLeadingSpace
-    )
+    # If specified, suppresses the output of the leading space character.
+    [Parameter()]
+    [switch]
+    $NoLeadingSpace
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
-    }
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
 
-    $branchStatusTextSpan = Get-GitBranchStatusColor $Status
+  $branchStatusTextSpan = Get-GitBranchStatusColor $Status
 
-    if (!$Status.Upstream) {
-        $branchStatusTextSpan.Text = $s.BranchUntrackedText
+  if (!$Status.Upstream) {
+    $branchStatusTextSpan.Text = $s.BranchUntrackedText
+  }
+  elseif ($Status.UpstreamGone -eq $true) {
+    # Upstream branch is gone
+    $branchStatusTextSpan.Text = $s.BranchGoneStatusSymbol.Text
+  }
+  elseif (($Status.BehindBy -eq 0) -and ($Status.AheadBy -eq 0)) {
+    # We are aligned with remote
+    $branchStatusTextSpan.Text = $s.BranchIdenticalStatusSymbol.Text
+  }
+  elseif (($Status.BehindBy -ge 1) -and ($Status.AheadBy -ge 1)) {
+    # We are both behind and ahead of remote
+    if ($s.BranchBehindAndAheadDisplay -eq "Full") {
+      $branchStatusTextSpan.Text = ("{0}{1} {2}{3}" -f $s.BranchBehindStatusSymbol.Text,$Status.BehindBy,$s.BranchAheadStatusSymbol.Text,$status.AheadBy)
     }
-    elseif ($Status.UpstreamGone -eq $true) {
-        # Upstream branch is gone
-        $branchStatusTextSpan.Text = $s.BranchGoneStatusSymbol.Text
-    }
-    elseif (($Status.BehindBy -eq 0) -and ($Status.AheadBy -eq 0)) {
-        # We are aligned with remote
-        $branchStatusTextSpan.Text = $s.BranchIdenticalStatusSymbol.Text
-    }
-    elseif (($Status.BehindBy -ge 1) -and ($Status.AheadBy -ge 1)) {
-        # We are both behind and ahead of remote
-        if ($s.BranchBehindAndAheadDisplay -eq "Full") {
-            $branchStatusTextSpan.Text = ("{0}{1} {2}{3}" -f $s.BranchBehindStatusSymbol.Text, $Status.BehindBy, $s.BranchAheadStatusSymbol.Text, $status.AheadBy)
-        }
-        elseif ($s.BranchBehindAndAheadDisplay -eq "Compact") {
-            $branchStatusTextSpan.Text = ("{0}{1}{2}" -f $Status.BehindBy, $s.BranchBehindAndAheadStatusSymbol.Text, $Status.AheadBy)
-        }
-        else {
-            $branchStatusTextSpan.Text = $s.BranchBehindAndAheadStatusSymbol.Text
-        }
-    }
-    elseif ($Status.BehindBy -ge 1) {
-        # We are behind remote
-        if (($s.BranchBehindAndAheadDisplay -eq "Full") -Or ($s.BranchBehindAndAheadDisplay -eq "Compact")) {
-            $branchStatusTextSpan.Text = ("{0}{1}" -f $s.BranchBehindStatusSymbol.Text, $Status.BehindBy)
-        }
-        else {
-            $branchStatusTextSpan.Text = $s.BranchBehindStatusSymbol.Text
-        }
-    }
-    elseif ($Status.AheadBy -ge 1) {
-        # We are ahead of remote
-        if (($s.BranchBehindAndAheadDisplay -eq "Full") -or ($s.BranchBehindAndAheadDisplay -eq "Compact")) {
-            $branchStatusTextSpan.Text = ("{0}{1}" -f $s.BranchAheadStatusSymbol.Text, $Status.AheadBy)
-        }
-        else {
-            $branchStatusTextSpan.Text = $s.BranchAheadStatusSymbol.Text
-        }
+    elseif ($s.BranchBehindAndAheadDisplay -eq "Compact") {
+      $branchStatusTextSpan.Text = ("{0}{1}{2}" -f $Status.BehindBy,$s.BranchBehindAndAheadStatusSymbol.Text,$Status.AheadBy)
     }
     else {
-        # This condition should not be possible but defaulting the variables to be safe
-        $branchStatusTextSpan.Text = "?"
+      $branchStatusTextSpan.Text = $s.BranchBehindAndAheadStatusSymbol.Text
+    }
+  }
+  elseif ($Status.BehindBy -ge 1) {
+    # We are behind remote
+    if (($s.BranchBehindAndAheadDisplay -eq "Full") -or ($s.BranchBehindAndAheadDisplay -eq "Compact")) {
+      $branchStatusTextSpan.Text = ("{0}{1}" -f $s.BranchBehindStatusSymbol.Text,$Status.BehindBy)
+    }
+    else {
+      $branchStatusTextSpan.Text = $s.BranchBehindStatusSymbol.Text
+    }
+  }
+  elseif ($Status.AheadBy -ge 1) {
+    # We are ahead of remote
+    if (($s.BranchBehindAndAheadDisplay -eq "Full") -or ($s.BranchBehindAndAheadDisplay -eq "Compact")) {
+      $branchStatusTextSpan.Text = ("{0}{1}" -f $s.BranchAheadStatusSymbol.Text,$Status.AheadBy)
+    }
+    else {
+      $branchStatusTextSpan.Text = $s.BranchAheadStatusSymbol.Text
+    }
+  }
+  else {
+    # This condition should not be possible but defaulting the variables to be safe
+    $branchStatusTextSpan.Text = "?"
+  }
+
+  $str = ""
+  if ($branchStatusTextSpan.Text) {
+    $textSpan = [PoshGitTextSpan]::new($branchStatusTextSpan)
+    if (!$NoLeadingSpace) {
+      $textSpan.Text = " " + $branchStatusTextSpan.Text
     }
 
-    $str = ""
-    if ($branchStatusTextSpan.Text) {
-        $textSpan = [PoshGitTextSpan]::new($branchStatusTextSpan)
-        if (!$NoLeadingSpace) {
-            $textSpan.Text = " " + $branchStatusTextSpan.Text
-        }
-
-        if ($StringBuilder) {
-            $StringBuilder | Write-Prompt $textSpan > $null
-        }
-        else {
-            $str = Write-Prompt $textSpan
-        }
+    if ($StringBuilder) {
+      $StringBuilder | Write-Prompt $textSpan > $null
     }
+    else {
+      $str = Write-Prompt $textSpan
+    }
+  }
 
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 <#
@@ -537,101 +537,101 @@ function Write-GitBranchStatus {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitIndexStatus {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the index status is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder,
+    # If specified the index status is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder,
 
-        # If specified, suppresses the output of the leading space character.
-        [Parameter()]
-        [switch]
-        $NoLeadingSpace
-    )
+    # If specified, suppresses the output of the leading space character.
+    [Parameter()]
+    [switch]
+    $NoLeadingSpace
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
+
+  $str = ""
+
+  if ($Status.HasIndex) {
+    if ($s.ShowStatusWhenZero -or $Status.Index.Added) {
+      $indexStatusText = " "
+      if ($NoLeadingSpace) {
+        $indexStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $indexStatusText += "$($s.FileAddedText)$($Status.Index.Added.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
+      }
+      else {
+        $str += Write-Prompt $indexStatusText -Color $s.IndexColor
+      }
     }
 
-    $str = ""
+    if ($s.ShowStatusWhenZero -or $status.Index.Modified) {
+      $indexStatusText = " "
+      if ($NoLeadingSpace) {
+        $indexStatusText = ""
+        $NoLeadingSpace = $false
+      }
 
-    if ($Status.HasIndex) {
-        if ($s.ShowStatusWhenZero -or $Status.Index.Added) {
-            $indexStatusText = " "
-            if ($NoLeadingSpace) {
-                $indexStatusText = ""
-                $NoLeadingSpace = $false
-            }
+      $indexStatusText += "$($s.FileModifiedText)$($status.Index.Modified.Count)"
 
-            $indexStatusText += "$($s.FileAddedText)$($Status.Index.Added.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
-            }
-            else {
-                $str += Write-Prompt $indexStatusText -Color $s.IndexColor
-            }
-        }
-
-        if ($s.ShowStatusWhenZero -or $status.Index.Modified) {
-            $indexStatusText = " "
-            if ($NoLeadingSpace) {
-                $indexStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $indexStatusText += "$($s.FileModifiedText)$($status.Index.Modified.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
-            }
-            else {
-                $str += Write-Prompt $indexStatusText -Color $s.IndexColor
-            }
-        }
-
-        if ($s.ShowStatusWhenZero -or $Status.Index.Deleted) {
-            $indexStatusText = " "
-            if ($NoLeadingSpace) {
-                $indexStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $indexStatusText += "$($s.FileRemovedText)$($Status.Index.Deleted.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
-            }
-            else {
-                $str += Write-Prompt $indexStatusText -Color $s.IndexColor
-            }
-        }
-
-        if ($Status.Index.Unmerged) {
-            $indexStatusText = " "
-            if ($NoLeadingSpace) {
-                $indexStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $indexStatusText += "$($s.FileConflictedText)$($Status.Index.Unmerged.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
-            }
-            else {
-                $str += Write-Prompt $indexStatusText -Color $s.IndexColor
-            }
-        }
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
+      }
+      else {
+        $str += Write-Prompt $indexStatusText -Color $s.IndexColor
+      }
     }
 
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+    if ($s.ShowStatusWhenZero -or $Status.Index.Deleted) {
+      $indexStatusText = " "
+      if ($NoLeadingSpace) {
+        $indexStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $indexStatusText += "$($s.FileRemovedText)$($Status.Index.Deleted.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
+      }
+      else {
+        $str += Write-Prompt $indexStatusText -Color $s.IndexColor
+      }
+    }
+
+    if ($Status.Index.Unmerged) {
+      $indexStatusText = " "
+      if ($NoLeadingSpace) {
+        $indexStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $indexStatusText += "$($s.FileConflictedText)$($Status.Index.Unmerged.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $indexStatusText -Color $s.IndexColor > $null
+      }
+      else {
+        $str += Write-Prompt $indexStatusText -Color $s.IndexColor
+      }
+    }
+  }
+
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 <#
@@ -652,101 +652,101 @@ function Write-GitIndexStatus {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitWorkingDirStatus {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the working dir status is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder,
+    # If specified the working dir status is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder,
 
-        # If specified, suppresses the output of the leading space character.
-        [Parameter()]
-        [switch]
-        $NoLeadingSpace
-    )
+    # If specified, suppresses the output of the leading space character.
+    [Parameter()]
+    [switch]
+    $NoLeadingSpace
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
+
+  $str = ""
+
+  if ($Status.HasWorking) {
+    if ($s.ShowStatusWhenZero -or $Status.Working.Added) {
+      $workingStatusText = " "
+      if ($NoLeadingSpace) {
+        $workingStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $workingStatusText += "$($s.FileAddedText)$($Status.Working.Added.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
+      }
+      else {
+        $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
+      }
     }
 
-    $str = ""
+    if ($s.ShowStatusWhenZero -or $Status.Working.Modified) {
+      $workingStatusText = " "
+      if ($NoLeadingSpace) {
+        $workingStatusText = ""
+        $NoLeadingSpace = $false
+      }
 
-    if ($Status.HasWorking) {
-        if ($s.ShowStatusWhenZero -or $Status.Working.Added) {
-            $workingStatusText = " "
-            if ($NoLeadingSpace) {
-                $workingStatusText = ""
-                $NoLeadingSpace = $false
-            }
+      $workingStatusText += "$($s.FileModifiedText)$($Status.Working.Modified.Count)"
 
-            $workingStatusText += "$($s.FileAddedText)$($Status.Working.Added.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
-            }
-            else {
-                $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
-            }
-        }
-
-        if ($s.ShowStatusWhenZero -or $Status.Working.Modified) {
-            $workingStatusText = " "
-            if ($NoLeadingSpace) {
-                $workingStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $workingStatusText += "$($s.FileModifiedText)$($Status.Working.Modified.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
-            }
-            else {
-                $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
-            }
-        }
-
-        if ($s.ShowStatusWhenZero -or $Status.Working.Deleted) {
-            $workingStatusText = " "
-            if ($NoLeadingSpace) {
-                $workingStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $workingStatusText += "$($s.FileRemovedText)$($Status.Working.Deleted.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
-            }
-            else {
-                $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
-            }
-        }
-
-        if ($Status.Working.Unmerged) {
-            $workingStatusText = " "
-            if ($NoLeadingSpace) {
-                $workingStatusText = ""
-                $NoLeadingSpace = $false
-            }
-
-            $workingStatusText += "$($s.FileConflictedText)$($Status.Working.Unmerged.Count)"
-
-            if ($StringBuilder) {
-                $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
-            }
-            else {
-                $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
-            }
-        }
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
+      }
+      else {
+        $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
+      }
     }
 
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+    if ($s.ShowStatusWhenZero -or $Status.Working.Deleted) {
+      $workingStatusText = " "
+      if ($NoLeadingSpace) {
+        $workingStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $workingStatusText += "$($s.FileRemovedText)$($Status.Working.Deleted.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
+      }
+      else {
+        $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
+      }
+    }
+
+    if ($Status.Working.Unmerged) {
+      $workingStatusText = " "
+      if ($NoLeadingSpace) {
+        $workingStatusText = ""
+        $NoLeadingSpace = $false
+      }
+
+      $workingStatusText += "$($s.FileConflictedText)$($Status.Working.Unmerged.Count)"
+
+      if ($StringBuilder) {
+        $StringBuilder | Write-Prompt $workingStatusText -Color $s.WorkingColor > $null
+      }
+      else {
+        $str += Write-Prompt $workingStatusText -Color $s.WorkingColor
+      }
+    }
+  }
+
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 <#
@@ -771,57 +771,57 @@ function Write-GitWorkingDirStatus {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitWorkingDirStatusSummary {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the working dir local status is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder,
+    # If specified the working dir local status is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder,
 
-        # If specified, suppresses the output of the leading space character.
-        [Parameter()]
-        [switch]
-        $NoLeadingSpace
-    )
+    # If specified, suppresses the output of the leading space character.
+    [Parameter()]
+    [switch]
+    $NoLeadingSpace
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
+
+  $str = ""
+
+  # No uncommited changes
+  $localStatusSymbol = $s.LocalDefaultStatusSymbol
+
+  if ($Status.HasWorking) {
+    # We have un-staged files in the working tree
+    $localStatusSymbol = $s.LocalWorkingStatusSymbol
+  }
+  elseif ($Status.HasIndex) {
+    # We have staged but uncommited files
+    $localStatusSymbol = $s.LocalStagedStatusSymbol
+  }
+
+  if ($localStatusSymbol.Text) {
+    $textSpan = [PoshGitTextSpan]::new($localStatusSymbol)
+    if (!$NoLeadingSpace) {
+      $textSpan.Text = " " + $localStatusSymbol.Text
     }
 
-    $str = ""
-
-    # No uncommited changes
-    $localStatusSymbol = $s.LocalDefaultStatusSymbol
-
-    if ($Status.HasWorking) {
-        # We have un-staged files in the working tree
-        $localStatusSymbol = $s.LocalWorkingStatusSymbol
+    if ($StringBuilder) {
+      $StringBuilder | Write-Prompt $textSpan > $null
     }
-    elseif ($Status.HasIndex) {
-        # We have staged but uncommited files
-        $localStatusSymbol = $s.LocalStagedStatusSymbol
+    else {
+      $str += Write-Prompt $textSpan
     }
+  }
 
-    if ($localStatusSymbol.Text) {
-        $textSpan = [PoshGitTextSpan]::new($localStatusSymbol)
-        if (!$NoLeadingSpace) {
-            $textSpan.Text = " " + $localStatusSymbol.Text
-        }
-
-        if ($StringBuilder) {
-            $StringBuilder | Write-Prompt $textSpan > $null
-        }
-        else {
-            $str += Write-Prompt $textSpan
-        }
-    }
-
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 <#
@@ -842,45 +842,45 @@ function Write-GitWorkingDirStatusSummary {
         is supplied. In this case, it returns a System.Text.StringBuilder.
 #>
 function Write-GitStashCount {
-    param(
-        # The Git status object that provides the status information to be written.
-        # This object is retrieved via the Get-GitStatus command.
-        [Parameter(Position = 0)]
-        $Status,
+  param(
+    # The Git status object that provides the status information to be written.
+    # This object is retrieved via the Get-GitStatus command.
+    [Parameter(Position = 0)]
+    $Status,
 
-        # If specified the working dir local status is written into the provided StringBuilder object.
-        [Parameter(ValueFromPipeline = $true)]
-        [System.Text.StringBuilder]
-        $StringBuilder
-    )
+    # If specified the working dir local status is written into the provided StringBuilder object.
+    [Parameter(ValueFromPipeline = $true)]
+    [System.Text.StringBuilder]
+    $StringBuilder
+  )
 
-    $s = $global:GitPromptSettings
-    if (!$Status -or !$s) {
-        return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  $s = $global:GitPromptSettings
+  if (!$Status -or !$s) {
+    return $(if ($StringBuilder) { $StringBuilder } else { "" })
+  }
+
+  $str = ""
+
+  if ($Status.StashCount -gt 0) {
+    $stashText = "$($Status.StashCount)"
+
+    if ($StringBuilder) {
+      $StringBuilder | Write-Prompt $s.BeforeStash > $null
+      $StringBuilder | Write-Prompt $stashText -Color $s.StashColor > $null
+      $StringBuilder | Write-Prompt $s.AfterStash > $null
     }
-
-    $str = ""
-
-    if ($Status.StashCount -gt 0) {
-        $stashText = "$($Status.StashCount)"
-
-        if ($StringBuilder) {
-            $StringBuilder | Write-Prompt $s.BeforeStash > $null
-            $StringBuilder | Write-Prompt $stashText -Color $s.StashColor > $null
-            $StringBuilder | Write-Prompt $s.AfterStash > $null
-        }
-        else {
-            $str += Write-Prompt $s.BeforeStash
-            $str += Write-Prompt $stashText -Color $s.StashColor
-            $str += Write-Prompt $s.AfterStash
-        }
+    else {
+      $str += Write-Prompt $s.BeforeStash
+      $str += Write-Prompt $stashText -Color $s.StashColor
+      $str += Write-Prompt $s.AfterStash
     }
+  }
 
-    return $(if ($StringBuilder) { $StringBuilder } else { $str })
+  return $(if ($StringBuilder) { $StringBuilder } else { $str })
 }
 
 if (!(Test-Path Variable:Global:VcsPromptStatuses)) {
-    $global:VcsPromptStatuses = @()
+  $global:VcsPromptStatuses = @()
 }
 
 <#
@@ -896,50 +896,50 @@ if (!(Test-Path Variable:Global:VcsPromptStatuses)) {
     with the global variable $VscPromptStatuses
 #>
 function Global:Write-VcsStatus {
-    Set-ConsoleMode -ANSI
+  Set-ConsoleMode -ANSI
 
-    $OFS = ""
-    $sb = [System.Text.StringBuilder]::new(256)
+  $OFS = ""
+  $sb = [System.Text.StringBuilder]::new(256)
 
-    foreach ($promptStatus in $global:VcsPromptStatuses) {
-        [void]$sb.Append("$(& $promptStatus)")
-    }
+  foreach ($promptStatus in $global:VcsPromptStatuses) {
+    [void]$sb.Append("$(& $promptStatus)")
+  }
 
-    if ($sb.Length -gt 0) {
-        $sb.ToString()
-    }
+  if ($sb.Length -gt 0) {
+    $sb.ToString()
+  }
 }
 
 # Add scriptblock that will execute for Write-VcsStatus
 $PoshGitVcsPrompt = {
-    try {
-        $global:GitStatus = Get-GitStatus
-        Write-GitStatus $GitStatus
+  try {
+    $global:GitStatus = Get-GitStatus
+    Write-GitStatus $GitStatus
+  }
+  catch {
+    $s = $global:GitPromptSettings
+    if ($s) {
+      $errorText = "PoshGitVcsPrompt error: $_"
+      $sb = [System.Text.StringBuilder]::new()
+
+      # When prompt is first (default), place the separator before the status summary
+      if (!$s.DefaultPromptWriteStatusFirst) {
+        $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
+      }
+      $sb | Write-Prompt $s.BeforeStatus > $null
+
+      $sb | Write-Prompt $errorText -Color $s.ErrorColor > $null
+      if ($s.Debug) {
+        if (!$s.AnsiConsole) { Write-Host }
+        Write-Verbose "PoshGitVcsPrompt error details: $($_ | Format-List * -Force | Out-String)" -Verbose
+      }
+      $sb | Write-Prompt $s.AfterStatus > $null
+
+      if ($sb.Length -gt 0) {
+        $sb.ToString()
+      }
     }
-    catch {
-        $s = $global:GitPromptSettings
-        if ($s) {
-            $errorText = "PoshGitVcsPrompt error: $_"
-            $sb = [System.Text.StringBuilder]::new()
-
-            # When prompt is first (default), place the separator before the status summary
-            if (!$s.DefaultPromptWriteStatusFirst) {
-                $sb | Write-Prompt $s.PathStatusSeparator.Expand() > $null
-            }
-            $sb | Write-Prompt $s.BeforeStatus > $null
-
-            $sb | Write-Prompt $errorText -Color $s.ErrorColor > $null
-            if ($s.Debug) {
-                if (!$s.AnsiConsole) { Write-Host }
-                Write-Verbose "PoshGitVcsPrompt error details: $($_ | Format-List * -Force | Out-String)" -Verbose
-            }
-            $sb | Write-Prompt $s.AfterStatus > $null
-
-            if ($sb.Length -gt 0) {
-                $sb.ToString()
-            }
-        }
-    }
+  }
 }
 
 $global:VcsPromptStatuses += $PoshGitVcsPrompt

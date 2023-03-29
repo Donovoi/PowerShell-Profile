@@ -4,13 +4,13 @@
 ###################################################################################
 
 param(
-      [string]$Password,
-      [string]$DirName
+  [string]$Password,
+  [string]$DirName
 )
 
 Set-StrictMode -Version Latest;
 if ("" -eq $DirName) {
-      Write-Error "Empty dir!";
+  Write-Error "Empty dir!";
 }
 
 [string]$pathToSignTool = "C:\Program Files (x86)\Windows Kits\8.0\bin\x64\signtool.exe";
@@ -29,8 +29,8 @@ New-Item -Path "$($pathToProjectRoot)\out\$($DirName)\" -Name "sources" -ItemTyp
 New-Item -Path "$($pathToProjectRoot)\out\$($DirName)\" -Name "samples" -ItemType directory
 
 # Version .NET 3.5
-Start-Process -FilePath $pathToSignTool -ArgumentList @("sign", "/f", "$($pathToCertificate)", "/t", "$($pathToTimeStamp)", "/p", "$($Password)", "$($pathToProjectRoot)\TMX\TMX\bin\Release35\TMX.dll") -NoNewWindow;
-Start-Process -FilePath $pathToSignTool -ArgumentList @("sign", "/f", "$($pathToCertificate)", "/t", "$($pathToTimeStamp)", "/p", "$($Password)", "$($pathToProjectRoot)\TMX\TMX\bin\Release35\PSTestLibrary.dll") -NoNewWindow;
+Start-Process -FilePath $pathToSignTool -ArgumentList @("sign","/f","$($pathToCertificate)","/t","$($pathToTimeStamp)","/p","$($Password)","$($pathToProjectRoot)\TMX\TMX\bin\Release35\TMX.dll") -NoNewWindow;
+Start-Process -FilePath $pathToSignTool -ArgumentList @("sign","/f","$($pathToCertificate)","/t","$($pathToTimeStamp)","/p","$($Password)","$($pathToProjectRoot)\TMX\TMX\bin\Release35\PSTestLibrary.dll") -NoNewWindow;
 
 Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX\bin\Release35\TMX.dll" -Destination "$($pathToProjectRoot)\out\$($DirName)\35-32"
 Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX\bin\Release35\PSTestLibrary.dll" -Destination "$($pathToProjectRoot)\out\$($DirName)\35-32"
@@ -40,8 +40,8 @@ Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX\bin\Release35\PSTestLibrary.dll" 
 Copy-Item -Path "$($pathToProjectRoot)\binaries\sqlite\35\64\*sqlite*" -Destination "$($pathToProjectRoot)\out\$($DirName)\35-64"
 
 # Version .NET 4.0
-Start-Process -FilePath $pathToSignTool -ArgumentList @("sign", "/f", "$($pathToCertificate)", "/t", "$($pathToTimeStamp)", "/p", "$($Password)", "$($pathToProjectRoot)\TMX\TMX40\bin\Release35\TMX.dll") -NoNewWindow;
-Start-Process -FilePath $pathToSignTool -ArgumentList @("sign", "/f", "$($pathToCertificate)", "/t", "$($pathToTimeStamp)", "/p", "$($Password)", "$($pathToProjectRoot)\TMX\TMX40\bin\Release35\PSTestLibrary.dll") -NoNewWindow;
+Start-Process -FilePath $pathToSignTool -ArgumentList @("sign","/f","$($pathToCertificate)","/t","$($pathToTimeStamp)","/p","$($Password)","$($pathToProjectRoot)\TMX\TMX40\bin\Release35\TMX.dll") -NoNewWindow;
+Start-Process -FilePath $pathToSignTool -ArgumentList @("sign","/f","$($pathToCertificate)","/t","$($pathToTimeStamp)","/p","$($Password)","$($pathToProjectRoot)\TMX\TMX40\bin\Release35\PSTestLibrary.dll") -NoNewWindow;
 
 Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX40\bin\Release35\TMX.dll" -Destination "$($pathToProjectRoot)\out\$($DirName)\40-32"
 Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX40\bin\Release35\PSTestLibrary.dll" -Destination "$($pathToProjectRoot)\out\$($DirName)\40-32"
@@ -51,11 +51,11 @@ Copy-Item -Path "$($pathToProjectRoot)\TMX\TMX40\bin\Release35\PSTestLibrary.dll
 Copy-Item -Path "$($pathToProjectRoot)\binaries\sqlite\40\64\*sqlite*" -Destination "$($pathToProjectRoot)\out\$($DirName)\40-64"
 
 # Source code
-Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\TMX\*.?s*", "$($pathToProjectRoot)\out\$($DirName)\sources\TMX\", "/s", "/v", "/i", "/exclude:exclude_TMX.txt") -NoNewWindow -PassThru;
-Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\PS\*.cs*", "$($pathToProjectRoot)\out\$($DirName)\sources\PS\", "/s", "/v", "/i") -NoNewWindow -PassThru;
-Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\PSTestLib\*.cs*", "$($pathToProjectRoot)\out\$($DirName)\sources\PSTestLib\", "/s", "/v", "/i") -NoNewWindow -PassThru;
+Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\TMX\*.?s*","$($pathToProjectRoot)\out\$($DirName)\sources\TMX\","/s","/v","/i","/exclude:exclude_TMX.txt") -NoNewWindow -Passthru;
+Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\PS\*.cs*","$($pathToProjectRoot)\out\$($DirName)\sources\PS\","/s","/v","/i") -NoNewWindow -Passthru;
+Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\PSTestLib\*.cs*","$($pathToProjectRoot)\out\$($DirName)\sources\PSTestLib\","/s","/v","/i") -NoNewWindow -Passthru;
 Copy-Item -Path "$($pathToProjectRoot)\*.sln" -Destination "$($pathToProjectRoot)\out\$($DirName)\sources";
 
 # Samples
-Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\samples\TMX\*.ps*", "$($pathToProjectRoot)\out\$($DirName)\samples", "/s", "/v", "/i") -NoNewWindow -PassThru;
+Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\samples\TMX\*.ps*","$($pathToProjectRoot)\out\$($DirName)\samples","/s","/v","/i") -NoNewWindow -Passthru;
 return;

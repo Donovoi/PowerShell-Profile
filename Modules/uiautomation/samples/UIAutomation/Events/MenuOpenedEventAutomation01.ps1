@@ -5,10 +5,10 @@
 ####################################################################################################
 
 Set-StrictMode -Version Latest;
-ipmo $global:uiautomationModule;
+Import-Module $global:uiautomationModule;
 
-Start-Process calc -PassThru | `
-	Get-UIAWindow | `
-	Register-UIAMenuOpenedEvent `
-	-EventAction { [System.Windows.Forms.MessageBox]::Show("menu opened"); }; 
+Start-Process calc -Passthru | `
+   Get-UIAWindow | `
+   Register-UIAMenuOpenedEvent `
+   -EventAction { [System.Windows.Forms.MessageBox]::show("menu opened"); };
 Get-UIAMenuItem -Name Vi* | Invoke-UIAMenuItemExpand;

@@ -1,3 +1,3 @@
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAButton -n 1 | Invoke-UIAButtonClick;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -n 1 | Invoke-UIAButtonClick;
 Show-UIAExecutionPlan;
-Start-Process calc -PassThru | Get-UIAWindow | Get-UIAButton | Invoke-UIAButtonClick;
+Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton | Invoke-UIAButtonClick;

@@ -5,9 +5,9 @@
 ####################################################################################################
 
 Set-StrictMode -Version Latest;
-ipmo $global:uiautomationModule;
+Import-Module $global:uiautomationModule;
 
-Start-Process calc -PassThru | `
-	Get-UIAWindow | `
-	Register-UIAMenuOpenedEvent -EventAction { ; };
+Start-Process calc -Passthru | `
+   Get-UIAWindow | `
+   Register-UIAMenuOpenedEvent -EventAction {; };
 (Wait-UIAEventRaised -Name View).Cached;

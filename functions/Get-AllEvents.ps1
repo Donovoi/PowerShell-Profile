@@ -1,9 +1,9 @@
 
-Function Get-AllEvents {
+function Get-AllEvents {
   param(
     [CmdletBinding()]
-    [Parameter(ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True, HelpMessage = 'Enter the one or more hosts')]
-    [Alias('ComputerName', 'MachineName', 'Server', 'Host')]
+    [Parameter(ValueFromPipeline = $True,ValueFromPipelineByPropertyName = $True,HelpMessage = 'Enter the one or more hosts')]
+    [Alias('ComputerName','MachineName','Server','Host')]
     [switch]$ExportToCsv,
     [string]$ExportToCSVPath = '.'
   )
@@ -18,7 +18,7 @@ Function Get-AllEvents {
   function Convert-XAMLtoWindow {
     param
     (
-      [Parameter(mandatory = $true)]
+      [Parameter(Mandatory = $true)]
       [string]
       $XAML,
 
@@ -47,42 +47,42 @@ Function Get-AllEvents {
 
   function Get-Events {
     param(
-      [Parameter(mandatory = $true, HelpMessage = 'Please enter the full start date and time')]
-      [Alias('BeginDate', 'BeginTime', 'StartDate')]
+      [Parameter(Mandatory = $true,HelpMessage = 'Please enter the full start date and time')]
+      [Alias('BeginDate','BeginTime','StartDate')]
       [ValidateScript({
-        (Get-Date $_)
+          (Get-Date $_)
         })]
       [datetime]$StartTime,
-      [Parameter(mandatory = $true, HelpMessage = 'Please enter the full end date and time')]
+      [Parameter(Mandatory = $true,HelpMessage = 'Please enter the full end date and time')]
       [Alias('EndDate')]
       [ValidateScript({
-        (Get-Date $_)
+          (Get-Date $_)
         })]
       [datetime]$EndTime
     )
 
     $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ea 0
     $err | ForEach-Object -Process {
-      $warnmessage = $_.exception.message -replace '.*about the ', ''
+      $warnmessage = $_.exception.message -replace '.*about the ',''
       Write-Warning -Message $warnmessage
     }
 
-    $Count = $EventLogs.count
+    $Count = $EventLogs.Count
 
     $Events = $EventLogs |
 
     ForEach-Object -Process {
       $LogName = $_.logname
-      $Index = [array]::IndexOf($EventLogs, $_)
+      $Index = [array]::IndexOf($EventLogs,$_)
       $Percentage = $Index / $Count
       $Message = "Retrieving events from Logs ($Index of $Count)"
 
       Write-Progress -Activity $Message -PercentComplete ($Percentage * 100) -CurrentOperation $LogName -Status 'Processing ...'
 
       Get-WinEvent -FilterHashtable @{
-        logname   = $LogName
+        logname = $LogName
         StartTime = $StartTime
-        EndTime   = $EndTime
+        EndTime = $EndTime
       } -ea 0
     }
 
@@ -90,7 +90,7 @@ Function Get-AllEvents {
 
       $Global:EventsSorted = $Events |
       Sort-Object -Property timecreated |
-      Select-Object -Property timecreated, id, logname, leveldisplayname, message
+      Select-Object -Property timecreated,id,logname,leveldisplayname,message
 
       Write-Progress -Activity 'Almost there' -PercentComplete 100 -CurrentOperation 'Generating gridview output data ...' -Completed -Status 'Done'
 
@@ -103,8 +103,8 @@ Function Get-AllEvents {
         }
         else {
           $date = Get-Date
-          $filename = "Events_$date`_$Computer.csv" -replace ':', '_'
-          $filename = $filename -replace '/', '-'
+          $filename = "Events_$date`_$Computer.csv" -replace ':','_'
+          $filename = $filename -replace '/','-'
           $EventsSorted | Export-Csv ($ExportToCSVPath + '\' + $Filename) -NoTypeInformation -Verbose
         }
       }
@@ -112,7 +112,7 @@ Function Get-AllEvents {
 
         try {
           $EventsSorted |
-          Out-GridView -Title 'Events Found' 
+          Out-GridView -Title 'Events Found'
         }
         catch {
           Write-Warning 'Error using the ''Out-GridView'' cmdlet, use the ''$EventsSorted'' variable to see all found events sorted on date and time. Or use the -ExportToCSV parameter with this script to Export the results to CSV'
@@ -135,7 +135,7 @@ Function Get-AllEvents {
 
     $objForm = New-Object -TypeName System.Windows.Forms.Form
     $objForm.Text = 'Retrieve All Events'
-    $objForm.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (525, 300)
+    $objForm.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (525,300)
     $objForm.StartPosition = 'CenterScreen'
 
     $objForm.KeyPreview = $true
@@ -152,8 +152,8 @@ Function Get-AllEvents {
       })
 
     $RetrieveButton = New-Object -TypeName System.Windows.Forms.Button
-    $RetrieveButton.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (200, 216)
-    $RetrieveButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (80, 25)
+    $RetrieveButton.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (200,216)
+    $RetrieveButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (80,25)
     $RetrieveButton.Text = 'Retrieve'
     $RetrieveButton.Add_Click({
         $timevalue1 = $objTextBox3 -split ' '
@@ -178,34 +178,34 @@ Function Get-AllEvents {
     $Time1 = ($CurrentDate).addhours(-1)
 
     $objLabel = New-Object -TypeName System.Windows.Forms.DateTimePicker
-    $objLabel.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (12, 80)
+    $objLabel.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (12,80)
     $objForm.Controls.Add($objLabel)
 
     $objLabel2 = New-Object -TypeName System.Windows.Forms.DateTimePicker
-    $objLabel2.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (250, 80)
+    $objLabel2.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (250,80)
     $objForm.Controls.Add($objLabel2)
 
     $objTextBox1 = New-Object -TypeName System.Windows.Forms.label
-    $objTextBox1.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (100, 40)
+    $objTextBox1.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (100,40)
     $objTextBox1.Text = 'Start'
     $objForm.Controls.Add($objTextBox1)
 
     $objTextBox2 = New-Object -TypeName System.Windows.Forms.label
-    $objTextBox2.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (350, 40)
+    $objTextBox2.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (350,40)
     $objTextBox2.Text = 'End'
     $objForm.Controls.Add($objTextBox2)
 
     $objTextBox3 = New-Object -TypeName System.Windows.Forms.DateTimePicker
-    $objTextBox3.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (12, 100)
-    $objTextBox3.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (90, 20)
+    $objTextBox3.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (12,100)
+    $objTextBox3.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (90,20)
     $objTextBox3.Format = 'Time'
     $objTextBox3.ShowUpDown = $true
     $objTextBox3.Text = $Time1
     $objForm.Controls.Add($objTextBox3)
 
     $objTextBox4 = New-Object -TypeName System.Windows.Forms.DateTimePicker
-    $objTextBox4.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (250, 100)
-    $objTextBox4.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (90, 20)
+    $objTextBox4.Location = New-Object -TypeName System.Drawing.Size -ArgumentList (250,100)
+    $objTextBox4.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (90,20)
     $objTextBox4.Format = 'Time'
     $objTextBox4.ShowUpDown = $true
     $objTextBox4.Text = $Time2
@@ -254,7 +254,7 @@ Function Get-AllEvents {
 </Window>
 '@
 
-    $window = Convert-XAMLtoWindow -XAML $XAML -NamedElements 'Retrieve', 'Begin', 'DateBegin', 'DateEnd', 'Time1', 'Time2', 'Begin1', 'End' -PassThru
+    $window = Convert-XAMLtoWindow -XAML $XAML -NamedElements 'Retrieve','Begin','DateBegin','DateEnd','Time1','Time2','Begin1','End' -Passthru
 
 
     # $window.Retrieve.Add_MouseEnter(

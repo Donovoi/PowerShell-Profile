@@ -1,5 +1,5 @@
-ipmo C:\Projects\PS\UIAutomation.Old\UIAutomationSpy\bin\Release35\TMX.dll
-ipmo C:\Projects\PS\UIAutomation.Old\UIAutomationSpy\bin\Release35\UIAutomation.dll
+Import-Module C:\Projects\PS\UIAutomation.Old\UIAutomationSpy\bin\Release35\TMX.dll
+Import-Module C:\Projects\PS\UIAutomation.Old\UIAutomationSpy\bin\Release35\UIAutomation.dll
 [UIAutomation.Preferences]::EveryCmdletAsTestResult = $true
 [UIAutomation.Preferences]::OnSuccessDelay = 0;
 Start-Process calc

@@ -15,27 +15,27 @@
 
 
 function Get-Everything {
-    [CmdletBinding()]
-    param (
-        # Everything executable path
-        [Parameter(Mandatory = $true)]
-        [ParameterType]
-        $EverythingEXE
-    )
-    
-    begin {
-        # we need to check if the Everything executable is present
-    }
-    
-    process {
-        Start-Process -FilePath  ".\Non PowerShell Tools\everything portable\es.exe" -ArgumentList "-full-path-and-name -export-csv OUTPUT.csv folder: D:\ -no-header" -Wait -NoNewWindow
+  [CmdletBinding()]
+  param(
+    # Everything executable path
+    [Parameter(Mandatory = $true)]
+    [ParameterType]
+    $EverythingEXE
+  )
+
+  begin {
+    # we need to check if the Everything executable is present
+  }
+
+  process {
+    Start-Process -FilePath ".\Non PowerShell Tools\everything portable\es.exe" -ArgumentList "-full-path-and-name -export-csv OUTPUT.csv folder: D:\ -no-header" -Wait -NoNewWindow
 
 
-        [string[]]$FilePathsArray = Get-Content .\OUTPUT.csv -ReadCount 0
-    
-    }
-    
-    end {
-        
-    }
+    [string[]]$FilePathsArray = Get-Content .\OUTPUT.csv -ReadCount 0
+
+  }
+
+  end {
+
+  }
 }
