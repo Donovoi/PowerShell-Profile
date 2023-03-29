@@ -3,7 +3,7 @@ param(
 )
 
 [string]$baseFolder =
-$MyInvocation.MyCommand.Path.Substring(0,$MyInvocation.MyCommand.Path.LastIndexOf("\"));
+$MyInvocation.MyCommand.path.Substring(0,$MyInvocation.MyCommand.path.LastIndexOf("\"));
 $baseFolder = $baseFolder.Substring(0,$baseFolder.LastIndexOf("\"));
 $projectFolder =
 "C:\Projects\PS\STUPS\";
