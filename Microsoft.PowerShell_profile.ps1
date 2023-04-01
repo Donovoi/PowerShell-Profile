@@ -19,7 +19,7 @@ $ENV:PATH += ";$XWAYSUSB`:\chocolatey apps\chocolatey\bin;"
 $chococommand = choco
 if ([string]::IsNullOrEmpty($chococommand)) {
   Remove-Item -Path "C:\ProgramData\chocolatey" -Recurse -Force -ErrorAction SilentlyContinue
-  cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" -and Set-Variable "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
+  cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"; Set-Variable "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
 }
 
 $env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\chocolatey apps\chocolatey\bin\"
