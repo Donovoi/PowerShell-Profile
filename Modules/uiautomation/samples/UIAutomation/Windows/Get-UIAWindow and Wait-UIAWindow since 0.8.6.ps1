@@ -98,3 +98,4 @@ Get-UIAWindow -pn calc -Seconds 60 -WithControl @{ controlType = "button"; Name 
 # the Get-UIAWindow cmdlet immediately returns the window. The CAD button is the button that has name "Clear all..."
 
 
+

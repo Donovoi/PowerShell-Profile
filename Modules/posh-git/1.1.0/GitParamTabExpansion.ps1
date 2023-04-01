@@ -213,3 +213,4 @@ $gitParamValues = @{
     conflict = 'merge diff3'
   }
 }
+

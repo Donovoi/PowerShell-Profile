@@ -20,3 +20,4 @@ Get-UIAWindow -pn calc -Class *frame*;
 Get-UIAWindow -pn calc -Class *327* | Read-UIAControlClass;
 Get-UIAWindow -pn calc -Class "#32770";
 
+

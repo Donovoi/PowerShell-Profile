@@ -1,4 +1,4 @@
-﻿####################################################################################################
+####################################################################################################
 # Script name: MSPaintAutomation.ps1
 # Description: demonstrates using of menu in mspaint (Windows 7)
 # Copyright:   http://SoftwareTestingUsingPowerShell.com, 2012
@@ -15,3 +15,4 @@ try {
 catch {
   Write-Host "the previous picture was as clean as snow";
 }
+

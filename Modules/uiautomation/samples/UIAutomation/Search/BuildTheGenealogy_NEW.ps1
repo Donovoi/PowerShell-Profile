@@ -20,3 +20,4 @@ ForEach-Object { Write-Host "===================================================
   ForEach-Object { Write-Host "@{Name='$($_.Current.Name)'; 
 	AutomationId='$($_.Current.AutomationId)'; 
 	ControlType='$($_.Current.ControlType.ProgrammaticName)'}"; } };
+

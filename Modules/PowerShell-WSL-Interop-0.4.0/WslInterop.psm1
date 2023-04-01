@@ -1,4 +1,4 @@
-﻿function global:Import-WslCommand () {
+function global:Import-WslCommand () {
 <#
     .SYNOPSIS
     Import Linux commands into the session as PowerShell functions with argument completion.
@@ -272,3 +272,4 @@ function global:Format-WslArgument ([string]$arg,[bool]$interactive) {
 
   return $arg
 }
+

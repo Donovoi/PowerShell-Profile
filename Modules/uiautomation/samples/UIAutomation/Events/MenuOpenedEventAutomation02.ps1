@@ -14,3 +14,4 @@ Start-Process calc -Passthru | `
      param($src,$e)
   [System.Windows.Forms.MessageBox]::show("menu opened: Name='" + $src.Cached.Name + "'; AutomationId='" + $src.Cached.AutomatioId + "'"); };
 Get-UIAMenuItem -Name Vi* | Invoke-UIAMenuItemExpand;
+

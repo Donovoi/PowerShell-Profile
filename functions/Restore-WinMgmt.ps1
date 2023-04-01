@@ -11,3 +11,4 @@ function Restore-WinMgmt {
     Set-Content config Winmgmt start= auto
   }
 }
+

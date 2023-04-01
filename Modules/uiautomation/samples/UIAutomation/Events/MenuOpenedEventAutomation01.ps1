@@ -12,3 +12,4 @@ Start-Process calc -Passthru | `
    Register-UIAMenuOpenedEvent `
    -EventAction { [System.Windows.Forms.MessageBox]::show("menu opened"); };
 Get-UIAMenuItem -Name Vi* | Invoke-UIAMenuItemExpand;
+

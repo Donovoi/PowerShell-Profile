@@ -1,4 +1,4 @@
-﻿function Install-Apps {
+function Install-Apps {
 
   [CmdletBinding()]
   param(
@@ -46,3 +46,4 @@
 
   }
 }
+

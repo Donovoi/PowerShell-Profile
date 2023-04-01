@@ -602,3 +602,4 @@ function Get-MFT {
   Write-Verbose "[+] Done, execution time: $($ScriptTime.Elapsed)"
 
 }
+

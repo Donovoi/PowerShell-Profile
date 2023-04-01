@@ -5,3 +5,4 @@ Get-UIAMenuItem Mortgage | Invoke-UIAMenuItemClick;
 Get-UIAEdit *purchase*price* -Win32 | Set-UIAEditText "123";
 Get-UIAEdit *purchase*price* -Win32 | Clear-UIAControlText;
 
+

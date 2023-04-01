@@ -97,3 +97,4 @@ function Get-ForegroundVirtualTerminalSequence ($Color) {
 function Get-BackgroundVirtualTerminalSequence ($Color) {
   return Get-VirtualTerminalSequence $Color 10
 }
+

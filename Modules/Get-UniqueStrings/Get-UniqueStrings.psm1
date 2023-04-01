@@ -58,3 +58,4 @@ function Import-Content {
 # This improves performance of command discovery in PowerShell.
 Export-ModuleMember -Function *-*
 Export-ModuleMember -Function GetStrings
+

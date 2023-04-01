@@ -26,3 +26,4 @@ function Get-LatestGitHubRelease {
   }
 }
 
+

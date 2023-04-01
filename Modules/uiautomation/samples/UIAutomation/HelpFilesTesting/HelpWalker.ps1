@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$FileName,
   [string]$AppTitle,
   [string]$HelpTitle
@@ -103,3 +103,4 @@ function Invoke-TreeNodeChildrenProcess {
 # first time, the tree is given as the root node
 $rootNode = Get-UIATree -Seconds 120;
 Invoke-TreeNodeChildrenProcess $rootNode;
+

@@ -25,3 +25,4 @@ function Get-LatestVersion () {
   return $version
 
 }
+

@@ -1,4 +1,4 @@
-﻿####################################################################################################
+####################################################################################################
 # Script name: HelpWalker3.ps1
 # Description: demonstrates how to work with the Invoke-UIATreeItemScrollItem cmdlet
 #              and how to check hyperlinks
@@ -193,3 +193,4 @@ Invoke-TreeNodeChildrenProcess $rootNode;
 Export-TMXTestResults -As HTML -Path C:\1\help_test_reslt.htm
 "Test finished" >> $logFile;
 Get-Date >> $logFile;
+

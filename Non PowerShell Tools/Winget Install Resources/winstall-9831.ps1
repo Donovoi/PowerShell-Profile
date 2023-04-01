@@ -358,3 +358,4 @@ winget install --id=Microsoft.DotNet.Framework.DeveloperPack_4 -e
 winget install --id=9P7KNL5RWT25 -e
 winget install --id=XP89DCGQ3K6VLD -e
 winget install --id=Elastic.Elasticsearch -e
+

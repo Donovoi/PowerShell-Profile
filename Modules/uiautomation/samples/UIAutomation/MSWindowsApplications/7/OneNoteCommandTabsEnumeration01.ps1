@@ -1,4 +1,4 @@
-﻿[UIAutomation.Preferences]::OnSuccessDelay = 0;
+[UIAutomation.Preferences]::OnSuccessDelay = 0;
 
 Get-UIAWindow -pn onenote | `
    Get-UIAControlDescendants -ControlType TabItem | `
@@ -19,3 +19,4 @@ Get-UIAWindow -pn onenote | `
      "$($_.Current.AutomationId)`t" `
      "$($_.Current.ClassName)";
 }
+

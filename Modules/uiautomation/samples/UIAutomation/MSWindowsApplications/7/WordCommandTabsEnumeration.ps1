@@ -1,4 +1,4 @@
-﻿[UIAutomation.Preferences]::OnSuccessDelay = 0;
+[UIAutomation.Preferences]::OnSuccessDelay = 0;
 
 Get-UIAWindow -pn winword | `
    Get-UIAControlDescendants -ControlType TabItem | `
@@ -19,3 +19,4 @@ Get-UIAWindow -pn winword | `
      "$($_.Current.AutomationId)`t" `
      "$($_.Current.ClassName)";
 }
+

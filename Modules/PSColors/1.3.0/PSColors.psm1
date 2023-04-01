@@ -1,4 +1,4 @@
-﻿
+
 # Function to check wheter current Console support ANSI codes
 function Test-Ansi {
 
@@ -100,7 +100,7 @@ function prompt {
   $drive = (Get-Location).Drive
 
   if ($drive.Root -eq "$($drive.Name):\") {
-    $title = $executionContext.SessionState.Path.CurrentLocation
+    $title = $executionContext.SessionState.path.CurrentLocation
 
     if ($branch) {
       $title = "[$branch] $title";
@@ -140,7 +140,7 @@ function prompt {
   }
 
   # Write prompt info
-  Write-Host $executionContext.SessionState.Path.CurrentLocation -NoNewline -ForegroundColor $color;
+  Write-Host $executionContext.SessionState.path.CurrentLocation -NoNewline -ForegroundColor $color;
   Write-Host ('>' * ($nestedPromptLevel + 1)) -NoNewline -ForegroundColor $color;
 
   # Prevents PowerShell default prompt printing
@@ -287,4 +287,5 @@ if ($Script:HasAnsi) {
   # If ANSI is active, use custom PSColors.format.ps1xml for output coloring
   Update-FormatData -Prepend (Join-Path $PSScriptRoot PSColors.format.ps1xml)
 }
+
 

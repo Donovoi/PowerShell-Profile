@@ -46,3 +46,4 @@ else {
   Copy-Item -Path "$($JavaAccessBridgeFolder)\access-bridge.jar" -Destination "$($JAVAHOME)\lib\ext"
   Copy-Item -Path "$($JavaAccessBridgeFolder)\jaccess.jar" -Destination "$($JAVAHOME)\lib\ext"
 }
+

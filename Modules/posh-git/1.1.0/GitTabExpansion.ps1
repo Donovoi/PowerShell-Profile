@@ -610,3 +610,4 @@ Microsoft.PowerShell.Core\Register-ArgumentCompleter -CommandName Remove-GitBran
 
   gitBranches $WordToComplete $true
 }
+

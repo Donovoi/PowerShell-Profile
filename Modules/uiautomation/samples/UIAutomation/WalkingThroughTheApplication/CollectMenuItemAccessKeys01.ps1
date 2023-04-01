@@ -21,3 +21,4 @@ foreach ($menuItemLevel1 in $topLevelMenuItems) {
   catch {}
 }
 Stop-Process -Name mmc
+

@@ -59,3 +59,4 @@ Copy-Item -Path "$($pathToProjectRoot)\*.sln" -Destination "$($pathToProjectRoot
 # Samples
 Start-Process -FilePath "xcopy" -ArgumentList @("$($pathToProjectRoot)\samples\TMX\*.ps*","$($pathToProjectRoot)\out\$($DirName)\samples","/s","/v","/i") -NoNewWindow -Passthru;
 return;
+

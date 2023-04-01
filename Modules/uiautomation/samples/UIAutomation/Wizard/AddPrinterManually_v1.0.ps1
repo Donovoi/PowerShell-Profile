@@ -1,4 +1,4 @@
-﻿Import-Module C:\Projects\PS\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.dll
+Import-Module C:\Projects\PS\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.dll
 
 [scriptblock]$backwardAction = { Get-UIAButton -AutomationId 'backbutton' | Invoke-UIAButtonClick; };
 [scriptblock]$cancelAction = { Get-UIAButton -AutomationId 'cancelbutton' | Invoke-UIAButtonClick; };
@@ -152,3 +152,4 @@ New-UIAWizard -Name AddPrinterWizard `
 #Invoke-UIAWizard -Automatic -ForwardDirection -Name AddPrinterWizard -Verbose;
 #Invoke-UIAWizard -Automatic -ForwardDirection -Name AddPrinterWizard -Parameters @{step="Step05PrinterData";action="forward";parameters=@("printer_parameterized","port_parameterized")}
 Invoke-UIAWizard -Automatic -ForwardDirection -Name AddPrinterWizard -Parameters @{ step = "Step05PrinterData"; action = "forward"; Parameters = @("printer_parameterized_2","port_parameterized_2") }
+

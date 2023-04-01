@@ -12,3 +12,4 @@ Get-UIAListItem -Name people | Invoke-UIAListItemClick;
 
 
 Get-UIAListItem -Name finan* | Invoke-UIAListItemClick;
+

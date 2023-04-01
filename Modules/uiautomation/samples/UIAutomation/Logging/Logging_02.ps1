@@ -5,3 +5,4 @@ Import-Module C:\Projects\ps\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.d
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -n [1-3] | Invoke-UIAButtonClick;
 
 
+

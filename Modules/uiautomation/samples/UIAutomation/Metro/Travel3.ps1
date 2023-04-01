@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 [UIAutomation.Preferences]::Timeout = 10000;
 [UIAutomation.Preferences]::EveryCmdletAsTestResult = $true;
@@ -174,3 +174,4 @@ Get-UIAWindow -Name 'Travel' | `
 
 # Check that this is the 'Best Of Web' page and run code (in the future sample)
 $wizard | Step-UIAWizard -Name $constWizardStepBestOfWeb;
+

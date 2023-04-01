@@ -14,3 +14,4 @@ function Set-PowerCFG {
   powercfg -change hibernate-timeout-ac 0
   powercfg -change hibernate-timeout-dc 0
 }
+

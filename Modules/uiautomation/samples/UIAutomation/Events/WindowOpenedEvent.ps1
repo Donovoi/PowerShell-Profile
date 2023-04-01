@@ -19,3 +19,4 @@ Get-UIAMenuItem -Name File | `
    Get-UIAMenuItem -Name Opt* | `
    Invoke-UIAMenuItemClick;
 
+

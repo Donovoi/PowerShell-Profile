@@ -9,3 +9,4 @@ Get-UIAWindow -Name calc*
 [UIAutomation.Preferences]::Timeout
 [UIAutomation.Preferences]::AfterFailTurboTimeout
 
+

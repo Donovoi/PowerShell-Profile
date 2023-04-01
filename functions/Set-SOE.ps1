@@ -71,7 +71,7 @@ function Set-SOE {
     Install-PackageProvider -Name NuGet -RequiredVersion 2.8.5.201 -Force -Scope CurrentUser
 
     Install-Module -Name WingetTools -Force
-    if ($psversiontable.psversion.Major -gt 5) {
+    if ($psversiontable.psversion.major -gt 5) {
       Install-Module -Name WindowsCompatibility -Force -Verbose
     }
 
@@ -146,4 +146,5 @@ function Set-SOE {
     RefreshEnv.cmd
   }
 }
+
 

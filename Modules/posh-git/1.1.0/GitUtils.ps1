@@ -48,7 +48,7 @@ function Get-GitDirectory {
 
           $bareDir = Invoke-Utf8ConsoleCommand { git rev-parse --git-dir 2>$null }
           if ($bareDir -and (Test-Path -LiteralPath $bareDir -PathType Container)) {
-            $resolvedBareDir = (Resolve-Path $bareDir).Path
+            $resolvedBareDir = (Resolve-Path $bareDir).path
             return $resolvedBareDir
           }
         }
@@ -450,7 +450,7 @@ function InDotGitOrBareRepoDir ([string][ValidateNotNullOrEmpty()] $GitDir) {
   # In this case, ProviderPath is "\LocalMachine\My"" whereas Path is "Cert:\LocalMachine\My".
   # The latter is more desirable.
   $pathInfo = Microsoft.PowerShell.Management\Get-Location
-  $currentPath = if ($pathInfo.Drive) { $pathInfo.Path } else { $pathInfo.ProviderPath }
+  $currentPath = if ($pathInfo.Drive) { $pathInfo.path } else { $pathInfo.ProviderPath }
   $separator = [System.IO.Path]::DirectorySeparatorChar
   $res = "$currentPath$separator".StartsWith("$GitDir$separator",(Get-PathStringComparison))
   $res
@@ -634,3 +634,4 @@ function Update-AllBranches ($Upstream = 'master',[switch]$Quiet) {
 
   git checkout -q $head
 }
+

@@ -33,3 +33,4 @@ Wait-UIAWindow -pid (Get-Process calc).Id -n *asdf*;
 Wait-UIAWindow -n *about*
 # $true
 Wait-UIAWindow -n *about* -Recurse
+

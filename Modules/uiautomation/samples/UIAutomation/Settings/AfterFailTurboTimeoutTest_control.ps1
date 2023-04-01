@@ -11,3 +11,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1 #-Verbose
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1 -IsCritical
 [UIAutomation.Preferences]::Timeout
 
+
