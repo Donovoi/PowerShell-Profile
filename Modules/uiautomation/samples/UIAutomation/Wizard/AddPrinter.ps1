@@ -1,4 +1,4 @@
-﻿[string]$TMXmodule = 'C:\tests\TMX.dll'; #'E:\G\Projects\PS\UIAutomation\UIAutomation\bin\Release\TMX.dll';
+[string]$TMXmodule = 'C:\tests\TMX.dll'; #'E:\G\Projects\PS\UIAutomation\UIAutomation\bin\Release\TMX.dll';
 [string]$UIAmodule = 'C:\tests\UIAutomation.dll'; #'E:\G\Projects\PS\UIAutomation\UIAutomation\bin\Release\UIAutomation.dll';
 #[string]$importFile = 'C:\tests\testdata.txt'; #'E:\G\Projects\PS\UIAutomation\samples\testdata.txt';
 
@@ -30,5 +30,6 @@ Invoke-UIAWizard -Name wzd | `
    Step-UIAWizard -Name step4 | `
    Step-UIAWizard -Name step3 -Forward:$false | `
    Step-UIAWizard -Name step4;
+
 
 

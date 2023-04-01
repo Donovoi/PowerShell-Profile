@@ -301,3 +301,4 @@ function Get-AllEvents {
 
   Write-Host 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
 }
+

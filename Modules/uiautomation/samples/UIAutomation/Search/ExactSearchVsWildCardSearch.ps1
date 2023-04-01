@@ -73,3 +73,4 @@ Stop-Process -Name mmc;
 Write-Host "wildcard matching:";
 (Measure-Command { Start-Process services.msc -Passthru | Get-UIAWindow | Get-UIAEdit -Name ?othing }).TotalSeconds
 Stop-Process -Name mmc;
+

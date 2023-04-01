@@ -109,3 +109,4 @@ function Get-NetworkSpeedTest {
   exit 0
 }
 # Get-NetworkSpeedTest
+

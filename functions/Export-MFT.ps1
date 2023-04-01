@@ -247,3 +247,4 @@ function Export-MFT {
   $ScriptTime.Stop()
   Write-Verbose "Done, execution time: $($ScriptTime.Elapsed)"
 }
+

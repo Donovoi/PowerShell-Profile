@@ -25,9 +25,9 @@ Describe "Import-WslCommand" {
   }
 
   It "Enables calling commands with arbitrary arguments." -TestCases @(
-    @{ command = 'seq'; arguments = '0 10' -split ' '; expectedResult = '0 1 2 3 4 5 6 7 8 9 10' -split ' ' },
-    @{ command = 'seq'; arguments = '0 2 10' -split ' '; expectedResult = '0 2 4 6 8 10' -split ' ' },
-    @{ command = 'seq'; arguments = '-s - 0 2 10' -split ' '; expectedResult = '0-2-4-6-8-10' -split ' ' }
+    @{ command = 'seq'; Arguments = '0 10' -split ' '; expectedResult = '0 1 2 3 4 5 6 7 8 9 10' -split ' ' },
+    @{ command = 'seq'; Arguments = '0 2 10' -split ' '; expectedResult = '0 2 4 6 8 10' -split ' ' },
+    @{ command = 'seq'; Arguments = '-s - 0 2 10' -split ' '; expectedResult = '0-2-4-6-8-10' -split ' ' }
   ) {
     param([string]$command,[string[]]$arguments,[string[]]$expectedResult)
 
@@ -37,9 +37,9 @@ Describe "Import-WslCommand" {
   }
 
   It "Enables calling commands with default arguments." -TestCases @(
-    @{ command = 'seq'; arguments = '0 10' -split ' '; expectedResult = '0-1-2-3-4-5-6-7-8-9-10' },
-    @{ command = 'seq'; arguments = '0 2 10' -split ' '; expectedResult = '0-2-4-6-8-10' },
-    @{ command = 'seq'; arguments = '-s : 0 2 10' -split ' '; expectedResult = '0:2:4:6:8:10' }
+    @{ command = 'seq'; Arguments = '0 10' -split ' '; expectedResult = '0-1-2-3-4-5-6-7-8-9-10' },
+    @{ command = 'seq'; Arguments = '0 2 10' -split ' '; expectedResult = '0-2-4-6-8-10' },
+    @{ command = 'seq'; Arguments = '-s : 0 2 10' -split ' '; expectedResult = '0:2:4:6:8:10' }
   ) {
     param([string]$command,[string[]]$arguments,[string]$expectedResult)
 
@@ -53,7 +53,7 @@ Describe "Import-WslCommand" {
   }
 
   It "Enables calling commands that honor environment variables." -TestCases @(
-    @{ command = 'grep'; arguments = 'input' -split ' '; expectedResult = '1' }
+    @{ command = 'grep'; Arguments = 'input' -split ' '; expectedResult = '1' }
   ) {
     param([string]$command,[string[]]$arguments,[string]$expectedResult)
 
@@ -67,17 +67,17 @@ Describe "Import-WslCommand" {
   }
 
   It "Enables resolving Windows paths." -TestCases @(
-    @{ command = 'ls'; arguments = 'C:\Windows'; failureResult = 'ls: cannot access ''C:Windows''*' },
-    @{ command = 'ls'; arguments = 'C:\Windows'; failureResult = 'ls: cannot access ''C:/Windows''*' },
-    @{ command = 'ls'; arguments = 'C:\Win*'; failureResult = 'ls: cannot access ''C:Win*''*' },
-    @{ command = 'ls'; arguments = 'C:\Win*'; failureResult = 'ls: cannot access ''C:/Win*''*' },
-    @{ command = 'ls'; arguments = '/mnt/c/Program Files (x86)'; failureResult = 'ls: cannot access ''/mnt/c/Program''*' }
-    @{ command = 'ls'; arguments = '.\.github'; failureResult = 'ls: cannot access ''..github''*' },
-    @{ command = 'ls'; arguments = '.githu*'; failureResult = 'ls: cannot access ''.githu*''*' }
-    @{ command = 'ls'; arguments = '.githu?'; failureResult = 'ls: cannot access ''.githu?''*' }
-    @{ command = 'ls'; arguments = '.githu[abc]'; failureResult = 'ls: cannot access ''.githu[abc]''*' }
-    @{ command = 'ls'; arguments = '.githu[a/b]'; failureResult = 'Test-Path : Cannot retrieve the dynamic parameters for the cmdlet. The specified wildcard character pattern is not valid*' }
-    @{ command = 'ls'; arguments = '.githu[a\b]'; failureResult = 'Test-Path : Cannot retrieve the dynamic parameters for the cmdlet. The specified wildcard character pattern is not valid*' }
+    @{ command = 'ls'; Arguments = 'C:\Windows'; failureResult = 'ls: cannot access ''C:Windows''*' },
+    @{ command = 'ls'; Arguments = 'C:\Windows'; failureResult = 'ls: cannot access ''C:/Windows''*' },
+    @{ command = 'ls'; Arguments = 'C:\Win*'; failureResult = 'ls: cannot access ''C:Win*''*' },
+    @{ command = 'ls'; Arguments = 'C:\Win*'; failureResult = 'ls: cannot access ''C:/Win*''*' },
+    @{ command = 'ls'; Arguments = '/mnt/c/Program Files (x86)'; failureResult = 'ls: cannot access ''/mnt/c/Program''*' }
+    @{ command = 'ls'; Arguments = '.\.github'; failureResult = 'ls: cannot access ''..github''*' },
+    @{ command = 'ls'; Arguments = '.githu*'; failureResult = 'ls: cannot access ''.githu*''*' }
+    @{ command = 'ls'; Arguments = '.githu?'; failureResult = 'ls: cannot access ''.githu?''*' }
+    @{ command = 'ls'; Arguments = '.githu[abc]'; failureResult = 'ls: cannot access ''.githu[abc]''*' }
+    @{ command = 'ls'; Arguments = '.githu[a/b]'; failureResult = 'Test-Path : Cannot retrieve the dynamic parameters for the cmdlet. The specified wildcard character pattern is not valid*' }
+    @{ command = 'ls'; Arguments = '.githu[a\b]'; failureResult = 'Test-Path : Cannot retrieve the dynamic parameters for the cmdlet. The specified wildcard character pattern is not valid*' }
   ) {
     param([string]$command,[string[]]$arguments,[string]$failureResult)
 
@@ -153,3 +153,4 @@ Describe "Format-WslArgument" {
     Format-WslArgument $arg $interactive | Should -BeExactly $expectedResult
   }
 }
+

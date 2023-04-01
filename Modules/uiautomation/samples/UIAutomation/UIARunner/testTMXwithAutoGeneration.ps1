@@ -11,3 +11,4 @@ Get-UIAWindow -n calc* | Get-UIAButton | Set-UIAFocus | Set-UIAControlKeys -Text
 Search-TMXTestResult
 Export-TMXTestResults -As HTML -Path c:\1\calc_test_results_generated.htm
 c:\1\calc_test_results_generated.htm
+

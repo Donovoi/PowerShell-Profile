@@ -11,3 +11,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | Conve
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Full
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Include controltype,class
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAMenuItem -Name Vi* | ConvertTo-UIASearchCriteria -Exclude controltype,class
+

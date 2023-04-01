@@ -32,3 +32,4 @@ Get-UIAWindow -Name 'Travel' | `
 #Invoke-UIAListItemScrollItem -PassThru).Current;
 ##Get-UIAControlDescendants | `
 ##%{$_.Current >> c:\1\FEatuedDestinations.txt;}
+

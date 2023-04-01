@@ -22,3 +22,4 @@ function Update-PowerShell {
   }
   Write-Output 'PowerShell is up to date'
 }
+

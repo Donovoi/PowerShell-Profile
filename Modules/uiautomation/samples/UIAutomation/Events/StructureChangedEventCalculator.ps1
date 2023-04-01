@@ -7,3 +7,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Register-UIAStructureChangedEvent
 # display which event have been caught
 $global:annals;
 
+

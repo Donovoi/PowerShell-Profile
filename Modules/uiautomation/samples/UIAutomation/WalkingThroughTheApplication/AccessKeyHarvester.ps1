@@ -1,4 +1,4 @@
-﻿Clear-Host
+Clear-Host
 Import-Module $global:uiautomationModule;
 
 function Out-ElementDetail {
@@ -108,3 +108,4 @@ Report-AccessKeys devmgmt.msc mmc;
 Report-AccessKeys calc;
 Report-AccessKeys notepad;
 Report-AccessKeys mspaint;
+

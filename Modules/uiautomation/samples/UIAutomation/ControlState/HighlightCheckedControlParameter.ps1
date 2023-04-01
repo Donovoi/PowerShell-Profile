@@ -8,3 +8,4 @@ Get-UIAWindow -pn calc -WithControl @{ controlType = "button"; Name = "9" }
 Get-UIAWindow -pn calc -WithControl @{ controlType = "button"; Name = "OK" }
 Stop-Process -Name calc
 
+

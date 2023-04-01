@@ -1,4 +1,4 @@
-﻿####################################################################################################
+####################################################################################################
 # Script name: Caclucator01.ps1
 # Description: demonstrates using of TMX module during the testing of an application
 # Copyright:   http://SoftwareTestingUsingPowerShell.com, 2012
@@ -123,3 +123,4 @@ calculateExpression $modeName; # in the Scientific mode
 
 # test reports are still ugly!!!
 Export-TMXTestResults -As HTML -Path C:\1\calc_result.htm
+

@@ -11,3 +11,4 @@ Start-Process calc -Passthru | `
    Get-UIAWindow | `
    Register-UIAMenuOpenedEvent -EventAction {; };
 (Wait-UIAEventRaised -Name View).Cached;
+

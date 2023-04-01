@@ -1,4 +1,4 @@
-﻿# this is deprecated since 0.8.0
+# this is deprecated since 0.8.0
 
 Import-Module $global:uiautomationModule;
 Import-Module $global:tmxModule;
@@ -15,3 +15,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Search-UIAControl -ControlType bu
 # this code should return the same as the first code snippet, 
 # because there are only two types of controls whose names start with 'a'
 Start-Process calc -Passthru | Get-UIAWindow | Search-UIAControl -ControlType button,menubar -Name A*;
+

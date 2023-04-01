@@ -6,7 +6,7 @@ function Get-UniqueStrings {
     # Directory to process
     [Parameter(Mandatory = $false)]
     [string]
-    $Path = $(Get-Location).Path,
+    $Path = $(Get-Location).path,
     # Minimum length of strings to work with
     [Parameter(Mandatory = $false)]
     [int16]
@@ -14,7 +14,7 @@ function Get-UniqueStrings {
     # Destination File
     [Parameter(Mandatory = $false)]
     [string]
-    $FinalFile = $(Get-Location).Path + '../Unique.txt'
+    $FinalFile = $(Get-Location).path + '../Unique.txt'
   )
 
   $Directory = $Path
@@ -38,4 +38,5 @@ function Get-UniqueStrings {
 
 
 }
+
 

@@ -107,3 +107,4 @@ function Set-ConsoleMode {
     }
   }
 }
+

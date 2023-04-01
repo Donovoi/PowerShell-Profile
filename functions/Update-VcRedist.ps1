@@ -21,3 +21,4 @@ function Update-VcRedist {
   Start-Process -FilePath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69\VisualCppRedist_AIO_x86_x64.exe" -ArgumentList "/y" -Wait -NoNewWindow
 
 }
+

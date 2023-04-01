@@ -83,3 +83,4 @@ function tgit {
     & $Global:TortoiseGitSettings.TortoiseGitPath $newArgs
   }
 }
+

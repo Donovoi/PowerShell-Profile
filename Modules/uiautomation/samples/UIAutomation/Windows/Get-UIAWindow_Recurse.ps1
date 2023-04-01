@@ -38,3 +38,4 @@ Get-UIAWindow -pid (Get-Process mmc).Id -Recurse | Read-UIAControlName;
 Write-Host "process object + recurse";
 Get-UIAWindow -InputObject (Get-Process mmc) -Recurse | Read-UIAControlName;
 Stop-Process -Name mmc -Force;
+

@@ -44,3 +44,4 @@ $wzd.Steps[2].StepForwardAction
 Write-Host "fail - one step was removed in the example";
 $wzd.Steps[3].StepForwardAction
 #endregion How to access and/or modify the variables
+

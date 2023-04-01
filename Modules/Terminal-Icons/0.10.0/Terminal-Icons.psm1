@@ -1238,3 +1238,4 @@ Save-Preferences -Preferences $prefs
 
 Update-FormatData -Prepend ([IO.Path]::Combine($moduleRoot,'Terminal-Icons.format.ps1xml'))
 
+

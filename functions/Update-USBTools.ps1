@@ -20,3 +20,4 @@ function Update-USBTools {
   cargo install cargo-update
   cargo install-update -a
 }
+

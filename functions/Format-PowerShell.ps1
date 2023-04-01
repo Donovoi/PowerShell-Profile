@@ -1,27 +1,36 @@
 function Format-Powershell {
   [CmdletBinding()]
   param(
+    [Parameter()]
+    [string]
+    $FolderPath = $PWD
   )
 
-  # Check if Powershell-Beautifier is installed
-  if (-not (Get-InstalledModule -Name Powershell-Beautifier -ErrorAction SilentlyContinue)) {
-    # Install NuGet if required
-    if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
-      Install-PackageProvider -Name NuGet -Scope CurrentUser -Force
+  if (-not (Get-Module -ListAvailable -Name 'PSScriptAnalyzer')) {
+    Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+  }
+
+  if (-not (Get-Module -ListAvailable -Name 'PowerShell-Beautifier')) {
+    Install-Module -Name PowerShell-Beautifier -Scope CurrentUser -Force
+  }
+
+  Import-Module PSScriptAnalyzer
+  Import-Module PowerShell-Beautifier
+
+  $files = Get-ChildItem -Path $FolderPath -Recurse -Include @("*.ps1", "*.psm1", "*.psd1")
+
+  foreach ($file in $files) {
+    Edit-DTWBeautifyScript -SourcePath $file.FullName
+    $beautifiedContent = [System.IO.File]::ReadAllText($file.FullName)
+
+    $rules = (Get-ScriptAnalyzerRule).RuleName
+
+    $settings = @{
+      IncludeRules = $rules
     }
 
-    # Install Powershell-Beautifier module
-    Install-Module -Name Powershell-Beautifier -Scope CurrentUser -Force
-  }
-
-  # Import Powershell-Beautifier module
-  Import-Module -Name Powershell-Beautifier
-
-  # Format all PowerShell files recursively
-  $fileExtensions = @('*.ps1','*.psm1','*.psd1')
-  $powerShellFiles = Get-ChildItem -Path (Get-Item -Path "..\").FullName -Include $fileExtensions -Recurse
-
-  $powerShellFiles | ForEach-Object -Parallel {
-    Edit-DTWBeautifyScript -SourcePath $_.FullName -DestinationPath $_.FullName
+    Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings -Verbose | Out-File -FilePath $file.FullName -Force
   }
 }
+
+

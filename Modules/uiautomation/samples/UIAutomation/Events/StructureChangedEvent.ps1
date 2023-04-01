@@ -45,3 +45,4 @@ Get-UIAMenuItem -Name View | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name 'S
 Get-UIAMenuItem -Name View | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name 'Status Bar' | Invoke-UIAMenuItemClick;
 Get-UIAMenuItem -Name View | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name 'Status Bar' | Invoke-UIAMenuItemClick;
 Get-UIAMenuItem -Name View | Invoke-UIAMenuItemExpand | Get-UIAMenuItem -Name 'Status Bar' | Invoke-UIAMenuItemClick;
+

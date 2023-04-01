@@ -2,3 +2,4 @@ Import-Module C:\Projects\PS\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.d
 Get-UIAWindow -Name *power* -Verbose
 Get-UIAWindow -Class console* -Verbose
 
+

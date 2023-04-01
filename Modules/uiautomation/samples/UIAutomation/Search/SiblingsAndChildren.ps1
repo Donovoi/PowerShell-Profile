@@ -5,3 +5,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1 | Get-UIACo
 
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1 | Get-UIAControlParent | Get-UIAControlFirstChild | Read-UIAControlName;
 Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1 | Get-UIAControlParent | Get-UIAControlLastChild | Read-UIAControlName;
+

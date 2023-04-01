@@ -9,3 +9,4 @@ Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton 1 | Invoke-UIAButto
 Start-Process calc -Passthru | Get-UIAWindow -Verbose | Get-UIAButton 1 -Verbose | Invoke-UIAButtonClick -Verbose;
 
 & C:\Projects\PS\STUPS\samples\UIAutomation\Wizard\AddPrinterManually.ps1
+

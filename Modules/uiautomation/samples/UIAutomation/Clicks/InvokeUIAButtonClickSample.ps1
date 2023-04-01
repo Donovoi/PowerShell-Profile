@@ -12,3 +12,4 @@ Invoke-UIAButtonClick -InputObject $button1;
 Invoke-UIAButtonClick -InputObject (Start-Process calc -Passthru | Get-UIAWindow | Get-UIAButton -Name 1);
 
 
+

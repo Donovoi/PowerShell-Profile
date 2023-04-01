@@ -26,3 +26,4 @@ function Get-Zimmer {
     Copy-Item -Path $_.FullName -Destination $Global:ENV:ChocolateyInstall -Force
   }
 }
+

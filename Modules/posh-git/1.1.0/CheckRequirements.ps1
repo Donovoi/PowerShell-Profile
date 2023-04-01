@@ -32,3 +32,4 @@ function Test-GitVersion ($version = $([string](git --version 2>$null))) {
 if (!(Test-GitVersion)) {
   Write-Warning "posh-git requires Git $requiredVersion or better. You have $GitVersion."
 }
+

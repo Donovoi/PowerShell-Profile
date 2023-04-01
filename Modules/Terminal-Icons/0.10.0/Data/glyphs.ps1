@@ -1,4 +1,4 @@
-﻿@{
+@{
   'nf-custom-c' = ''
   'nf-custom-cpp' = ''
   'nf-custom-electron' = ''
@@ -3810,3 +3810,4 @@
   'nf-weather-wind_west' = ''
   'nf-weather-windy' = ''
 }
+

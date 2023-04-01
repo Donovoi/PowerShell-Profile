@@ -1,4 +1,4 @@
-﻿Import-Module $global:uiautomationModule;
+Import-Module $global:uiautomationModule;
 
 [UIAutomation.Mode]::Profile = [UIAutomation.Modes]::Normal;
 
@@ -28,3 +28,4 @@ $neededItem = Get-UIAWindow -Name 'Sound' | Search-UIAControl -Name 'Speak*' -Hi
 $neededItem | Read-UIAControlName;
 $neededItem | Read-UIAControlAutomationId;
 $neededItem | Read-UIAControlType;
+

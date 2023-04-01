@@ -1,4 +1,4 @@
-﻿####################################################################################################
+####################################################################################################
 # Script name: HelpWalker2.ps1
 # Description: demonstrates how to work with the Invoke-UIATreeItemScrollItem cmdlet
 # Copyright:   http://SoftwareTestingUsingPowerShell.com, 2012
@@ -124,3 +124,4 @@ function Invoke-TreeNodeChildrenProcess {
 # first time, the tree is given as the root node
 $rootNode = Get-UIATree -Seconds 120;
 Invoke-TreeNodeChildrenProcess $rootNode;
+

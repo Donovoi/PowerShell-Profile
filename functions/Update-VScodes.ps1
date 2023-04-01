@@ -12,3 +12,4 @@ function Update-VScodes {
     Expand-Archive "$ENV:USERPROFILE\Downloads\vscode.zip" -DestinationPath $("$XWAYSUSB" + "\vscode\") -Force -Verbose
   }
 }
+

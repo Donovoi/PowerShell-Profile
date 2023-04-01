@@ -1,4 +1,4 @@
-﻿##Get-UIAWindow -Title 'Windows PowerShell';
+##Get-UIAWindow -Title 'Windows PowerShell';
 ##		#ScrollPattern
 ##		#WindowPattern
 ##		#TransformPattern
@@ -298,4 +298,5 @@ Get-UIAWindow -Title 'Maskinvara och ljud' | `
    Get-UIAHyperlink -AutomationId 'name' -Title 'Spela upp automatiskt';
 #InvokePattern
 #ValuePattern
+
 

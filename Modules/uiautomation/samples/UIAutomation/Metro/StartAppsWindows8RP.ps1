@@ -13,3 +13,4 @@ Get-UIAListItem -Name *phot* | Invoke-UIAListItemClick;
 
 Show-UIAMetroStartScreen;
 Get-UIAListItem -Name *calen* | Invoke-UIAListItemClick;
+

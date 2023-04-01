@@ -55,3 +55,4 @@ Step-UIAWizard -Name $stepStatistics -InputObject (Get-UIAWizard -Name $wizardNa
 #$global:scientificResult;
 $global:programmerResult;
 $global:statisticsResult;
+

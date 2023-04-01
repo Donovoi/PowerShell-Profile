@@ -11,3 +11,4 @@ Copy-Item .\* $modulePath -Recurse -Exclude .github,*.Publish.ps1,*.Tests.ps1
 Get-ChildItem $modulePath -Force | Select-Object -ExpandProperty Name | Should -BeExactly "LICENSE","README.md","WslInterop.psd1","WslInterop.psm1"
 
 Publish-Module -Name $moduleName -RequiredVersion $moduleVersion -NuGetApiKey $args[0] -Confirm
+

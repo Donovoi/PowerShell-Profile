@@ -1,4 +1,4 @@
-﻿Import-Module C:\Projects\PS\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.dll
+Import-Module C:\Projects\PS\STUPS\UIA\UIAutomation\bin\Release35\UIAutomation.dll
 
 [scriptblock]$backwardAction = { Get-UIAButton -AutomationId 'backbutton' | Invoke-UIAButtonClick; };
 [scriptblock]$cancelAction = { Get-UIAButton -AutomationId 'cancelbutton' | Invoke-UIAButtonClick; };
@@ -160,3 +160,4 @@ Invoke-UIAWizard -Automatic -ForwardDirection -Name AddPrinterWizard `
 @{ step = "Step09InstallPrinterDriver"; action = "forward"; Parameters = @{ action = "forward"; list = @('Canon','*0303*') } },
 @{ step = "Step11PrinterName"; action = "forward"; Parameters = @{ action = "forward"; list = @("the second one") } },
 @{ step = "Step13PrinterSharing"; action = "forward"; Parameters = @{ action = "forward"; list = @('share$$$','location02','my new comment') } } -Verbose;
+

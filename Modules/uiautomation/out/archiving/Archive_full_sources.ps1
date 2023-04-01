@@ -27,3 +27,4 @@ $zipfile = New-Object Ionic.Zip.ZipFile
 $e = $zipfile.AddDirectory($directoryToZip,"$($baseFolder)\\")
 $zipfile.Save("ZipFiles.ps1.out.zip")
 $zipfile.Dispose()
+

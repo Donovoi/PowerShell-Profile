@@ -4,3 +4,4 @@ Import-Module C:\Projects\PS\UIAutomation.Old\UIAutomationSpy\bin\Release35\UIAu
 [UIAutomation.Preferences]::OnSuccessDelay = 0;
 Start-Process calc -Passthru | Get-UIAWindow -Verbose | Get-UIAButton -Name 1 -Verbose | Invoke-UIAButtonClick;
 Search-TMXTestResult
+

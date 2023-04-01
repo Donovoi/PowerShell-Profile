@@ -68,3 +68,4 @@ Get-UIAWizard -Name 'wizard 3' | Add-UIAWizardStep -Name 'step 100' -Order 100 -
 Get-UIAWizard -Name 'wizard 3' | Remove-UIAWizardStep -Name 'step 100';
 [uiautomation.wizardcollection]::Wizards[2].Steps[0]
 [uiautomation.wizardcollection]::Wizards[2].Steps.Count
+

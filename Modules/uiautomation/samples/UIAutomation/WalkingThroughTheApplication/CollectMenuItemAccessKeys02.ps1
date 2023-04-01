@@ -1,4 +1,4 @@
-﻿Clear-Host
+Clear-Host
 Import-Module $global:uiautomationModule;
 
 $topLevelMenuItems = Start-Process mspaint -Passthru | `
@@ -21,3 +21,4 @@ foreach ($menuItemLevel1 in $topLevelMenuItems) {
   catch {}
 }
 Stop-Process -Name mspaint
+
