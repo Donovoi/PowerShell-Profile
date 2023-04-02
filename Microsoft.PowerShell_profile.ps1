@@ -17,9 +17,9 @@ $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 $Modules = Get-Module -ListAvailable
 
-$Modules.ForEach{
-  Out-Host -InputObject "Importing module: $($_.FullName)"
-  Import-Module -Name $_.FullName
+$Modules.ForEach{ 
+  $ErrorActionPreference = 'silentlycontinue'
+  Import-Module $_ -Force -SkipEditionCheck
 }
 
 $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
