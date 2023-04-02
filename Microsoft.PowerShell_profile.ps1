@@ -8,6 +8,7 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/" -Include "*.ps*" -Recurse
 
 $ModulesFolder.ForEach{
+  Out-Host "Importing module: $($_.FullName)"
   Import-Module -Name $_.FullName
 }
 
