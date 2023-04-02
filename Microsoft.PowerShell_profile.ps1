@@ -6,27 +6,12 @@
  IEX (iwr -uri https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw/Install-Profile)
   
 #>
-
-
-
-
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-New-Item $profile -Force -Verbose
+
 $profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
-# Remove all items in profile directory so there is no importing of old functions
-
-
-# Install git via winget if it is not installed then recursively clone the repo
-if (-not (Get-Command git)) {
-  winget install --id=Git.Git
-}
-Set-Location -Path $parentprofilepath
-Remove-Item -Path powershellprofile -Recurse -Force -Verbose
-git clone --recursive 'https://github.com/Donovoi/PowerShell-Profile.git' 'powershellprofile'
-Copy-Item -Path 'powershellprofile\*.*' -Destination $profileparentpath -Force -Verbose -Recurse
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
