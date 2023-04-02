@@ -5,17 +5,22 @@ $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways
 $profileparentpath = $(Get-Item $PROFILE).Directory.FullName
 # Remove all items in profile directory so there is no importing of old functions
 Remove-Item -Path $profileparentpath -Recurse -Force -Verbose
-new-item $profile -Force -Verbose
+New-Item $profile -Force -Verbose
 
 # download the profile repo as a zip and extract it to the profile directory overwriting the existing files
 Remove-Item $ENV:USERPROFILE\profile.zip -Force
-Invoke-WebRequest -Uri "https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip" -OutFile "$ENV:USERPROFILE\profile.zip"
+Invoke-WebRequest -Uri 'https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip' -OutFile "$ENV:USERPROFILE\profile.zip"
+# extract only profile.zip\PowerShell-Profile-main\* to $profileparentpath
+Expand-Archive -Path "$ENV:USERPROFILE\profile.zip" -DestinationPath "$ENV:USERPROFILE\profile" -Force -Verbose
+Copy-Item -Path "$ENV:USERPROFILE\profile\PowerShell-Profile-main\*" -Destination $profileparentpath -Force -Verbose
+
+
 Expand-Archive -Path "$ENV:USERPROFILE\profile.zip" -DestinationPath "$ENV:USERPROFILE\profile" -Force -Verbose
 Copy-Item -Path "$ENV:USERPROFILE\profile\PowerShell-Profile-main\*" -Destination $profileparentpath -Force -Verbose
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
-$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/" -Include "*.ps*" -Recurse
+$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/" -Include '*.ps*' -Recurse
 
 $ModulesFolder.ForEach{
   Out-Host -InputObject "Importing module: $($_.FullName)"
@@ -26,18 +31,18 @@ $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
 
 $chococommand = choco
 if ([string]::IsNullOrEmpty($chococommand)) {
-  Remove-Item -Path "C:\ProgramData\chocolatey" -Recurse -Force -ErrorAction SilentlyContinue
-  cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"; Set-Variable "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
+  Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
+  cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"; Set-Variable 'PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin'
 }
 
-$env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\chocolatey apps\chocolatey\bin\"
+$env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\chocolatey apps\chocolatey\bin\'
 $env:Path += ";$XWAYSUSB\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
 }
 
 if (-not (choco)) {
-  Remove-Item -Path "C:\ProgramData\chocolatey" -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
   Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
 
@@ -48,7 +53,7 @@ RefreshEnv.cmd
 Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine, PSColors
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
-Copy-Item -Path (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + "\Projects\oh-my-posh\themes\jandedobbeleer.omp.json" -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
+Copy-Item -Path (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\Projects\oh-my-posh\themes\jandedobbeleer.omp.json' -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
 oh-my-posh --init --shell pwsh --config $ENV:USERPROFILE/jandedobbeleer.omp.json | Invoke-Expression
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
@@ -105,8 +110,7 @@ Set-PSReadLineKeyHandler -Key F7 `
         $line = $line.Substring(0, $line.Length - 1)
         $lines = if ($lines) {
           "$lines`n$line"
-        }
-        else {
+        } else {
           $line
         }
         continue
@@ -125,7 +129,7 @@ Set-PSReadLineKeyHandler -Key F7 `
   )
   $history.Reverse()
 
-  $command = $history | Out-GridView -Title Get-History -Passthru
+  $command = $history | Out-GridView -Title Get-History -PassThru
   if ($command) {
     [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert(($command -join "`n"))
@@ -229,8 +233,7 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
     if ($line[0..$cursor].Where{ $_ -eq $quote }.Count % 2 -eq 1) {
       # Odd number of quotes before the cursor, insert a single quote
       [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
-    }
-    else {
+    } else {
       # Insert matching quotes, move cursor to be in between the quotes
       [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$quote$quote")
       [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
@@ -284,8 +287,7 @@ Set-PSReadLineKeyHandler -Key '(', '{', '[' `
     # Text is selected, wrap it in brackets
     [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $key.KeyChar + $line.Substring($selectionStart, $selectionLength) + $closeChar)
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-  }
-  else {
+  } else {
     # No text is selected, insert a pair
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)$closeChar")
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
@@ -304,8 +306,7 @@ Set-PSReadLineKeyHandler -Key ')', ']', '}' `
 
   if ($line[$cursor] -eq $key.KeyChar) {
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-  }
-  else {
+  } else {
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)")
   }
 }
@@ -344,8 +345,7 @@ Set-PSReadLineKeyHandler -Key Backspace `
 
     if ($toMatch -ne $null -and $line[$cursor - 1] -eq $toMatch) {
       [Microsoft.PowerShell.PSConsoleReadLine]::Delete($cursor - 1, 2)
-    }
-    else {
+    } else {
       [Microsoft.PowerShell.PSConsoleReadLine]::BackwardDeleteChar($key, $arg)
     }
   }
@@ -382,8 +382,7 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
     # Get clipboard text - remove trailing spaces, convert \r\n to \n, and remove the final \n.
     $text = ([System.Windows.Clipboard]::GetText() -replace "\p{Zs}*`r?`n", "`n").TrimEnd()
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert("@'`n$text`n'@")
-  }
-  else {
+  } else {
     [Microsoft.PowerShell.PSConsoleReadLine]::Ding()
   }
 }
@@ -407,8 +406,7 @@ Set-PSReadLineKeyHandler -Key 'Alt+(' `
   if ($selectionStart -ne -1) {
     [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, '(' + $line.Substring($selectionStart, $selectionLength) + ')')
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-  }
-  else {
+  } else {
     [Microsoft.PowerShell.PSConsoleReadLine]::Replace(0, $line.Length, '(' + $line + ')')
     [Microsoft.PowerShell.PSConsoleReadLine]::EndOfLine()
   }
@@ -453,12 +451,10 @@ Set-PSReadLineKeyHandler -Key "Alt+'" `
     if ($tokenText[0] -eq '"' -and $tokenText[-1] -eq '"') {
       # Switch to no quotes
       $replacement = $tokenText.Substring(1, $tokenText.Length - 2)
-    }
-    elseif ($tokenText[0] -eq "'" -and $tokenText[-1] -eq "'") {
+    } elseif ($tokenText[0] -eq "'" -and $tokenText[-1] -eq "'") {
       # Switch to double quotes
       $replacement = '"' + $tokenText.Substring(1, $tokenText.Length - 2) + '"'
-    }
-    else {
+    } else {
       # Add single quotes
       $replacement = "'" + $tokenText + "'"
     }
@@ -582,7 +578,7 @@ Set-PSReadLineKeyHandler -Key Alt+j `
 
   $global:PSReadLineMarks.GetEnumerator() | ForEach-Object {
     [pscustomobject]@{ Key = $_.Key; Dir = $_.Value } } |
-  Format-Table -AutoSize | Out-Host
+    Format-Table -AutoSize | Out-Host
 
   [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
@@ -618,8 +614,7 @@ Set-PSReadLineKeyHandler -Key RightArrow `
 
   if ($cursor -lt $line.Length) {
     [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
-  }
-  else {
+  } else {
     [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
   }
 }
@@ -652,8 +647,7 @@ Set-PSReadLineKeyHandler -Key Alt+a `
 
   if ($null -ne $arg) {
     $nextAst = $asts[$arg - 1]
-  }
-  else {
+  } else {
     foreach ($ast in $asts) {
       if ($ast.Extent.StartOffset -ge $cursor) {
         $nextAst = $ast
