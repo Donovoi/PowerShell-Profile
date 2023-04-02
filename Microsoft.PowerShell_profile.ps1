@@ -8,8 +8,9 @@ Remove-Item -Path $profileparentpath -Recurse -Force -Verbose
 new-item $profile -Force -Verbose
 
 # download the profile repo as a zip and extract it to the profile directory overwriting the existing files
-$zipfileProfile = Invoke-WebRequest -Uri "https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip" -OutFile "$ENV:USERPROFILE\profile.zip"
-Expand-Archive -Path $zipfileProfile -DestinationPath $profileparentpath -Force
+Remove-Item $ENV:USERPROFILE\profile.zip -Force
+Invoke-WebRequest -Uri "https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip" -OutFile "$ENV:USERPROFILE\profile.zip"
+Expand-Archive -Path "$ENV:USERPROFILE\profile.zip" -DestinationPath $profileparentpath -Force
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
