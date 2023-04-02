@@ -2,21 +2,19 @@ using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-$profileparentpath = $(Get-Item $PROFILE).Directory.FullName
-# Remove all items in profile directory so there is no importing of old functions
-Remove-Item -Path $profileparentpath -Recurse -Force -Verbose
 New-Item $profile -Force -Verbose
-
-# download the profile repo as a zip and extract it to the profile directory overwriting the existing files
-Remove-Item $ENV:USERPROFILE\profile.zip -Force
-Invoke-WebRequest -Uri 'https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip' -OutFile "$ENV:USERPROFILE\profile.zip"
-# extract only profile.zip\PowerShell-Profile-main\* to $profileparentpath
-Expand-Archive -Path "$ENV:USERPROFILE\profile.zip" -DestinationPath "$ENV:USERPROFILE\profile" -Force -Verbose
-Copy-Item -Path "$ENV:USERPROFILE\profile\PowerShell-Profile-main\*" -Destination $profileparentpath -Force -Verbose
+$profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+# Remove all items in profile directory so there is no importing of old functions
 
 
-Expand-Archive -Path "$ENV:USERPROFILE\profile.zip" -DestinationPath "$ENV:USERPROFILE\profile" -Force -Verbose
-Copy-Item -Path "$ENV:USERPROFILE\profile\PowerShell-Profile-main\*" -Destination $profileparentpath -Force -Verbose
+# Install git via winget if it is not installed then recursively clone the repo
+if (-not (Get-Command git)) {
+  winget install --id=Git.Git
+}
+Set-Location -Path $parentprofilepath
+Remove-Item -Path powershellprofile -Recurse -Force -Verbose
+git clone --recursive 'https://github.com/Donovoi/PowerShell-Profile.git' 'powershellprofile'
+Copy-Item -Path 'powershellprofile\*.*' -Destination $profileparentpath -Force -Verbose -Recurse
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
