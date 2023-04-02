@@ -15,9 +15,9 @@ $profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\Powe
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
-$ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/" -Include '*.ps*' -Recurse
+$Modules = Get-Module -ListAvailable
 
-$ModulesFolder.ForEach{
+$Modules.ForEach{
   Out-Host -InputObject "Importing module: $($_.FullName)"
   Import-Module -Name $_.FullName
 }
