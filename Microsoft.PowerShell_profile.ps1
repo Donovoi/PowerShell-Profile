@@ -3,6 +3,14 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 $profileparentpath = $(Get-Item $PROFILE).Directory.FullName
+# Remove all items in profile directory so there is no importing of old functions
+Remove-Item -Path $profileparentpath -Recurse -Force -Verbose
+new-item $profile -Force -Verbose
+
+# download the profile repo as a zip and extract it to the profile directory overwriting the existing files
+$zipfileProfile = Invoke-WebRequest -Uri "https://github.com/Donovoi/PowerShell-Profile/archive/refs/heads/main.zip" -OutFile "$ENV:USERPROFILE\profile.zip"
+Expand-Archive -Path $zipfileProfile -DestinationPath $profileparentpath -Force
+
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 $ModulesFolder = Get-ChildItem -Path "$profileparentpath/Modules/" -Include "*.ps*" -Recurse
