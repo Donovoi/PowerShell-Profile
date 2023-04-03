@@ -14,7 +14,7 @@ function Get-XwaysResources {
         [string]
         $DestinationFolder = "$XWAYSUSB\xwfportable",
         [Parameter(Mandatory = $true)]
-        [securestring]
+        [pscredential]
         $Credentials = $(Get-Credential)
     )
     
@@ -52,7 +52,7 @@ function Get-XwaysResources {
     $response
 
     # Extract zip to destination folder in the Excire folder
-    Out-Host "Extracting Excire.zip to $DestinationFolder\Excire"
+    Out-Host -InputObject "Extracting Excire.zip to $DestinationFolder\Excire"
     Expand-Archive -Path "Excire.zip" -DestinationPath "$DestinationFolder\Excire" -Force
 
     # headers for xways website - can possibly remove some of these
@@ -80,7 +80,7 @@ function Get-XwaysResources {
 
 
     # Copy Conditional Coloring.cfg to destination folder
-    Out-Host "Copying Conditional Coloring.cfg to $DestinationFolder"
+    Out-Host -InputObject "Copying Conditional Coloring.cfg to $DestinationFolder"
     Copy-Item -Path ".\Conditional Coloring.cfg" -Destination $DestinationFolder -Force
 
 
