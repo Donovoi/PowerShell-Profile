@@ -19,7 +19,16 @@ $Modules = Get-Module -ListAvailable
 
 $Modules.ForEach{ 
   $ErrorActionPreference = 'silentlycontinue'
-  Import-Module $_ -Force -SkipEditionCheck
+  if ($_ -notlike '*PSReadline*') {
+   Import-Module $_ -Force -SkipEditionCheck
+  }
+  else {
+    Install-Module PowerShellGet -Force
+    Update-Module PowerShellGet -Force
+    Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
+    Set-PSReadLineOption -PredictionSource History
+  }
+  
 }
 
 $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
