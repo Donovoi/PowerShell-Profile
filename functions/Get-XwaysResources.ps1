@@ -5,10 +5,8 @@
     Download the extra resources needed for xways forensics at the moment this is just Excire and Conditional Coloring
 .PARAMETER DestinationFolder
     The folder to download the resources to. I have set this to my preferred location of $XWAYSUSB\xwfportable (where $XWAYSUSB is the drive letter of my Xways USB and is a GLOBAL variable in my profile)
-.PARAMETER Credentials
-    The credentials to use to download the resources
 .EXAMPLE
-    Get-XwaysResources -DestinationFolder "C:\Xways" -Credentials $(Get-Credential)
+    Get-XwaysResources -DestinationFolder "C:\XwaysResources"
 #>
 function Get-XwaysResources {
     [CmdletBinding()]
@@ -33,15 +31,15 @@ function Get-XwaysResources {
     
         # Check if we have $XWAYSUSB set as a variable if $DestinationFolder is set to $XWAYSUSB\xwfportable
         if ($DestinationFolder -eq "$XWAYSUSB\xwfportable" -and [String]::IsNullOrWhiteSpace($XWAYSUSB) ) {
-            Write-Error "$XWAYSUSB `$XWAYUSB is empty or not set."
-            throw 
+            Write-Warning "$XWAYSUSB `$XWAYUSB is empty or not set."
+            Write-Warning "Setting Now.."
+            $SCRIPT:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter 
         }
         
         #region Credentials
         # THE Following CREDENTIAL STUFF IS MOSTLY WORK FROM https://gist.github.com/davefunkel THANK YOU DAVE and from
         # https://purple.telstra.com.au/blog/using-saved-credentials-securely-in-powershell-scripts Thank you purple Telstra        
-        if (-not (Test-Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES") -or `
-            (-not (Get-ChildItem -Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES" -Filter "*SecureStore.txt", "*AES.key" -Recurse -Force) )) {
+        if (-not (Test-Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES")) {
             # Root Folder
             $rootFolder = "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES"
 
@@ -70,7 +68,7 @@ function Get-XwaysResources {
                 0 { $encryptMode = "DPAPI" }
                 1 { $encryptMode = "AES" }
             }
-            Write-DebugLog "Encryption mode $encryptMode was selected to prepare the credentials."
+            Out-Host -inputobject "Encryption mode $encryptMode was selected to prepare the credentials."
                 
             Out-Host -InputObject "Collecting XWAYS Credentials to create a secure credential file..." 
             # Collect the credentials to be used.
@@ -121,16 +119,23 @@ function Get-XwaysResources {
             Out-Host -InputObject "Credentials collected and stored." 
             Write-Host -foreground Green "Credentials collected and stored."
         }
-        if (!(Test-Path $credentialFilePath)) {
-            Write-Log "Could not find a secure credential file at $credentialFilePath.  Exiting." -Type ERROR
-            Write-Host -foreground red "[ERROR] Could not find a secure credential file at $credentialFilePath.  Ensure that you have run the -PrepareCredentials parameter at least once for this script."
-            exit -1	
+        else {
+            # Root Folder
+            $rootFolder = "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES"
+
+            # Secure Credential File
+            $credentialFileDir = $rootFolder
+            $credentialFilePath = "$credentialFileDir\-SecureStore.txt"
+            
+            # Path to store AES File (if using AES mode for PrepareCredentials)
+            $AESKeyFileDir = $rootFolder
+            $AESKeyFilePath = "$AESKeyFileDir\-AES.key"
         }
         
         # Check to see if we have an AES Key file.  If so, then we will use it to decrypt the secure credential file
         if ( Test-Path $AESKeyFilePath) {
             try {
-                Write-DebugLog "Found an AES Key File.  Using this to decrypt the secure credential file."
+                Out-Host -inputobject "Found an AES Key File.  Using this to decrypt the secure credential file."
                 $decryptMode = "AES"
                 $AESKey = Get-Content $AESKeyFilePath
             }
@@ -141,12 +146,12 @@ function Get-XwaysResources {
             }
         }
         else {
-            Write-DebugLog "No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file."
+            Out-Host -inputobject "No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file."
             $decryptMode = "DPAPI"
         }
 
         try {	
-            Write-DebugLog "Reading secure credential file at $credentialFilePath."
+            Out-Host -inputobject "Reading secure credential file at $credentialFilePath."
             $credFiles = Get-Content $credentialFilePath
             $userName = $credFiles[0]
             if ($decryptMode -eq "DPAPI") {
@@ -159,10 +164,10 @@ function Get-XwaysResources {
                 # Placeholder in case there are other decrypt modes
             }
     
-            Write-DebugLog "Creating credential object..."
+            Out-Host -inputobject "Creating credential object..."
             $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $password
             $passwordClearText = $credObject.GetNetworkCredential().Password
-            Write-DebugLog "Credential store read.  UserName is $userName and Password is $passwordClearText"
+            Out-Host -inputobject "Credential store read.  UserName is $userName and Password is $passwordClearText"
             
         }
         catch {
@@ -173,12 +178,8 @@ function Get-XwaysResources {
         }
         #endregion Credentials
 
-        #   First we need to get the Username and Password from the credentials object
-        $Username
-        $PasswordPlainText
-
         #  Then we need to convert the username and password to base64 for basic http authentication
-        $AuthenticationPair = "$($UsernamePlainText)`:$($PasswordPlainText)"
+        $AuthenticationPair = "$($userName)`:$($PasswordClearText)"
         $Bytes = [System.Text.Encoding]::UTF8.GetBytes($authenticationPair)
         $Base64AuthString = [System.Convert]::ToBase64String($bytes)
 
@@ -257,6 +258,7 @@ function Get-XwaysResources {
 
     }
     catch {
+        $errText = $_.Exception.Message
         Write-Warning "Exiting"
         Exit-PSHostProcess -Verbose
     }
@@ -267,3 +269,5 @@ function Get-XwaysResources {
 
 
 }
+
+Get-XwaysResources -Verbose
