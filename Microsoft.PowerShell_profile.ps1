@@ -704,7 +704,7 @@ Set-PSReadLineKeyHandler -Key Alt+a `
 }
 
 
-Set-PSReadLineOption -PredictionSource Get-History
+Set-PSReadLineOption -PredictionSource HistoryAndPlugin
 Set-PSReadLineOption -PredictionViewStyle ListView
 Set-PSReadLineOption -EditMode Windows
 
