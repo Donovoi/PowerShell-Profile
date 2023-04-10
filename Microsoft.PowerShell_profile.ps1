@@ -16,6 +16,22 @@ $profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\Powe
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 
+
+# install and import modules needed for oh my posh
+$modules = @(Terminal-Icons, posh-git, PSReadLine, PSColors)
+$modules | ForEach-Object {
+  if (-not (Get-Module -ListAvailable $_)) {
+    if($_ -like '*PSReadLine*') {
+      Install-Module PowerShellGet -Force
+      Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
+      Set-PSReadLineOption -PredictionSource History
+    }else{
+      Install-Module $_ -Force
+    }    
+  }
+  Import-Module $_ -Force
+}
+
 #  Extract this to a Function TODO
 # $Modules = Get-Module -ListAvailable
 
@@ -35,6 +51,7 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 
 $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
 
+
 $env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\chocolatey apps\chocolatey\bin\'
 $env:Path += ";$XWAYSUSB\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
@@ -51,7 +68,7 @@ if (-not ((Get-Command oh-my-posh).Source)) {
   Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://ohmyposh.dev/install.ps1'))
 }
 RefreshEnv.cmd
-Import-RequiredModule -ModuleName Terminal-Icons, posh-git, PSReadLine, PSColors
+
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
 Copy-Item -Path (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\Projects\oh-my-posh\themes\jandedobbeleer.omp.json' -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
