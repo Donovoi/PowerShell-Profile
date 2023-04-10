@@ -27,7 +27,7 @@ $modules | ForEach-Object {
       Set-PSReadLineOption -PredictionSource History
     }
     else {
-      Install-Module $_ -Force
+      Install-Module $_ -Force -AllowClobber
     }    
   }
   Import-Module $_ -Force
