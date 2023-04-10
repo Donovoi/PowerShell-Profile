@@ -15,21 +15,23 @@ $profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\Powe
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
-$Modules = Get-Module -ListAvailable
 
-$Modules.ForEach{ 
-  $ErrorActionPreference = 'silentlycontinue'
-  if ($_ -notlike '*PSReadline*') {
-    Import-Module $_ -Force -SkipEditionCheck
-  }
-  else {
-    Install-Module PowerShellGet -Force
-    Update-Module PowerShellGet -Force
-    Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
-    Set-PSReadLineOption -PredictionSource History
-  }
+#  Extract this to a Function TODO
+# $Modules = Get-Module -ListAvailable
+
+# $Modules.ForEach{ 
+#   $ErrorActionPreference = 'silentlycontinue'
+#   if ($_ -notlike '*PSReadline*') {
+#     Import-Module $_ -Force -SkipEditionCheck
+#   }
+#   else {
+#     Install-Module PowerShellGet -Force
+#     Update-Module PowerShellGet -Force
+#     Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
+#     Set-PSReadLineOption -PredictionSource History
+#   }
   
-}
+# }
 
 $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
 
