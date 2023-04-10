@@ -18,7 +18,7 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 
 
 # install and import modules needed for oh my posh
-$modules = @(Terminal-Icons, posh-git, PSReadLine, PSColors)
+$modules = @("Terminal-Icons", "posh-git", "PSReadLine", "PSColors")
 $modules | ForEach-Object {
   if (-not (Get-Module -ListAvailable $_)) {
     if ($_ -like '*PSReadLine*') {
