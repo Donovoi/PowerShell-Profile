@@ -71,7 +71,7 @@ RefreshEnv.cmd
 
 Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
 
-Copy-Item -Path $( Resolve-Path ((Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter) + '\Projects\oh-my-posh\themes\jandedobbeleer.omp.json') -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
+Copy-Item -Path $( Resolve-Path ((Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\Projects\oh-my-posh\themes\jandedobbeleer.omp.json')) -Destination $ENV:USERPROFILE\Documents\jandedobbeleer.omp.json -Force
 oh-my-posh --init --shell pwsh --config $ENV:USERPROFILE/jandedobbeleer.omp.json | Invoke-Expression
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
