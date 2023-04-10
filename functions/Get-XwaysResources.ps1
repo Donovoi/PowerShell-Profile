@@ -21,8 +21,7 @@ function Get-XwaysResources {
         [switch]
         $ResetCredentials = $false
         
-    )
-    
+    )    
     try {
         # if $resetCredentials is set to true then we will delete the credential files
         if ($ResetCredentials) {
@@ -253,9 +252,6 @@ function Get-XwaysResources {
         # $XWAYSTemplateNames.foreach{
         # Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$_") -OutFile "$DestinationFolder\XWScriptsAndTemplates\$_"
         # }
-
-
-
     }
     catch {
         $errText = $_.Exception.Message
@@ -263,11 +259,4 @@ function Get-XwaysResources {
         Exit-PSHostProcess -Verbose
     }
 
-
-
-    
-
-
 }
-
-Get-XwaysResources -Verbose
