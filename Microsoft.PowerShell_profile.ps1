@@ -21,11 +21,12 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 $modules = @(Terminal-Icons, posh-git, PSReadLine, PSColors)
 $modules | ForEach-Object {
   if (-not (Get-Module -ListAvailable $_)) {
-    if($_ -like '*PSReadLine*') {
+    if ($_ -like '*PSReadLine*') {
       Install-Module PowerShellGet -Force
       Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
       Set-PSReadLineOption -PredictionSource History
-    }else{
+    }
+    else {
       Install-Module $_ -Force
     }    
   }
