@@ -1,3 +1,4 @@
 OUTPUT.csv
 Non PowerShell Tools/FastFileEnum
 .vscode/c_cpp_properties.json
+*.zip
