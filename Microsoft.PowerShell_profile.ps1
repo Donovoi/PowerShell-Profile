@@ -35,19 +35,14 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 
 $ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
 
-$chococommand = choco
-if ([string]::IsNullOrEmpty($chococommand)) {
-  Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-  cmd.exe /c `@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"; Set-Variable 'PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin'
-}
-
 $env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\chocolatey apps\chocolatey\bin\'
 $env:Path += ";$XWAYSUSB\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
 }
 
-if (-not (choco)) {
+$chococommand = choco
+if ([string]::IsNullOrEmpty($chococommand)) {
   Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
   Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
