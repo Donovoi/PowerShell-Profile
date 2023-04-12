@@ -117,12 +117,18 @@ function Get-KapeBinaries {
 
 
     Write-Output $FinalUrls
+
     if ($DownloadBinaries) {
       # Download binaries using aria2c (will download if not already downloaded)
-      $progressPreference = 'silentlyContinue'
-      Start-BitsTransfer -Source "https://github.com/aria2/aria2/releases/latest/aria2-1.36.0-win-64bit-build1.zip"
-      -Destination $Dest -Asynchronous -Force
+      #$progressPreference = 'silentlyContinue'
+      Start-BitsTransfer -Source "https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-win-64bit-build1.zip" -Destination "$Dest\aria2.zip" -Asynchronous
+      # Complete the BitsTransfer
+      Get-BitsTransfer | Complete-BitsTransfer
+      # Unzip aria2
+      Expand-Archive -Path $(Resolve-Path "$Dest\aria2.zip") -DestinationPath $(Resolve-Path "$Dest\aria2") -Force
+      $ariaexe = Join-Path $Dest -ChildPath "aria2c.exe"
     }
+
   }
   # If $UseBinaryList switch wasn't used, scan mkape files for binary URLs and download
   else {
