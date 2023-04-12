@@ -1,9 +1,9 @@
 function Format-Powershell {
   [CmdletBinding()]
   param(
-    [Parameter()]
+    [Parameter(Mandatory = $true)]
     [string]
-    $FolderPath = $PWD
+    $FolderOrFilePath
   )
 
   if (-not (Get-Module -ListAvailable -Name 'PSScriptAnalyzer')) {
@@ -17,20 +17,29 @@ function Format-Powershell {
   Import-Module PSScriptAnalyzer
   Import-Module PowerShell-Beautifier
 
-  $files = Get-ChildItem -Path $FolderPath -Recurse -Include @("*.ps1", "*.psm1", "*.psd1")
 
-  foreach ($file in $files) {
-    Edit-DTWBeautifyScript -SourcePath $file.FullName
-    $beautifiedContent = [System.IO.File]::ReadAllText($file.FullName)
-
-    $rules = (Get-ScriptAnalyzerRule).RuleName
-
-    $settings = @{
-      IncludeRules = $rules
-    }
-
-    Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings -Verbose | Out-File -FilePath $file.FullName -Force
+  #Handle if the path is a file or a folder
+  #If File
+  if ($FolderOrFilePath -like '*.ps*') {
+    Edit-DTWBeautifyScript -SourcePath $(Resolve-Path $FolderOrFilePath)
   }
+  else {
+    #If Folder
+    $files = Get-ChildItem -Path $FolderOrFilePath -Recurse -Include @("*.ps1", "*.psm1", "*.psd1")
+    foreach ($file in $files) {
+      Edit-DTWBeautifyScript -SourcePath $file.FullName
+      # $beautifiedContent = [System.IO.File]::ReadAllText($file.FullName)
+  
+      # $rules = (Get-ScriptAnalyzerRule).RuleName
+  
+      # $settings = @{
+      #   IncludeRules = $rules
+      # }
+  
+      # Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings -Verbose | Out-File -FilePath $file.FullName -Force
+    }
+  }
+ 
 }
 
 
