@@ -38,19 +38,19 @@ function Get-KapeBinaries {
   param
   (
     [Parameter()]
-    [string]$Dest = "$ENV:USERPROFILE\kapeDownloadedBinaries",# Where to download binaries
+    [string]$Dest = "$ENV:USERPROFILE\kapeDownloadedBinaries", # Where to download binaries
 
     [Parameter()]
-    [string]$ModulePath = "$XWAYSUSB\Modules",# Path to Kape Modules directory
+    [string]$ModulePath = "$ENV:USERPROFILE\Desktop\kape\Modules", # Path to Kape Modules directory
 
     [Parameter()]
-    [switch]$CreateBinaryList,#Optional switch which scans mkape file and dumps binary urls found to console
+    [switch]$CreateBinaryList, #Optional switch which scans mkape file and dumps binary urls found to console
 
     [Parameter()]
-    [switch]$DownloadBinaries,# Optional switch to enable downloading of binaries after list is created       
+    [switch]$DownloadBinaries, # Optional switch to enable downloading of binaries after list is created       
 
     [Parameter()]
-    [switch]$UseBinaryList,# Optional switch to enable use of txt file to specify which binaries to download
+    [switch]$UseBinaryList, # Optional switch to enable use of txt file to specify which binaries to download
     [string]$BinaryListPath # Path of txt file containing Binary URLs
   )
   # make sure my usb is available as $XWAYSUSB
@@ -106,10 +106,10 @@ function Get-KapeBinaries {
     # $UniqueURLs = @{}
     $progressPreference = 'Continue'
     $mkapeContent.ForEach{
-      $regex = [regex]'(?i)\b(http.):\/\/[-A-Z0-9+&@#\/%?=~_|$!:,.;]*[A-Z0-9+&@#\/%=~_|$].(zip|txt|ps1|exe)'
+      $regex = [regex]'(?i)\b(http.):\/\/[-A-Z0-9+&@#\/%?=~_|$!:,.;]*[A-Z0-9+&@#\/%=~_|$]\.(zip|txt|ps1|exe)'
       if ($regex.IsMatch($_)) {
         $matchdetails = $regex.Match($_)
-        $UniqueURLs += [System.Collections.Generic.HashSet[string]]::new([string[]]($matchdetails.Value),[System.StringComparer]::Ordinal)
+        $UniqueURLs += [System.Collections.Generic.HashSet[string]]::new([string[]]($matchdetails.Value), [System.StringComparer]::Ordinal)
       }
     }
     $FinalUrls = $UniqueURLs | Sort-Object -Unique
@@ -119,14 +119,14 @@ function Get-KapeBinaries {
     Write-Output $FinalUrls
 
     if ($DownloadBinaries) {
-      # Download binaries using aria2c (will download if not already downloaded)
-      #$progressPreference = 'silentlyContinue'
-      Start-BitsTransfer -Source "https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-win-64bit-build1.zip" -Destination "$Dest\aria2.zip" -Asynchronous
-      # Complete the BitsTransfer
-      Get-BitsTransfer | Complete-BitsTransfer
-      # Unzip aria2
-      Expand-Archive -Path $(Resolve-Path "$Dest\aria2.zip") -DestinationPath $(Resolve-Path "$Dest\aria2") -Force
-      $ariaexe = Join-Path $Dest -ChildPath "aria2c.exe"
+      $FinalUrls.foreach{ 
+        $DownloadedBinaries = $(Join-Path -Path $Dest -ChildPath "$($_.split('/')[-1])")
+        if (Test-Path -Path $DownloadedBinaries) {
+          Remove-Item -Path $DownloadedBinaries -Force -ErrorAction SilentlyContinue
+        }
+        Start-BitsTransfer -Source "$_" -Destination "$DownloadedBinaries" -Verbose
+      }
+      #Get-BitsTransfer -Verbose | Complete-BitsTransfer -Verbose
     }
 
   }
@@ -176,7 +176,7 @@ function Get-KapeBinaries {
       $details = @{
         Name = $name
         SHA1 = $sha
-        URL = $getUrl
+        URL  = $getUrl
         Size = $size
       }
     }
@@ -191,7 +191,7 @@ function Get-KapeBinaries {
       $details = @{
         Name = $name
         SHA1 = $sha
-        URL = $getUrl
+        URL  = $getUrl
         Size = $size
       }
     }
@@ -338,7 +338,7 @@ function Get-KapeBinaries {
       }
     }
 
-    $reCmdChanges = @("$Dest\RegistryExplorer\ReCmd.exe","$Dest\RegistryExplorer\BatchExamples\*.reb","$Dest\RegistryExplorer\Plugins")
+    $reCmdChanges = @("$Dest\RegistryExplorer\ReCmd.exe", "$Dest\RegistryExplorer\BatchExamples\*.reb", "$Dest\RegistryExplorer\Plugins")
 
     foreach ($change in $reCmdChanges) {
       try {
@@ -359,7 +359,7 @@ function Get-KapeBinaries {
   }
 
   # Additonal cleanup of tools that must reside directly in \Kape\Modules\Bin
-  $toolPath = @("$Dest\ShellBagsExplorer\SBECmd.exe","$Dest\win64\densityscout.exe","$Dest\sqlite-tools-win32-x86-3270200\*.exe")
+  $toolPath = @("$Dest\ShellBagsExplorer\SBECmd.exe", "$Dest\win64\densityscout.exe", "$Dest\sqlite-tools-win32-x86-3270200\*.exe")
   foreach ($tool in $toolPath) {
 
     # Check to make sure each $tool is in $dest before doing anything
