@@ -12,7 +12,7 @@ function Get-Zimmer {
   Remove-Item $("$XWAYSUSB" + "\Triage\KAPE\Modules\bin\ZimmermanTools\") -Recurse -Force -ea silentlycontinue
   Remove-Item $("$XWAYSUSB" + "\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1") -ea silentlycontinue
 
-  & "$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1" -netVersion 6
+  & "$(Resolve-Path "$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1")" -netVersion 6
   $ProgressPreference = 'SilentlyContinue'
   $Global:ENV:ChocolateyInstall = $("$XWAYSUSB" + "\chocolatey apps\chocolatey\bin")
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + "\ZimmermanTools.zip")) -Verbose

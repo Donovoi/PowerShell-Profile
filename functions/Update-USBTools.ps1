@@ -1,9 +1,9 @@
 function Update-USBTools {
-  $firstcommand = { $env:ChocolateyInstall = $XWAYSUSB + "\chocolatey apps\chocolatey\bin\"; `
-       $xml = Get-ChildItem $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\*.xml"; `
+  $firstcommand = { $env:ChocolateyInstall = $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\"); `
+       $xml = Get-ChildItem $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml"); `
        Rename-Item $xml[0] choco.xml; `
        chocolatey upgrade chocolatey.extension; `
-       Rename-Item $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" chocolatey.license.xml; `
+       Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml") chocolatey.license.xml; `
        chocolatey upgrade chocolatey.extension; `
        cup all };
   $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
