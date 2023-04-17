@@ -238,20 +238,35 @@ function Get-XwaysResources {
         Out-Host -InputObject "Copying Conditional Coloring.cfg to $DestinationFolder"
         Copy-Item -Path "$ENV:TEMP\Conditional Coloring.cfg" -Destination $DestinationFolder -Force
 
-        # # Now we copy all TPL files from x-ways.net/winhex/templates to the XWScriptsAndTemplates folder
-        # # First we need to load the page and find all links that end in .tpl
-        # # load the x-ways.net/winhex/templates page
-        # $XWAYSTemplateNames = (Invoke-WebRequest -Uri "https://x-ways.net/winhex/templates/").Links.Where({ $_.href -like "*.tpl" }).href
+        # Now we copy all TPL files from x-ways.net/winhex/templates to the XWScriptsAndTemplates folder on $XWAYSUSB
+        # First we need to load the page and find all links that end in .tpl
+        # load the x-ways.net/winhex/templates page
+        $XWAYSTemplateNames = (Invoke-WebRequest -Uri "https://x-ways.net/winhex/templates/").Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
 
-        # # provide a count of how many templates were found
-        # Out-Host -InputObject "There are $XWAYSTemplateNames.Count templates available"
+        # provide a count of how many templates were found
+        Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available"
 
-        # # then download each template and save it to the XWScriptsAndTemplates folder
-        # out-host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
+        # then download each template and save it to the XWScriptsAndTemplates folder
+        out-host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
 
-        # $XWAYSTemplateNames.foreach{
-        # Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$_") -OutFile "$DestinationFolder\XWScriptsAndTemplates\$_"
-        # }
+
+        if (-not (Test-Path "$DestinationFolder\XWScriptsAndTemplates")) {
+            New-Item -Path "$DestinationFolder\XWScriptsAndTemplates" -ItemType Directory -Force
+        }
+        $XWAYSTemplateNames.href.foreach{
+            # remove any url encoding
+            $newname = [System.Web.HttpUtility]::UrlDecode($_)
+            # download tpl file
+            Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$newname") -OutFile "$DestinationFolder\XWScriptsAndTemplates\$newname"
+        }
+
+        # Finally we will expand and remove any remaing zip files
+        $zipfiles = Get-ChildItem -Path "$DestinationFolder\XWScriptsAndTemplates" -Include "*.zip"
+        $zipfiles.foreach{ 
+            Expand-Archive -Path $_ -DestinationPath "$DestinationFolder\XWScriptsAndTemplates" -Force 
+            
+        }
+        Remove-Item -Path $zipfiles -Force
     }
     catch {
         $errText = $_.Exception.Message
