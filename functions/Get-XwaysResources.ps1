@@ -261,12 +261,12 @@ function Get-XwaysResources {
         }
 
         # Finally we will expand and remove any remaing zip files
-        $zipfiles = Get-ChildItem -Path "$DestinationFolder\XWScriptsAndTemplates" -Include "*.zip"
+        $zipfiles = Get-ChildItem -Path "$DestinationFolder\XWScriptsAndTemplates" -filter "*.zip"
         $zipfiles.foreach{ 
             Expand-Archive -Path $_ -DestinationPath "$DestinationFolder\XWScriptsAndTemplates" -Force 
-            
+            Remove-Item -Path $_ -Force
         }
-        Remove-Item -Path $zipfiles -Force
+        
     }
     catch {
         $errText = $_.Exception.Message
