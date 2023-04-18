@@ -32,8 +32,9 @@ function Get-XwaysResources {
     }
 
     # Check if we have $XWAYSUSB set as a variable if $DestinationFolder is set to $XWAYSUSB\xwfportable
-    if (-not (Resolve-Path -Path $DestinationFolder)) {
-      Write-Warning "$XWAYSUSB `$XWAYUSB is empty or not set."
+    if (-not (Resolve-Path -Path $DestinationFolder) -or (-not ({[System.IO.Path]::IsPathRooted($DestinationFolder)}))) {
+      Write-Warning "$XWAYSUSB `$DestinationFolder is empty or not an absolute path."
+      
       Write-Warning "Setting Now.."
       $SCRIPT:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     }
@@ -186,7 +187,6 @@ function Get-XwaysResources {
     $Bytes = [System.Text.Encoding]::UTF8.GetBytes($authenticationPair)
     $Base64AuthString = [System.Convert]::ToBase64String($bytes)
 
-
     # headers for xways website - can possibly remove some of these
     $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
     $URI = [System.Uri]::new("https://x-ways.net:443/res/Excire.zip")
@@ -262,7 +262,7 @@ function Get-XwaysResources {
       $XWAYSTemplateNames.href.ForEach{
         # remove any url encoding
         $newname = [System.Web.HttpUtility]::UrlDecode($_)
-        # download tpl file
+        # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
         Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$newname") -OutFile "$DestinationFolder\XWScriptsAndTemplates\$newname"
       }
 
