@@ -10,9 +10,9 @@
 .PARAMETER GetTemplates
     Use this if you would like to get all Templates that I could find on the internet.
 .EXAMPLE
-    Get-XwaysResources -DestinationFolder "C:\XwaysResources"
+    Get-XwaysResources -XWaysRoot "C:\XwaysResources"
 .EXAMPLE 
-    Get-XwaysResources -GetTemplates -DestinationFolder F:\xwfportable -ResetCredentials
+    Get-XwaysResources -GetTemplates -XWaysRoot F:\xwfportable -ResetCredentials
 #>
 function Get-XwaysResources {
   [CmdletBinding()]
