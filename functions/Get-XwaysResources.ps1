@@ -6,7 +6,7 @@
 .PARAMETER DestinationFolder
     The folder to download the resources to. I have set this to my preferred location of $XWAYSUSB\xwfportable (where $XWAYSUSB is the drive letter of my Xways USB and is a GLOBAL variable in my profile)
 .EXAMPLE
-    Get-XwaysResources -DestinationFolder "C:\XwaysResources"
+    Get-XwaysResources -DestinationFolder "C:\XwaysResources" -
 #>
 function Get-XwaysResources {
   [CmdletBinding()]
@@ -32,10 +32,10 @@ function Get-XwaysResources {
     }
 
     # Check if we have $XWAYSUSB set as a variable if $DestinationFolder is set to $XWAYSUSB\xwfportable
-    if (-not (Resolve-Path -Path $DestinationFolder) -or (-not ({[System.IO.Path]::IsPathRooted($DestinationFolder)}))) {
+    if (-not (Resolve-Path -Path $DestinationFolder) -or (-not ({ [System.IO.Path]::IsPathRooted($DestinationFolder) }))) {
       Write-Warning "$XWAYSUSB `$DestinationFolder is empty or not an absolute path."
-      $DestinationFolder = Out-Host "Please enter the Folder that is the root of your chosen X-Ways Installation"
-     Out-Host "Your Chosen Folder is $($DestinationFolder)"
+      $DestinationFolder = Out-Host -InputObject "Please enter the Folder that is the root of your chosen X-Ways Installation"
+      Out-Host -InputObject "Your Chosen Folder is $($DestinationFolder)"
     }
 
     #region Credentials
@@ -246,8 +246,23 @@ function Get-XwaysResources {
       # Now we copy all TPL files from x-ways.net/winhex/templates to the XWScriptsAndTemplates folder on $XWAYSUSB
       # First we need to load the page and find all links that end in .tpl
       # load the x-ways.net/winhex/templates page
-      $XWAYSTemplateNames = (Invoke-WebRequest -Uri "https://x-ways.net/winhex/templates/").Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
+      $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/","https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip","https://x-ways.net/winhex/templates/")
 
+      $UrlsToDownloadTemplates.ForEach{
+        $url = $_
+        switch -WildCard ($url) {
+          "*.zip" { $ProgressPreference = 'SilentlyContinue'
+            Out-Host -InputObject "Downloading kacos2000's Templates as a zip"
+            Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])";
+            break
+          }
+          default {
+            Out-Host -InputObject "Downloading Templates from Jens and then from X-Ways"
+            $SCRIPT:XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
+          }
+        }
+
+      }
       # provide a count of how many templates were found
       Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available"
 
@@ -255,20 +270,20 @@ function Get-XwaysResources {
       Out-Host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
 
 
-      if (-not (Test-Path "$DestinationFolder\XWScriptsAndTemplates")) {
-        New-Item -Path "$DestinationFolder\XWScriptsAndTemplates" -ItemType Directory -Force
+      if (-not (Test-Path "$XWScriptsAndTemplatesFolder")) {
+        New-Item -Path "$XWScriptsAndTemplatesFolder" -ItemType Directory -Force
       }
       $XWAYSTemplateNames.href.ForEach{
         # remove any url encoding
         $newname = [System.Web.HttpUtility]::UrlDecode($_)
         # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-        Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$newname") -OutFile "$DestinationFolder\XWScriptsAndTemplates\$newname"
+        Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$newname") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
       }
 
       # Finally we will expand and remove any remaing zip files
-      $zipfiles = Get-ChildItem -Path "$DestinationFolder\XWScriptsAndTemplates" -Filter "*.zip"
+      $zipfiles = Get-ChildItem -Path "$XWScriptsAndTemplatesFolder" -Filter "*.zip"
       $zipfiles.ForEach{
-        Expand-Archive -Path $_ -DestinationPath "$DestinationFolder\XWScriptsAndTemplates" -Force
+        Expand-Archive -Path $_ -DestinationPath "$XWScriptsAndTemplatesFolder" -Force
         Remove-Item -Path $_ -Force
       }
     }
