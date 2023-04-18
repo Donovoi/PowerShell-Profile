@@ -11,12 +11,12 @@
 function Get-XwaysResources {
   [CmdletBinding()]
   param(
+    [Parameter(Mandatory = $true)]
+    [string]
+    $DestinationFolder,
     [Parameter()]
     [string]
-    $DestinationFolder = "$XWAYSUSB\xwfportable",
-    [Parameter()]
-    [string]
-    $XWScriptsAndTemplatesFolder = $(Resolve-Path -Path "$XWAYSUSB\XWScriptsAndTemplates"),
+    $XWScriptsAndTemplatesFolder = $(Resolve-Path -Path "$DestinationFolder\..\XWScriptsAndTemplates"),
     [Parameter()]
     [switch]
     $ResetCredentials,
@@ -34,9 +34,8 @@ function Get-XwaysResources {
     # Check if we have $XWAYSUSB set as a variable if $DestinationFolder is set to $XWAYSUSB\xwfportable
     if (-not (Resolve-Path -Path $DestinationFolder) -or (-not ({[System.IO.Path]::IsPathRooted($DestinationFolder)}))) {
       Write-Warning "$XWAYSUSB `$DestinationFolder is empty or not an absolute path."
-      
-      Write-Warning "Setting Now.."
-      $SCRIPT:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+      $DestinationFolder = Out-Host "Please enter the Folder that is the root of your chosen X-Ways Installation"
+     Out-Host "Your Chosen Folder is $($DestinationFolder)"
     }
 
     #region Credentials
