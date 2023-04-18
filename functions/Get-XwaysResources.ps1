@@ -1,22 +1,28 @@
 <#
 .SYNOPSIS
-    Download the extra resources needed for xways forensics at the moment this is just Excire and Conditional Coloring
-.DESCRIPTION
-    Download the extra resources needed for xways forensics at the moment this is just Excire and Conditional Coloring
-.PARAMETER DestinationFolder
-    The folder to download the resources to. I have set this to my preferred location of $XWAYSUSB\xwfportable (where $XWAYSUSB is the drive letter of my Xways USB and is a GLOBAL variable in my profile)
+    Download the extra resources needed for xways forensics at the moment this is just Excire, Conditional Colouring, and All Templates
+.PARAMETER XWaysRoot
+    This should be set as your X-Ways Root Folder
+.PARAMETER XWScriptsAndTemplatesFolder
+    This is an optional parameter to set the scripts and templates folder. If left empty is will be "$XWaysRoot\..\XWScriptsAndTemplates"
+.PARAMETER ResetCredentials
+    This is a switch parameter, use this if you need to change the X-Ways credentials
+.PARAMETER GetTemplates
+    Use this if you would like to get all Templates that I could find on the internet.
 .EXAMPLE
-    Get-XwaysResources -DestinationFolder "C:\XwaysResources" -
+    Get-XwaysResources -DestinationFolder "C:\XwaysResources"
+.EXAMPLE 
+    Get-XwaysResources -GetTemplates -DestinationFolder F:\xwfportable -ResetCredentials
 #>
 function Get-XwaysResources {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
     [string]
-    $DestinationFolder,
+    $XWaysRoot,
     [Parameter()]
     [string]
-    $XWScriptsAndTemplatesFolder = $(Resolve-Path -Path "$DestinationFolder\..\XWScriptsAndTemplates"),
+    $XWScriptsAndTemplatesFolder = $(Resolve-Path -Path "$XWaysRoot\..\XWScriptsAndTemplates"),
     [Parameter()]
     [switch]
     $ResetCredentials,
@@ -33,11 +39,11 @@ function Get-XwaysResources {
       Remove-Item -Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES" -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    # Check if we have $XWAYSUSB set as a variable if $DestinationFolder is set to $XWAYSUSB\xwfportable
-    if (-not (Resolve-Path -Path $DestinationFolder) -or (-not ({ [System.IO.Path]::IsPathRooted($DestinationFolder) }))) {
-      Write-Warning "$XWAYSUSB `$DestinationFolder is empty or not an absolute path."
-      $DestinationFolder = Out-Host -InputObject "Please enter the Folder that is the root of your chosen X-Ways Installation"
-      Out-Host -InputObject "Your Chosen Folder is $($DestinationFolder)"
+    # Check if we have $XWAYSUSB set as a variable if $XWaysRoot is set to $XWAYSUSB\xwfportable
+    if (-not (Resolve-Path -Path $XWaysRoot) -or (-not ({ [System.IO.Path]::IsPathRooted($XWaysRoot) }))) {
+      Write-Warning "$XWAYSUSB `$XWaysRoot is empty or not an absolute path."
+      $XWaysRoot = Out-Host -InputObject "Please enter the Folder that is the root of your chosen X-Ways Installation"
+      Out-Host -InputObject "Your Chosen Folder is $($XWaysRoot)"
     }
 
     #region Credentials
@@ -210,12 +216,12 @@ function Get-XwaysResources {
     $headers.Add("Referer","https://x-ways.net/res/")
     $headers.Add("Accept-Encoding","gzip, deflate")
     $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$DestinationFolder\Excire.zip")
+    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$XWaysRoot\Excire.zip")
     $response
 
     # Extract zip to destination folder in the Excire folder
-    Out-Host -InputObject "Extracting Excire.zip to $DestinationFolder\Excire"
-    Expand-Archive -Path "$DestinationFolder\Excire.zip" -DestinationPath "$DestinationFolder\Excire" -Force
+    Out-Host -InputObject "Extracting Excire.zip to $XWaysRoot\Excire"
+    Expand-Archive -Path "$XWaysRoot\Excire.zip" -DestinationPath "$XWaysRoot\Excire" -Force
 
     # headers for xways website - can possibly remove some of these
     $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
@@ -237,7 +243,7 @@ function Get-XwaysResources {
     $headers.Add("Referer","https://x-ways.net/res/")
     $headers.Add("Accept-Encoding","gzip, deflate")
     $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$DestinationFolder\Conditional Coloring.cfg")
+    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$XWaysRoot\Conditional Coloring.cfg")
     $response
 
 
