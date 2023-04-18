@@ -83,6 +83,7 @@ function Get-XwaysResources {
 
       Out-Host -InputObject "Collecting XWAYS Credentials to create a secure credential file..."
       # Collect the credentials to be used.
+      Out-Host -InputObject "Please enter your X-Ways Credentials"
       $creds = Get-Credential
 
       # Store the details in a hashed format
@@ -249,6 +250,12 @@ function Get-XwaysResources {
 
 
     if ($GetTemplates) {
+
+      # Create the Scripts and Templates folder if it doesn't exist
+      if (-not (Test-Path "$XWScriptsAndTemplatesFolder")) {
+        New-Item -Path "$XWScriptsAndTemplatesFolder" -ItemType Directory -Force
+      }
+
       # Now we copy all TPL files from x-ways.net/winhex/templates two other sites to the XWScriptsAndTemplates folder on $XWAYSUSB
       $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/","https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip","https://x-ways.net/winhex/templates/")
 
@@ -262,27 +269,24 @@ function Get-XwaysResources {
             break
           }
           default {
-            Out-Host -InputObject "Downloading Templates from Jens and then from X-Ways"
-            $SCRIPT:XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
+            Out-Host -InputObject "Parsing Templates from Jens and then from X-Ways"
+            $XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
+
+            # provide a count of how many templates were found
+            Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available from $url"
+
+            # then download each template and save it to the XWScriptsAndTemplates folder
+            Out-Host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
+
+            $XWAYSTemplateNames.href.ForEach{
+              # remove any url encoding
+              $newname = [System.Web.HttpUtility]::UrlDecode($_)
+              # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
+              Invoke-WebRequest -Uri $(-join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
+            }
           }
         }
 
-      }
-      # provide a count of how many templates were found
-      Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available"
-
-      # then download each template and save it to the XWScriptsAndTemplates folder
-      Out-Host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
-
-
-      if (-not (Test-Path "$XWScriptsAndTemplatesFolder")) {
-        New-Item -Path "$XWScriptsAndTemplatesFolder" -ItemType Directory -Force
-      }
-      $XWAYSTemplateNames.href.ForEach{
-        # remove any url encoding
-        $newname = [System.Web.HttpUtility]::UrlDecode($_)
-        # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-        Invoke-WebRequest -Uri $("https://x-ways.net/winhex/templates/$newname") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
       }
 
       # Finally we will expand and remove any remaing zip files
