@@ -26,6 +26,8 @@ function Get-XwaysResources {
 
   )
   try {
+    # For faster downloads
+    $ProgressPreference = 'SilentlyContinue'
     # if $resetCredentials is set to true then we will delete the credential files
     if ($ResetCredentials) {
       Remove-Item -Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES" -Recurse -Force -ErrorAction SilentlyContinue
@@ -186,6 +188,8 @@ function Get-XwaysResources {
     $Bytes = [System.Text.Encoding]::UTF8.GetBytes($authenticationPair)
     $Base64AuthString = [System.Convert]::ToBase64String($bytes)
 
+
+    Out-Host -InputObject "Downloading Excire.zip"
     # headers for xways website - can possibly remove some of these
     $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
     $URI = [System.Uri]::new("https://x-ways.net:443/res/Excire.zip")
@@ -206,12 +210,12 @@ function Get-XwaysResources {
     $headers.Add("Referer","https://x-ways.net/res/")
     $headers.Add("Accept-Encoding","gzip, deflate")
     $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$ENV:TEMP\Excire.zip")
+    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$DestinationFolder\Excire.zip")
     $response
 
     # Extract zip to destination folder in the Excire folder
     Out-Host -InputObject "Extracting Excire.zip to $DestinationFolder\Excire"
-    Expand-Archive -Path "$ENV:TEMP\Excire.zip" -DestinationPath "$DestinationFolder\Excire" -Force
+    Expand-Archive -Path "$DestinationFolder\Excire.zip" -DestinationPath "$DestinationFolder\Excire" -Force
 
     # headers for xways website - can possibly remove some of these
     $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
@@ -233,25 +237,20 @@ function Get-XwaysResources {
     $headers.Add("Referer","https://x-ways.net/res/")
     $headers.Add("Accept-Encoding","gzip, deflate")
     $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$ENV:TEMP\Conditional Coloring.cfg")
+    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$DestinationFolder\Conditional Coloring.cfg")
     $response
 
 
-    # Copy Conditional Coloring.cfg to destination folder
-    Out-Host -InputObject "Copying Conditional Coloring.cfg to $DestinationFolder"
-    Copy-Item -Path "$ENV:TEMP\Conditional Coloring.cfg" -Destination $DestinationFolder -Force
-
 
     if ($GetTemplates) {
-      # Now we copy all TPL files from x-ways.net/winhex/templates to the XWScriptsAndTemplates folder on $XWAYSUSB
-      # First we need to load the page and find all links that end in .tpl
-      # load the x-ways.net/winhex/templates page
+      # Now we copy all TPL files from x-ways.net/winhex/templates two other sites to the XWScriptsAndTemplates folder on $XWAYSUSB
       $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/","https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip","https://x-ways.net/winhex/templates/")
 
       $UrlsToDownloadTemplates.ForEach{
         $url = $_
         switch -WildCard ($url) {
-          "*.zip" { $ProgressPreference = 'SilentlyContinue'
+          "*.zip" {
+            $ProgressPreference = 'SilentlyContinue'
             Out-Host -InputObject "Downloading kacos2000's Templates as a zip"
             Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])";
             break
@@ -291,8 +290,9 @@ function Get-XwaysResources {
   }
   catch {
     $errText = $_.Exception.Message
-    Write-Warning "Exiting"
+    Write-Error "$errText"
+    Write-Warning "If you are getting 'Unauthorized' try using the -ResetCredentials switch and rerun the script`n Exiting"
     Exit-PSHostProcess -Verbose
   }
-
+  Out-Host -InputObject "All Done!"
 }
