@@ -1,7 +1,7 @@
 function Update-USBTools {
   $firstcommand = { 
     $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter; `
-    $env:ChocolateyInstall = $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\"); `
+    $env:ChocolateyInstall = $( Resolve-Path -Path $(Join-Path "$XWAYSUSB" + "\chocolatey apps\chocolatey\bin\")); `
     $xml = Get-ChildItem $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml"); `
       Rename-Item $xml[0] choco.xml; `
       chocolatey upgrade chocolatey.extension; `

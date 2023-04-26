@@ -10,6 +10,7 @@ function Update-VcRedist {
   param(
     [string][Parameter(Mandatory = $false)] $DownloadDirectory = "$ENV:USERPROFILE\Downloads"
   )
+  $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter; `
 
   # Download the installer
   Invoke-WebRequest -Uri "https://github.com/abbodi1406/vcredist/releases/latest/download/VisualCppRedist_AIO_x86_x64_71.zip" -OutFile "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip"
