@@ -12,7 +12,7 @@ function Update-VcRedist {
   )
 
   # Download the installer
-  Invoke-WebRequest -Uri "https://github.com/abbodi1406/vcredist/releases/latest/download/VisualCppRedist_AIO_x86_x64_70.zip" -OutFile "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip"
+  Invoke-WebRequest -Uri "https://github.com/abbodi1406/vcredist/releases/latest/download/VisualCppRedist_AIO_x86_x64_71.zip" -OutFile "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip"
 
   # Extract the installer
   Expand-Archive -Path "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip" -DestinationPath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69" -Force
