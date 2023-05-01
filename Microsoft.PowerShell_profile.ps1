@@ -53,8 +53,8 @@ $modules | ForEach-Object {
 $ENV:PATH += ";`"$XWAYSUSB\chocolatey apps\chocolatey\bin`";"
 
 
-$env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\chocolatey apps\chocolatey\bin\'
-$env:Path += ";$XWAYSUSB\chocolatey apps\chocolatey\bin\bin\;$XWAYSUSB\NirSoft\NirSoft\x64\nircmdc.exe;`""
+$env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
+$env:Path += ";`"$XWAYSUSB\chocolatey apps\chocolatey\bin\bin`";$XWAYSUSB\NirSoft\NirSoft\x64\nircmdc.exe;`""
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
 }
