@@ -50,7 +50,7 @@ $modules | ForEach-Object {
   
 # }
 
-$ENV:PATH += ";$XWAYSUSB\chocolatey apps\chocolatey\bin;"
+$ENV:PATH += ";`"$XWAYSUSB\chocolatey apps\chocolatey\bin`";"
 
 
 $env:ChocolateyInstall = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter + '\chocolatey apps\chocolatey\bin\'
