@@ -9,6 +9,7 @@
     Another example of how to use this cmdlet
 #>
 function ConvertFrom-WingetStdout {
+    [Alias("cfwo")]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
