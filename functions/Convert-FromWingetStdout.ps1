@@ -12,7 +12,8 @@ function ConvertFrom-WingetStdout {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [string[]]$InputObject
+        [string[]]$InputObject,
+        [string] $DebugCmd = 'upgrade'
     )
     # this is one of Stéphane BARIZIEN's public domain scripts
     # the most recent version can be found at:
@@ -36,7 +37,6 @@ function ConvertFrom-WingetStdout {
     # Stéphane BARIZIEN <github.nospam4sba@xoxy.net>
     #
 
-    param([string] $DebugCmd = 'upgrade')
 
     # winget now outputs UTF-8 e.g. for '…' in the 'Available' column, we need to account for this
     [Console]::InputEncoding = [Console]::OutputEncoding = $InputEncoding = $OutputEncoding = [System.Text.Utf8Encoding]::new()
