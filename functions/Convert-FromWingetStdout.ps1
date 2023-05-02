@@ -12,7 +12,7 @@ function ConvertFrom-WingetStdout {
     [Alias("cfwo")]
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [string[]]$InputObject,
         [string] $DebugCmd = 'upgrade'
     )
