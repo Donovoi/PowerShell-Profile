@@ -5,7 +5,7 @@ function Update-USBTools {
     $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
       Rename-Item $xml[0] choco.xml; `
       chocolatey upgrade chocolatey.extension; `
-      Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml") chocolatey.license.xml; `
+      Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction Ignore) chocolatey.license.xml; `
       chocolatey upgrade chocolatey.extension; `
       cup all };
   $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
