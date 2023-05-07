@@ -16,7 +16,7 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist -verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCodes -verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-Zimmer -verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install Microsoft.DotNet.SDK.Preview"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install Microsoft.DotNet.SDK.Preview --force"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Git-Pull -verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -verbose"'
   cargo install cargo-update
