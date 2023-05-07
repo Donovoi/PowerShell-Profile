@@ -2,11 +2,11 @@ function Update-USBTools {
   $firstcommand = { 
     $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter; `
     $env:ChocolateyInstall = $( Resolve-Path -Path $(Join-Path -Path "$XWAYSUSB" -ChildPath "\chocolatey apps\chocolatey\bin\")); `
-    $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
-      Rename-Item $xml[0] choco.xml; `
+    # $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
+      # Rename-Item $xml[0] choco.xml; `
       chocolatey upgrade chocolatey.extension; `
-      Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction SilentlyContinue) chocolatey.license.xml; `
-      chocolatey upgrade chocolatey.extension; `
+      # Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction SilentlyContinue) chocolatey.license.xml; `
+      # chocolatey upgrade chocolatey.extension; `
       cup all };
   $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
   $Encoded = [System.Convert]::ToBase64String($bytes)
