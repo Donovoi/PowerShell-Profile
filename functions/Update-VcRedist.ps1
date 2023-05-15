@@ -1,25 +1,22 @@
 <#
 .SYNOPSIS
 This function will download and install any missing VC++ Distributables
-.EXAMPLE
-Update-VcRedist -DownloadDirectory "C:\temp";
 #>
 
 function Update-VcRedist {
   [CmdletBinding()]
   param(
-    [string][Parameter(Mandatory = $false)] $DownloadDirectory = "$ENV:USERPROFILE\Downloads"
+    
   )
-  $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter; `
 
-  # Download the installer
-  Invoke-WebRequest -Uri "https://github.com/abbodi1406/vcredist/releases/latest/download/VisualCppRedist_AIO_x86_x64_71.zip" -OutFile "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip"
+  Invoke-RestMethod 'https://api.github.com/repos/abbodi1406/vcredist/releases/latest' | ForEach-Object assets | Where-Object name -like "*VisualCppRedist_AIO_x86_x64*.exe" | ForEach-Object { 
+    Invoke-WebRequest $_.browser_download_url -OutFile  $_.name
+    # Run the installer
+    Start-Process -FilePath $_.name -ArgumentList "/y" -Wait -NoNewWindow
+  }
 
-  # Extract the installer
-  Expand-Archive -Path "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69.zip" -DestinationPath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69" -Force
 
-  # Run the installer
-  Start-Process -FilePath "$DownloadDirectory\VisualCppRedist_AIO_x86_x64_69\VisualCppRedist_AIO_x86_x64.exe" -ArgumentList "/y" -Wait -NoNewWindow
+
 
 }
 
