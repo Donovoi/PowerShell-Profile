@@ -22,6 +22,6 @@ function Update-PowerShell {
   # }
   # Write-Output 'PowerShell is up to date'
 
-  winget install microsoft.powershell.preview
+  winget install microsoft.powershell.preview --force
 }
 
