@@ -4,6 +4,7 @@ function Update-PSProfile {
     $parentpathprofile = $(Get-Item $PROFILE).Directory.FullName
   )
   Start-AsAdmin
+  Write-Host -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
   if (-not (Test-Path $PROFILE)) {
     New-Item $PROFILE -Force
     $sourcefolder = $XWAYSUSB + "\Projects\Powershell-Profile\*"

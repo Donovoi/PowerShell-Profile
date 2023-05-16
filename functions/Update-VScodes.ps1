@@ -4,6 +4,7 @@ function Update-VScodes {
 
   )
   process {
+    Write-Host -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
     $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
     Invoke-WebRequest 'https://code.visualstudio.com/sha/download?build=insider&os=win32-x64-archive' -OutFile "$ENV:USERPROFILE\downloads\insiders.zip" -Verbose
