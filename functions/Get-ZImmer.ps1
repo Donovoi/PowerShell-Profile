@@ -12,7 +12,9 @@ function Get-Zimmer {
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath "\Triage\KAPE\Modules\bin\ZimmermanTools\") -Recurse -Force -ea silentlycontinue
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath "\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1") -ea silentlycontinue
 
-  & "$(Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; Resolve-Path "$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1")" -netVersion 6
+
+  Start-Process -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1`" -netVersion 6" -Wait -PassThru -Verb RunAs
+  
   $ProgressPreference = 'SilentlyContinue'
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath "\chocolatey apps\chocolatey\bin")
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + "\ZimmermanTools.zip")) -Verbose
