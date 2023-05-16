@@ -12,8 +12,8 @@ function Get-Zimmer {
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath "\Triage\KAPE\Modules\bin\ZimmermanTools\") -Recurse -Force -ea silentlycontinue
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath "\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1") -ea silentlycontinue
 
-
-  Start-Process -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1`" -netVersion 6" -Wait -PassThru -Verb RunAs
+set-location -Path "$XWAYSUSB\Triage\KAPE\"
+  Start-Process -FilePath pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$XWAYSUSB\Triage\KAPE\KAPE-EZToolsAncillaryUpdater.ps1`" -netVersion 6  -silent" -Wait -PassThru -Verb RunAs
   
   $ProgressPreference = 'SilentlyContinue'
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath "\chocolatey apps\chocolatey\bin")
