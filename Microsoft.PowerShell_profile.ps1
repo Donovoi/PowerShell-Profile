@@ -50,11 +50,9 @@ $modules | ForEach-Object {
   
 # }
 
-$ENV:PATH += ";`"$XWAYSUSB\chocolatey apps\chocolatey\bin`";"
-
 
 $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
-$env:Path += ";`"$XWAYSUSB\chocolatey apps\chocolatey\bin\bin`"`";$XWAYSUSB\NirSoft\NirSoft\x64;`"`";$ENV:USERPROFILE\.cargo\bin;`""
+$env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
 }
