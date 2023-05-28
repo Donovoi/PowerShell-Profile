@@ -1,30 +1,31 @@
 function Git-Pull {
   [CmdletBinding()]
   param(
-
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Path = $PSScriptRoot
   )
+
   $ErrorActionPreference = 'Continue'
   $global:OriginalCommand = $MyInvocation.MyCommand
-  # Import-Module $PSScriptRoot\Start-AsAdmin.ps1 -Force
-  Start-AsAdmin -WindowsPowerShell -Verbose
-  # Find all ein repositories in any directory on this drive, then perform ein pull on each one.
-  $DriveLetter = Get-PSDrive | Where-Object { $_.Description -eq 'X-Ways Portable' } | Select-Object -Property root
-  [System.IO.Directory]::EnumerateDirectories($DriveLetter.Root,'.git','AllDirectories') | ForEach-Object -Verbose -Process {
-    $ErrorActionPreference = 'SilentlyContinue'
-    $pathparent = $_ -split '.git'
-    Write-Output "Pulling from $pathparent"
-    Set-Location -Path $($pathparent)[0]
-    git config --global --add safe.directory $(Resolve-Path .)
-    # verbose ein fetch
-    gix fetch #--all --verbose
-    $NAMEOFHEAD = $(git symbolic-ref refs/remotes/origin/HEAD)
-    git reset --hard origin/$($NAMEOFHEAD.split('/')[-1])
-    Write-Output "git pull complete for $($pathparent)[0]"
-    [GC]::Collect()
-    #ein pull --verbose; 
-    #ein config --global --add safe.directory $(Resolve-Path .)
-    #ein config --global --add safe.directory '*'
-    #gh repo sync --force
-  }
-}
 
+  $repositories = @{}
+  $repositories = Get-ChildItem -Path $Path -Recurse -Directory -Filter '.git' -Force | Split-Path -Parent
+  # iterate through the hashtable and perform a git pull on each repository. THe repository is the parent of the .git directory
+  #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
+  $repositories.GetEnumerator() | ForEach-Object {
+    Write-Output "Pulling from $($_)"
+    Set-Location -Path $_
+    # Set ownership to current user and grant full control to current user recursively
+    icacls.exe $_ /setowner "$env:UserName" /t /c /q
+    git config --global --add safe.directory $(Resolve-Path -Path $PWD)
+    git pull --verbose
+    Write-Output "git pull complete for $($_)"
+  }
+
+
+  # clean up
+  Remove-Variable -Name repository -Force
+  Remove-Variable -Name repositories -Force
+  [GC]::Collect()
+}
