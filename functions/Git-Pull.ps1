@@ -6,7 +6,7 @@ function Git-Pull {
     [string]$Path = $PSScriptRoot
   )
 
-  $ErrorActionPreference = 'Continue'
+  $ErrorActionPreference = 'Break'
   $global:OriginalCommand = $MyInvocation.MyCommand
 
   $repositories = @{}
