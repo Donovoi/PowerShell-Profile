@@ -6,11 +6,10 @@ function Git-Pull {
     [string]$Path = $PSScriptRoot
   )
 
-  $ErrorActionPreference = 'Break'
-  $global:OriginalCommand = $MyInvocation.MyCommand
+  $ErrorActionPreference = 'Continue'
 
   $repositories = @{}
-  $repositories = Get-ChildItem -Path $Path -Recurse -Directory -Filter '.git' -Force | Split-Path -Parent
+  $repositories = Get-ChildItem -Path $Path -Recurse -Directory -Filter '.git' -Exclude "*google-ctf*" -Force | Split-Path -Parent
   # iterate through the hashtable and perform a git pull on each repository. THe repository is the parent of the .git directory
   #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
   $repositories.GetEnumerator() | ForEach-Object {
