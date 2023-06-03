@@ -1,0 +1,11 @@
+[lib]
+name = "findfiles"
+path = "./lib.rs"
+crate-type = ["cdylib"]
+
+[package]
+name = "findfiles"
+version = "0.1.0"
+
+[dependencies]
+jwalk = "0.8.1"
