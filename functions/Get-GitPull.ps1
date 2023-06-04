@@ -1,20 +1,30 @@
-function Git-Pull {
+<#
+.SYNOPSIS
+    Pulls the latest changes from all Git repositories in a specified directory.
+.DESCRIPTION
+    The Get-GitPull function searches for all Git repositories in a specified directory and pulls the latest changes from each repository. The function uses Rust code to efficiently search for the repositories and returns a list of repository paths. The function then uses PowerShell to navigate to each repository and perform a Git pull operation. The function supports parallel execution to improve performance.
+.PARAMETER Path
+    The path to the directory to search for Git repositories. The default value is 'f:\'.
+.EXAMPLE
+    PS C:\> Get-GitPull -Path 'C:\Projects'
+    This example searches for Git repositories in the 'C:\Projects' directory and pulls the latest changes from each repository.
+.NOTES
+    This function requires Rust and Cargo to be installed on the system. The function will automatically build the Rust code if it has not been built already.
+#>
+function Get-GitPull {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [string]$Path = 'F:\'
+        [string]$Path = 'f:\'
     )
 
     $ErrorActionPreference = 'Continue'
 
+    $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
     Write-Host "Searching for repositories in $Path, this can take a while..."
-    # $repositories = @{}
-    # $repositories = Get-ChildItem -Path $Path -Recurse -Directory -Filter '.git' -Force | Split-Path -Parent
 
-    # We will benchmark the get-childitem command to see if we can speed it up and put it against the FindFirstFileW API
-  
     $rustPgm = @'
   extern crate jwalk;
   use jwalk::WalkDir;
@@ -67,6 +77,24 @@ function Git-Pull {
     if (-not(Test-Path -Path "$PWD/target/release/findfiles.dll")) {
         Remove-Item -Path "$PWD/target" -Recurse -Force
         Remove-Item -Path "$PWD/lib.rs" -Force
+        # If the cargo file does not exist, create it
+        if (-not(Test-Path -Path "$PWD/Cargo.toml")) {
+
+            $cargoFile = @'
+    [lib]
+    name = "findfiles"
+    path = "./lib.rs"
+    crate-type = ["cdylib"]
+
+    [package]
+    name = "findfiles"
+    version = "0.1.0"
+
+    [dependencies]
+    jwalk = "0.8.1"
+'@
+            $cargoFile | Set-Content -Encoding UTF8 "$PWD/Cargo.toml" -Force
+        }
         $rustPgm | Set-Content -Encoding UTF8 "$PWD/lib.rs" -Force
         cargo build --release
     }
@@ -136,71 +164,44 @@ function Git-Pull {
         Read-Host -Prompt 'Press Enter to exit'
         Exit-PSHostProcess
     }
-  
-    $dir_path = 'F:\\'
+
+
+    # Get the repositories
+    
+    $dir_path = $Path
     $search_name = '.git'
   
     if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
+        # Start the stopwatch
+        $StopwatchENumMethod = [System.Diagnostics.Stopwatch]::StartNew()
         $foundPaths = $target::GetFoundPaths($dir_path, $search_name)
-        $foundPaths
+        # Stop the stopwatch
+        $StopwatchENumMethod.Stop()
+        # Make sure we only get the parent paths
+        $repositories = $foundPaths | Split-Path -Parent
     }
 
-  
-  
-
-
-    function Enumerate-FilesAndFolders($Path) {
-  
-    }
-    # Start the stopwatch
-    $StopwatchENumMethod = [System.Diagnostics.Stopwatch]::StartNew()
-    # Get the repositories
-    $repositories = Enumerate-FilesAndFolders -Path 'F:\'
-    # Stop the stopwatch
-    $StopwatchENumMethod.Stop()
     # Show the elapsed time
-    Write-Host "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the ENumerate-FilesAndFolders function to run"
-
-    # Now do the same for the Get-ChildItem command
-    # Start the stopwatch
-    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    # Get the repositories
-    $repositories = Get-ChildItem -Path 'F:\' -Recurse -Filter '.git' -Force | Split-Path -Parent
-    # Stop the stopwatch
-    $Stopwatch.Stop()
-    # Show the elapsed time
-    Write-Host "Elapsed time: $($Stopwatch.Elapsed.TotalSeconds) seconds for the Get-ChildItem command to run"
-    # calculate the difference and tell the user which method is faster
-    $difference = $Stopwatch.Elapsed.TotalSeconds - $StopwatchENumMethod.Elapsed.TotalSeconds
-    if ($difference -gt 0) {
-        Write-Host "The ENumerate-FilesAndFolders function is faster by $difference seconds"
-    }
-    else {
-        Write-Host "The Get-ChildItem command is faster by $difference seconds"
-    }
+    Write-Host "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
 
 
     #Let the user know what we are doing and how many repositories we are working with
     Write-Output "Found $($repositories.Count) repositories to pull from."
 
-    # iterate through the hashtable and perform a git pull on each repository. THe repository is the parent of the .git directory
+    
     #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
     $repositories.GetEnumerator() | ForEach-Object -ThrottleLimit 20 -Parallel {
         Write-Output "Pulling from $($_)"
         Set-Location -Path $_
         # Set ownership to current user and grant full control to current user recursively
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
-        git config --global --add safe.directory $(Resolve-Path -Path $PWD)
+        # git config --global --add safe.directory $(Resolve-Path -Path $PWD)
         git pull --verbose
         Write-Output "git pull complete for $($_)"
         #  Show progress
-        Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
+        #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
     }
-
-
-    # clean up
+    # clean up if we need to
     Remove-Variable -Name repositories -Force
     [GC]::Collect()
 }
-
-Git-Pull -Path 'F:\' -Verbose
