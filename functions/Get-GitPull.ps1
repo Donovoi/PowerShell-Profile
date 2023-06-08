@@ -190,7 +190,7 @@ function Get-GitPull {
 
     
     #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
-    $repositories.GetEnumerator() | ForEach-Object -ThrottleLimit 20 -Parallel {
+    $repositories.GetEnumerator() | ForEach-Object -Process {
         Write-Output "Pulling from $($_)"
         Set-Location -Path $_
         # Set ownership to current user and grant full control to current user recursively
