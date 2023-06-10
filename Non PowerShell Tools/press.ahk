@@ -13,7 +13,7 @@
     Loop
     {
         ; The next four lines are the action you want to repeat (update them to suit your preferences):
-            SendInput "{RButton}{LButton}{Space}"
+            SendInput "{RButton}{LButton}{Space}{1}{2}{3}{4}"
             Sleep 100
         ; But leave the rest below unchanged.
         if not KeepLoopRunning  ; The user signaled the loop to stop by pressing Win-Z again.
