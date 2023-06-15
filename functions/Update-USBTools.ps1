@@ -4,7 +4,7 @@ function Update-USBTools {
     $env:ChocolateyInstall = $( Resolve-Path -Path $(Join-Path -Path "$XWAYSUSB" -ChildPath "\chocolatey apps\chocolatey\bin\")); `
     # $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
       # Rename-Item $xml[0] choco.xml; `
-      chocolatey upgrade chocolatey.extension; `
+      # chocolatey upgrade chocolatey.extension; `
       # Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction SilentlyContinue) chocolatey.license.xml; `
       # chocolatey upgrade chocolatey.extension; `
       cup all };
@@ -17,7 +17,7 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCodes -verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-Zimmer -verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "$(@(5,6,7,""Preview"").foreach{winget install Microsoft.DotNet.SDK.$($_) --force})"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Path $($XWAYSUSB) -verbose"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -verbose"'
   cargo install cargo-update
   cargo install-update -a
