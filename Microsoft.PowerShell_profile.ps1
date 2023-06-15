@@ -21,17 +21,28 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 # install and import modules needed for oh my posh
 $modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
 $modules | ForEach-Object {
-  if (-not (Get-Module -ListAvailable $_)) {
+  if ( -not(Get-Module -ListAvailable $_)) {
     if ($_ -like '*PSReadLine*') {
       Install-Module PowerShellGet -Force
       Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
       Set-PSReadLineOption -PredictionSource History
     }
     else {
-      Install-Module $_ -Force -AllowClobber -Repository PSGallery
+      try {
+        Install-Module $_ -Force -AllowClobber -Repository PSGallery
+        Import-Module $_ 
+      }
+      catch {
+        Write-Error $_.Exception.Message
+        Write-Warning "This could be due to terminal-icons, removing all xmls in $("$env:APPDATA\powershell\Community\Terminal-Icons")"
+        Remove-Item -Path "$env:APPDATA\powershell\Community\Terminal-Icons\*.xml" -Force -ErrorAction SilentlyContinue
+        Write-Host 'Please press any key to exit PowerShell. Once exited, open PowerShell and try again...' -ForegroundColor Green
+        $host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') | Out-Null
+        exit
+      }
+
     }    
   }
-  Import-Module $_ -Force
 }
 # for vscode
 if ($env:TERM_PROGRAM -eq 'vscode') {
