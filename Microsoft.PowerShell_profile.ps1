@@ -17,8 +17,9 @@ $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 
 
+
 # install and import modules needed for oh my posh
-$modules = @("Terminal-Icons", "posh-git", "PSReadLine", "PSColors")
+$modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
 $modules | ForEach-Object {
   if (-not (Get-Module -ListAvailable $_)) {
     if ($_ -like '*PSReadLine*') {
@@ -27,10 +28,14 @@ $modules | ForEach-Object {
       Set-PSReadLineOption -PredictionSource History
     }
     else {
-      Install-Module $_ -Force -AllowClobber
+      Install-Module $_ -Force -AllowClobber -Repository PSGallery
     }    
   }
   Import-Module $_ -Force
+}
+# for vscode
+if ($env:TERM_PROGRAM -eq 'vscode') {
+  . "$(code --locate-shell-integration-path pwsh)" 
 }
 
 #  Extract this to a Function TODO
@@ -62,7 +67,7 @@ if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
   Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
 
-if (-not (Get-Command oh-my-posh -erroraction silentlycontinue)) {
+if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
   Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://ohmyposh.dev/install.ps1'))
 }
 RefreshEnv.cmd
@@ -603,7 +608,7 @@ Set-PSReadLineKeyHandler -Key Alt+j `
 
   $global:PSReadLineMarks.GetEnumerator() | ForEach-Object {
     [pscustomobject]@{ Key = $_.Key; Dir = $_.Value } } |
-  Format-Table -AutoSize | Out-Host
+    Format-Table -AutoSize | Out-Host
 
   [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
