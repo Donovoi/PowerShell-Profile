@@ -15,13 +15,12 @@ function Get-GitPull {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Path = 'f:\'
+        [string]$Path = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     )
 
     $ErrorActionPreference = 'Continue'
 
-    $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+    # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
     Write-Host "Searching for repositories in $Path, this can take a while..."
 
@@ -168,7 +167,7 @@ function Get-GitPull {
 
     # Get the repositories
     
-    $dir_path = $Path
+    $dir_path = Resolve-Path -Path $Path -ErrorAction Stop
     $search_name = '.git'
   
     if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
