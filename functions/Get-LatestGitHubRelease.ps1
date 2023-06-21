@@ -17,8 +17,6 @@ function Get-LatestGitHubRelease {
 
   )
 
-
-
   # Get the latest release from the GitHub API
   $latestRelease = Invoke-RestMethod "https://api.github.com/repos/$OwnerRepository/releases/latest"
 
@@ -28,7 +26,7 @@ function Get-LatestGitHubRelease {
   # Download the asset
   $DownloadPath = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.name
   Invoke-WebRequest $asset.browser_download_url -OutFile $downloadPath
-
+  # Extract the asset if the switch is set
   if ($ExtractZip) {
     Expand-Archive -Path $DownloadPath -DestinationPath $DownloadPathDirectory -Force
     Write-Host "Extracted $DownloadPath to $DownloadPathDirectory"
@@ -36,5 +34,6 @@ function Get-LatestGitHubRelease {
   else {
     Write-Host "Downloaded $DownloadPath to $DownloadPathDirectory"
   }
+  # Return the path to the downloaded asset
   return $DownloadPath
 }
