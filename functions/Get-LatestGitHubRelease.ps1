@@ -1,29 +1,40 @@
-function Get-LatestGitHubRelease {
+function Get-LatestGitHubRelease() {
+  [OutputType([string])]
+  [CmdletBinding()]
+  param (
+      [Parameter(Mandatory = $true)]
+      [string]
+      $OwnerRepository,
+      [Parameter(Mandatory = $true)]
+      [string]
+      $AssetName,
+      [Parameter(Mandatory = $false)]
+      [string]
+      $DownloadPathDirectory = $PWD,
+      [Parameter(Mandatory = $false)]
+      [switch]
+      $ExtractZip
 
-  param(
-    [Parameter(Mandatory = $true)]
-    [string]$url
   )
 
-  # extract the project name from the URL
-  $projectName = $url -replace 'https://github.com/','' -replace '/','-'
 
-  # create a directory to download the release to
-  $downloadDirectory = "C:\temp\$projectName"
-  New-Item -ItemType Directory -Path $downloadDirectory | Out-Null
 
-  # get the latest release from the GitHub API
-  $latestRelease = (Invoke-WebRequest -Uri "$($url)/releases/latest").Content | ConvertFrom-Json
+  # Get the latest release from the GitHub API
+  $latestRelease = Invoke-RestMethod "https://api.github.com/repos/$OwnerRepository/releases/latest"
 
-  # check if there is a release asset to download
-  if ($latestRelease.assets.Count -gt 0) {
-    # download the first asset (there may be multiple assets per release)
-    $asset = $latestRelease.assets[0]
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$($downloadDirectory)\$($asset.name)"
+  # Find the asset with the specified name
+  $asset = $latestRelease.assets | Where-Object { $_.name -like $AssetName }
+
+  # Download the asset
+  $DownloadPath = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.name
+  Invoke-WebRequest $asset.browser_download_url -OutFile $downloadPath
+
+  if ($ExtractZip) {
+      Expand-Archive -Path $DownloadPath -DestinationPath $DownloadPathDirectory -Force
+      Write-Log -Message "Extracted $DownloadPath to $DownloadPathDirectory"
   }
   else {
-    Write-Output "No release assets to download."
+      Write-Log -Message "Downloaded $DownloadPath to $DownloadPathDirectory"
   }
+  return $DownloadPath
 }
-
-
