@@ -15,7 +15,7 @@ function Get-KapeAndTools {
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
   $KapeAncillaryUpdater = Get-LatestGitHubRelease -OwnerRepository 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater' -AssetName 'KAPE-EZToolsAncillaryUpdater.ps1'
-  & $KapeAncillaryUpdater -Verbose  
+  & $KapeAncillaryUpdater -Verbose -Quiet 
   $ProgressPreference = 'SilentlyContinue'
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + '\ZimmermanTools.zip')) -Verbose
