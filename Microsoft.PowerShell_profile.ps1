@@ -16,6 +16,10 @@ $profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\Powe
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 
+# Variables for the commandline
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+
 
 
 # install and import modules needed for oh my posh
