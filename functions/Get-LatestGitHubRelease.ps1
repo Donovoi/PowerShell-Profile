@@ -1,19 +1,19 @@
-function Get-LatestGitHubRelease() {
+function Get-LatestGitHubRelease {
   [OutputType([string])]
   [CmdletBinding()]
   param (
-      [Parameter(Mandatory = $true)]
-      [string]
-      $OwnerRepository,
-      [Parameter(Mandatory = $true)]
-      [string]
-      $AssetName,
-      [Parameter(Mandatory = $false)]
-      [string]
-      $DownloadPathDirectory = $PWD,
-      [Parameter(Mandatory = $false)]
-      [switch]
-      $ExtractZip
+    [Parameter(Mandatory = $true)]
+    [string]
+    $OwnerRepository,
+    [Parameter(Mandatory = $true)]
+    [string]
+    $AssetName,
+    [Parameter(Mandatory = $false)]
+    [string]
+    $DownloadPathDirectory = $PWD,
+    [Parameter(Mandatory = $false)]
+    [switch]
+    $ExtractZip
 
   )
 
@@ -30,11 +30,11 @@ function Get-LatestGitHubRelease() {
   Invoke-WebRequest $asset.browser_download_url -OutFile $downloadPath
 
   if ($ExtractZip) {
-      Expand-Archive -Path $DownloadPath -DestinationPath $DownloadPathDirectory -Force
-      Write-Log -Message "Extracted $DownloadPath to $DownloadPathDirectory"
+    Expand-Archive -Path $DownloadPath -DestinationPath $DownloadPathDirectory -Force
+    Write-Host "Extracted $DownloadPath to $DownloadPathDirectory"
   }
   else {
-      Write-Log -Message "Downloaded $DownloadPath to $DownloadPathDirectory"
+    Write-Host "Downloaded $DownloadPath to $DownloadPathDirectory"
   }
   return $DownloadPath
 }
