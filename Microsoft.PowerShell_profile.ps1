@@ -22,6 +22,9 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 
 
 
+
+
+
 # install and import modules needed for oh my posh
 $modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
 $modules | ForEach-Object {
@@ -726,6 +729,25 @@ Set-PSReadLineOption -PredictionSource HistoryAndPlugin
 Set-PSReadLineOption -PredictionViewStyle ListView
 Set-PSReadLineOption -EditMode Windows
 
+# Crazy oh my posh random theme function
+function Invoke-WithRandomTheme {
+  # Get a list of all available Oh My Posh themes
+  $themes = Get-PoshThemes
+
+  # Select a random theme
+  $theme = Get-Random -InputObject $themes
+
+  # Set the Oh My Posh theme
+  Set-PoshPrompt -Theme $theme.Name
+}
+
+function prompt {
+  # Call the Invoke-WithRandomTheme function
+  Invoke-WithRandomTheme
+
+  # Return the default prompt
+  "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+}
 
 # This is an example of a macro that you might use to execute a command.
 # This will add the command to history.
