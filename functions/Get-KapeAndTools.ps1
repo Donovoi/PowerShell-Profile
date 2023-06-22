@@ -7,6 +7,7 @@ function Get-KapeAndTools {
   )
   Write-Host -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
   $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+  $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
 
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ea silentlycontinue
@@ -15,9 +16,8 @@ function Get-KapeAndTools {
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
   $KapeAncillaryUpdater = Get-LatestGitHubRelease -OwnerRepository 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater' -AssetName 'KAPE-EZToolsAncillaryUpdater.ps1'
-  & $KapeAncillaryUpdater -Verbose -Quiet 
-  $ProgressPreference = 'SilentlyContinue'
-  $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
+  Start-Process -FilePath "pwsh.exe" -ArgumentList "-File","$($KapeAncillaryUpdater)",'-silent' -Wait -NoNewWindow
+
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + '\ZimmermanTools.zip')) -Verbose
   Expand-Archive -Path $("$XWAYSUSB" + '\ZimmermanTools.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
   # We now have a a folder with many zip files in it. We need to extract each one to the same folder "$ENV:TEMP\extracted" .
