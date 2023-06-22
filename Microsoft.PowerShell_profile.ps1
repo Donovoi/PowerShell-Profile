@@ -732,13 +732,14 @@ Set-PSReadLineOption -EditMode Windows
 # Crazy oh my posh random theme function
 function Invoke-WithRandomTheme {
   # Get a list of all available Oh My Posh themes
-  $themes = Get-PoshThemes
+  Get-themes | Out-Null
+  $themes = Get-ChildItem 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes' -Filter '*.omp.json'
 
   # Select a random theme
   $theme = Get-Random -InputObject $themes
 
-  # Set the Oh My Posh theme
-  Set-PoshPrompt -Theme $theme.Name
+  # Initialize Oh My Posh with the random theme
+  oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression
 }
 
 function prompt {
@@ -748,6 +749,7 @@ function prompt {
   # Return the default prompt
   "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
 }
+
 
 # This is an example of a macro that you might use to execute a command.
 # This will add the command to history.
