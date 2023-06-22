@@ -86,14 +86,8 @@ if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
 }
 
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
-  Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://ohmyposh.dev/install.ps1'))
+  Write-Host 'oh-my-posh is not installed please run Update-USBTools' -ForegroundColor Red -BackgroundColor Yellow
 }
-RefreshEnv.cmd
-
-Set-Alias -Name 'notepad' -Value "$ENV:ChocolateyInstall\Notepad++.exe"
-
-Copy-Item -Path $( Join-Path -Path $XWAYSUSB -ChildPath '\Projects\oh-my-posh\themes\jandedobbeleer.omp.json' -Resolve) -Destination "$ENV:USERPROFILE\Documents\jandedobbeleer.omp.json" -Force
-oh-my-posh --init --shell pwsh --config $ENV:USERPROFILE/jandedobbeleer.omp.json | Invoke-Expression
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
@@ -732,9 +726,15 @@ Set-PSReadLineOption -EditMode Windows
 # Crazy oh my posh random theme function
 function Invoke-WithRandomTheme {
   # Get a list of all available Oh My Posh themes
-  Get-Poshthemes | Out-Null
-  $themes = Get-ChildItem 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes' -Filter '*.omp.json'
+  # check if folder exists
+  if (Test-Path 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes') {
+    $themes = Get-ChildItem 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes' -Filter '*.omp.json'
+  }
+  else {
+  
+    $themes = Get-PoshThemes 
 
+  }
   # Select a random theme
   $theme = Get-Random -InputObject $themes
 
