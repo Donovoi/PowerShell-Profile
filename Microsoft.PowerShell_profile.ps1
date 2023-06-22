@@ -732,7 +732,7 @@ Set-PSReadLineOption -EditMode Windows
 # Crazy oh my posh random theme function
 function Invoke-WithRandomTheme {
   # Get a list of all available Oh My Posh themes
-  Get-themes | Out-Null
+  Get-Poshthemes | Out-Null
   $themes = Get-ChildItem 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes' -Filter '*.omp.json'
 
   # Select a random theme
