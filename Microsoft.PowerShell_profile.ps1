@@ -85,8 +85,8 @@ if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
   Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
 
-if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
-  Write-Host 'oh-my-posh is not installed please run Update-USBTools' -ForegroundColor Red -BackgroundColor Yellow
+if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+  Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://ohmyposh.dev/install.ps1'))
 }
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
@@ -727,12 +727,12 @@ Set-PSReadLineOption -EditMode Windows
 function Invoke-WithRandomTheme {
   # Get a list of all available Oh My Posh themes
   # check if folder exists
-  if (Test-Path 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes') {
-    $themes = Get-ChildItem 'C:\Users\toor\AppData\Local\Programs\oh-my-posh\themes' -Filter '*.omp.json'
+  if (Test-Path "$ENV:USERPROFILE\AppData\Local\Programs\oh-my-posh\themes") {
+    $themes = Get-ChildItem "$ENV:USERPROFILE\AppData\Local\Programs\oh-my-posh\themes" -Filter '*.omp.json'
   }
   else {
   
-    $themes = Get-PoshThemes 
+    $themes = Get-PoshThemes
 
   }
   # Select a random theme
