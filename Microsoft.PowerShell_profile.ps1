@@ -742,11 +742,7 @@ function Invoke-WithRandomTheme {
   oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression
 }
 
-function prompt {
-  # Call the Invoke-WithRandomTheme function
-  Invoke-WithRandomTheme
-}
-
+Invoke-WithRandomTheme
 
 # This is an example of a macro that you might use to execute a command.
 # This will add the command to history.
