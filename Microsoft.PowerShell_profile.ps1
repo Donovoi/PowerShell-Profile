@@ -745,9 +745,6 @@ function Invoke-WithRandomTheme {
 function prompt {
   # Call the Invoke-WithRandomTheme function
   Invoke-WithRandomTheme
-
-  # Return the default prompt
-  "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
 }
 
 
