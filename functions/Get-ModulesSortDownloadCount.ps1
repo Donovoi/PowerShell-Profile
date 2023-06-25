@@ -44,4 +44,3 @@ function Get-TopModulesByDownloadCount {
     # Return the top modules
     return $topModules
 }
-Get-TopModulesByDownloadCount -ModuleName "*gui*"
