@@ -19,6 +19,3 @@ function Get-PropertiesRecursive {
         }
     }
 }
-
-$exception = $_
-Get-PropertiesRecursive -Object $exception
