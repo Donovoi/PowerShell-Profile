@@ -7,13 +7,13 @@ function Start-SpeedTest {
     )
 
     begin {
-# Run in a new powershell window so that the script can be stopped with Ctrl+C
-# ONce we have opened a new powershell window, we can exit the current one
+        # Run in a new powershell window so that the script can be stopped with Ctrl+C
+        # Once we have opened a new powershell window, we can exit the current one
         Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Start-SpeedTest -TimeInterval 300"'
-        Write-Host "this is a function to check your internet speed and alert you if it is less than 5 Mbit/s"
+        Write-Host 'this is a function to check your internet speed and alert you if it is less than 5 Mbit/s'
         Write-Host "the time interval between each check is $TimeInterval seconds"
-        Write-Host "press Ctrl+C to stop the script"
-        Write-Host "you will get a pop up alert if your internet speed is less than 5 Mbit/s"
+        Write-Host 'press Ctrl+C to stop the script'
+        Write-Host 'you will get a pop up alert if your internet speed is less than 5 Mbit/s'
 
         # Check if Rust and Cargo are installed
         if (-not(Get-Command cargo -ErrorAction SilentlyContinue)) {
@@ -37,7 +37,7 @@ function Start-SpeedTest {
 
     process {
         while ($true) {
-            Write-Host "Checking internet speed..."
+            Write-Host 'Checking internet speed...'
             $speedtest = & speedtest-rs | Out-String
             $downloadSpeed = $speedtest -split "`n" | ForEach-Object { Select-String -InputObject $_ -Pattern "Download`: .*$" }
             $UploadSpeed = $speedtest -split "`n" | ForEach-Object { Select-String -InputObject $_ -Pattern "Upload`: .*$" }
