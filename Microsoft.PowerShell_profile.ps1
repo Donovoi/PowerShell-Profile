@@ -20,7 +20,10 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
-
+# #Run Start-SpeedTest if it is not running in the background
+# if (-not(Get-Process -Name speedtest-rs -ErrorAction SilentlyContinue)) {
+#   Start-SpeedTest -TimeInterval 300
+# }
 
 
 
