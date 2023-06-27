@@ -77,4 +77,3 @@ function Start-SpeedTest {
         }
     }
 }
-Start-SpeedTest -Verbose
