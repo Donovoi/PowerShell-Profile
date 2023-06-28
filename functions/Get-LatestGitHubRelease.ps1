@@ -25,6 +25,7 @@ function Get-LatestGitHubRelease {
 
   # Download the asset
   $DownloadPath = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.name
+
   Invoke-WebRequest $asset.browser_download_url -OutFile $downloadPath
   # Extract the asset if the switch is set
   if ($ExtractZip) {
