@@ -3,11 +3,25 @@ function Get-ConsoleHistory {
     param(
         [Parameter(Mandatory = $false)]
         [switch]
-        $update
+        $update,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $removejsonandhistoryfiles
     )
     $ps1file = $PROFILE | Split-Path | Join-Path -ChildPath 'functions' -AdditionalChildPath 'F7History.ps1'
     $jsonFile = $PROFILE | Split-Path | Join-Path -ChildPath 'functions' -AdditionalChildPath 'hashes.json'
-        
+    
+    
+    if ($removejsonandhistoryfiles) {
+        if (Test-Path $jsonFile) {
+            Remove-Item $jsonFile -Force
+        }
+        if (Test-Path $ps1file) {
+            Remove-Item $ps1file -Force
+        }
+
+    }
+
     if ($update) {       
         $oldHashes = New-Object PSObject -Property @{'Filename' = ''; 'MD5' = ''; 'SHA1' = '' }
         if (Test-Path $jsonFile) {
@@ -37,3 +51,4 @@ function Get-ConsoleHistory {
         }
     }
 }
+Get-ConsoleHistory -update -removejsonandhistoryfiles
