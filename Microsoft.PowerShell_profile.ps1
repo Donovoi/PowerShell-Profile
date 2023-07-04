@@ -26,8 +26,6 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 # }
 
 
-
-
 # install and import modules needed for oh my posh
 $modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
 $modules | ForEach-Object {
