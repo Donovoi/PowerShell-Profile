@@ -51,4 +51,3 @@ function Get-ConsoleHistory {
         }
     }
 }
-Get-ConsoleHistory -update -removejsonandhistoryfiles
