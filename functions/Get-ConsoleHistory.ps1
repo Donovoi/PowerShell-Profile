@@ -1,7 +1,7 @@
 function Get-ConsoleHistory {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [switch]
         $update
     )
