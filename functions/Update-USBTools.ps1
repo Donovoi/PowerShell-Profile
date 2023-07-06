@@ -1,13 +1,13 @@
 function Update-USBTools {
   $firstcommand = { 
     $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter; `
-    $env:ChocolateyInstall = $( Resolve-Path -Path $(Join-Path -Path "$XWAYSUSB" -ChildPath "\chocolatey apps\chocolatey\bin\")); `
-    # $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
+      $env:ChocolateyInstall = $( Resolve-Path -Path $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin\')); `
+      # $xml = Get-ChildItem $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath "\chocolatey apps\chocolatey\bin\license\choco.xml")); `
       # Rename-Item $xml[0] choco.xml; `
-      # chocolatey upgrade chocolatey.extension; `
-      # Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction SilentlyContinue) chocolatey.license.xml; `
-      # chocolatey upgrade chocolatey.extension; `
-      cup all };
+    # chocolatey upgrade chocolatey.extension; `
+    # Rename-Item $(Resolve-Path $XWAYSUSB + "\chocolatey apps\chocolatey\bin\license\choco.xml" -ErrorAction SilentlyContinue) chocolatey.license.xml; `
+    # chocolatey upgrade chocolatey.extension; `
+    cup all }
   $bytes = [System.Text.Encoding]::Unicode.GetBytes($firstcommand)
   $Encoded = [System.Convert]::ToBase64String($bytes)
   Start-Process pwsh -ArgumentList "-noexit -EncodedCommand $Encoded"
@@ -21,6 +21,8 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "$(@(3,5,6,7,""Preview"").foreach{winget install Microsoft.DotNet.SDK.$($_) --force})"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
+  winget upgrade --all --include-unknown --wait --uninstall-previous -h
   cargo install cargo-update
   cargo install-update -a
 }
