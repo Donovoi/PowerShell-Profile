@@ -4,7 +4,7 @@ function Get-LatestSIV {
         [Parameter(Mandatory = $false)]
         [string]$url = 'https://delivery2.filecroco.com/kits_6/siv_v5.70.zip',
         
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$destinationFolder = "$XWAYSUSB"
     )
 
