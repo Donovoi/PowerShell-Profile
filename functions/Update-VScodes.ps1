@@ -1,7 +1,6 @@
 function Update-VScodes {
     [CmdletBinding()]
-    param(
-    )
+    param()
     process {
         Write-Host -Object "Script is running as $($MyInvocation.MyCommand.Name)" 
         $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
@@ -21,8 +20,8 @@ function Update-VScodes {
 
         $Urls | ForEach-Object -Process {
             try {
-                Invoke-WebRequest -Uri $_.URL -OutFile $_.OutFile
-                Write-Progress -Activity "Downloading and extracting" -Status $_.OutFile
+                Start-BitsTransfer -Source $_.URL -Destination $_.OutFile
+                Write-Progress -Activity 'Downloading and extracting' -PercentComplete 100
                 Expand-Archive $_.OutFile -DestinationPath $_.DestinationPath -Force 
             }
             catch {
