@@ -25,6 +25,14 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 #   Start-SpeedTest -TimeInterval 300
 # }
 
+# # update package providers
+# # PowerShellGet version 2
+# Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
+
+# # PowerShellGet version 3
+# Install-PSResource AnyPackage
+
+
 
 # install and import modules needed for oh my posh
 $modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
