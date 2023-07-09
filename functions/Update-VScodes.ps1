@@ -1,45 +1,29 @@
-function Start-BitsTransferAndShowProgress {
-    param(
-        [PSCustomObject]$url
-    )
-    try {
-        Restart-Service -Name BITS -Force
-        Get-BitsTransfer | Remove-BitsTransfer 
+<#
+.SYNOPSIS
+Downloads and installs Visual Studio Code stable and/or insider versions from the official website.
 
-        $job = Start-BitsTransfer -Source $url.URL -Destination $url.OutFile -Asynchronous
+.DESCRIPTION
+This function downloads and installs Visual Studio Code stable and/or insider versions from the official website. 
+It checks for the presence of an X-Ways USB drive and saves the downloaded files to the appropriate destination path. 
+The function uses BITS transfer to download the files and Expand-Archive cmdlet to extract the files.
 
-        Set-BitsTransfer -BitsJob $job -Priority High
+.PARAMETER Version
+Specifies the version of Visual Studio Code to download. The default value is 'both'. 
+Valid values are 'stable', 'insider', or 'both'.
 
-        $previousTransferred = 0
-        $previousTime = Get-Date
+.EXAMPLE
+Update-VSCode -Version stable
+Downloads and installs the stable version of Visual Studio Code.
 
-        while (($job.JobState -eq 'Transferring') -or ($job.JobState -eq 'Connecting')) {
-            $percentageCompleted = [math]::Round((($job.BytesTransferred / $job.BytesTotal) * 100), 2)
-            $currentTime = Get-Date
-            $timeTaken = ($currentTime - $previousTime).TotalSeconds
-            $currentSpeed = [math]::Round(($job.BytesTransferred - $previousTransferred) / $timeTaken, 2)
-            $previousTransferred = $job.BytesTransferred
-            $previousTime = $currentTime
-            $currentSpeedStr = Format-Bytes -Bytes $currentSpeed
-            $totalDownloadedStr = Format-Bytes -Bytes $job.BytesTransferred
-            Write-Progress -Activity 'Downloading file' -Status "$percentageCompleted% Completed" -PercentComplete $percentageCompleted -Id 1
-            Write-Progress -Activity ' ' -Status "Speed: $currentSpeedStr/second, TotalDownloaded: $totalDownloadedStr" -Id 2
+.EXAMPLE
+Update-VSCode -Version insider
+Downloads and installs the insider version of Visual Studio Code.
 
-            Start-Sleep -Seconds 1
-        }    
+.EXAMPLE
+Update-VSCode -Version both
+Downloads and installs both stable and insider versions of Visual Studio Code.
 
-        if ($job.JobState -eq 'Transferred') {
-            Complete-BitsTransfer -BitsJob $job
-            Clear-Host
-        }
-        Write-Host "Downloaded $($url.OutFile)"
-
-    }
-    catch {
-        Write-Error -Message "Error occurred: $($_.Exception.Message)" -ErrorAction Continue
-    }
-}
-
+#>
 function Update-VSCode {
     [CmdletBinding()]
     param(
@@ -75,43 +59,18 @@ function Update-VSCode {
 
         if ($Version -eq 'both') {
             foreach ($url in $urls) {
-                Start-BitsTransferAndShowProgress -url $url
+                Start-BitsTransferAndShowProgress -URL $url.URL -OutFile $url.OutFile
+                Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force 
             }
         }
         elseif ($urls.Version -contains $Version) {
             $url = $urls | Where-Object { $_.Version -eq $Version }
-            Start-BitsTransferAndShowProgress -url $url
+            Start-BitsTransferAndShowProgress -URL $url.URL -OutFile $url.OutFile
+            Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
         }
         else {
             Write-Error "Invalid version specified. Please choose 'stable', 'insider', or 'both'."
             return
-        }
-        Write-Progress -Activity 'Extracting' -Status $url.OutFile
-        Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force 
-        
-    }
-}
-
-Function Format-Bytes {
-    param([double]$bytes)
-    switch ($bytes) {
-        { $_ -gt 1PB } {
-            '{0:0.00} PB' -f ($bytes / 1PB); break 
-        }
-        { $_ -gt 1TB } {
-            '{0:0.00} TB' -f ($bytes / 1TB); break 
-        }
-        { $_ -gt 1GB } {
-            '{0:0.00} GB' -f ($bytes / 1GB); break 
-        }
-        { $_ -gt 1MB } {
-            '{0:0.00} MB' -f ($bytes / 1MB); break 
-        }
-        { $_ -gt 1KB } {
-            '{0:0.00} KB' -f ($bytes / 1KB); break 
-        }
-        Default {
-            '{0:0.00} B' -f $bytes 
         }
     }
 }
