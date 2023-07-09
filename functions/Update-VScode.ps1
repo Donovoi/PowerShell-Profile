@@ -1,29 +1,3 @@
-<#
-.SYNOPSIS
-Downloads and installs Visual Studio Code stable and/or insider versions from the official website.
-
-.DESCRIPTION
-This function downloads and installs Visual Studio Code stable and/or insider versions from the official website. 
-It checks for the presence of an X-Ways USB drive and saves the downloaded files to the appropriate destination path. 
-The function uses BITS transfer to download the files and Expand-Archive cmdlet to extract the files.
-
-.PARAMETER Version
-Specifies the version of Visual Studio Code to download. The default value is 'both'. 
-Valid values are 'stable', 'insider', or 'both'.
-
-.EXAMPLE
-Update-VSCode -Version stable
-Downloads and installs the stable version of Visual Studio Code.
-
-.EXAMPLE
-Update-VSCode -Version insider
-Downloads and installs the insider version of Visual Studio Code.
-
-.EXAMPLE
-Update-VSCode -Version both
-Downloads and installs both stable and insider versions of Visual Studio Code.
-
-#>
 function Update-VSCode {
     [CmdletBinding()]
     param(
@@ -57,15 +31,38 @@ function Update-VSCode {
             }
         )
 
+        $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+        $session.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+
+        $headers = @{
+            'authority'                 = 'az764295.vo.msecnd.net'
+            'method'                    = 'GET'
+            'scheme'                    = 'https'
+            'accept'                    = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
+            'accept-encoding'           = 'gzip, deflate, br'
+            'accept-language'           = 'en-AU,en-GB;q=0.9,en-US;q=0.8,en;q=0.7,zh-CN;q=0.6,zh;q=0.5'
+            'cache-control'             = 'no-cache'
+            'dnt'                       = '1'
+            'pragma'                    = 'no-cache'
+            'referer'                   = 'https://code.visualstudio.com/'
+            'sec-ch-ua'                 = "`"Not.A/Brand`";v=`"8`", `"Chromium`";v=`"114`", `"Google Chrome`";v=`"114`""
+            'sec-ch-ua-mobile'          = '?0'
+            'sec-ch-ua-platform'        = "`"Windows`""
+            'sec-fetch-dest'            = 'document'
+            'sec-fetch-mode'            = 'navigate'
+            'sec-fetch-site'            = 'cross-site'
+            'upgrade-insecure-requests' = '1'
+        }
+
         if ($Version -eq 'both') {
             foreach ($url in $urls) {
-                Start-BitsTransferAndShowProgress -URL $url.URL -OutFile $url.OutFile
+                Invoke-WebRequest -Uri $url.URL -WebSession $session -Headers $headers -OutFile $url.OutFile
                 Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force 
             }
         }
         elseif ($urls.Version -contains $Version) {
             $url = $urls | Where-Object { $_.Version -eq $Version }
-            Start-BitsTransferAndShowProgress -URL $url.URL -OutFile $url.OutFile
+            Invoke-WebRequest -Uri $url.URL -WebSession $session -Headers $headers -OutFile $url.OutFile
             Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
         }
         else {
@@ -74,3 +71,5 @@ function Update-VSCode {
         }
     }
 }
+
+Update-VSCode -Version stable -Verbose
