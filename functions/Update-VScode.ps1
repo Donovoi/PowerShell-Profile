@@ -31,38 +31,47 @@ function Update-VSCode {
             }
         )
 
-        $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-        $session.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-
-        $headers = @{
-            'authority'                 = 'az764295.vo.msecnd.net'
-            'method'                    = 'GET'
-            'scheme'                    = 'https'
-            'accept'                    = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
-            'accept-encoding'           = 'gzip, deflate, br'
-            'accept-language'           = 'en-AU,en-GB;q=0.9,en-US;q=0.8,en;q=0.7,zh-CN;q=0.6,zh;q=0.5'
-            'cache-control'             = 'no-cache'
-            'dnt'                       = '1'
-            'pragma'                    = 'no-cache'
-            'referer'                   = 'https://code.visualstudio.com/'
-            'sec-ch-ua'                 = "`"Not.A/Brand`";v=`"8`", `"Chromium`";v=`"114`", `"Google Chrome`";v=`"114`""
-            'sec-ch-ua-mobile'          = '?0'
-            'sec-ch-ua-platform'        = "`"Windows`""
-            'sec-fetch-dest'            = 'document'
-            'sec-fetch-mode'            = 'navigate'
-            'sec-fetch-site'            = 'cross-site'
-            'upgrade-insecure-requests' = '1'
-        }
-
         if ($Version -eq 'both') {
             foreach ($url in $urls) {
-                Invoke-WebRequest -Uri $url.URL -WebSession $session -Headers $headers -OutFile $url.OutFile
+                if (Test-Path $url.OutFile) {
+                    Remove-Item -Path $url.OutFile -Force -Verbose -ErrorAction SilentlyContinue
+                }
+                Start-Process -FilePath 'aria2c' -ArgumentList @(
+                    '--file-allocation=none',
+                    '--check-certificate=false',
+                    '--continue=false',
+                    '--max-connection-per-server=16',
+                    '--split=16',
+                    '--min-split-size=1M',
+                    '--max-tries=0',
+                    '--allow-overwrite=true',
+                    "--dir=$($url.OutFile | Split-Path -Parent)"
+                    "--out=$($url.OutFile | Split-Path -Leaf)",
+                    $url.URL
+                ) -NoNewWindow -Wait
+
                 Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force 
             }
         }
         elseif ($urls.Version -contains $Version) {
             $url = $urls | Where-Object { $_.Version -eq $Version }
-            Invoke-WebRequest -Uri $url.URL -WebSession $session -Headers $headers -OutFile $url.OutFile
+            if (Test-Path $url.OutFile) {
+                Remove-Item -Path $url.OutFile -Force -Verbose -ErrorAction SilentlyContinue
+            }
+            Start-Process -FilePath 'aria2c' -ArgumentList @(
+                '--file-allocation=none',
+                '--check-certificate=false',
+                '--continue=false',
+                '--max-connection-per-server=16',
+                '--split=16',
+                '--min-split-size=1M',
+                '--max-tries=0',
+                '--allow-overwrite=true',
+                "--dir=$($url.OutFile | Split-Path -Parent)"
+                "--out=$($url.OutFile | Split-Path -Leaf)",
+                $url.URL
+            ) -NoNewWindow -Wait
+
             Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
         }
         else {
