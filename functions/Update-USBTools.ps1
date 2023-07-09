@@ -16,7 +16,7 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VisualStudio -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCodes -Verbose"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCode -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-KapeAndTools -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "$(@(3,5,6,7,""Preview"").foreach{winget install Microsoft.DotNet.SDK.$($_) --force})"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
