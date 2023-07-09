@@ -71,5 +71,3 @@ function Update-VSCode {
         }
     }
 }
-
-Update-VSCode -Version stable -Verbose
