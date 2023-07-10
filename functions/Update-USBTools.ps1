@@ -22,7 +22,10 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
-  winget upgrade --all --include-unknown --wait --uninstall-previous -h
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait --uninstall-previous -h --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
   cargo install cargo-update
   cargo install-update -a
 }
