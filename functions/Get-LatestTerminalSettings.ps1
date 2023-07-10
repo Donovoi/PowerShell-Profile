@@ -82,7 +82,24 @@ function Get-LatestTerminalSettings {
         if ($localVersion -lt $githubVersion) {
             # The local settings.json file is older. Call Set-LatestTerminalSettings to update it.
  
-            #Set-LatestTerminalSettings -settingsPath $settingsPath.FullName
+            Set-LatestTerminalSettings -settingsPath $settingsPath.FullName
+        }
+        elseif ([string]::IsNullOrWhiteSpace($githubVersion)) {
+            # The first version has not been uploaded to GitHub yet. Call Set-LatestTerminalSettings to update it.
+            Set-LatestTerminalSettings -settingsPath $settingsPath.FullName
+        }
+        elseif ($localVersion -eq $githubVersion) {
+            # The local settings.json file is up to date.
+            Write-Output "The local settings.json file is up to date."
+        }
+        elseif ($localVersion -gt $githubVersion){
+            # The local settings.json file is newer than the version on GitHub.
+            Write-Output "The local settings.json file is newer than the version on GitHub."
+            Set-TerminalSettings -settingsPath $settingsPath.FullName
+        }
+        else {
+            Write-Ascii -Text "Something went wrong."
+            Write-Ascii -Text "We are not supposed to be here"
         }
     }
 }
