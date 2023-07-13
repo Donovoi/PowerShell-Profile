@@ -13,3 +13,4 @@ vscode.zip.aria2
 *.lng
 *.c
 *.vscode/**
+*.dll
