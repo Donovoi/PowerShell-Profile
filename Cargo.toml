@@ -1,11 +1,7 @@
-[lib]
-name = "findfiles"
-path = "./lib.rs"
-crate-type = ["cdylib"]
-
 [package]
-name = "findfiles"
+name = "search_files"
 version = "0.1.0"
+edition = "2018"
 
 [dependencies]
-jwalk = "0.8.1"
+grep = "0.2"
