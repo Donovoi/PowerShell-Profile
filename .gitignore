@@ -7,3 +7,9 @@ KAPEUpdateLog.log
 KAPE-EZToolsAncillaryUpdater.ps1
 *.msi
 vscode.zip.aria2
+*.lock
+*.rs
+*.exe
+*.lng
+*.c
+*.vscode/**
