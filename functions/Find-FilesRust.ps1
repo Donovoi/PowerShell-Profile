@@ -79,4 +79,4 @@ public static class SearchFiles {
 }
 
 
-Find-FilesRust -SearchTerm 'test' -Directory 'C:\Users\user\Documents\'
+# Find-FilesRust -SearchTerm 'test' -Directory 'C:\Users\user\Documents\'
