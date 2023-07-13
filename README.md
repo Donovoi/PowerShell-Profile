@@ -30,6 +30,8 @@ Once the script is installed, it will be loaded every time you start a new Power
 
 - `README.md`: This is the file you're reading right now! It provides an overview of the repository and instructions for how to use the scripts.
 
+- `Add-NuGetDependencies.ps1`: The `Add-NuGetDependencies.ps1` is a PowerShell script that is part of the functions in the PowerShell-Profile repository. This script is designed to add NuGet dependencies to your project. NuGet is a free and open-source package manager designed for the Microsoft development platform. It is a central place for developers to share and consume packages. This script helps automate the process of adding these packages to your project.
+
 ## Contributing
 
 Contributions are welcome! If you have a function, alias, or setting that you think would be useful, feel free to open a pull request. Please make sure to test your code thoroughly before submitting it.
