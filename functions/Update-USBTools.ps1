@@ -18,7 +18,6 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VisualStudio -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCode -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-KapeAndTools -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "$(@(3,5,6,7,""Preview"").foreach{winget install Microsoft.DotNet.SDK.$($_) --force})"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
@@ -26,6 +25,22 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
+  #  So we can get feed back on each install as it happens
+  $commands = @"
+`$versions = @(3,5,6,7,"Preview")
+foreach (`$version in `$versions) {
+    Write-Host "Installing .NET SDK version `$version"
+    winget install Microsoft.DotNet.SDK.`$version --force
+    Write-Host "Finished installing .NET SDK version `$version"
+}
+"@
+
+  # Convert the commands to a Base64 string
+  $encodedCommands = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($commands))
+
+  # Start a new PowerShell window to run the commands
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit', "-EncodedCommand $encodedCommands"
+
   cargo install cargo-update
   cargo install-update -a
 }
