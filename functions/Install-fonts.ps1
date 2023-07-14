@@ -40,7 +40,7 @@ function Install-Fonts {
 
 
   $FontItems = Get-ChildItem -Path $Path -Recurse | Where-Object { ($_.Name -like '*.ttf') -or ($_.Name -like '*.OTF') }
-  $FontItems | ForEach-Object -ThrottleLimit 999999 -Parallel {
+  $FontItems | ForEach-Object -Process {
     #   Force garbage collection
     [System.GC]::Collect()
     $FontFile = $_
@@ -48,7 +48,7 @@ function Install-Fonts {
     $oShell = New-Object -com shell.application
     $Folder = $oShell.Namespace($FontFile.DirectoryName)
     $Item = $Folder.Items().Item($FontFile.Name)
-    $FontName = $Folder.GetDetailsOf($Item,21)
+    $FontName = $Folder.GetDetailsOf($Item, 21)
     try {
       switch ($FontFile.Extension) {
         '.ttf' {
