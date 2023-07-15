@@ -26,8 +26,7 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-DotNetSDK -Verbose"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-RustAndFriends -Verbose"'
 
-  cargo install cargo-update
-  cargo install-update -a
 }
 
