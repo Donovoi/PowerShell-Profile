@@ -14,24 +14,25 @@ function Update-USBTools {
   # Start-Process -NoNewWindow $XWAYSUSB + "\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'o2k13 enu /includedotnet /includewddefs /verify'
   # Start-Process -NoNewWindow $XWAYSUSB + "\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'DownloadUpdates w62-x64 w63  w63-x64  w100  w100-x64  ofc  o2k16 /includedotnet /includewddefs /verify'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VisualStudio -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCode -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-KapeAndTools -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force --accept-source-agreements --accept-package-agreements"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update --accept-source-agreements --accept-package-agreements"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-DotNetSDK -Verbose"'
   #  So we can get feed back on each install as it happens
   $commands = @"
-`$versions = @(3,5,6,7,"Preview")
-foreach (`$version in `$versions) {
-    Write-Host "Installing .NET SDK version `$version"
-    winget install Microsoft.DotNet.SDK.`$version --force
-    Write-Host "Finished installing .NET SDK version `$version"
+$versions = @(3,5,6,7,"Preview")
+foreach($version in $versions) {
+    Write-Host "Installing .NET SDK version $version"
+    winget install Microsoft.DotNet.SDK.$($version) --force --accept-source-agreements --accept-package-agreements
+    Write-Host "Finished installing .NET SDK version $version"
 }
 "@
 
