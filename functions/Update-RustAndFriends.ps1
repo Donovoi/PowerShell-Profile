@@ -7,7 +7,7 @@ function Update-RustAndFriends {
     )
     if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
         Write-Host 'Installing Rust'
-        winget install Rustlang.Rust --force --accept-source-agreements --accept-package-agreements
+        winget install Rustlang.Rustup --force --accept-source-agreements --accept-package-agreements
         Write-Host 'Finished installing Rust'
     }
     else {
