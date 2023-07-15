@@ -10,6 +10,10 @@ function Update-RustAndFriends {
     winget install Rustlang.Rustup --force --accept-source-agreements --accept-package-agreements
     Write-Host 'Finished installing Rust'
 
+    Write-Host 'Installing Rust MSVC'
+    winget install Rustlang.Rust.MSVC --force --accept-source-agreements --accept-package-agreements
+    Write-Host 'Finished installing Rust MSVC'
+
     Write-Host 'Updating cargo'
     cargo install cargo-update
     cargo install-update -a
