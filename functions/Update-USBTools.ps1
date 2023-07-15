@@ -21,26 +21,11 @@ function Update-USBTools {
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force --accept-source-agreements --accept-package-agreements"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update --accept-source-agreements --accept-package-agreements"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force --accept-package-agreements"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-DotNetSDK -Verbose"'
-  #  So we can get feed back on each install as it happens
-  $commands = @"
-$versions = @(3,5,6,7,"Preview")
-foreach($version in $versions) {
-    Write-Host "Installing .NET SDK version $version"
-    winget install Microsoft.DotNet.SDK.$($version) --force --accept-source-agreements --accept-package-agreements
-    Write-Host "Finished installing .NET SDK version $version"
-}
-"@
-
-  # Convert the commands to a Base64 string
-  $encodedCommands = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($commands))
-
-  # Start a new PowerShell window to run the commands
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit', "-EncodedCommand $encodedCommands"
 
   cargo install cargo-update
   cargo install-update -a
