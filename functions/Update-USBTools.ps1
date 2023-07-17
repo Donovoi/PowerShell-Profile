@@ -14,19 +14,19 @@ function Update-USBTools {
   # Start-Process -NoNewWindow $XWAYSUSB + "\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'o2k13 enu /includedotnet /includewddefs /verify'
   # Start-Process -NoNewWindow $XWAYSUSB + "\wsusoffline120\wsusoffline\cmd\DownloadUpdates.cmd" -ArgumentList 'DownloadUpdates w62-x64 w63  w63-x64  w100  w100-x64  ofc  o2k16 /includedotnet /includewddefs /verify'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VisualStudio -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VSCode -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-KapeAndTools -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "$(@(3,5,6,7,""Preview"").foreach{winget install Microsoft.DotNet.SDK.$($_) --force})"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-GitPull -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-PowerShell -Verbose"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Get-LatestSIV -Verbose"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --force"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update"'
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source reset --disable-interactivity"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget source update --disable-interactivity"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow"'
-  cargo install cargo-update
-  cargo install-update -a
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-DotNetSDK -Verbose"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-RustAndFriends -Verbose"'
+
 }
 
