@@ -100,7 +100,7 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-
 
 Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
-  [Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new()
+  [Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.Utf8Encoding]::new()
   $Local:word = $wordToComplete.Replace('"', '""')
   $Local:ast = $commandAst.ToString().Replace('"', '""')
   winget complete --word="$Local:word" --commandline "$Local:ast" --position $cursorPosition | ForEach-Object {
