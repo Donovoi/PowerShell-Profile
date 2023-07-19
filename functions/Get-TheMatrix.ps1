@@ -14,7 +14,7 @@ function get_char {
 }
 
 function draw_line {
-    $RANDOM_COLUMN = (Get-Random -Minimum 0 -Maximum $N_COLUMN)
+    $script:RANDOM_COLUMN = (Get-Random -Minimum 0 -Maximum $N_COLUMN)
     $RANDOM_LINE_SIZE = (Get-Random -Minimum 1 -Maximum ($N_LINE + 1))
     $SPEED = 0.05
 
@@ -40,7 +40,7 @@ function draw_line {
 
 function cursor_position {
     param($line)
-    return "`e[${line};${$RANDOM_COLUMN}H"
+    return "`e[${line};${$script:RANDOM_COLUMN}H"
 }
 
 function write_char {
@@ -68,5 +68,3 @@ function matrix {
         Start-Sleep -Seconds 0.5
     }
 }
-
-matrix
