@@ -109,8 +109,15 @@ function Write-Cell {
 
     $cell = New-Object System.Management.Automation.Host.BufferCell
     $cell.Character = $text
-    $cell.ForegroundColor = $foregroundcolor
-    $cell.BackgroundColor = $backgroundColor
+    $cell.ForegroundColor = $foregroundColor
+
+    # Check if $backgroundColor parameter is null, if yes, set it to "Black"
+    if ($null -eq $backgroundColor) {
+        $cell.BackgroundColor = 'Black'
+    }
+    else {
+        $cell.BackgroundColor = $backgroundColor
+    }
 
     $rect = New-Object System.Management.Automation.Host.Rectangle -Property @{
         Top    = $y
