@@ -13,7 +13,7 @@ function Start-CMatrix {
     $script:strings = @()
     $script:frameNum = 0
 
-    Clear-Console -BackgroundColor 'Black'
+    Clear-Host
 
     $done = $false
 
@@ -26,7 +26,7 @@ function Start-CMatrix {
         $done = $host.UI.RawUI.KeyAvailable
     }
 
-    Clear-Console
+    Clear-Host
 }
 
 function Get-ConsoleWindowSize {
@@ -42,10 +42,7 @@ function Get-Console {
     return (Get-Host).UI.RawUI
 }
 
-function Clear-Console {
-    $console = Get-Console
-    $console.Clear()
-}
+
 
 function New-String {
     param (
