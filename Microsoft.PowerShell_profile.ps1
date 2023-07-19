@@ -32,7 +32,7 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 # # PowerShellGet version 3
 # Install-PSResource AnyPackage
 
-
+Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
 # install and import modules needed for oh my posh
 $modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors')
