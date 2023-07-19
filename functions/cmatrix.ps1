@@ -16,14 +16,18 @@ function Start-CMatrix {
     Clear-Host
 
     $done = $false
+    $endTime = [DateTime]::Now.AddMinutes(5)  # Set the desired duration (5 minutes in this example)
 
-    while (-not $done) {
+    while (!$done -and (Get-Date) -lt $endTime) {
         Write-FrameBuffer -maxColumns $maxColumns -maxStrings $maxStrings
         Show-FrameBuffer
 
         Start-Sleep -Milliseconds $frameWait
 
-        $done = $host.UI.RawUI.KeyAvailable
+        if ($host.UI.RawUI.KeyAvailable) {
+            $done = $true
+            $host.UI.RawUI.FlushInputBuffer()  # Clear any key press events in the buffer
+        }
     }
 
     Clear-Host
@@ -81,12 +85,12 @@ function Write-FrameBuffer {
 function Show-FrameBuffer {
     for ($y = 0; $y -lt $winSize.Height; $y++) {
         for ($x = 0; $x -lt $winSize.Width; $x++) {
+            $foregroundColor = 'Green'
+            $backgroundColor = 'Black'
             if ($columns.Contains($x)) {
-                Write-Cell -x $x -y $y -text ' ' -foregroundColor 'Green'
+                $foregroundColor = 'White'
             }
-            else {
-                Write-Cell -x $x -y $y -text ' ' -foregroundColor 'Black'
-            }
+            Write-Cell -x $x -y $y -text ' ' -foregroundColor $foregroundColor -backgroundColor $backgroundColor
         }
     }
 
