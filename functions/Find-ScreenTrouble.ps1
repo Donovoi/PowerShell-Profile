@@ -71,6 +71,3 @@ function Main() {
     Write-Host "-----------------------------------------------------" -ForegroundColor Cyan
     Write-Host "Script execution completed." -ForegroundColor Cyan
 }
-
-# Execute the main function
-Main

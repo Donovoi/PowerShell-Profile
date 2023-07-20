@@ -9,7 +9,7 @@ function Start-CMatrix {
     )
 
     $script:winsize = Get-ConsoleWindowSize
-    $script:columns = @{}
+    $script:columns = @()
     $script:strings = @()
     $script:frameNum = 0
 
@@ -98,7 +98,7 @@ function Show-FrameBuffer {
         $string = $strings[$i]
         $xPos = $columns.Keys[$i % $columns.Count]
 
-        Write-Cell -x $xPos -y ($winSize.Height - 1) -text $string.Text -foregroundColor $string.ForegroundColor -backgroundColor $string.BackgroundColor
+        Write-Cell -x $xPos -y ($winSize.Height - 1) -text $string -foregroundColor $string.ForegroundColor -backgroundColor $string.BackgroundColor
     }
 }
 
@@ -135,10 +135,11 @@ function Write-Cell {
 
 function Start-ScreenSaver {
     param (
-        [int]$maxColumns = 8,
-        [int]$frameWait = 100,
-        [int]$maxStrings = 10
+        [int]$maxColumns = 80,
+        [int]$frameWait = 1000,
+        [int]$maxStrings = 1000
     )
 
     Start-CMatrix -maxColumns $maxColumns -frameWait $frameWait -maxStrings $maxStrings
 }
+
