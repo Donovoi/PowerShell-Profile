@@ -360,16 +360,16 @@ public static string GetString(uint strId)
 		exit
 	}
 
-	# Check whether the script was run in PowerShell ISE or VS Code
-	if (($Host.Name -match "ISE") -or ($env:TERM_PROGRAM -eq "vscode"))
-	{
-		Write-Warning -Message ($Localization.UnsupportedHost -f $Host.Name.replace("Host", ""))
+	# # Check whether the script was run in PowerShell ISE or VS Code
+	# if (($Host.Name -match "ISE") -or ($env:TERM_PROGRAM -eq "vscode"))
+	# {
+	# 	Write-Warning -Message ($Localization.UnsupportedHost -f $Host.Name.replace("Host", ""))
 
-		Start-Process -FilePath "https://t.me/sophia_chat"
-		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 	Start-Process -FilePath "https://t.me/sophia_chat"
+	# 	Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-		exit
-	}
+	# 	exit
+	# }
 
 	# Check whether Windows was broken by 3rd party harmful tweakers and trojans
 	$Tweakers = @{
@@ -532,207 +532,207 @@ public static string GetString(uint strId)
 		Write-Error -Message $Localization.NoInternetConnection -ErrorAction SilentlyContinue
 	}
 
-	#region Defender checks
-	# Check whether necessary Microsoft Defender components exists
-	$Files = @(
-		"$env:SystemRoot\System32\smartscreen.exe",
-		"$env:SystemRoot\System32\SecurityHealthSystray.exe",
-		"$env:SystemRoot\System32\CompatTelRunner.exe"
-	)
-	foreach ($File in $Files)
-	{
-		if (-not (Test-Path -Path $File))
-		{
-			Write-Warning -Message ($Localization.WindowsComponentBroken -f $File)
+	# #region Defender checks
+	# # Check whether necessary Microsoft Defender components exists
+	# $Files = @(
+	# 	#"$env:SystemRoot\System32\smartscreen.exe",
+	# 	#"$env:SystemRoot\System32\SecurityHealthSystray.exe",
+	# 	#"$env:SystemRoot\System32\CompatTelRunner.exe"
+	# )
+	# foreach ($File in $Files)
+	# {
+	# 	if (-not (Test-Path -Path $File))
+	# 	{
+	# 		Write-Warning -Message ($Localization.WindowsComponentBroken -f $File)
 
-			Start-Process -FilePath "https://github.com/farag2/Sophia-Script-for-Windows/releases/latest"
-			Start-Process -FilePath "https://t.me/sophia_chat"
-			Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 		Start-Process -FilePath "https://github.com/farag2/Sophia-Script-for-Windows/releases/latest"
+	# 		Start-Process -FilePath "https://t.me/sophia_chat"
+	# 		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-			exit
-		}
-	}
+	# 		exit
+	# 	}
+	# }
 
-	# Checking whether WMI is corrupted
-	try
-	{
-		Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender -ErrorAction Stop | Out-Null
-	}
-	catch [Microsoft.Management.Infrastructure.CimException]
-	{
-		# Provider Load Failure exception
-		Write-Warning -Message $Global:Error.Exception.Message | Select-Object -First 1
-		Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
+	# # Checking whether WMI is corrupted
+	# try
+	# {
+	# 	Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender -ErrorAction Stop | Out-Null
+	# }
+	# catch [Microsoft.Management.Infrastructure.CimException]
+	# {
+	# 	# Provider Load Failure exception
+	# 	Write-Warning -Message $Global:Error.Exception.Message | Select-Object -First 1
+	# 	Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
 
-		Start-Process -FilePath "https://t.me/sophia_chat"
-		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 	Start-Process -FilePath "https://t.me/sophia_chat"
+	# 	Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-		exit
-	}
+	# 	exit
+	# }
 
-	# Check Microsoft Defender state
-	if ($null -eq (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Ignore))
-	{
-		Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
+	# # Check Microsoft Defender state
+	# if ($null -eq (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Ignore))
+	# {
+	# 	Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
 
-		Start-Process -FilePath "https://t.me/sophia_chat"
-		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 	Start-Process -FilePath "https://t.me/sophia_chat"
+	# 	Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-		exit
-	}
+	# 	exit
+	# }
 
-	# Checking services
-	try
-	{
-		$Services = Get-Service -Name Windefend, SecurityHealthService, wscsvc -ErrorAction Stop
-	}
-	catch [Microsoft.PowerShell.Commands.ServiceCommandException]
-	{
-		Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
+	# # Checking services
+	# try
+	# {
+	# 	$Services = Get-Service -Name Windefend, SecurityHealthService, wscsvc -ErrorAction Stop
+	# }
+	# catch [Microsoft.PowerShell.Commands.ServiceCommandException]
+	# {
+	# 	Write-Warning -Message ($Localization.WindowsComponentBroken -f "Microsoft Defender")
 
-		Start-Process -FilePath "https://t.me/sophia_chat"
-		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 	Start-Process -FilePath "https://t.me/sophia_chat"
+	# 	Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-		exit
-	}
-	$Script:DefenderServices = ($Services | Where-Object -FilterScript {$_.Status -ne "running"} | Measure-Object).Count -lt $Services.Count
+	# 	exit
+	# }
+	# $Script:DefenderServices = ($Services | Where-Object -FilterScript {$_.Status -ne "running"} | Measure-Object).Count -lt $Services.Count
 
-	# Check Microsoft Defender state
-	$productState = (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName Antivirusproduct | Where-Object -FilterScript {$_.instanceGuid -eq "{D68DDC3A-831F-4fae-9E44-DA132C1ACF46}"}).productState
-	$DefenderState = ('0x{0:x}' -f $productState).Substring(3, 2)
-	if ($DefenderState -notmatch "00|01")
-	{
-		$Script:DefenderproductState = $true
-	}
-	else
-	{
-		$Script:DefenderproductState = $false
-	}
+	# # Check Microsoft Defender state
+	# $productState = (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName Antivirusproduct | Where-Object -FilterScript {$_.instanceGuid -eq "{D68DDC3A-831F-4fae-9E44-DA132C1ACF46}"}).productState
+	# $DefenderState = ('0x{0:x}' -f $productState).Substring(3, 2)
+	# if ($DefenderState -notmatch "00|01")
+	# {
+	# 	$Script:DefenderproductState = $true
+	# }
+	# else
+	# {
+	# 	$Script:DefenderproductState = $false
+	# }
 
-	# Specify whether Antispyware protection is enabled
-	if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).AntispywareEnabled)
-	{
-		$Script:DefenderAntispywareEnabled = $true
-	}
-	else
-	{
-		$Script:DefenderAntispywareEnabled = $false
-	}
+	# # Specify whether Antispyware protection is enabled
+	# if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).AntispywareEnabled)
+	# {
+	# 	$Script:DefenderAntispywareEnabled = $true
+	# }
+	# else
+	# {
+	# 	$Script:DefenderAntispywareEnabled = $false
+	# }
 
-	# https://docs.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdefenderproductstatus?view=graph-rest-beta
-	try
-	{
-		if ($Script:DefenderproductState)
-		{
-			if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).ProductStatus -eq 1)
-			{
-				$Script:DefenderProductStatus = $false
-			}
-			else
-			{
-				$Script:DefenderProductStatus = $true
-			}
-		}
-		else
-		{
-			$Script:DefenderProductStatus = $false
-		}
-	}
-	catch [System.Management.Automation.PropertyNotFoundException]
-	{
-		Write-Warning -Message $Localization.UpdateDefender
+	# # https://docs.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdefenderproductstatus?view=graph-rest-beta
+	# try
+	# {
+	# 	if ($Script:DefenderproductState)
+	# 	{
+	# 		if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).ProductStatus -eq 1)
+	# 		{
+	# 			$Script:DefenderProductStatus = $false
+	# 		}
+	# 		else
+	# 		{
+	# 			$Script:DefenderProductStatus = $true
+	# 		}
+	# 	}
+	# 	else
+	# 	{
+	# 		$Script:DefenderProductStatus = $false
+	# 	}
+	# }
+	# catch [System.Management.Automation.PropertyNotFoundException]
+	# {
+	# 	Write-Warning -Message $Localization.UpdateDefender
 
-		Start-Process -FilePath "https://t.me/sophia_chat"
-		Start-Process -FilePath "https://discord.gg/sSryhaEv79"
+	# 	Start-Process -FilePath "https://t.me/sophia_chat"
+	# 	Start-Process -FilePath "https://discord.gg/sSryhaEv79"
 
-		# Enable receiving updates for other Microsoft products when you update Windows
-		(New-Object -ComObject Microsoft.Update.ServiceManager).AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "")
+	# 	# Enable receiving updates for other Microsoft products when you update Windows
+	# 	(New-Object -ComObject Microsoft.Update.ServiceManager).AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "")
 
-		Start-Sleep -Seconds 1
+	# 	Start-Sleep -Seconds 1
 
-		# Open the "Windows Update" page
-		Start-Process -FilePath "ms-settings:windowsupdate"
+	# 	# Open the "Windows Update" page
+	# 	Start-Process -FilePath "ms-settings:windowsupdate"
 
-		# Check for updates
-		Start-Process -FilePath "ms-settings:windowsupdate-action"
+	# 	# Check for updates
+	# 	Start-Process -FilePath "ms-settings:windowsupdate-action"
 
-		Start-Sleep -Seconds 1
+	# 	Start-Sleep -Seconds 1
 
-		# Trigger Windows Update for detecting new updates
-		(New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow()
+	# 	# Trigger Windows Update for detecting new updates
+	# 	(New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow()
 
-		exit
-	}
+	# 	exit
+	# }
 
-	# https://docs.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdefenderproductstatus?view=graph-rest-beta
-	if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).AMEngineVersion -eq "0.0.0.0")
-	{
-		$Script:DefenderAMEngineVersion = $false
-	}
-	else
-	{
-		$Script:DefenderAMEngineVersion = $true
-	}
+	# # https://docs.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdefenderproductstatus?view=graph-rest-beta
+	# if ((Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender).AMEngineVersion -eq "0.0.0.0")
+	# {
+	# 	$Script:DefenderAMEngineVersion = $false
+	# }
+	# else
+	# {
+	# 	$Script:DefenderAMEngineVersion = $true
+	# }
 
-	# Check whether Microsoft Defender was turned off
-	# Due to "Set-StrictMode -Version Latest" we have to use GetValue()
-	if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender", "DisableAntiSpyware", $null) -eq 1)
-	{
-		$Script:DisableAntiSpyware = $true
-	}
-	else
-	{
-		$Script:DisableAntiSpyware = $false
-	}
+	# # Check whether Microsoft Defender was turned off
+	# # Due to "Set-StrictMode -Version Latest" we have to use GetValue()
+	# if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender", "DisableAntiSpyware", $null) -eq 1)
+	# {
+	# 	$Script:DisableAntiSpyware = $true
+	# }
+	# else
+	# {
+	# 	$Script:DisableAntiSpyware = $false
+	# }
 
-	# Check whether real-time protection prompts for known malware detection
-	# Due to "Set-StrictMode -Version Latest" we have to use GetValue()
-	if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableRealtimeMonitoring", $null) -eq 1)
-	{
-		$Script:DisableRealtimeMonitoring = $true
-	}
-	else
-	{
-		$Script:DisableRealtimeMonitoring = $false
-	}
+	# # Check whether real-time protection prompts for known malware detection
+	# # Due to "Set-StrictMode -Version Latest" we have to use GetValue()
+	# if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableRealtimeMonitoring", $null) -eq 1)
+	# {
+	# 	$Script:DisableRealtimeMonitoring = $true
+	# }
+	# else
+	# {
+	# 	$Script:DisableRealtimeMonitoring = $false
+	# }
 
-	# Check whether behavior monitoring was disabled
-	# Due to "Set-StrictMode -Version Latest" we have to use GetValue()
-	if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableBehaviorMonitoring", $null) -eq 1)
-	{
-		$Script:DisableBehaviorMonitoring = $true
-	}
-	else
-	{
-		$Script:DisableBehaviorMonitoring = $false
-	}
+	# # Check whether behavior monitoring was disabled
+	# # Due to "Set-StrictMode -Version Latest" we have to use GetValue()
+	# if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableBehaviorMonitoring", $null) -eq 1)
+	# {
+	# 	$Script:DisableBehaviorMonitoring = $true
+	# }
+	# else
+	# {
+	# 	$Script:DisableBehaviorMonitoring = $false
+	# }
 
-	if ($Script:DefenderproductState -and $Script:DefenderServices -and $Script:DefenderAntispywareEnabled -and $Script:DefenderAMEngineVersion -and
-	(-not $Script:DisableAntiSpyware) -and (-not $Script:DisableRealtimeMonitoring) -and (-not $Script:DisableBehaviorMonitoring))
-	{
-		# Defender is enabled
-		$Script:DefenderEnabled = $true
+	# if ($Script:DefenderproductState -and $Script:DefenderServices -and $Script:DefenderAntispywareEnabled -and $Script:DefenderAMEngineVersion -and
+	# (-not $Script:DisableAntiSpyware) -and (-not $Script:DisableRealtimeMonitoring) -and (-not $Script:DisableBehaviorMonitoring))
+	# {
+	# 	# Defender is enabled
+	# 	$Script:DefenderEnabled = $true
 
-		switch ((Get-MpPreference).EnableControlledFolderAccess)
-		{
-			"1"
-			{
-				Write-Warning -Message $Localization.ControlledFolderAccessDisabled
+	# 	switch ((Get-MpPreference).EnableControlledFolderAccess)
+	# 	{
+	# 		"1"
+	# 		{
+	# 			Write-Warning -Message $Localization.ControlledFolderAccessDisabled
 
-				# Turn off Controlled folder access to let the script proceed
-				$Script:ControlledFolderAccess = $true
-				Set-MpPreference -EnableControlledFolderAccess Disabled
+	# 			# Turn off Controlled folder access to let the script proceed
+	# 			$Script:ControlledFolderAccess = $true
+	# 			Set-MpPreference -EnableControlledFolderAccess Disabled
 
-				# Open "Ransomware protection" page
-				Start-Process -FilePath windowsdefender://RansomwareProtection
-			}
-			"0"
-			{
-				$Script:ControlledFolderAccess = $false
-			}
-		}
-	}
-	#endregion Defender checks
+	# 			# Open "Ransomware protection" page
+	# 			Start-Process -FilePath windowsdefender://RansomwareProtection
+	# 		}
+	# 		"0"
+	# 		{
+	# 			$Script:ControlledFolderAccess = $false
+	# 		}
+	# 	}
+	# }
+	# #endregion Defender checks
 
 	# Enable back the SysMain service if it was disabled by harmful tweakers
 	if ((Get-Service -Name SysMain).Status -eq "Stopped")
