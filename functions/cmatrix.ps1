@@ -1,4 +1,3 @@
-
 #requires -RunAsAdministrator
 
 function Start-CMatrix {
@@ -36,17 +35,14 @@ function Start-CMatrix {
 function Get-ConsoleWindowSize {
     $console = Get-Console
     return [PSCustomObject]@{
-        Width  = $console.BufferSize.Width
-        Height = $console.BufferSize.Height
+        Width  = $console.WindowSize.Width
+        Height = $console.WindowSize.Height
     }
 }
-
 
 function Get-Console {
     return (Get-Host).UI.RawUI
 }
-
-
 
 function New-String {
     param (
@@ -70,7 +66,7 @@ function Write-FrameBuffer {
 
     if ($columns.Count -lt $maxColumns) {
         if ((Get-Random -Minimum 0 -Maximum 10) -lt 5) {
-            $xPos = Get-Random -Minimum 0 -Maximum ($winSize.Width - 1)
+            $xPos = Get-Random -Minimum 0 -Maximum ($winsize.Width - 1)
             $columns[$xPos] = $xPos
         }
     }
@@ -83,8 +79,8 @@ function Write-FrameBuffer {
 }
 
 function Show-FrameBuffer {
-    for ($y = 0; $y -lt $winSize.Height; $y++) {
-        for ($x = 0; $x -lt $winSize.Width; $x++) {
+    for ($y = 0; $y -lt $winsize.Height; $y++) {
+        for ($x = 0; $x -lt $winsize.Width; $x++) {
             $foregroundColor = 'Green'
             $backgroundColor = 'Black'
             if ($columns.Contains($x)) {
@@ -98,7 +94,7 @@ function Show-FrameBuffer {
         $string = $strings[$i]
         $xPos = $columns.Keys[$i % $columns.Count]
 
-        Write-Cell -x $xPos -y ($winSize.Height - 1) -text $string -foregroundColor $string.ForegroundColor -backgroundColor $string.BackgroundColor
+        Write-Cell -x $xPos -y ($winsize.Height - 1) -text $string.Text -foregroundColor $string.ForegroundColor -backgroundColor $string.BackgroundColor
     }
 }
 
@@ -142,4 +138,3 @@ function Start-ScreenSaver {
 
     Start-CMatrix -maxColumns $maxColumns -frameWait $frameWait -maxStrings $maxStrings
 }
-

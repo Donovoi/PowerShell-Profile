@@ -74,8 +74,8 @@ function Get-GitPull {
 '@
 
     if (-not(Test-Path -Path "$PWD/target/release/findfiles.dll")) {
-        Remove-Item -Path "$PWD/target" -Recurse -Force
-        Remove-Item -Path "$PWD/lib.rs" -Force
+        Remove-Item -Path "$PWD/target" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$PWD/lib.rs" -Force -ErrorAction SilentlyContinue
         # If the cargo file does not exist, create it
         if (-not(Test-Path -Path "$PWD/Cargo.toml")) {
 
