@@ -60,10 +60,6 @@ $modules | ForEach-Object {
     }    
   }
 }
-# for vscode
-if ($env:TERM_PROGRAM -eq 'vscode') {
-  . "$(code --locate-shell-integration-path pwsh)" 
-}
 
 #  Extract this to a Function TODO
 # $Modules = Get-Module -ListAvailable
