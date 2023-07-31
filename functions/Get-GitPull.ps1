@@ -195,7 +195,7 @@ function Get-GitPull {
         # Set ownership to current user and grant full control to current user recursively
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
         # git config --global --add safe.directory $(Resolve-Path -Path $PWD)
-        git pull --verbose
+        gh repo sync
         Write-Output "git pull complete for $($_)"
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
