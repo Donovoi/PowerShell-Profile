@@ -46,6 +46,7 @@ function Invoke-AriaDownload {
                 '--file-allocation=none',
                 '--continue=false',
                 '--max-connection-per-server=16',
+                "--log=$($(Split-Path -Parent $OutFile) + '\aria2c.log')",
                 '--split=16',
                 '--min-split-size=1M',
                 '--max-tries=0',
