@@ -44,7 +44,6 @@ function Invoke-AriaDownload {
             # Start the download process using aria2c
             Start-Process -FilePath 'aria2c' -ArgumentList @(
                 '--file-allocation=none',
-                '--check-certificate=false',
                 '--continue=false',
                 '--max-connection-per-server=16',
                 '--split=16',
