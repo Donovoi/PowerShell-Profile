@@ -7,14 +7,14 @@ function Get-PropertiesRecursive {
         [string]$Indent = ''
     )
 
-    $Object | Get-Member -MemberType Property -Force | ForEach-Object {
+    $Object | Get-Member -Force | ForEach-Object {
         $propertyName = $_.Name
         $propertyValue = $Object.$propertyName
 
         Write-Host "$Indent$propertyName`: $propertyValue"
 
-        # If the property value is an object with properties, call this function recursively
-        if ($propertyValue -is [PSObject] -and ($propertyValue | Get-Member -MemberType Property -Force)) {
+        # If the property value is an object with members, call this function recursively
+        if ($propertyValue -is [PSObject] -and ($propertyValue | Get-Member -Force)) {
             Get-PropertiesRecursive -Object $propertyValue -Indent ("$Indent`t")
         }
     }
