@@ -90,4 +90,3 @@ function Get-Fido {
     Write-Error "Failed to download or execute the Fido script: $($_.Exception.Message)"
   }
 }
-Get-Fido -Verbose -ErrorAction Break
