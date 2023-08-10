@@ -3,8 +3,8 @@
 This function downloads a file from a given URL using aria2c.
 
 .DESCRIPTION
-The Invoke-AriaDownload function uses aria2c to download a file from a provided URL. 
-If the output file already exists, it will be removed before the download starts. 
+The Invoke-AriaDownload function uses aria2c to download a file from a provided URL.
+If the output file already exists, it will be removed before the download starts.
 
 .PARAMETER URL
 The URL of the file to download.
@@ -25,14 +25,16 @@ function Invoke-AriaDownload {
         [Parameter(Mandatory = $true)]
         [string]$URL,
         [Parameter(Mandatory = $true)]
-        [string]$OutFile
+        [string]$OutFile,
+        [Parameter(Mandatory = $true)]
+        [string]$Aria2cExePath
     )
     begin {
         # Print the name of the running script
-        Write-Host "Script is running as $($MyInvocation.MyCommand.Name)" 
+        Write-Host 'Downloading Faster? with Aria2'
         # Ensure aria2c is in the PATH
-        if (-not (Get-Command 'aria2c' -ErrorAction SilentlyContinue)) {
-            throw 'aria2c was not found in the PATH. Please install it or add it to the PATH.'
+        if (-not (Test-Path -Path $Aria2cExePath)) {
+            throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
         }
     }
     process {
@@ -42,7 +44,7 @@ function Invoke-AriaDownload {
                 Remove-Item -Path $OutFile -Force -Verbose -ErrorAction Stop
             }
             # Start the download process using aria2c
-            Start-Process -FilePath 'aria2c' -ArgumentList @(
+            Start-Process -FilePath $Aria2cExePath -ArgumentList @(
                 '--file-allocation=none',
                 '--continue=false',
                 '--max-connection-per-server=16',
@@ -56,7 +58,7 @@ function Invoke-AriaDownload {
                 "--out=$(Split-Path -Leaf $OutFile)",
                 $URL
             ) -NoNewWindow -Wait -ErrorAction Stop
-
+  
             return $OutFile
         }
         catch {
