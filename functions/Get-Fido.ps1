@@ -2,23 +2,21 @@ function Get-Fido {
   [CmdletBinding()]
   param()
 
-  $scriptUrl = 'https://github.com/pbatard/Fido/releases/download/v1.50/Fido.ps1.lzma'
-
   try {
     # Use Invoke-WebRequest to download the script
-    $scriptContent = Get-latestGithubRelease
+    $ZippedScriptContent = Get-latestGithubRelease -OwnerRepository pbatard/Fido -AssetName 'Fido.ps1.lzma' -ExtractZip -UseAria2
     
+    #  Extract the zip using .net static method
+    if (-not(Get-Command 'Expand-7Zip' -ErrorAction SilentlyContinue)) {
+      Install-ExternalDependencies
+    }
+    $scriptContent = Expand-7Zip -InputObject $ZippedScriptContent -OutputPath $env:TEMP -PassThru | Select-Object -ExpandProperty 'FullName'
+
     # Convert the script content to bytes using the UTF-8 encoding
     $scriptBytes = [System.Text.Encoding]::UTF8.GetBytes($scriptContent)
     
     # Use the default encoding on your machine
-    $scriptBytesDefaultEncoding = [System.Text.Encoding]::Convert([System.Text.Encoding]::UTF8, [System.Text.Encoding]::Default, $scriptBytes)
-    
-    # Unpack the LZMA file (assuming you have the SevenZipSharp library installed)
-    Add-Type -Path 'C:\Path\To\SevenZipSharp.dll'
-    $sevenZip = New-Object SevenZip.SevenZipExtractor('C:\Path\To\LzmaFile.lzma')
-    $sevenZip.ExtractArchive('C:\Path\To\OutputDirectory')
-    
+    $scriptBytesDefaultEncoding = [System.Text.Encoding]::Convert([System.Text.Encoding]::UTF8, [System.Text.Encoding]::Default, $scriptBytes)    
     # Execute the script
     Invoke-Expression -Command ([System.Text.Encoding]::Default.GetString($scriptBytesDefaultEncoding))
   }
