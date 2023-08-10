@@ -78,7 +78,8 @@ function Install-ExternalDependencies {
             'ImportExcel',
             'PSWriteColor',
             'Pansies',
-            'JWTDetails'
+            'JWTDetails',
+            '7zip4powershell'
         )
 
         if ($RemoveAllModules) {
