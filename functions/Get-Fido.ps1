@@ -18,7 +18,8 @@ function Get-Fido {
     # Use the default encoding on your machine
     $scriptBytesDefaultEncoding = [System.Text.Encoding]::Convert([System.Text.Encoding]::UTF8, [System.Text.Encoding]::Default, $scriptBytes)    
     # Execute the script
-    Invoke-Expression -Command ([System.Text.Encoding]::Default.GetString($scriptBytesDefaultEncoding))
+    $FidoPath = [System.Text.Encoding]::Default.GetString($scriptBytesDefaultEncoding) | Out-File -Encoding ascii -FilePath $env:TEMP\Fido.ps1 -Force
+    . $FidoPath
   }
   catch {
     Write-Error "Failed to download or execute the Fido script: $($_.Exception.Message)"
