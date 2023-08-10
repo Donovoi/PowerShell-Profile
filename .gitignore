@@ -20,3 +20,8 @@ Non PowerShell Tools/Log-20.07.2023-14-07.txt
 Non PowerShell Tools/Application_Associations.json
 wingetlogs.log
 target/**
+aria2c/**
+*.log
+*.lzma
+*.txt
+Invoke-CradleCrafter/**
