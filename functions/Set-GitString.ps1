@@ -3,7 +3,7 @@ function Set-GitString {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$RepositoryURL,
+        [string]$RepoFolder,
 
         [Parameter(Mandatory = $true)]
         [string]$SearchString,
@@ -12,12 +12,8 @@ function Set-GitString {
         [string]$ReplacementString
     )
 
-    # Clone the GitHub repository
-    git clone $RepositoryURL
-
     # Navigate to the cloned repository's directory
-    $repositoryDirectory = (Split-Path -Path $RepositoryURL -Leaf).Replace(".git", "")
-    Set-Location $repositoryDirectory
+    Set-Location $RepoFolder
 
     # Search for the string to replace
     $filesToReplace = git grep -l $SearchString | ForEach-Object { $_.Trim() }
@@ -35,5 +31,5 @@ function Set-GitString {
     git commit -m "String replacement"
 
     # Push the changes to the remote repository
-    git push origin master
+    git push origin main
 }
