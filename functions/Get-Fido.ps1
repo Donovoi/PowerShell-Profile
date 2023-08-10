@@ -72,9 +72,9 @@ function Get-Fido {
     $ZippedScriptContent = Get-latestGithubRelease -OwnerRepository pbatard/Fido -AssetName 'Fido.ps1.lzma' -ExtractZip -UseAria2
     
     #  Extract the zip using .net static method
-    if (-not(Get-Command 'Expand-7Zip' -ErrorAction SilentlyContinue)) {
-      Install-ExternalDependencies -RemoveAllModules
-    }
+    #if (-not(Get-Command 'Expand-7Zip' -ErrorAction SilentlyContinue)) {
+    Install-ExternalDependencies -RemoveAllModules
+    #}
     $scriptContent = Expand-7Zip -InputObject $ZippedScriptContent -OutputPath $env:TEMP -PassThru | Select-Object -ExpandProperty 'FullName'
 
     # Convert the script content to bytes using the UTF-8 encoding
