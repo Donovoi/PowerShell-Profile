@@ -76,8 +76,7 @@ function Install-ExternalDependencies {
         $neededmodules = @(
             'Microsoft.PowerShell.ConsoleGuiTools',
             'ImportExcel',
-            'PSWriteColor',
-            'Pansies',
+            'PSWriteColor',            
             'JWTDetails',
             '7zip4powershell'
         )
@@ -91,7 +90,13 @@ function Install-ExternalDependencies {
                 }
             }
         }
+        # for the write-log function we need to have pansies installed
+        if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
+        }
+        Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
 
+        # Save modules locally then import them
         foreach ($module in $neededmodules) {
             if (-not (Get-Module -Name $module -ListAvailable) -and (-not (Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Filter "*$module*" -Recurse -ErrorAction SilentlyContinue))) {
                 Write-Log -Message "Installing module $module" -Level VERBOSE
@@ -101,13 +106,13 @@ function Install-ExternalDependencies {
             else {
                 Write-Log -Message "Module $module already installed" -Level VERBOSE
             }
-
+            Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
             $ModulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
             Import-Module -Name $ModulesToImport -Force -Global -ErrorAction SilentlyContinue
         }
     }
     catch {
-        Write-Log -Message  "An error occurred: $_" -Level ERROR
-        Write-Log -Message  "Error details: $($_.Exception)" -Level ERROR
+        Write-Log -Message "An error occurred: $_" -Level ERROR
+        Write-Log -Message "Error details: $($_.Exception)" -Level ERROR
     }
 }
