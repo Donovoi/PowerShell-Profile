@@ -61,7 +61,7 @@ function Update-VSCode {
                 'both' {
                     # If 'both' is specified, download and expand both versions
                     foreach ($url in $urls) {
-                        Invoke-AriaDownload -URL $url.URL -OutFile $url.OutFile -Verbose
+                        Get-DownloadFile -URL $url.URL -OutFile $url.OutFile -UseAria2
                         if (Test-Path $url.OutFile) {
                             Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
                             Remove-Item $url.OutFile
@@ -75,7 +75,7 @@ function Update-VSCode {
                     # If 'stable' or 'insider' is specified, download and expand the corresponding version
                     $url = $urls | Where-Object { $_.Version -eq $Version }
                     if ($url) {
-                        Invoke-AriaDownload -URL $url.URL -OutFile $url.OutFile -Verbose
+                        Get-DownloadFile -URL $url.URL -OutFile $url.OutFile -UseAria2
                         if (Test-Path $url.OutFile) {
                             # Expand the downloaded archive to the destination path
                             Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
@@ -93,10 +93,10 @@ function Update-VSCode {
             }
         }
         catch {
-            Write-Error $_.Exception.Message
+            Write-Log -Message "$($_.Exception.Message)" -Level Error
         }
         finally {
-            Write-Host 'Update-VSCode function execution completed.'
+            Write-Log -Message 'Update-VSCode function execution completed.' -Level Info
         }
     }
 }

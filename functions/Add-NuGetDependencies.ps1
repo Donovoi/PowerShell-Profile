@@ -66,8 +66,8 @@ function Add-NuGetDependencies {
         }
     }
     catch {
-        Write-Error "An error occurred: $_"
-        Write-Error "Error details: $($_.Exception)"
+        Write-Log -Message "An error occurred: $_" -Level ERROR
+        Write-Log -Message "Error details: $($_.Exception)" -Level ERROR
     }
     finally {
         if ($TempWorkDir -and (Test-Path -Path "$TempWorkDir" -PathType Container)) {
