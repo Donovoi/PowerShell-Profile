@@ -32,31 +32,31 @@ function Get-DownloadFile {
         [Parameter(Mandatory = $false)]
         [switch]$UseAria2
     )
-
+  
     begin {
         # If aria2 is requested but not found, download and install it
-        if ($UseAria2 -and (-not (Test-Path "$PSSCRIPTROOT/aria2c/*/aria2c.exe"))) {
+        if ($UseAria2 -and (-not (Test-Path "$PWD/aria2c/*/aria2c.exe"))) {
             # Downloading aria2c
-            Write-log -Message 'Downloading and extracting aria2c...' -Level INFO
-            Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PSSCRIPTROOT/Aria2c" -ExtractZip -Verbose
-
+            Write-Host 'Downloading and extracting aria2c...'
+            Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip -Verbose
+  
             # Add aria2c to the PATH
-            $aria2cExe = $(Resolve-Path -Path "$PSSCRIPTROOT/aria2c/*/aria2c.exe").Path
-            Write-log -Message "Downloaded Aria2c to $aria2cExe" -Level INFO
+            $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
+            Write-Host -Object "Downloaded Aria2c to $aria2cExe"
         }
         else {
-            $aria2cExe = $(Resolve-Path -Path "$PSSCRIPTROOT/aria2c/*/aria2c.exe").Path
+            $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
         }
     }
-
+  
     process {
         try {
             if ($UseAria2) {
-                Write-log -Message 'Downloading using aria2c...' -Level INFO
+                Write-Host 'Downloading using aria2c...'
                 Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe
             }
             else {
-                Write-log -Message 'Downloading using Invoke-WebRequest ...' -Level INFO
+                Write-Host 'Downloading using Invoke-WebRequest ...'
                 Invoke-WebRequest -Uri $URL -OutFile $OutFile
             }
         }
