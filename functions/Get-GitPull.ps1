@@ -22,7 +22,7 @@ function Get-GitPull {
 
     # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
-    Write-Host "Searching for repositories in $Path, this can take a while..."
+    Write-Log -Message "Searching for repositories in $Path, this can take a while..."
 
     $rustPgm = @'
   extern crate jwalk;
@@ -181,7 +181,7 @@ function Get-GitPull {
     }
 
     # Show the elapsed time
-    Write-Host "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
+    Write-Log -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
 
 
     #Let the user know what we are doing and how many repositories we are working with

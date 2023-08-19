@@ -31,7 +31,7 @@ function Update-VSCode {
     process {
         try {
             # Print the name of the running script
-            Write-Host "Script is running as $($MyInvocation.MyCommand.Name)" 
+            Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" 
 
             # Get the drive with label like 'X-Ways'
             $drive = Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'"

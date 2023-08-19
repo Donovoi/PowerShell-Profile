@@ -174,5 +174,5 @@ function Get-AllEvents {
 
   $window.ShowDialog()
 
-  Write-Host 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
+  Write-Log -Message 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
 }

@@ -46,11 +46,11 @@ function Get-Handle {
                     $userDecision = Read-Host "Invalidate handles or Kill Process($($_.Caption) - $($_.ExecutablePath))?(I/K/Ignore)" 
                     if ($userDecision -eq 'I') { 
                         $processHandler.CloseProcessHandle($procHandle) 
-                        Write-Host 'Handle invalidated.' 
+                        Write-Log -Message 'Handle invalidated.' 
                     } 
                     elseif ($userDecision -eq 'K') { 
                         Stop-Process -Id $_.ProcessId -Force 
-                        Write-Host 'Process killed.' 
+                        Write-Log -Message 'Process killed.' 
                     } 
                 } while ($userDecision -ne 'I' -and $userDecision -ne 'K' -and $userDecision -ne 'Ignore') 
                 $processHandler.CloseProcessHandle($procHandle)

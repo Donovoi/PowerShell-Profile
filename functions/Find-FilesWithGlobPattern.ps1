@@ -131,6 +131,6 @@ function Find-FilesWithGlobPattern {
         return $result
     }
     else {
-        Write-Host 'No matching file found.'
+        Write-Log -Message 'No matching file found.'
     }
 }

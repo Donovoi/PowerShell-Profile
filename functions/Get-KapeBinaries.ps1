@@ -56,12 +56,12 @@ function Get-KapeBinaries {
   # make sure my usb is available as $XWAYSUSB
   $SCRIPT:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-  Write-Host "This script will automate the downloading of binaries used by KAPE module files to $Dest" -BackgroundColor Blue
+  Write-Log -Message "This script will automate the downloading of binaries used by KAPE module files to $Dest" -BackgroundColor Blue
 
   $newInstall = $false
 
   if (-not (Test-Path -Path $Dest)) {
-    Write-Host $Dest " does not exist. Creating..."
+    Write-Log -Message $Dest " does not exist. Creating..."
     New-Item -ItemType directory -Path $Dest -Force -ErrorAction SilentlyContinue
     $newInstall = $true
   }
@@ -72,7 +72,7 @@ function Get-KapeBinaries {
   $localDetailsFile = Join-Path $Dest -ChildPath "!!!RemoteFileDetails.csv"
 
   if (Test-Path -Path $localDetailsFile) {
-    Write-Host "Loading local details from '$Dest'..."
+    Write-Log -Message "Loading local details from '$Dest'..."
     $LocalKeyCollection = Import-Csv -Path $localDetailsFile
   }
 
@@ -84,7 +84,7 @@ function Get-KapeBinaries {
       $BinaryContent = Get-Content $BinaryListPath -ErrorAction Stop
     }
     catch {
-      Write-Host "Unable to import list of Binary URLs. Verify file exists in $BinaryListPath or that you have access to this file"
+      Write-Log -Message "Unable to import list of Binary URLs. Verify file exists in $BinaryListPath or that you have access to this file"
     }
 
     $progressPreference = 'Continue'
@@ -94,13 +94,13 @@ function Get-KapeBinaries {
 
   #If $CreateBinaryList switch is used dump list of Binary URLs to console
   elseif ($CreateBinaryList) {
-    Write-Host "`nDumping list of Binary URLs to console" -BackgroundColor Blue
+    Write-Log -Message "`nDumping list of Binary URLs to console" -BackgroundColor Blue
     try {
       $mkapeFiles = Get-ChildItem -Recurse -Force -Path $modulePath\*.mkape -ErrorAction Stop
       $mkapeContent = $mkapeFiles | Get-Content
     }
     catch {
-      Write-Host "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" -ForegroundColor Yellow
+      Write-Log -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" -ForegroundColor Yellow
     }
 
     # $UniqueURLs = @{}
@@ -137,7 +137,7 @@ function Get-KapeBinaries {
       $mkapeContent = Get-Content $modulePath\*.mkape -ErrorAction Stop
     }
     catch {
-      Write-Host "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" -ForegroundColor Yellow
+      Write-Log -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" -ForegroundColor Yellow
     }
 
     $progressPreference = 'Continue'
@@ -148,7 +148,7 @@ function Get-KapeBinaries {
 
   }
 
-  Write-Host "Getting available programs..."
+  Write-Log -Message "Getting available programs..."
   $progressPreference = 'silentlyContinue'
   while ($matchdetails.Success) {
     try {
@@ -218,13 +218,13 @@ function Get-KapeBinaries {
   }
 
   if ($toDownload.Count -eq 0) {
-    Write-Host "`nAll files current. Exiting.`n" -BackgroundColor Blue
+    Write-Log -Message "`nAll files current. Exiting.`n" -BackgroundColor Blue
     return
   }
 
   #if (-not (test-path ".\7z\7za.exe")) 
   #{
-  #    Write-Host "`n.\7z\7za.exe needed! Exiting`n" -BackgroundColor Red
+  #    Write-Log -Message "`n.\7z\7za.exe needed! Exiting`n" -BackgroundColor Red
   #    return
   #} 
   #set-alias sz ".\7z\7za.exe"  
@@ -236,7 +236,7 @@ function Get-KapeBinaries {
       $dUrl = $td.URL
       $size = $td.Size
       $name = $td.Name
-      Write-Host "Downloading $name (Size: $size)" -ForegroundColor Green
+      Write-Log -Message "Downloading $name (Size: $size)" -ForegroundColor Green
       $destFile = Join-Path -Path $dest -ChildPath $td.Name
 
       $progressPreference = 'silentlyContinue'
@@ -245,7 +245,7 @@ function Get-KapeBinaries {
       }
       catch {
         $ErrorMessage = $_.Exception.Message
-        Write-Host "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" -ForegroundColor Yellow
+        Write-Log -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" -ForegroundColor Yellow
         continue
       }
 
@@ -261,7 +261,7 @@ function Get-KapeBinaries {
           }
           catch {
             $ErrorMessage = $_.Exception.Message
-            Write-Host "Error extracting ZIP $name - ($ErrorMessage)."
+            Write-Log -Message "Error extracting ZIP $name - ($ErrorMessage)."
           }
         }
         # Archiving cmdlets found so 7zip will not be used
@@ -271,14 +271,14 @@ function Get-KapeBinaries {
             Expand-Archive -Path $destFile -DestinationPath $Dest -Force -ErrorAction Stop
           }
           catch {
-            Write-Host "Unable to extract file:$destFile. Verify file is not in use and that you have access to $Dest." -ForegroundColor Yellow
+            Write-Log -Message "Unable to extract file:$destFile. Verify file is not in use and that you have access to $Dest." -ForegroundColor Yellow
           }
         }
       }
     }
     catch {
       $ErrorMessage = $_.Exception.Message
-      Write-Host "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" -ForegroundColor Yellow
+      Write-Log -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" -ForegroundColor Yellow
     }
     finally {
       $progressPreference = 'Continue'
@@ -288,7 +288,7 @@ function Get-KapeBinaries {
             Remove-Item -Path $destFile -ErrorAction SilentlyContinue
           }
           catch {
-            Write-Host "Unable to remove item: $destFile"
+            Write-Log -Message "Unable to remove item: $destFile"
           }
         }
       }
@@ -320,7 +320,7 @@ function Get-KapeBinaries {
       Rename-Item -Path "$Dest\EvtxExplorer" -NewName "$Dest\EvtxECmd" -Force -ErrorAction Stop
     }
     catch {
-      Write-Host "Unable to rename $Dest\EvtxExplorer to $Dest\EvtxECmd. Directory may need to be manually renamed for EvtxECmd.mkape to function properly"
+      Write-Log -Message "Unable to rename $Dest\EvtxExplorer to $Dest\EvtxECmd. Directory may need to be manually renamed for EvtxECmd.mkape to function properly"
     }
   }
 
@@ -334,7 +334,7 @@ function Get-KapeBinaries {
         New-Item -ItemType directory -Path $ReCmdDir -ErrorAction Stop > $null
       }
       catch {
-        Write-Host "Unable to create directory path: $RECmdDir. You may need to manually create \Kape\Modules\Bin\ReCmd" -ForegroundColor Yellow
+        Write-Log -Message "Unable to create directory path: $RECmdDir. You may need to manually create \Kape\Modules\Bin\ReCmd" -ForegroundColor Yellow
       }
     }
 
@@ -345,7 +345,7 @@ function Get-KapeBinaries {
         Move-Item -Path $change -Destination $ReCmdDir -Force -ErrorAction Stop
       }
       catch {
-        Write-Host "Unable to move $change to $RECmdDir. You may need to manually move this for RECmd.mkape to function properly" -ForegroundColor Yellow
+        Write-Log -Message "Unable to move $change to $RECmdDir. You may need to manually move this for RECmd.mkape to function properly" -ForegroundColor Yellow
       }
     }
 
@@ -354,7 +354,7 @@ function Get-KapeBinaries {
       Remove-Item -Path "$Dest\RegistryExplorer" -Recurse -Force -ErrorAction Stop
     }
     catch {
-      Write-Host "Unable to delete $Dest\RegistryExplorer" -ForegroundColor Yellow
+      Write-Log -Message "Unable to delete $Dest\RegistryExplorer" -ForegroundColor Yellow
     }
   }
 
@@ -368,7 +368,7 @@ function Get-KapeBinaries {
         Move-Item -Path $tool -Destination $Dest -Force -ErrorAction Stop
       }
       catch {
-        Write-Host "Unable to move $tool to $Dest. You may need to manually move this for the module to function properly" -ForegroundColor Yellow
+        Write-Log -Message "Unable to move $tool to $Dest. You may need to manually move this for the module to function properly" -ForegroundColor Yellow
       }
 
       # Delete Tool Directory
@@ -377,11 +377,11 @@ function Get-KapeBinaries {
         Remove-Item -Path $toolDir -Recurse -Force -ErrorAction Stop
       }
       catch {
-        Write-Host "Unable to delete $toolDir" -ForegroundColor Yellow
+        Write-Log -Message "Unable to delete $toolDir" -ForegroundColor Yellow
       }
     }
   }
 
-  Write-Host "`nSaving downloaded version information to $localDetailsFile`n" -ForegroundColor Red
+  Write-Log -Message "`nSaving downloaded version information to $localDetailsFile`n" -ForegroundColor Red
   $downloadedOK | Export-Csv -Path $localDetailsFile
 }

@@ -61,7 +61,7 @@ function Get-Fido {
       $selectedProfile = $sortedProfileInfoArray | Select-Object -First 1
     
       # Load the selected profile script into memory
-      Write-Host "Profile found: $($selectedProfile.ProfileType) - $($selectedProfile.ProfilePath)"
+      Write-Log -Message "Profile found: $($selectedProfile.ProfileType) - $($selectedProfile.ProfilePath)"
       . $selectedProfile.ProfilePath
     }
     else {

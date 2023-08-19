@@ -6,7 +6,7 @@ function Update-PowerShell {
 
   )
   . (Join-Path -Path "$PSSCRIPTROOT" -ChildPath 'Get-LatestGitHubRelease.ps1')
-  Write-Host -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
+  Write-Log -Message -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
   # First check the latest version of powershell
   $LatestVersion = Invoke-WebRequest -Uri 'https://api.github.com/repos/PowerShell/PowerShell/releases/latest' -UseBasicParsing | ConvertFrom-Json | Select-Object -ExpandProperty tag_name
   # Check the currently installed version
