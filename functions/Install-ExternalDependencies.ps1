@@ -24,9 +24,12 @@ function Install-ExternalDependencies {
         }
 
         # Fix up the package providers
-        # Install NuGet package provider if not already installed
+        # Install NuGet package provider if not already installed ( we basically pre install it everytime to do it silently)
+        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
         if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Out-Null) -or (-not (Get-PackageSource -ProviderName Nuget | Out-Null))) {
-            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
+            Get-PackageProvider -ListAvailable -ErrorAction SilentlyContinue | Out-Null
+            Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
             Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
 
@@ -69,16 +72,14 @@ function Install-ExternalDependencies {
 
         # Install modules
         # Create the module directory if it doesn't exist
-        if (-not (Test-Path -Path "$PWD/PowerShellScriptsAndResources/Modules")) {
-            New-Item -Path "$PWD/PowerShellScriptsAndResources/Modules" -ItemType Directory -Force
+        if (-not (Test-Path -Path "$PSSCRIPTROOT/PowerShellScriptsAndResources/Modules")) {
+            New-Item -Path "$PSSCRIPTROOT/PowerShellScriptsAndResources/Modules" -ItemType Directory -Force
         }
 
         $neededmodules = @(
             'Microsoft.PowerShell.ConsoleGuiTools',
             'ImportExcel',
-            'PSWriteColor',            
-            'JWTDetails',
-            '7zip4powershell'
+            'JWTDetails'
         )
 
         if ($RemoveAllModules) {
@@ -90,24 +91,23 @@ function Install-ExternalDependencies {
                 }
             }
         }
-        # for the write-log function we need to have pansies installed
-        if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
-        }
-        Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
+
+        # for write-log function
+        Install-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue -AllowClobber
+        Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
 
         # Save modules locally then import them
         foreach ($module in $neededmodules) {
-            if (-not (Get-Module -Name $module -ListAvailable) -and (-not (Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Filter "*$module*" -Recurse -ErrorAction SilentlyContinue))) {
+            if (-not (Get-Module -Name $module -ListAvailable) -and (-not (Get-ChildItem -Path "$PSSCRIPTROOT/PowerShellScriptsAndResources/Modules" -Filter "*$module*" -Recurse -ErrorAction SilentlyContinue))) {
                 Write-Log -Message "Installing module $module" -Level VERBOSE
                 # First save the module locally if we do not have the latest version
-                Save-Module -Name $module -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                Save-Module -Name $module -Path "$PSSCRIPTROOT/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
             }
             else {
                 Write-Log -Message "Module $module already installed" -Level VERBOSE
             }
             Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
-            $ModulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+            $ModulesToImport = Get-ChildItem -Path "$PSSCRIPTROOT/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
             Import-Module -Name $ModulesToImport -Force -Global -ErrorAction SilentlyContinue
         }
     }

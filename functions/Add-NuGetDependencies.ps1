@@ -25,12 +25,12 @@ function Add-NuGetDependencies {
         $TempWorkDir = $null
         $InstalledDependencies = @{}
 
-        $CurrentFileName = Split-Path $PWD -Leaf
+        $CurrentFileName = Split-Path $PSSCRIPTROOT -Leaf
         $memstream = [IO.MemoryStream]::new([byte[]][char[]]$CurrentFileName)
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA1).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'nugetpackages'
+            $TempWorkDir = Join-Path (Join-Path $PSSCRIPTROOT 'PowershellscriptsandResources') 'nugetpackages'
             Write-Log -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
