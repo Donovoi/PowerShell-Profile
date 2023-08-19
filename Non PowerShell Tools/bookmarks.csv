@@ -1,0 +1,63 @@
+Name,Type,Folder,Case,Whole Word,Path,Diacritic,Prefix,Suffix,Ignore Punctuation,Ignore Whitespace,Regex,Search,Filter,Columns,Sort,Descending,View,Index,File List,Host,Link Type,Macro,Key,Icon
+"Everything",0,"",0,0,0,0,,,,,0,"!FileHistory\ file: | folder:","EVERYTHING","","Name",0,,0,,,1,"everything",1329,""
+"Everything by Size",0,"",0,0,0,0,,,,,0,"!FileHistory\ file: | folder:","EVERYTHING","","Size",1,,0,,,1,"everythingsize",1330,""
+"(Separator)",2,"",,,,,,,,,,,,,,,,,,,,,,
+"Files",1,"",,,,,,,,,,,,,,,,,,,,,,
+"Files",0,"Files",0,0,0,0,,,,,0,"!FileHistory\ file:","EVERYTHING","","Name",0,,0,,,1,"filesonly",1334,""
+"Long Filenames",0,"Files",0,0,0,0,,,,,0,"!C:\ !.dat !FileHistory\ file: len:>85","VIDEO","","Name",0,,0,,,1,"longfilenames",1335,""
+"Small Files",0,"Files",0,0,0,0,,,,,0,"!FileHistory\ file: size:<5MB","EVERYTHING","","Size",0,,0,,,1,"smallfiles",1336,""
+"Large Files",0,"Files",0,0,0,0,,,,,0,"!FileHistory\ file: size:>2gb","EVERYTHING","","Size",1,,0,,,1,"bigfiles",1337,""
+"Large Duplicate Files",0,"Files",0,0,0,0,,,,,0,"!FileHistory\ file: dupe: dupesize: size:>500mb","EVERYTHING","","Name",0,0,0,,,1,"largeduplicatefiles",1361,""
+"Large Files on C",0,"Files",0,0,0,0,,,,,0,"C:\ !FileHistory\ file: size:>50MB","EVERYTHING","","Size",1,0,0,,,1,"largefilesc",1367,""
+"File Types",1,"Files",,,,,,,,,,,,,,,,,,,,,,
+"Playlists",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ ext:cue;xspf;asx;m3u;vlc;wpl","EVERYTHING","","Name",0,,0,,,1,"playlists",1349,""
+"Links",0,"Files/File Types",0,0,0,0,,,,,0,"!<\Windows\|FileHistory\> ext:lnk;url","EVERYTHING","","Path",0,0,0,,,1,"links",1466,""
+"Torrents and Usenet",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ ext:torrent;nzb","EVERYTHING","","Name",0,0,0,,,1,"torrentsandusenet",1502,""
+"Windows Error Dumps",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ minidump\ ext:dmp","EVERYTHING","","Name",0,,0,,,1,"windowserrors",1468,""
+"Powershell Scripts",0,"Files/File Types",0,0,0,0,,,,,0,"!<FileHistory\|C:\Windows\|""C:\Program Files\""|.vscode> ext:ps1","EVERYTHING","","Path",0,0,0,,,1,"powershellscripts",1470,""
+"Batch and Command Files",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ ext:bat;cmd","EVERYTHING","","Name",0,,0,,,1,"batchcommand",1471,""
+"Sample Videos and Misc Deletables",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ file: ""-sample""|*.sfv|*.srr|*.nfo size:<200MB","EVERYTHING","","Size",1,0,0,,,1,"samplevideos",,""
+"Completed Files",0,"Files/File Types",0,0,0,0,,,,,0,"!FileHistory\ file: ✅","EVERYTHING","","Size",1,0,0,,,1,"compfiles",,""
+"Folders",1,"",,,,,,,,,,,,,,,,,,,,,,
+"Folders",0,"Folders",0,0,0,0,,,,,0,"!FileHistory\ folder:","EVERYTHING","","Name",0,,0,,,1,"foldersonly",1331,""
+"Empty Folders",0,"Folders",0,0,0,0,,,,,0,"!<FileHistory\|C:\> folder: empty:","FOLDER","","Path",1,,0,,,1,"emptyfolders",1332,""
+"Long Folder Names",0,"Folders",0,0,0,0,,,,,0,"!<C:\|.dat|FileHistory\> folder: len:>85","FOLDER","","Name",0,0,0,,,1,"longfoldernames",1333,""
+"Massives",1,"",,,,,,,,,,,,,,,,,,,,,,
+"Massive Files",0,"Massives",0,0,0,0,,,,,0,"!FileHistory\ file: size:>3GB","EVERYTHING","","Size",1,0,0,,,1,"massivefiles",1316,""
+"Massive Videos",0,"Massives",0,0,0,0,,,,,0,"!FileHistory\ size:>3GB","VIDEO","","Size",1,0,0,,,1,"massivevideos",1315,""
+"Massive Archives",0,"Massives",0,0,0,0,,,,,0,"!FileHistory\ size:>3GB","COMPRESSED","","Size",1,0,0,,,1,"massivearchives",1313,""
+"Massive Images",0,"Massives",0,0,0,0,,,,,0,"!FileHistory\ file: size:>3MB","PICTURE","","Size",1,0,0,,,1,"massiveimages",1314,""
+"Gigantic Videos",0,"Massives",0,0,0,0,,,,,0,"!FileHistory\ size:>6GB","VIDEO","","Size",1,0,0,,,1,"giganticvideos",1360,""
+"Videos",1,"",,,,,,,,,,,,,,,,,,,,,,
+"60FPS Videos",0,"Videos",0,0,0,0,,,,,0,"!FileHistory\ --60FPS","VIDEO","","Name",1,0,0,,,1,"60fpsvideos",1499,""
+"Uncommon Videos",0,"Videos",0,0,0,0,,,,,0,"!<C:\|FileHistory\> file: ext:wmv;avi;mpg;mpeg;mp2;mpe;m2v;flv;f4p;f4a;f4b;rm;rmvb;asf;amv;3gp;3g2","VIDEO","","Size",1,0,0,,,1,"uncommonvideos",1501,""
+"Duplicate Videos",0,"Videos",0,0,0,0,,,,,0,"!C:\ dupe: dupesize:","VIDEO","","Size",1,,0,,,1,"dupevideos",1356,""
+"External",1,"",,,,,,,,,,,,,,,,,,,,,,
+"External Files",0,"External",0,0,0,0,,,,,0,"!<C:\|FileHistory\>","EVERYTHING","","Name",0,,0,,,1,"extfiles",1392,""
+"External Duplicate Files",0,"External",0,0,0,0,,,,,1,"!<FileHistory\|C:\> file: dupe:","EVERYTHING","","Name",0,,0,,,1,"duplicatefiles",1393,""
+"External Audio",0,"External",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\>","AUDIO","","Name",0,,0,,,1,"extaudio",1398,""
+"External Images",0,"External",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\>","PICTURE","","Name",0,,0,,,1,"extimages",1399,""
+"External Archives",0,"External",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\>","COMPRESSED","","Name",0,,0,,,1,"extarchives",1400,""
+"External Documents",0,"External",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\>","DOCUMENT","","Name",0,,0,,,1,"extdocuments",1401,""
+"External Disc Images",0,"External",0,0,0,0,,,,,0,"!<C:\|FileHistory\> file: size:>90MB ext:dat;iso;mdx;mds;mdf;b5t;b6t;bwt;ccd;cdi;cue;nrg;pdi;isz","EVERYTHING","","Name",0,,0,,,1,"extdiscimages",1402,""
+"Videos",1,"External",,,,,,,,,,,,,,,,,,,,,,
+"External Videos",0,"External/Videos",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\>","VIDEO","","Name",0,,0,,,1,"extvid",1394,""
+"External 720p Videos",0,"External/Videos",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\> 720p","VIDEO","","Name",0,,0,,,1,"ext720vids",1395,""
+"External 1080p Videos",0,"External/Videos",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\> 1080p","VIDEO","","Name",0,,0,,,1,"ext1080pvids",1396,""
+"External 2160p (4K) Videos",0,"External/Videos",0,0,0,0,,,,,0,"!<.dat|C:\|FileHistory\> 4K|2160p","VIDEO","","Name",0,,0,,,1,"ext4kvids",1397,""
+"(Separator)",2,"",,,,,,,,,,,,,,,,,,,,,,
+"Misc",1,"",,,,,,,,,,,,,,,,,,,,,,
+"Executable Files",0,"Misc",,,,,,,,,,"file: *.exe !.pf size:>500KB",,"","",0,,,,,0,,,""
+"Regular Expression (REGEX)",0,"Misc",,,,,,,,,,"file: ::case: ::regex: ""^Text$""",,"","",0,,,,,0,,,""
+"Nvidia GPU Driver Installers",0,"Misc",,,,,,,,,,".exe dch-whql-g",,"","",0,,,,,0,,,""
+"Case Sensitive",1,"Misc",,,,,,,,,,,,,,,,,,,,,,
+"Case Sensitive File Search",0,"Misc/Case Sensitive",,,,,,,,,,"file: case:""""",,"","",0,,,,,0,,,""
+"Case Sensitive Folder Search",0,"Misc/Case Sensitive",,,,,,,,,,"folder: case:""""",,"","",0,,,,,0,,,""
+"C Drive",1,"Misc",,,,,,,,,,,,,,,,,,,,,,
+"C Drive Cleanup",0,"Misc/C Drive",,,,,,,,,,"C:\ !.msi file: !""C:\Windows\"" size:>10MB !""C:\Game Files\"" !"".vscode\"" !""WindowsApps\"" !""Program Files\"" !""Program Files (x86)\"" !.sys !DXCACHE\ !\Temp\ !.dll !\Code\ !""\SUPER"" !.store !.db !""\Command Line Apps\"" !\PortableApps\ !\Microsoft\ !.exe !.sig !data_ !\JD !\vivaldi !.nupkg !backend !tor- !Brave !Firefox\ !""VS Code\"" !GeForce !NVIDIA\ !\Brave !\Google !\Steam !\NVIDIA  !\UpdateStore\ !\Rockstar !\WinSCP\ ",,"","",0,,,,,0,,,""
+"Extra Files on C Drive",0,"Misc/C Drive",,,,,,,,,,"C:\ file: size:>50MB !<"".dll""|""{""|"".sys""|""Installer\""|"".wim""|"".ttc""|"".dat""|"".vdm""|"".exe""|"".msi""|""nupkg""|""C:\Windows""|""Windows""|""Temp\""|""Cache\""|""Windows Defender\""|"".db""|"".asr""|""Bioware""|""modules""|"".erf""|"".nup""|""bitwarden-updater\""|"".pdb""|"".onnx""|"".asar""|""ptteam""|""\VMWare""|""all_line-completion""|""payload.vsix"">",,"","",0,,,,,0,,,""
+"Large Folders on C Drive",0,"Misc/C Drive",,,,,,,,,,"C:\ !C:\Windows\ !""Program Files (x86)\"" !""Program Files\""  size:>500MB folder:",,"","",0,,,,,0,,,""
+"Personal",1,"Misc",,,,,,,,,,,,,,,,,,,,,,
+"Aria2",0,"Misc/Personal",,,,,,,,,,"aria <start|native.exe> !.pf",,"","",0,,,,,0,"aria2",,""
+"Best EXEs",0,"Misc/Personal",,,,,,,,,,"C:\ !.pf .exe size:>5MB !Setup !Installer !Helper !Patch !Uninstall !x64.exe !Trial !AllOS !Service !Updater !WindowsApps\ !redist !Crash !Update\ !bin32\ !\outdated !\x86 !redists\ !DriverStore\",,"","",0,,,,,0,,,""
+"Useful EXEs",0,"Misc/Personal",,,,,,,,,,"!.pf .exe ""start scanner.exe""|""Teamviewer.exe""|""mpv.exe""",,"","",0,,,,,0,,,""
