@@ -41,7 +41,7 @@ function Write-Log {
 
         [Parameter(Mandatory = $false)]
         [string]
-        $LogFile = "$PSSCRIPTROOT\log.txt",
+        $LogFile = "$PWD\log.txt",
 
         [Parameter(Mandatory = $false)]
         [switch]
@@ -51,47 +51,42 @@ function Write-Log {
         [switch]
         $WPFPopUpMessage
     )
-    begin {
-        # Make sure the pansies module is available so we can write color
-        Install-ExternalDependencies
-    }
-    process {
-        try {
-            if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
-                $Level = $Level.ToUpper()
-            }
-            else {
-                $Level = $Level.ToLower()
-                $Level = $Level.Substring(0, 1).ToUpper() + $Level.Substring(1).ToLower()
-            }
 
-            $logMessage = '[{0}] {1}: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
-            Add-Content -Path $LogFile -Value $logMessage
+    try {
+        if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
+            $Level = $Level.ToUpper()
+        }
+        else {
+            $Level = $Level.ToLower()
+            $Level = $Level.Substring(0, 1).ToUpper() + $Level.Substring(1).ToLower()
+        }
 
-            if (-not ($NoConsoleOutput)) {
-                switch ($Level) {
-                    'INFO' {
-                        Write-Host -Object $logMessage -ForegroundColor Green
-                    }
-                    'WARNING' {
-                        #  Warning text needs to be orange
-                        Write-Host -Object $logMessage -ForegroundColor Orange
-                    }
-                    'ERROR' {
-                        Write-Error -Message $logMessage
-                    }
-                    'VERBOSE' {
-                        Write-Verbose -Message $logMessage
-                    }
+        $logMessage = '[{0}] {1}: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
+        Add-Content -Path $LogFile -Value $logMessage
+
+        if (-not ($NoConsoleOutput)) {
+            switch ($Level) {
+                'INFO' {
+                    Write-Host -Object $logMessage -ForegroundColor Green
+                }
+                'WARNING' {
+                    #  Warning text needs to be orange
+                    Write-Host -Object $logMessage -ForegroundColor Orange
+                }
+                'ERROR' {
+                    Write-Error -Message $logMessage
+                }
+                'VERBOSE' {
+                    Write-Verbose -Message $logMessage
                 }
             }
-            if ($WPFPopUpMessage) {
-                New-WPFMessageBox -Content $Message -Title $Level -ButtonType 'OK-Cancel' -ContentFontSize 20 -TitleFontSize 40
-            }
         }
-        catch {
-            Write-Error "An error occurred: $_"
-            Write-Error "Error details: $($_.Exception)"
+        if ($WPFPopUpMessage) {
+            New-WPFMessageBox -Content $Message -Title $Level -ButtonType 'OK-Cancel' -ContentFontSize 20 -TitleFontSize 40
         }
+    }
+    catch {
+        Write-Error "An error occurred: $_"
+        Write-Error "Error details: $($_.Exception)"
     }
 }
