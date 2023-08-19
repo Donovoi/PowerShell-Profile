@@ -24,9 +24,12 @@ function Install-ExternalDependencies {
         }
 
         # Fix up the package providers
-        # Install NuGet package provider if not already installed
+        # Install NuGet package provider if not already installed ( we basically pre install it everytime to do it silently)
+        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
         if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Out-Null) -or (-not (Get-PackageSource -ProviderName Nuget | Out-Null))) {
-            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
+            Get-PackageProvider -ListAvailable -ErrorAction SilentlyContinue | Out-Null
+            Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
             Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
 

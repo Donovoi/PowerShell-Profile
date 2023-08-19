@@ -31,7 +31,7 @@ function Invoke-AriaDownload {
     )
     begin {
         # Print the name of the running script
-        Write-Host 'Downloading Faster? with Aria2'
+        Write-log -Message 'Downloading Faster? with Aria2' -Level INFO
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
             throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
@@ -58,11 +58,11 @@ function Invoke-AriaDownload {
                 "--out=$(Split-Path -Leaf $OutFile)",
                 $URL
             ) -NoNewWindow -Wait -ErrorAction Stop
-  
+
             return $OutFile
         }
         catch {
-            Write-Error $_.Exception.Message
+            Write-Log -Message "$($_.Exception.Message)" -Level Error
         }
     }
 }
