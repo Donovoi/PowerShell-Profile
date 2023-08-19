@@ -55,7 +55,7 @@ function Start-BitsTransferAndShowProgress {
             Complete-BitsTransfer -BitsJob $job
             Clear-Host
         }
-        Write-Host "Downloaded $OutFile"
+        Write-Log -Message "Downloaded $OutFile"
 
     }
     catch {

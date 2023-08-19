@@ -8,9 +8,9 @@ function Get-Properties {
     process {
         if ($Object -is [System.Collections.Specialized.OrderedDictionary]) {
             foreach ($key in $Object.Keys) {
-                Write-Host ("Name: " + $key)
-                Write-Host ("Type: " + $Object[$key].GetType().FullName)
-                Write-Host ("Value: " + $Object[$key])
+                Write-Log -Message ("Name: " + $key)
+                Write-Log -Message ("Type: " + $Object[$key].GetType().FullName)
+                Write-Log -Message ("Value: " + $Object[$key])
 
                 if ($Object[$key] -is [psobject]) {
                     Get-Properties -Object $Object[$key]
@@ -18,9 +18,9 @@ function Get-Properties {
             }
         } else {
             $Object.PSObject.Properties | ForEach-Object {
-                Write-Host ("Name: " + $_.Name)
-                Write-Host ("Type: " + $_.TypeNameOfValue)
-                Write-Host ("Value: " + $_.Value)
+                Write-Log -Message ("Name: " + $_.Name)
+                Write-Log -Message ("Type: " + $_.TypeNameOfValue)
+                Write-Log -Message ("Value: " + $_.Value)
 
                 if ($_.Value -is [psobject]) {
                     Get-Properties -Object $_.Value

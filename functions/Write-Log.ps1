@@ -67,11 +67,11 @@ function Write-Log {
         if (-not ($NoConsoleOutput)) {
             switch ($Level) {
                 'INFO' {
-                    Write-Host -Object $logMessage -ForegroundColor Green
+                    Write-Log -Message -Object $logMessage -ForegroundColor Green
                 }
                 'WARNING' {
                     #  Warning text needs to be orange
-                    Write-Host -Object $logMessage -ForegroundColor Orange
+                    Write-Log -Message -Object $logMessage -ForegroundColor Orange
                 }
                 'ERROR' {
                     Write-Error -Message $logMessage

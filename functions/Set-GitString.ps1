@@ -20,7 +20,7 @@ function Set-GitString {
 
     # Replace the string in each file
     foreach ($file in $filesToReplace) {
-        Write-Host "Replacing '$SearchString' with '$ReplacementString' in $file ..."
+        Write-Log -Message "Replacing '$SearchString' with '$ReplacementString' in $file ..."
         (Get-Content -Path $file) | ForEach-Object { $_ -replace $SearchString, $ReplacementString } | Set-Content -Path $file
     }
 

@@ -211,21 +211,21 @@ function Get-LatestFrameWorkVersion {
                 $TerminalGuiPath = Get-ChildItem -Path $PWD -Filter 'netstandard2.1-Terminal.Gui.dll' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             }
             default {
-                Write-Host 'No matching version found possibly running this on an iphone'
+                Write-Log -Message 'No matching version found possibly running this on an iphone'
                 # write ascii art of an iphone and a confused face
-                Write-Host '¯\_(ツ)_/¯'
+                Write-Log -Message '¯\_(ツ)_/¯'
                 # Now the iPhone
-                Write-Host '  /""""""""""""\'
-                Write-Host ' /              \'
-                Write-Host '|                |'
-                Write-Host '|                |'
-                Write-Host '|                |'
-                Write-Host '|                |'
-                Write-Host '|       iPhone   |'
-                Write-Host '|                |'
-                Write-Host '|                |'
-                Write-Host ' \              /'
-                Write-Host '  \____________/'
+                Write-Log -Message '  /""""""""""""\'
+                Write-Log -Message ' /              \'
+                Write-Log -Message '|                |'
+                Write-Log -Message '|                |'
+                Write-Log -Message '|                |'
+                Write-Log -Message '|                |'
+                Write-Log -Message '|       iPhone   |'
+                Write-Log -Message '|                |'
+                Write-Log -Message '|                |'
+                Write-Log -Message ' \              /'
+                Write-Log -Message '  \____________/'
                 # exit the script
                 exit
             }
