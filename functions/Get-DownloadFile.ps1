@@ -38,7 +38,7 @@ function Get-DownloadFile {
         if ($UseAria2 -and (-not (Test-Path "$PWD/aria2c/*/aria2c.exe"))) {
             # Downloading aria2c
             Write-log -Message 'Downloading and extracting aria2c...' -Level INFO
-            Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PSSCRIPTROOT/Aria2c" -ExtractZip -Verbose
+            Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip -Verbose
 
             # Add aria2c to the PATH
             $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
