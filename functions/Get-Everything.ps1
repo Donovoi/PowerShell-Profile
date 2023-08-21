@@ -18,17 +18,23 @@ function Get-Everything {
   [CmdletBinding()]
   param(
     # Everything executable path
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [ParameterType]
     $EverythingEXE
   )
 
   begin {
     # we need to check if the Everything executable is present
+    if (-not (Test-Path $EverythingEXE -ErrorAction SilentlyContinue)) {
+      Write-Log -Message 'Everything executable not found' -Level Info
+      WRite-log -Message 'Downloading Everything' -Level Info
+
+      
+    }
   }
 
   process {
-    Start-Process -FilePath ".\Non PowerShell Tools\everything portable\es.exe" -ArgumentList "-full-path-and-name -export-csv OUTPUT.csv folder: D:\ -no-header" -Wait -NoNewWindow
+    Start-Process -FilePath '.\Non PowerShell Tools\everything portable\es.exe' -ArgumentList '-full-path-and-name -export-csv OUTPUT.csv folder: D:\ -no-header' -Wait -NoNewWindow
 
 
     [string[]]$FilePathsArray = Get-Content .\OUTPUT.csv -ReadCount 0
