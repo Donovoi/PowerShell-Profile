@@ -5,7 +5,7 @@ function Get-KapeAndTools {
   param(
 
   )
-  Write-Log -Message -Object "Script is running as $($MyInvocation.MyCommand.Name)" -Verbose
+    Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
   $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
