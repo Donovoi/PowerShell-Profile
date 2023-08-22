@@ -2,8 +2,8 @@
 .SYNOPSIS
   MY POWERSHELL PROFILE!!!!
 .NOTES
-  INSTALL THIS PROFILE BY RUNNING THE FOLLOWING COMMANDS:
- IEX (iwr -uri https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw/Install-Profile)
+  INSTALL THIS PROFILE BY RUNNING THE FOLLOWING COMMAND:
+IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)
   
 #>
 using namespace System.Management.Automation
