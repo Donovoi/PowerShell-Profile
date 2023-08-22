@@ -15,8 +15,10 @@ Welcome to the PowerShell-Profile repository! This repository is a collection of
 ## Installation
 
 To install these scripts, follow these steps:
-### in powershell just use 
+
+### In powershell just use 
 `IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)`
+
 ### OR
 1. Clone this repository to your local machine using `git clone https://github.com/Donovoi/PowerShell-Profile.git`.
 2. Navigate to the cloned repository using `cd PowerShell-Profile`.
