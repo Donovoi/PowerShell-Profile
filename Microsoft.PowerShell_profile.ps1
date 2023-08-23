@@ -24,7 +24,7 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 if (-not (Get-Module pansies -ErrorAction SilentlyContinue)) {
   Install-Module pansies -Force -AllowClobber
 }
-Import-Module pansies -Force -AllowClobber
+Import-Module pansies -Force
 
 # #Run Start-SpeedTest if it is not running in the background
 # if (-not(Get-Process -Name speedtest-rs -ErrorAction SilentlyContinue)) {
