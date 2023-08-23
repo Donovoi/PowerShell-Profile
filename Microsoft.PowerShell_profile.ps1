@@ -20,6 +20,12 @@ $FunctionsFolder.ForEach{ .$_.FullName }
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
+# install dependencies for write-log
+if (-not (Get-Module pansies -ErrorAction SilentlyContinue)) {
+  Install-Module pansies -Force -AllowClobber
+}
+Import-Module pansies -Force -AllowClobber
+
 # #Run Start-SpeedTest if it is not running in the background
 # if (-not(Get-Process -Name speedtest-rs -ErrorAction SilentlyContinue)) {
 #   Start-SpeedTest -TimeInterval 300
