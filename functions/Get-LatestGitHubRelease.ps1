@@ -5,7 +5,7 @@ function Get-LatestGitHubRelease {
         [Parameter(Mandatory = $true)]
         [string]
         $OwnerRepository,
-        [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
         $AssetName,
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
