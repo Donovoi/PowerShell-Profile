@@ -99,6 +99,3 @@ function Get-LatestGitHubRelease {
     }
     return $downloadedFile
 }
-
-
-Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly 
