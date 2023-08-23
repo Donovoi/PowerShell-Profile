@@ -64,28 +64,33 @@ function Update-PowerShell {
       Write-Log -Message "PowerShell Preview not found at $CurrentVersionPreview" -Level INFO
     }
 
-    $UpdatePreview = $false
-    $UpdateStable = $false
-    # First check the latest version of powershell
-    if ($_ -eq 'Preview') {
-      $LatestVersionPreview = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly -PreRelease
-      # compare the versions
-      if ($LatestVersionPreview -gt $CurrentVersionPreview) {        
-        $script:UpdatePreview = $true        
-      }
-
+    if ((-not (Test-Path $PowershellStablePath)) -or (-not (Test-Path $PowershellPreviewPath))) {
+      Write-Log -Message "No PowerShell exe found, downloading Powershell $_" -Level INFO 
     }
-    elseif ($_ -eq 'Stable') {
-      $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly 
-      if ($LatestVersionStable -gt $CurrentVersionStable) {
-        $script:UpdateStable = $true
-      }
-    } 
+    else {      
+      $UpdatePreview = $false
+      $UpdateStable = $false
+      # First check the latest version of powershell
+      if ($_ -eq 'Preview') {
+        $LatestVersionPreview = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly -PreRelease
+        # compare the versions
+        if ($LatestVersionPreview -gt $CurrentVersionPreview) {        
+          $script:UpdatePreview = $true        
+        }
 
+      }
+      elseif ($_ -eq 'Stable') {
+        $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly 
+        if ($LatestVersionStable -gt $CurrentVersionStable) {
+          $script:UpdateStable = $true
+        }
+      } 
+    }
+  
 
     # Compare the versions
-    if ($script:UpdatePreview -or $script:UpdateStable) {
-      # If the latest version is newer than the current version, download the latest version
+    if ($script:UpdatePreview -or $script:UpdateStable -or (-not (Test-Path $PowershellStablePath)) -or (-not (Test-Path $PowershellPreviewPath))) {
+      # Download the latest and also the greatest only
       $params = @{
         OwnerRepository       = 'PowerShell/PowerShell'
         AssetName             = '*win-x64.msi'
@@ -111,3 +116,4 @@ function Update-PowerShell {
   } 
 
 }
+Update-PowerShell -Verbose
