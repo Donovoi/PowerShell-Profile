@@ -116,4 +116,3 @@ function Update-PowerShell {
   } 
 
 }
-Update-PowerShell -Verbose
