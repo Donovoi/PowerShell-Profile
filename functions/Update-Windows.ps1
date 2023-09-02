@@ -1,53 +1,63 @@
 <#
 .SYNOPSIS
-    Short description
+Automatically updates Windows using the KBUpdate module and schedules a task for the same.
+
 .DESCRIPTION
-    Long description
+The function checks if KBUpdate and BurntToast modules are installed, installs them if they aren't, 
+and schedules a task to update Windows every hour. 
+
+.PARAMETER None
+
 .EXAMPLE
-    Example of how to use this cmdlet
-.EXAMPLE
-    Another example of how to use this cmdlet
+Update-Windows
+
+.NOTES
+Make sure to run PowerShell as an administrator to allow scheduled task registration and updates.
+
+.LINK
+https://github.com/potatoqualitee/kbupdate
 #>
 function Update-Windows {
     [CmdletBinding()]
-    param (
-        [Parameter()]
-        [string[]]
-        $ComputerName = $ENV:COMPUTERNAME
-    )
-    $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-    # install the powershell module kbupdate if it is not already installed
-    if (-not (Get-Module -Name kbupdate -ListAvailable)) {
-        Install-Module -Name kbupdate -Scope CurrentUser -Force
-    }
-    # Import the module
-    Import-Module -Name kbupdate -Force
+    param()
 
-    # Create the paths if they don't exist
-    if (-not (Test-Path -Path "$XWAYSUSB\windowsupdates")) {
-        New-Item -Path "$XWAYSUSB\windowsupdates" -ItemType Directory
+    # Check if the kbupdate and BurntToast modules are installed
+    foreach ($module in @('kbupdate', 'BurntToast')) {
+        if (-Not (Get-Module -ListAvailable -Name $module)) {
+            Install-Module -Name $module -Force -SkipPublisherCheck
+            Import-Module $module
+        }
     }
 
-    $since = [DateTime]::Now.AddMonths(-12)
-    Get-KbUpdate -Architecture x64 -Since $since | Save-KbUpdate -Path "$XWAYSUSB\windowsupdates" -Verbose
+    # Check if the scheduled task already exists
+    $task = Get-ScheduledTask -TaskName "WindowsUpdateWithKB" -ErrorAction SilentlyContinue
 
-    # Download Windows Update offline scan file
-    Save-KbScanFile -Path "$XWAYSUSB\windowsupdates" -Verbose
+    if (!$task) {
+        # Create a new scheduled task
+        $action = New-ScheduledTaskAction -Execute 'powershell' -Argument 'Update-Windows'
+        $trigger = New-ScheduledTaskTrigger -Daily -At '00:00'
+        $settings = New-ScheduledTaskSettingsSet -DontStopOnIdleEnd
+        $principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount
 
-    ### 💿💿💿         BURN TO DVD         💿💿💿 ###
-    ### 🏃🏃🏃 TRANSFER TO OFFLINE NETWORK 🏃🏃🏃 ###
+        $task = Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "WindowsUpdateWithKB" -Settings $settings -Principal $principal
 
-    # Tell Install-KbUpdate to check for all needed updates
-    # and point the RepositoryPath to a network server. The
-    # servers will grab what they need.
-
-    $params = @{
-        ComputerName   = $ComputerName
-        AllNeeded      = $true
-        ScanFilePath   = "$XWAYSUSB\windowsupdates\wsusscn2.cab"
-        RepositoryPath = "$XWAYSUSB\windowsupdates\"
     }
-    Install-KbUpdate @params
+
+    # Fetch available updates
+    $updates = Get-KbUpdate
+
+    # Loop through each update and install it
+    foreach ($update in $updates) {
+        try {
+            Install-KbUpdate -KbId $update.KbId -Force
+
+            if ($update.IsRebootRequired) {
+                $Toast = New-BTNotification -Text "Windows Update", "A reboot is required to complete the update process."
+                Submit-BTNotification -Notification $Toast
+            }
+        }
+        catch {
+            Write-Error "Failed to install update $($update.KbId): $_"
+        }
+    }
 }
-
-# Update-Windows -Verbose
