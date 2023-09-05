@@ -84,7 +84,8 @@ function Install-ExternalDependencies {
             '7zip4powershell',
             'PSEverything',
             'PSFramework',
-            'Crescendo'
+            'Crescendo',
+            'Microsoft.WinGet.Client'
         )
 
         if ($RemoveAllModules) {
