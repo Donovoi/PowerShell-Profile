@@ -8,7 +8,7 @@ function Get-ANSIColorCharts {
             # color range
             #Display the colors
             $field = "$color".PadLeft(4)  # pad the chart boxes with spaces
-            Write-Log -Message -NoNewline "$esc[$fgbg;5;${color}m$field $esc[0m"
+            Write-Host -Object "$esc[$fgbg;5;${color}m$field $esc[0m" -NoNewline
             #Display 6 colors per line
             if ( (($color + 1) % 6) -eq 4 ) {
                 Write-Output "`r" 
