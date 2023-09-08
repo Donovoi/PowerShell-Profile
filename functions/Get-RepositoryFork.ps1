@@ -1,7 +1,6 @@
 function Get-RepositoryFork {
     [cmdletbinding()]
     param(
-        [string]$Token,
         [string[]]$ReposToFork,
         [Parameter()]
         [switch]
@@ -152,8 +151,8 @@ function Get-RepositoryFork {
   
             Write-Log -NoLogFile -Message 'Creating credential object...' -Level INFO
             $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $GitHubToken
-            $GitHubTokenClearText = $credObject.GetNetworkCredential().Password
-            Write-Log -NoLogFile -Message "Token is $GitHubTokenClearText" -Level INFO
+            $Token = $credObject.GetNetworkCredential().Password
+            # Write-Log -NoLogFile -Message "Token is $GitHubTokenClearText" -Level INFO
   
         }
         catch {
