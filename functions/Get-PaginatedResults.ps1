@@ -5,12 +5,12 @@ function Get-PaginatedResults {
         [hashtable]$Headers
     )
     do {
-        $Response = Invoke-RestMethod -Uri $Uri -Headers $Headers
+        $Response = Invoke-WebRequest -Uri $Uri -Headers $Headers
         $Uri = $null
         if ($Response.Headers.Link -match '<(.+?)>; rel="next"') {
             $Uri = $matches[1]
         }
-        $Response
+        $Response.Content | ConvertFrom-Json
     }
     while ($Uri)
 }
