@@ -49,7 +49,11 @@ function Write-Log {
 
         [Parameter(Mandatory = $false)]
         [switch]
-        $WPFPopUpMessage
+        $WPFPopUpMessage,
+
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $NoLogFile
     )
 
     try {
@@ -61,8 +65,11 @@ function Write-Log {
             $Level = $Level.Substring(0, 1).ToUpper() + $Level.Substring(1).ToLower()
         }
 
-        $logMessage = '[{0}] {1}: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
-        Add-Content -Path $LogFile -Value $logMessage
+        $logMessage = '[{0}] {1}: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message       
+        if (-not($NoLogFile)) {
+            Add-Content -Path $LogFile -Value $logMessage
+        }
+        
 
         if (-not ($NoConsoleOutput)) {
             switch ($Level) {
