@@ -4,11 +4,25 @@ function Get-RepositoryFork {
         [string[]]$ReposToFork,
         [Parameter()]
         [switch]
-        $ResetTokenCreds
+        $ResetTokenCreds,
+        [Parameter()]
+        [switch]
+        $StarnForkMeSilly,
+        [Parameter()]
+        [switch]
+        $manualListofrepos
     )
+    Set-StrictMode -Version latest
     try {
-        # For faster downloads
-        $ProgressPreference = 'SilentlyContinue'
+        # run my profile to import the functions
+        $myDocuments = [Environment]::GetFolderPath('MyDocuments')
+        $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
+        if (Test-Path -Path $myProfile) {
+            . $myProfile
+        }
+        else {
+            Write-Host "No PowerShell profile found at $myProfile"
+        }
         # if $resetCredentials is set to true then we will delete the credential files
         if ($ResetTokenCreds) {
             Remove-Item -Path "$ENV:USERPROFILE\Documents\GITHIBTOKEN" -Recurse -Force -ErrorAction SilentlyContinue
@@ -54,7 +68,7 @@ function Get-RepositoryFork {
             }
             Write-Log -NoLogFile -Message "Encryption mode $encryptMode was selected to prepare the credentials." -Level INFO
   
-            Write-Log -NoLogFile -Message 'Collecting XWAYS Credentials to create a secure credential file...' -Level INFO
+            Write-Log -NoLogFile -Message 'Collecting Credentials to create a secure credential file...' -Level INFO
             # Collect the credentials to be used.
             Write-Log -NoLogFile -Message 'Please enter your GitHub Token.  This will be stored securely-ish' -Level INFO
             $creds = Get-Credential -UserName $ENV:USERNAME
@@ -162,23 +176,52 @@ function Get-RepositoryFork {
             exit -1
         }
         #endregion Credentials
-      
-        $APIBaseURL = 'https://api.github.com/repos'
+        $Headers = @{
+            'Authorization' = "token $Token"
+            'Accept'        = 'application/vnd.github.v3+json'
+        }
+        $APIBaseURL = 'https://api.github.com'
+        if ($manualListofrepos) {
+            foreach ($Repo in $ReposToFork) {
+                $URL = "$APIBaseURL/repo/$Repo/forks"        
 
-        foreach ($Repo in $ReposToFork) {
-            $URL = "$APIBaseURL/$Repo/forks"
-            $Headers = @{
-                'Authorization' = "token $Token"
-                'Accept'        = 'application/vnd.github.v3+json'
+                $Response = Invoke-RestMethod -Uri $URL -Headers $Headers -Method Post
+
+                if ($Response) {
+                    Write-Host "Successfully forked $Repo"
+                }
+                else {
+                    Write-Host "Failed to fork $Repo"
+                }
             }
+        }
 
-            $Response = Invoke-RestMethod -Uri $URL -Headers $Headers -Method Post
+        if ($StarnForkMeSilly) {
+            $StarredReposUri = "$APIBaseURL/user/starred"
+            $StarredRepos = Get-PaginatedResults -Uri $StarredReposUri -Headers $Headers
+        
+            foreach ($Repo in $StarredRepos) {
+                # Step 2: Check if the language is either Batchscript or PowerShell
+                if ($Repo.language -eq 'Batchfile' -or $Repo.language -eq 'PowerShell') {
 
-            if ($Response) {
-                Write-Host "Successfully forked $Repo"
-            }
-            else {
-                Write-Host "Failed to fork $Repo"
+                    # Step 3: Check if you have not forked it already
+                    $RepoDetails = Invoke-RestMethod -Uri $Repo.url -Headers $Headers
+                    if (-not $RepoDetails.fork) {
+
+                        # Step 4: Fork the repo
+                        $ForkResponse = Invoke-RestMethod -Uri "$APIBaseURL/repos/$($Repo.full_name)/forks" -Headers $Headers -Method Post
+                
+                        if ($ForkResponse) {
+                            Write-Host "Successfully forked $($Repo.full_name)"
+                        }
+                        else {
+                            Write-Host "Failed to fork $($Repo.full_name)"
+                        }
+                    }
+                    else {
+                        Write-Host "Already forked $($Repo.full_name)"
+                    }
+                }
             }
         }
     }
@@ -186,3 +229,7 @@ function Get-RepositoryFork {
         Write-Host "Error: $_"
     }
 }
+
+
+
+# Get-RepositoryFork -StarnForkMeSilly -Verbose
