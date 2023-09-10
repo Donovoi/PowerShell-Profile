@@ -232,4 +232,4 @@ function Get-RepositoryFork {
 
 
 
-# Get-RepositoryFork -StarnForkMeSilly -Verbose
+Get-RepositoryFork -StarnForkMeSilly -Verbose
