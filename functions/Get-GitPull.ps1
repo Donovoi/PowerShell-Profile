@@ -211,42 +211,15 @@ function Get-GitPull {
         # Set ownership to current user and grant full control to current user recursively
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
 
-        # $repoUrl = git config --get remote.origin.url
-        # try {
-        #     $(git remote add origin $repoUrl) | Out-Null
-        # }
-        # catch {
-        #     git remote set-url origin $repoUrl       
-        # }
+
+        try {
+            git pull
+        }
+        catch {
+            Write-Warning "Unable to pull from $($_)"
+        }
         
-        # # Step 1: Get the repository details as a JSON object
-        # $repoDetails = gh repo view --json "isFork,parent" | ConvertFrom-Json
-
-
-        # # Step 2: Check if the repository is a fork
-        # if ($repoDetails.isFork) {
-        #     $ownerLogin = $repoDetails.parent.owner.login
-        #     $repoName = $repoDetails.parent.name
-        #     $OwnerRepo = "$ownerLogin/$repoName"
-        #     $OwnerRepoUrl = "https://github.com/$ownerLogin/$repoName" 
-        #     git remote add upstream $OwnerRepoUrl
-        #     # Switch to your master branch
-        #     git checkout master
-
-        #     # Fetch the latest changes from the upstream
-        #     git fetch upstream
-
-        #     # Set up tracking to the upstream master branch
-        #     git branch --set-upstream-to=upstream/master master
-
-        #     # Merge changes from the upstream master to your local master
-        #     git merge upstream/master
-
-        #     # Set the default repo to the original creator's repo
-        #     gh repo set-default $OwnerRepo 
-        # }
-        git pull
-        Write-Output "git pull complete for $($_)"
+        Write-Log -Message "git pull complete for $($_)" -Level INFO
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
     }
