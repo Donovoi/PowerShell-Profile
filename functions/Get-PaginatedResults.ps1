@@ -7,9 +7,10 @@ function Get-PaginatedResults {
     do {
         $Response = Invoke-WebRequest -Uri $Uri -Headers $Headers
         $Uri = $null
-        $regexpatternmatch = $Response.Headers.Link -match '^<(.+?)>; rel=.+,'
+        $Pattern = '<(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*))>; rel="next"'
+        $regexpatternmatch = [Regex]::Matches($Response.Headers.Link, $Pattern)
         if ($regexpatternmatch) {
-            $Uri = $regexpatternmatch.Split(',')[0].Split(';')[0].Trim('<','>')
+            $Uri = $regexpatternmatch.Groups[1].Value
         }
         $Response.Content | ConvertFrom-Json
     }
