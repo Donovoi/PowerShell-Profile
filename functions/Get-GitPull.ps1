@@ -255,4 +255,3 @@ function Get-GitPull {
     [GC]::Collect()
 }
 
-Get-GitPull -path 'D:\Projects\donovoi\' -Verbose
