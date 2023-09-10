@@ -11,6 +11,8 @@
 .NOTES
     This function requires Rust and Cargo to be installed on the system. The function will automatically build the Rust code if it has not been built already.
 #>
+
+
 function Get-GitPull {
     [CmdletBinding()]
     param(
@@ -19,7 +21,15 @@ function Get-GitPull {
     )
 
     $ErrorActionPreference = 'Continue'
-
+    # run my profile to import the functions
+    $myDocuments = [Environment]::GetFolderPath('MyDocuments')
+    $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
+    if (Test-Path -Path $myProfile) {
+        . $myProfile
+    }
+    else {
+        Write-Host "No PowerShell profile found at $myProfile"
+    }
     # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
     Write-Log -Message "Searching for repositories in $Path, this can take a while..."
@@ -187,15 +197,55 @@ function Get-GitPull {
     #Let the user know what we are doing and how many repositories we are working with
     Write-Output "Found $($repositories.Count) repositories to pull from."
 
-    
+    if ($repositories.Count -gt 1) {
+        $multiplerepos = $repositories.GetEnumerator()
+    }
+    else {
+        $singleRepo = $repositories
+    }
     #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
-    $repositories.GetEnumerator() | ForEach-Object -Process {
+    $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
         Write-Output "Pulling from $($_)"
-        Set-Location -Path $_
+        $location = $(Resolve-Path -Path $_).Path
+        Set-Location -Path $location
         # Set ownership to current user and grant full control to current user recursively
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
-        # git config --global --add safe.directory $(Resolve-Path -Path $PWD)
-        gh repo sync
+
+        # $repoUrl = git config --get remote.origin.url
+        # try {
+        #     $(git remote add origin $repoUrl) | Out-Null
+        # }
+        # catch {
+        #     git remote set-url origin $repoUrl       
+        # }
+        
+        # # Step 1: Get the repository details as a JSON object
+        # $repoDetails = gh repo view --json "isFork,parent" | ConvertFrom-Json
+
+
+        # # Step 2: Check if the repository is a fork
+        # if ($repoDetails.isFork) {
+        #     $ownerLogin = $repoDetails.parent.owner.login
+        #     $repoName = $repoDetails.parent.name
+        #     $OwnerRepo = "$ownerLogin/$repoName"
+        #     $OwnerRepoUrl = "https://github.com/$ownerLogin/$repoName" 
+        #     git remote add upstream $OwnerRepoUrl
+        #     # Switch to your master branch
+        #     git checkout master
+
+        #     # Fetch the latest changes from the upstream
+        #     git fetch upstream
+
+        #     # Set up tracking to the upstream master branch
+        #     git branch --set-upstream-to=upstream/master master
+
+        #     # Merge changes from the upstream master to your local master
+        #     git merge upstream/master
+
+        #     # Set the default repo to the original creator's repo
+        #     gh repo set-default $OwnerRepo 
+        # }
+        git pull
         Write-Output "git pull complete for $($_)"
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
@@ -204,3 +254,5 @@ function Get-GitPull {
     Remove-Variable -Name repositories -Force
     [GC]::Collect()
 }
+
+Get-GitPull -path 'D:\Projects\donovoi\' -Verbose
