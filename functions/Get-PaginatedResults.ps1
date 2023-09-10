@@ -7,8 +7,9 @@ function Get-PaginatedResults {
     do {
         $Response = Invoke-WebRequest -Uri $Uri -Headers $Headers
         $Uri = $null
-        if ($Response.Headers.Link -match '<(.+?)>; rel="next"') {
-            $Uri = $matches[1]
+        $regexpatternmatch = $Response.Headers.Link -match '^<(.+?)>; rel=.+,'
+        if ($regexpatternmatch) {
+            $Uri = $regexpatternmatch.Split(',')[0].Split(';')[0].Trim('<','>')
         }
         $Response.Content | ConvertFrom-Json
     }
