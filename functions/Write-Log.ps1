@@ -53,7 +53,7 @@ function Write-Log {
 
         [Parameter(Mandatory = $false)]
         [switch]
-        $NoLogFile
+        $LogToFile
     )
 
     try {
@@ -66,7 +66,7 @@ function Write-Log {
         }
 
         $logMessage = '[{0}] {1}: {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message       
-        if (-not($NoLogFile)) {
+        if ($LogToFile) {
             Add-Content -Path $LogFile -Value $logMessage
         }
         
