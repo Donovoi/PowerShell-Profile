@@ -28,11 +28,11 @@ function Get-GitPull {
         . $myProfile
     }
     else {
-        Write-Host "No PowerShell profile found at $myProfile"
+       Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
     }
     # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
-    Write-Log -Message "Searching for repositories in $Path, this can take a while..."
+    Write-Log -NoConsoleOutput -Message "Searching for repositories in $Path, this can take a while..."
 
     $rustPgm = @'
   extern crate jwalk;
@@ -169,7 +169,7 @@ function Get-GitPull {
         $target = Add-Type -TypeDefinition $definition -PassThru
     }
     else {
-        Write-Error "$typeName already exists. Please exit PowerShell and try again."
+        Write-Log -NoConsoleOutput -Message "$typeName already exists. Please exit PowerShell and try again." -Level ERROR
         Read-Host -Prompt 'Press Enter to exit'
         Exit-PSHostProcess
     }
@@ -191,11 +191,11 @@ function Get-GitPull {
     }
 
     # Show the elapsed time
-    Write-Log -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
+    Write-Log -NoConsoleOutput -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
 
 
     #Let the user know what we are doing and how many repositories we are working with
-    Write-Output "Found $($repositories.Count) repositories to pull from."
+    Write-Log -NoConsoleOutput -Message "Found $($repositories.Count) repositories to pull from."
 
     if ($repositories.Count -gt 1) {
         $multiplerepos = $repositories.GetEnumerator()
@@ -205,7 +205,7 @@ function Get-GitPull {
     }
     #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
     $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
-        Write-Output "Pulling from $($_)"
+        Write-Log -NoConsoleOutput -Message "Pulling from $($_)"
         $location = $(Resolve-Path -Path $_).Path
         Set-Location -Path $location
         # Set ownership to current user and grant full control to current user recursively
@@ -219,7 +219,7 @@ function Get-GitPull {
             Write-Warning "Unable to pull from $($_)"
         }
         
-        Write-Log -Message "git pull complete for $($_)" -Level INFO
+        Write-Log -NoConsoleOutput -Message "git pull complete for $($_)" -Level INFO
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
     }
