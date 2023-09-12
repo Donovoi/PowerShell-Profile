@@ -24,7 +24,11 @@ function Update-VSCode {
     param(
         # Validate the input parameter to be one of 'stable', 'insider', or 'both'
         [ValidateSet('stable', 'insider', 'both')]
-        [string]$Version = 'both'  # Default value is 'both'
+        [string]$Version = 'both' ,
+         # Add data folder to keep everything within the parent folder
+         [Parameter(Mandatory = $false)]
+         [switch]
+         $DoNotAddDataFolder
     )
 
     # The main process block of the function
@@ -96,6 +100,12 @@ function Update-VSCode {
             Write-Log -Message "$($_.Exception.Message)" -Level Error
         }
         finally {
+            if (-not($DoNotAddDataFolder)) {
+                # add data folder to keep everything within the parent folder
+                $folderstoadd = @("$XWAYSUSB\vscode\data", "$XWAYSUSB\vscode-insider\data")
+                $folderstoadd | New-item -Path $_ -ItemType Directory -Force 
+                Write-Log -Message "Data folders Created" -Level Info
+            }
             Write-Log -Message 'Update-VSCode function execution completed.' -Level Info
         }
     }
