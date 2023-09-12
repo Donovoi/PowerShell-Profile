@@ -25,18 +25,26 @@ function Update-VSCode {
         # Validate the input parameter to be one of 'stable', 'insider', or 'both'
         [ValidateSet('stable', 'insider', 'both')]
         [string]$Version = 'both' ,
-         # Add data folder to keep everything within the parent folder
-         [Parameter(Mandatory = $false)]
-         [switch]
-         $DoNotAddDataFolder
+        # Add data folder to keep everything within the parent folder
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $DoNotAddDataFolder
     )
-
-    # The main process block of the function
-    process {
+    begin {
+        # run my profile to import the functions
+        $myDocuments = [Environment]::GetFolderPath('MyDocuments')
+        $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
+        if (Test-Path -Path $myProfile) {
+            . $myProfile
+        }
+        else {
+            Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
+        }
+        # Print the name of the running script
+        Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" 
+    
+    } process {
         try {
-            # Print the name of the running script
-            Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" 
-
             # Get the drive with label like 'X-Ways'
             $XWAYSUSB = Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'"
             if (-not $XWAYSUSB) {
@@ -102,8 +110,14 @@ function Update-VSCode {
         finally {
             if (-not($DoNotAddDataFolder)) {
                 # add data folder to keep everything within the parent folder
-                $folderstoadd = @("$XWAYSUSB\vscode\data", "$XWAYSUSB\vscode-insider\data")
-                $folderstoadd | New-item -Path $_ -ItemType Directory -Force 
+                $folderstoadd = @("$($XWAYSUSB.DriveLetter)\vscode\data", "$($XWAYSUSB.DriveLetter)\vscode-insider\data")
+                $folderstoadd.ForEach
+                {
+                    if (-not(Test-Path -Path $_)) {
+                        New-Item -Path $_ -ItemType Directory -Force
+                    }
+                    
+                }
                 Write-Log -Message "Data folders Created" -Level Info
             }
             Write-Log -Message 'Update-VSCode function execution completed.' -Level Info
@@ -111,3 +125,4 @@ function Update-VSCode {
     }
 }
 
+Update-VSCode -Verbose
