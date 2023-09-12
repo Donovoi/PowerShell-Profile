@@ -38,8 +38,8 @@ function Update-VSCode {
             Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" 
 
             # Get the drive with label like 'X-Ways'
-            $drive = Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'"
-            if (-not $drive) {
+            $XWAYSUSB = Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'"
+            if (-not $XWAYSUSB) {
                 # If the drive is not found, throw an error and return
                 throw 'X-Ways USB drive not found.'
             }
@@ -50,13 +50,13 @@ function Update-VSCode {
                     Version         = 'stable'
                     URL             = 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive'
                     OutFile         = "$ENV:USERPROFILE\downloads\vscode.zip"
-                    DestinationPath = "$($drive.DriveLetter)\vscode\"
+                    DestinationPath = "$($XWAYSUSB.DriveLetter)\vscode\"
                 },
                 @{
                     Version         = 'insider'
                     URL             = 'https://code.visualstudio.com/sha/download?build=insider&os=win32-x64-archive'
                     OutFile         = "$ENV:USERPROFILE\downloads\insiders.zip"
-                    DestinationPath = "$($drive.DriveLetter)\vscode-insider\"
+                    DestinationPath = "$($XWAYSUSB.DriveLetter)\vscode-insider\"
                 }
             )
 
