@@ -124,5 +124,3 @@ function Update-VSCode {
         }
     }
 }
-
-Update-VSCode -Verbose
