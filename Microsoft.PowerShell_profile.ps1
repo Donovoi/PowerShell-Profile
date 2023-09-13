@@ -11,7 +11,34 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-$profileparentpath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+# Define the profile paths for both Windows PowerShell and PowerShell 7
+$windowsPowerShellProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\WindowsPowerShell'
+$powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+
+# Check if PowerShell 7 is installed
+if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
+  Write-Host "PowerShell 7 is not installed. Installing now..." -ForegroundColor Yellow
+    
+  # Download and install PowerShell 7 (you might want to check the URL for the latest version)
+  winget install powershell
+    
+  Write-Host "PowerShell 7 installed successfully!" -ForegroundColor Green
+}
+
+# Check and create profile folders for Windows PowerShell
+if (-not (Test-Path -Path $windowsPowerShellProfilePath)) {
+  Write-Host "Windows PowerShell profile folders do not exist. Creating now..." -ForegroundColor Yellow
+  PowerShell.exe -command "New-Item -Path $PROFILE"
+  Write-Host "Windows PowerShell profile folders created successfully!" -ForegroundColor Green
+}
+
+# Check and create profile folders for PowerShell 7
+if (-not (Test-Path -Path $powerShell7ProfilePath)) {
+  Write-Host "PowerShell 7 profile folders do not exist. Creating now..." -ForegroundColor Yellow
+  New-Item -Path $PROFILE
+  Write-Host "PowerShell 7 profile folders created successfully!" -ForegroundColor Green
+}
+
 
 $FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
