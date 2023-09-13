@@ -39,9 +39,15 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   Write-Host "PowerShell 7 profile folders created successfully!" -ForegroundColor Green
 }
 
+if ($PSVersionTable.PSVersion.Major -eq 7) {
+  $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*"
+  $FunctionsFolder.ForEach{ .$_.FullName }
+}
+else {
+  $FunctionsFolder = Get-ChildItem -Path "$windowsPowerShellProfilePath/functions/*.ps*"
+  $FunctionsFolder.ForEach{ .$_.FullName }
+}
 
-$FunctionsFolder = Get-ChildItem -Path "$profileparentpath/functions/*.ps*"
-$FunctionsFolder.ForEach{ .$_.FullName }
 
 # Variables for the commandline
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
