@@ -28,7 +28,7 @@ function Get-GitPull {
         . $myProfile
     }
     else {
-       Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
+        Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
     }
     # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
@@ -211,14 +211,70 @@ function Get-GitPull {
         # Set ownership to current user and grant full control to current user recursively
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
 
+        # Check if the upstream remote is added
+        $upstream = git remote -v | Select-String "upstream"
+        if ($null -ne $upstream) {
+            
+            # Define the root path of the repository
+            $repoRootPath = Get-Location
 
-        try {
-            git pull
+            # Search for the lock file recursively
+            $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
+
+            # Check if the lock file was found
+            if ($null -ne $lockFile) {
+                # Try to remove the lock file
+                try {
+                    Remove-Item $lockFile.FullName -Force
+                    Write-Host "Lock file $($lockFile.FullName) removed successfully."
+                }
+                catch {
+                    Write-Host "Failed to remove lock file. Error: $_"
+                }
+            }
+            else {
+                Write-Host "Lock file not found."
+            }
+            try {
+    
+
+                # If upstream is added, reset local changes and pull the latest changes from upstream
+                git reset --hard
+                git clean -fd
+                git fetch upstream
+    
+                # Get the name of the default branch from the upstream remote
+                $defaultBranch = git remote show upstream | Select-String "HEAD branch" | Out-String
+                $defaultBranch = ($defaultBranch -split ":")[1].Trim()
+
+                # Checkout to the default branch
+                git checkout $defaultBranch
+
+                # Merge with the upstream branch, favoring their changes in case of conflicts
+                git merge upstream/$defaultBranch -X theirs
+
+                # Get the name of the current branch
+                $currentBranch = git rev-parse --abbrev-ref HEAD
+
+                # Push the changes to the remote repository
+                git push origin $currentBranch
+
+            }
+            catch {
+                # If the merge failed, check out the conflicted files from the upstream branch
+                git reset --hard upstream/$defaultBranch
+                git clean -fd
+                git fetch upstream
+            }
         }
-        catch {
-            Write-Warning "Unable to pull from $($_)"
-        }
-        
+        else {
+            try {
+                git pull
+            }
+            catch {
+                Write-Warning "Unable to pull from $($_)"
+            }
+        }      
         Write-Log -NoConsoleOutput -Message "git pull complete for $($_)" -Level INFO
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
@@ -228,3 +284,4 @@ function Get-GitPull {
     [GC]::Collect()
 }
 
+Get-GitPull -path D:\projects\donovoi -Verbose
