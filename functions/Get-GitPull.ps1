@@ -283,5 +283,3 @@ function Get-GitPull {
     Remove-Variable -Name repositories -Force
     [GC]::Collect()
 }
-
-Get-GitPull -path D:\projects\donovoi -Verbose
