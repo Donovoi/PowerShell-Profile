@@ -264,7 +264,13 @@ function Get-GitPull {
                 # If the merge failed, check out the conflicted files from the upstream branch
                 git reset --hard upstream/$defaultBranch
                 git clean -fd
-                git fetch upstream
+                try {
+                    git fetch upstream
+                }
+                catch {
+                    #    ignore error
+                }
+                
             }
         }
         else {
