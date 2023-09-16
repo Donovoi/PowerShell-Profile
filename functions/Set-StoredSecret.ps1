@@ -67,6 +67,18 @@ function Set-StoredSecret {
             Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
         }
     }
+    else {
+        # if there is no secret store, create one
+        try {
+            Write-Log -Message "Initializing the secret store..." -Level INFO
+            Write-Log -Message "You will now be asked to enter a password for the secret store: " -Level WARNING
+            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+        }
+        catch {
+            Write-Log -Message "An error occurred while initializing the secret store: $_" -Level ERROR
+            throw
+        }
+    }
 
     # Check if the secret is a SecureString and convert it to plain text if necessary
     if ($Secret -is [System.Security.SecureString]) {
