@@ -47,7 +47,7 @@ function Get-LatestGitHubRelease {
         $OwnerRepository,
 
         # Here, you can tell the tool the name of the treasure (asset) you are looking for.
-        [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
         [string]
         $AssetName,
 
@@ -82,6 +82,17 @@ function Get-LatestGitHubRelease {
         $TokenName = 'GitHubToken'
     )
     
+
+    # run my profile to import the functions
+    $myDocuments = [Environment]::GetFolderPath('MyDocuments')
+    $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
+    if (Test-Path -Path $myProfile) {
+        . $myProfile
+    }
+    else {
+        Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
+    }
+
     # Here, the tool checks if it already knows the secret password to the GitHub castle.
     $currentConfig = Get-SecretStoreConfiguration
 
