@@ -12,8 +12,14 @@ The URL of the file to download.
 .PARAMETER OutFile
 The name of the output file.
 
+.PARAMETER Aria2cExePath
+The path to the aria2c executable.
+
+.PARAMETER SecretName
+The name of the secret in the secret store which contains the GitHub Personal Access Token.
+
 .EXAMPLE
-Invoke-AriaDownload -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip"
+Invoke-AriaDownload -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -Aria2cExePath "C:\path\to\aria2c.exe" -SecretName "GitHubPAT"
 
 .NOTES
 Make sure aria2c is installed and accessible from your PATH.
@@ -24,25 +30,43 @@ function Invoke-AriaDownload {
     param (
         [Parameter(Mandatory = $true)]
         [string]$URL,
+        
         [Parameter(Mandatory = $true)]
         [string]$OutFile,
+        
         [Parameter(Mandatory = $true)]
-        [string]$Aria2cExePath
+        [string]$Aria2cExePath,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$SecretName
     )
+  
     begin {
         # Print the name of the running script
         Write-log -Message 'Downloading Faster? with Aria2' -Level INFO
+        
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
             throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
         }
     }
+  
     process {
         try {
             # If the output file already exists, remove it
             if (Test-Path $OutFile) {
                 Remove-Item -Path $OutFile -Force -Verbose -ErrorAction Stop
             }
+            
+            # Construct the authorization header if a valid secret name is provided
+            $authHeader = ""
+            if ($null -ne $SecretName) {
+                $secret = Get-Secret -Name $SecretName
+                if ($null -ne $secret) {
+                    $authHeader = "-h 'Authorization: token $secret'"
+                }
+            }
+            
             # Start the download process using aria2c
             Start-Process -FilePath $Aria2cExePath -ArgumentList @(
                 '--file-allocation=none',
@@ -56,6 +80,7 @@ function Invoke-AriaDownload {
                 '--allow-overwrite=true',
                 "--dir=$(Split-Path -Parent $OutFile)",
                 "--out=$(Split-Path -Leaf $OutFile)",
+                $authHeader, # Include the authorization header if it was constructed
                 $URL
             ) -NoNewWindow -Wait -ErrorAction Stop
 

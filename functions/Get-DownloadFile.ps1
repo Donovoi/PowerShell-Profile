@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-This function downloads a file from a given URL using either aria2c or Invoke-WebRequest .
+This function downloads a file from a given URL using either aria2c or Invoke-WebRequest.
 
 .DESCRIPTION
-The Get-DownloadFile function allows you to download a file from a provided URL. You can choose to use aria2c or Invoke-WebRequest  for the download process. If aria2c is selected but not found in the PATH, it will be automatically downloaded and added to the PATH.
+The Get-DownloadFile function allows you to download a file from a provided URL. You can choose to use aria2c or Invoke-WebRequest for the download process. If aria2c is selected but not found in the PATH, it will be automatically downloaded and added to the PATH.
 
 .PARAMETER URL
 The URL of the file to download.
@@ -12,10 +12,13 @@ The URL of the file to download.
 The name of the output file.
 
 .PARAMETER UseAria2
-Switch to indicate whether to use aria2c for the download. If not specified, Invoke-WebRequest  will be used.
+Switch to indicate whether to use aria2c for the download. If not specified, Invoke-WebRequest will be used.
+
+.PARAMETER SecretName
+The name of the secret in the secret store which contains the GitHub Personal Access Token.
 
 .EXAMPLE
-Get-DownloadFile -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -UseAria2
+Get-DownloadFile -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -UseAria2 -SecretName "GitHubPAT"
 
 .NOTES
 If using aria2c, make sure it is installed and accessible from your PATH.
@@ -27,10 +30,15 @@ function Get-DownloadFile {
     param (
         [Parameter(Mandatory = $true)]
         [string]$URL,
+        
         [Parameter(Mandatory = $true)]
         [string]$OutFile,
+        
         [Parameter(Mandatory = $false)]
-        [switch]$UseAria2
+        [switch]$UseAria2,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$SecretName
     )
   
     begin {
@@ -53,7 +61,16 @@ function Get-DownloadFile {
         try {
             if ($UseAria2) {
                 Write-log -Message 'Downloading using aria2c...' -Level INFO
-                Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe
+                
+                if ($null -ne $SecretName) {
+                    # Validate the secret exists and is valid
+                    if (-not (Get-SecretInfo -Name $SecretName)) {
+                        Write-log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                        return
+                    }
+                }
+                
+                Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
             }
             else {
                 Write-log -Message 'Downloading using Invoke-WebRequest ...' -Level INFO
