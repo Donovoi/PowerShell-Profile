@@ -136,6 +136,11 @@ function Get-LatestGitHubRelease {
                 Write-Log -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
                 $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
                 $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
+                if ([string]::IsNullOrEmpty($manualDownloadurl)) {
+                    Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                    Write-Log -Message "exiting script.." -Level warning
+                    exit
+                }
             }
 
             # Handle 'VersionOnly' parameter
@@ -165,9 +170,19 @@ function Get-LatestGitHubRelease {
             }
             else {
                 if ($UseAria2) {
+                    if ([string]::IsNullOrEmpty($manualDownloadurl)) {
+                        Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                        Write-Log -Message "exiting script.." -Level warning
+                        exit
+                    }
                     Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
                 }
                 else {
+                    if ([string]::IsNullOrEmpty($manualDownloadurl)) {
+                        Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                        Write-Log -Message "exiting script.." -Level warning
+                        exit
+                    }
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]
                     Invoke-WebRequest $manualDownloadurl -OutFile $outFile
                     $outFile
