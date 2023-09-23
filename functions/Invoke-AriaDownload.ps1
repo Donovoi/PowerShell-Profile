@@ -61,9 +61,9 @@ function Invoke-AriaDownload {
             # Construct the authorization header if a valid secret name is provided
             $authHeader = ""
             if ($null -ne $SecretName) {
-                $secret = Get-Secret -Name $SecretName
+                $secret = Get-Secret -Name $SecretName -AsPlainText
                 if ($null -ne $secret) {
-                    $authHeader = "-h 'Authorization: token $secret'"
+                    $authHeader = "--header=`"Authorization: token $secret`""
                 }
             }
             
