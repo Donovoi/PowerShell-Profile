@@ -67,15 +67,9 @@ function Get-LatestGitHubRelease {
     
     begin {
         #install any needed modules and import them
-        if (-not (Get-Module -Name SecretManagement)) {
-            Install-Module -Name SecretManagement -Scope CurrentUser -Force
-
+        if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+            Install-ExternalDependencies
         }
-        if (-not (Get-Module -Name SecretStore)) {
-            Install-Module -Name SecretStore -Scope CurrentUser -Force
-        }
-        Import-Module -Name SecretManagement -Scope CurrentUser -Force
-        Import-Module -Name SecretStore -Scope CurrentUser -Force
 
 
         # Initialize SecretStore configuration
