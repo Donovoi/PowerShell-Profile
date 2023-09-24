@@ -66,15 +66,17 @@ function Get-LatestGitHubRelease {
     )
     
     begin {
-        # Load user profile to import functions
-        $myDocuments = [Environment]::GetFolderPath('MyDocuments')
-        $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
-        if (Test-Path -Path $myProfile) {
-            . $myProfile
+        #install any needed modules and import them
+        if (-not (Get-Module -Name SecretManagement)) {
+            Install-Module -Name SecretManagement -Scope CurrentUser -Force
+
         }
-        else {
-            Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
+        if (-not (Get-Module -Name SecretStore)) {
+            Install-Module -Name SecretStore -Scope CurrentUser -Force
         }
+        Import-Module -Name SecretManagement -Scope CurrentUser -Force
+        Import-Module -Name SecretStore -Scope CurrentUser -Force
+
 
         # Initialize SecretStore configuration
         $currentConfig = Get-SecretStoreConfiguration
@@ -211,3 +213,4 @@ function Get-LatestGitHubRelease {
         }
     }
 }
+
