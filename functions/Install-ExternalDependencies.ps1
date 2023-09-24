@@ -14,7 +14,18 @@ function Install-ExternalDependencies {
         [Parameter(Mandatory = $false, Position = 0)]
         [switch]$RemoveAllModules,
         [Parameter(Mandatory = $false, Position = 1)]
-        [string[]]$PSModules
+        [string[]]$PSModules,
+        [Parameter(Mandatory = $false, Position = 2)]
+        [string[]]$NugetPackages,
+        [Parameter(Mandatory = $false, Position = 3)]
+        [switch]$NoPSModules,
+        [Parameter(Mandatory = $false, Position = 4)]
+        [switch]$NoNugetPackages,
+        [Parameter(Mandatory = $false, Position = 5)]
+        [switch]$InstallDefaultPSModules,
+        [Parameter(Mandatory = $false, Position = 6)]
+        [switch]$InstallDefaultNugetPackages
+
     )
 
     try {
@@ -61,23 +72,42 @@ function Install-ExternalDependencies {
         Add-Type -AssemblyName System.Data.DataSetExtensions
         Add-Type -AssemblyName System.Xml
 
-        # Define dependencies
-        $deps = @{
-            'Interop.UIAutomationClient' = '10.19041.0'
-            'FlaUI.Core'                 = '4.0.0'
-            'FlaUI.UIA3'                 = '4.0.0'
-            'HtmlAgilityPack'            = '1.11.50'
+        # Initialize $deps to ensure it's empty
+        $deps = @{}
+
+        if (-not $NoNugetPackages) {
+            if ($InstallDefaultNugetPackages) {
+                $deps = @{
+                    'Interop.UIAutomationClient' = '10.19041.0'
+                    'FlaUI.Core'                 = '4.0.0'
+                    'FlaUI.UIA3'                 = '4.0.0'
+                    'HtmlAgilityPack'            = '1.11.50'
+                }
+            }
+            elseif ($NugetPackages) {
+                $deps = $NugetPackages
+            }
+            Write-Log -Message "Installing NuGet dependencies" -Level VERBOSE
+            Add-NuGetDependencies -NugetPackages $deps  # Make sure this function exists
+        }
+        else {
+            Write-Log -Message "No NuGet dependencies to install" -Level INFO
         }
 
-        # Add NuGet dependencies
-        Add-NuGetDependencies -NugetPackages $deps
 
-        # Install modules
-        # Create the module directory if it doesn't exist
-        if (-not (Test-Path -Path "$PWD/PowerShellScriptsAndResources/Modules")) {
-            New-Item -Path "$PWD/PowerShellScriptsAndResources/Modules" -ItemType Directory -Force
-        }
-        if (-not $($PSModules)) {
+        # Initialize $neededmodules to ensure it's empty
+        $neededmodules = @()
+
+        if ($NoPSModules) {
+            Write-Log -Message "No PSModules to install" -Level INFO
+        } 
+        elseif ($InstallDefaultPSModules) {
+            # Create the module directory if it doesn't exist
+            $modulePath = "$PWD/PowerShellScriptsAndResources/Modules"
+            if (-not (Test-Path -Path $modulePath)) {
+                New-Item -Path $modulePath -ItemType Directory -Force
+            }
+
             $neededmodules = @(
                 'Microsoft.PowerShell.ConsoleGuiTools',
                 'ImportExcel',
@@ -90,12 +120,14 @@ function Install-ExternalDependencies {
                 'Microsoft.WinGet.Client',
                 'Microsoft.PowerShell.SecretManagement',
                 'Microsoft.PowerShell.SecretStore'
-
             )
+            Write-Log -Message "Installing default PSModules" -Level VERBOSE
         }
         else {
-            $neededmodules = @($PSModules)
+            $neededmodules = $PSModules
+            Write-Log -Message "Installing specified PSModules" -Level VERBOSE
         }
+
 
         if ($RemoveAllModules) {
             foreach ($module in $neededmodules) {
