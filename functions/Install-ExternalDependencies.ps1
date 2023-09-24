@@ -86,8 +86,9 @@ function Install-ExternalDependencies {
             'PSFramework',
             'Crescendo',
             'Microsoft.WinGet.Client',
-            'SecretManagement',
-            'SecretStore'
+            'Microsoft.PowerShell.SecretManagement',
+            'Microsoft.PowerShell.SecretStore'
+
         )
 
         if ($RemoveAllModules) {
