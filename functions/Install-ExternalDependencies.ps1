@@ -12,7 +12,9 @@ function Install-ExternalDependencies {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false, Position = 0)]
-        [switch]$RemoveAllModules
+        [switch]$RemoveAllModules,
+        [Parameter(Mandatory = $false, Position = 1)]
+        [string[]]$PSModules
     )
 
     try {
@@ -75,21 +77,25 @@ function Install-ExternalDependencies {
         if (-not (Test-Path -Path "$PWD/PowerShellScriptsAndResources/Modules")) {
             New-Item -Path "$PWD/PowerShellScriptsAndResources/Modules" -ItemType Directory -Force
         }
+        if (-not $($PSModules)) {
+            $neededmodules = @(
+                'Microsoft.PowerShell.ConsoleGuiTools',
+                'ImportExcel',
+                'PSWriteColor',            
+                'JWTDetails',
+                '7zip4powershell',
+                'PSEverything',
+                'PSFramework',
+                'Crescendo',
+                'Microsoft.WinGet.Client',
+                'Microsoft.PowerShell.SecretManagement',
+                'Microsoft.PowerShell.SecretStore'
 
-        $neededmodules = @(
-            'Microsoft.PowerShell.ConsoleGuiTools',
-            'ImportExcel',
-            'PSWriteColor',            
-            'JWTDetails',
-            '7zip4powershell',
-            'PSEverything',
-            'PSFramework',
-            'Crescendo',
-            'Microsoft.WinGet.Client',
-            'Microsoft.PowerShell.SecretManagement',
-            'Microsoft.PowerShell.SecretStore'
-
-        )
+            )
+        }
+        else {
+            $neededmodules = @($PSModules)
+        }
 
         if ($RemoveAllModules) {
             foreach ($module in $neededmodules) {
