@@ -3,115 +3,172 @@
 Installs external dependencies.
 
 .DESCRIPTION
-This function installs external dependencies required by the script.
+This function installs external dependencies required by the script. It can install NuGet packages and PowerShell modules.
 
 .PARAMETER RemoveAllModules
-Specifies whether to remove all existing modules before installation. By default, this is not enabled.
+Specifies whether to remove all existing modules before installation.
+
+.PARAMETER PSModules
+An array of PowerShell modules to install.
+
+.PARAMETER NugetPackages
+An array of NuGet packages to install.
+
+.PARAMETER NoPSModules
+If set, skips installing PowerShell modules.
+
+.PARAMETER NoNugetPackages
+If set, skips installing NuGet packages.
+
+.PARAMETER InstallDefaultPSModules
+If set, installs default PowerShell modules.
+
+.PARAMETER InstallDefaultNugetPackages
+If set, installs default NuGet packages.
 #>
 function Install-ExternalDependencies {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false, Position = 0)]
         [switch]$RemoveAllModules,
-        [Parameter(Mandatory = $false, Position = 1)]
         [string[]]$PSModules,
-        [Parameter(Mandatory = $false, Position = 2)]
         [string[]]$NugetPackages,
-        [Parameter(Mandatory = $false, Position = 3)]
         [switch]$NoPSModules,
-        [Parameter(Mandatory = $false, Position = 4)]
         [switch]$NoNugetPackages,
-        [Parameter(Mandatory = $false, Position = 5)]
         [switch]$InstallDefaultPSModules,
-        [Parameter(Mandatory = $false, Position = 6)]
         [switch]$InstallDefaultNugetPackages
-
     )
 
-    try {
-        # Auto-elevate permissions if we are not running as admin
-        if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
-            $arguments = "& '" + $myinvocation.mycommand.definition + "'"
-            Start-Process powershell -Verb runAs -ArgumentList $arguments
-            return
-        }
+    # Run as admin
+    RunAsAdmin
 
-        # Fix up the package providers
-        # Install NuGet package provider if not already installed ( we basically pre install it everytime to do it silently)
+    # Setup package providers
+    SetupPackageProviders
+
+    # Install NuGet dependencies
+    if (-not $NoNugetPackages) {
+        InstallNugetDeps $InstallDefaultNugetPackages $NugetPackages
+    }
+
+    # Install PowerShell modules
+    if (-not $NoPSModules) {
+        InstallPSModules $InstallDefaultPSModules $PSModules $RemoveAllModules
+    }
+}
+
+function RunAsAdmin {
+    # Check if the current user is an administrator
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    # If not an admin, relaunch the script as an admin
+    if (-not $isAdmin) {
+        $scriptPath = $myinvocation.mycommand.definition
+        $arguments = "& '$scriptPath'"
+        Start-Process -FilePath 'powershell' -Verb 'RunAs' -ArgumentList $arguments
+        exit
+    }
+}
+
+function SetupPackageProviders {
+    try {
+        # Ensure NuGet package provider is installed and registered
         Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
-        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Out-Null) -or (-not (Get-PackageSource -ProviderName Nuget | Out-Null))) {
+        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
             Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
-            Get-PackageProvider -ListAvailable -ErrorAction SilentlyContinue | Out-Null
             Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
             Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
-
-        # Install PowerShellGet package provider if not already installed
-        if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue | Out-Null)) {
+    
+        # Ensure PowerShellGet package provider is installed
+        if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue)) {
             Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
-
-        # trust all the things
-        $packageSources = Get-PackageSource | Out-Null
-        $packageSources | ForEach-Object {
+    
+        # Trust all package sources
+        Get-PackageSource | ForEach-Object {
             Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
         }
-
-
-        #Set Providers as trusted
+    
+        # Trust PSGallery repository
         Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+    
+        # Ensure Pansies module is installed for logging
+        if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
+        }
+        Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue | Out-Null
+    }
+    catch {
+        Write-Host "An error occurred while setting up package providers: $_"
+    }
+}    
 
+function AddAssemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
+    # Initialize the list of assemblies to add
+    $assembliesToAdd = if ($UseDefault) {
+        @(
+            'PresentationFramework',
+            'PresentationCore',
+            'WindowsBase',
+            'System.Windows.Forms',
+            'System.Drawing',
+            'System.Data',
+            'System.Data.DataSetExtensions',
+            'System.Xml'
+        )
+    }
+    else {
+        $CustomAssemblies
+    }
+    
+    # Add each assembly
+    foreach ($assembly in $assembliesToAdd) {
+        try {
+            Add-Type -AssemblyName $assembly -ErrorAction Stop
+            Write-Host "Successfully added assembly: $assembly"
+        }
+        catch {
+            Write-Host "Failed to add assembly: $assembly. Error: $_"
+        }
+    }
+}
+    
 
-        # Load assemblies
-        Add-Type -AssemblyName PresentationFramework
-        Add-Type -AssemblyName PresentationCore
-        Add-Type -AssemblyName WindowsBase
-        Add-Type -AssemblyName System.Windows.Forms
-        Add-Type -AssemblyName System.Drawing
-        Add-Type -AssemblyName System.Data
-        Add-Type -AssemblyName System.Data.DataSetExtensions
-        Add-Type -AssemblyName System.Xml
-
-        # Initialize $deps to ensure it's empty
-        $deps = @{}
-
-        if (-not $NoNugetPackages) {
-            if ($InstallDefaultNugetPackages) {
-                $deps = @{
-                    'Interop.UIAutomationClient' = '10.19041.0'
-                    'FlaUI.Core'                 = '4.0.0'
-                    'FlaUI.UIA3'                 = '4.0.0'
-                    'HtmlAgilityPack'            = '1.11.50'
-                }
+function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
+    try {
+        # Determine which NuGet packages are needed based on the InstallDefault flag
+        $deps = if ($InstallDefault) {
+            @{
+                'Interop.UIAutomationClient' = '10.19041.0'
+                'FlaUI.Core'                 = '4.0.0'
+                'FlaUI.UIA3'                 = '4.0.0'
+                'HtmlAgilityPack'            = '1.11.50'
             }
-            elseif ($NugetPackages) {
-                $deps = $NugetPackages
-            }
-            Write-Log -Message "Installing NuGet dependencies" -Level VERBOSE
-            Add-NuGetDependencies -NugetPackages $deps  # Make sure this function exists
         }
         else {
-            Write-Log -Message "No NuGet dependencies to install" -Level INFO
+            $NugetPackages
         }
+    
+        # Log the installation process (assumes you have a custom logging function)
+        Write-Host "Installing NuGet dependencies"
+    
+        # Install NuGet packages
+        Add-NuGetDependencies -NugetPackages $deps
+    }
+    catch {
+        # Log any errors that occur during the installation
+        Write-Host "An error occurred while installing NuGet packages: $_"
+    }
+}
+    
 
-
-        # Initialize $neededmodules to ensure it's empty
-        $neededmodules = @()
-
-        if ($NoPSModules) {
-            Write-Log -Message "No PSModules to install" -Level INFO
-        } 
-        elseif ($InstallDefaultPSModules) {
-            # Create the module directory if it doesn't exist
-            $modulePath = "$PWD/PowerShellScriptsAndResources/Modules"
-            if (-not (Test-Path -Path $modulePath)) {
-                New-Item -Path $modulePath -ItemType Directory -Force
-            }
-
-            $neededmodules = @(
+function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$RemoveAllModules) {
+    try {
+        # Determine which modules are needed based on the InstallDefault flag
+        $neededModules = if ($InstallDefault) {
+            @(
                 'Microsoft.PowerShell.ConsoleGuiTools',
                 'ImportExcel',
-                'PSWriteColor',            
+                'PSWriteColor',
                 'JWTDetails',
                 '7zip4powershell',
                 'PSEverything',
@@ -121,46 +178,49 @@ function Install-ExternalDependencies {
                 'Microsoft.PowerShell.SecretManagement',
                 'Microsoft.PowerShell.SecretStore'
             )
-            Write-Log -Message "Installing default PSModules" -Level VERBOSE
         }
         else {
-            $neededmodules = $PSModules
-            Write-Log -Message "Installing specified PSModules" -Level VERBOSE
+            $PSModules
         }
-
-
+    
+        # Uninstall modules if RemoveAllModules flag is set
         if ($RemoveAllModules) {
-            foreach ($module in $neededmodules) {
-                $modulePath = Get-Module -ListAvailable -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $module } -ErrorAction SilentlyContinue | Select-Object -Property Path
-                Uninstall-Module -Name $module -Force -AllVersions -ErrorAction SilentlyContinue
-                if ($null -ne $modulePath) {
-                    Remove-Item (Split-Path (Split-Path $modulePath.Path -Parent -ErrorAction SilentlyContinue) -Parent -ErrorAction SilentlyContinue) -Recurse -Force -ErrorAction SilentlyContinue
+            $neededModules.ForEach({
+                    # Get the module path
+                    $modulePath = Get-Module -ListAvailable | Where-Object { $_.Name -eq $_ } | Select-Object -ExpandProperty Path
+                    # Uninstall the module
+                    Uninstall-Module -Name $_ -Force -AllVersions -ErrorAction SilentlyContinue
+                    # Remove the module directory if it exists
+                    if ($null -ne $modulePath) {
+                        $moduleDir = Split-Path (Split-Path $modulePath -Parent) -Parent
+                        Remove-Item $moduleDir -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                })
+        }
+    
+        # Install and import modules
+        $neededModules.ForEach({
+                # Check if the module is already installed
+                if (-not (Get-Module -Name $_ -ListAvailable)) {
+                    Write-Host "Installing module $_"
+                    # Save the module locally
+                    Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
                 }
-            }
-        }
-        # for the write-log function we need to have pansies installed
-        if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
-        }
-        Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
-
-        # Save modules locally then import them
-        foreach ($module in $neededmodules) {
-            if (-not (Get-Module -Name $module -ListAvailable) -and (-not (Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Filter "*$module*" -Recurse -ErrorAction SilentlyContinue))) {
-                Write-Log -Message "Installing module $module" -Level VERBOSE
-                # First save the module locally if we do not have the latest version
-                Save-Module -Name $module -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
-            }
-            else {
-                Write-Log -Message "Module $module already installed" -Level VERBOSE
-            }
-            Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
-            $ModulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-            Import-Module -Name $ModulesToImport -Force -Global -ErrorAction SilentlyContinue
-        }
+                else {
+                    Write-Host "Module $_ already installed"
+                }
+    
+                # Import Pansies module for logging (assumes it's a dependency for logging)
+                Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
+    
+                # Import all saved modules
+                $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+                Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+            })
     }
     catch {
-        Write-Log -Message "An error occurred: $_" -Level ERROR
-        Write-Log -Message "Error details: $($_.Exception)" -Level ERROR
+        Write-Host "An error occurred: $_"
+        Write-Host "Error details: $($_.Exception)"
     }
-}
+}    
+
