@@ -1,27 +1,30 @@
 <#
 .SYNOPSIS
-This function downloads a file from a given URL using either aria2c or Invoke-WebRequest.
+Downloads a file from a given URL using either aria2c or Invoke-WebRequest.
 
 .DESCRIPTION
-The Get-DownloadFile function allows you to download a file from a provided URL. You can choose to use aria2c or Invoke-WebRequest for the download process. If aria2c is selected but not found in the PATH, it will be automatically downloaded and added to the PATH.
+Downloads a file from a URL. Optionally uses aria2c for the download; otherwise, uses Invoke-WebRequest.
 
 .PARAMETER URL
 The URL of the file to download.
 
 .PARAMETER OutFile
-The name of the output file.
+The output file path.
 
 .PARAMETER UseAria2
-Switch to indicate whether to use aria2c for the download. If not specified, Invoke-WebRequest will be used.
+Switch to use aria2c for downloading.
 
 .PARAMETER SecretName
-The name of the secret in the secret store which contains the GitHub Personal Access Token.
+Name of the secret containing the GitHub token.
+
+.PARAMETER IsPrivateRepo
+Switch to indicate if the repo is private.
 
 .EXAMPLE
 Get-DownloadFile -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -UseAria2 -SecretName "GitHubPAT"
 
 .NOTES
-If using aria2c, make sure it is installed and accessible from your PATH.
+If using aria2c, ensure it's installed and in your PATH.
 #>
 
 function Get-DownloadFile {
@@ -30,55 +33,67 @@ function Get-DownloadFile {
     param (
         [Parameter(Mandatory = $true)]
         [string]$URL,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$OutFile,
-        
-        [Parameter(Mandatory = $false)]
-        [switch]$UseAria2,
-        
-        [Parameter(Mandatory = $false)]
-        [string]$SecretName
-    )
-  
-    begin {
-        # If aria2 is requested but not found, download and install it
-        if ($UseAria2 -and (-not (Test-Path "$PWD/aria2c/*/aria2c.exe"))) {
-            # Downloading aria2c
-            Write-log -Message 'Downloading and extracting aria2c...' -Level INFO
-            Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip -Verbose
 
-            # Add aria2c to the PATH
-            $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
-            Write-log -Message "Downloaded Aria2c to $aria2cExe" -Level INFO
-        }
-        else {
-            $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
-        }
-    }
-  
-    process {
-        try {
-            if ($UseAria2) {
-                Write-log -Message 'Downloading using aria2c...' -Level INFO
-                
-                if ($null -ne $SecretName) {
-                    # Validate the secret exists and is valid
-                    if (-not (Get-SecretInfo -Name $SecretName)) {
-                        Write-log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
-                        return
-                    }
-                }
-                
-                Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
+        [switch]$UseAria2,
+
+        [string]$SecretName,
+
+        [switch]$IsPrivateRepo
+    )
+
+    begin {
+        if ($UseAria2) {
+            # Check for aria2c, download if not found
+            if (-not (Test-Path "$PWD/aria2c/*/aria2c.exe")) {
+                Write-Host "Downloading aria2c..."
+                Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip -Verbose
+            
+                # Add aria2c to the PATH
+                $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
+                Write-log -Message "Downloaded Aria2c to $aria2cExe" -Level INFO
             }
             else {
-                Write-log -Message 'Downloading using Invoke-WebRequest ...' -Level INFO
+                $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
+            }
+        }
+    }
+
+    process {
+        try {
+            # Validate the secret if provided
+            if ($null -ne $SecretName -and (-not (Get-SecretInfo -Name $SecretName))) {
+                Write-Host "The secret '$SecretName' does not exist or is not valid." -ForegroundColor Red
+                return
+            }
+
+            if ($UseAria2) {
+                Write-Host "Using aria2c for download."
+
+                # If it's a private repo, handle the secret
+                if ($IsPrivateRepo) {
+                    if ($null -ne $SecretName) {
+                        # Validate the secret exists and is valid
+                        if (-not (Get-SecretInfo -Name $SecretName)) {
+                            Write-log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                            return
+                        }
+                    
+                    
+                        Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
+                    }
+                }
+            }
+            else {
+                Write-Host "Using Invoke-WebRequest for download."
                 Invoke-WebRequest -Uri $URL -OutFile $OutFile
             }
         }
         catch {
-            Write-log -Message "$($_.Exception.Message)" -Level ERROR
+            Write-Host "An error occurred: $_" -ForegroundColor Red
+            throw
         }
     }
 }
