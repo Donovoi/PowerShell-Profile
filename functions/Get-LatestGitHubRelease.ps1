@@ -163,7 +163,7 @@ function Get-LatestGitHubRelease {
             # Download asset
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
-                    Get-DownloadFile -URL $asset.Browser_Download_url -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name) -UseAria2 -SecretName $TokenName
+                    Get-DownloadFile -URL $asset.Browser_Download_url -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name) -UseAria2 -SecretName $TokenName -IsPrivateRepo $isPrivateRepo
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
