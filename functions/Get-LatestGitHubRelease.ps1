@@ -5,6 +5,7 @@
 .DESCRIPTION
    The Get-LatestGitHubRelease function is designed to help you easily find and download the latest release from a GitHub repository. 
    It can return details about the latest release, download assets, and even extract downloaded zip files automatically.
+   The function will only prompt for a GitHub token if the repository is private.
 
 .PARAMETER OwnerRepository
    Specifies the GitHub repository from which to retrieve the latest release. The format should be 'owner/repository'.
@@ -28,14 +29,13 @@
    A switch parameter that, when used, instructs the function to only return the version of the latest release, without downloading any assets.
 
 .PARAMETER TokenName
-   Specifies the name of the secret containing the GitHub token to be used for authentication. Defaults to 'GitHubToken'.
+   Specifies the name of the secret containing the GitHub token to be used for authentication. This is only required for private repositories and defaults to 'GitHubToken'.
 
 .EXAMPLE
    Get-LatestGitHubRelease -OwnerRepository 'owner/repository' -TokenName 'your_secret_token_here'
 
-.NOTES
-   Be aware that GitHub imposes rate limits on API requests. Ensure to use the function judiciously to avoid hitting the rate limits.
 #>
+
 function Get-LatestGitHubRelease {
     [CmdletBinding(DefaultParameterSetName = 'Download')]
     [OutputType([string])]
@@ -66,52 +66,59 @@ function Get-LatestGitHubRelease {
     )
     
     begin {
-        #install any needed modules and import them
+        # Install any needed modules and import them
         if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
             Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -Verbose
         }
-
-
-        # Initialize SecretStore configuration
-        $currentConfig = Get-SecretStoreConfiguration
-        if ($currentConfig.Authentication -ne 'None') {
-            try {
-                Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
-                Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
-            }
-            catch {
-                Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
-            }
-        }
-        else {
-            try {
-                Write-Host "Initializing the secret store..." -ForegroundColor Yellow
-                Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
-            }
-            catch {
-                Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
-                throw
-            }
-        }
-
-        # Retrieve GitHub token
-        $Token = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
-        if ($null -eq $Token) {
-            $TokenValue = Read-Host -Prompt "Enter the GitHub token" -AsSecureString
-            Set-StoredSecret -Secret $TokenValue -SecretName $TokenName
-            $Token = $TokenValue
-        }
-
-        # Prepare API headers
+    
+        # Prepare API headers without Authorization
         $headers = @{
             'Accept'               = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
-            'Authorization'        = if ($Token) {
-                "Bearer $Token" 
+        }
+    
+        # Check if the repo is private
+        $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
+        $repoInfo = Invoke-RestMethod -Uri $repoInfoUrl -Headers $headers
+        $isPrivateRepo = $repoInfo.private
+    
+        if ($isPrivateRepo) {
+            # Initialize SecretStore configuration
+            $currentConfig = Get-SecretStoreConfiguration
+            if ($currentConfig.Authentication -ne 'None') {
+                try {
+                    Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
+                    Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
+                }
+                catch {
+                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                }
             }
+            else {
+                try {
+                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow
+                    Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
+                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                }
+                catch {
+                    Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
+                    throw
+                }
+            }
+    
+            # Retrieve GitHub token
+            $Token = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
+            if ($null -eq $Token) {
+                $TokenValue = Read-Host -Prompt "Enter the GitHub token" -AsSecureString
+                Set-StoredSecret -Secret $TokenValue -SecretName $TokenName
+                $Token = $TokenValue
+            }
+    
+            # Update headers to include Authorization
+            $headers['Authorization'] = "Bearer $Token"
         }
     }
+    
 
     process {
         try {
