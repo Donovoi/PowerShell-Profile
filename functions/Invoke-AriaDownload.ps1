@@ -42,6 +42,11 @@ function Invoke-AriaDownload {
     )
   
     begin {
+        # Install any needed modules and import them
+        if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -Verbose
+        }
+
         # Print the name of the running script
         Write-log -Message 'Downloading Faster? with Aria2' -Level INFO
         

@@ -45,6 +45,11 @@ function Get-DownloadFile {
     )
 
     begin {
+        # Install any needed modules and import them
+        if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -Verbose
+        }
+        
         if ($UseAria2) {
             # Check for aria2c, download if not found
             if (-not (Test-Path "$PWD/aria2c/*/aria2c.exe")) {
