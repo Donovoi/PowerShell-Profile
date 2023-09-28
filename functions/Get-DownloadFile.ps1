@@ -47,7 +47,7 @@ function Get-DownloadFile {
     begin {
         # Install any needed modules and import them
         if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -Verbose
+            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -Verbose -RemoveAllModules
         }
         
         if ($UseAria2) {
