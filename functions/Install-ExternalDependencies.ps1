@@ -193,9 +193,16 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
             $installedModules = Get-Module -ListAvailable
             $installedModules | ForEach-Object {
                 if ($_.Name -in $neededModules) {
-                    Write-Host "Removing module $($_.Name) from $($_.InstalledLocation)"
+                    Write-Host "Removing module $($_.Name)"
+                    Remove-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
                     Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
-                    Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
+                    if ($null -ne $_.InstalledLocation) {
+                        Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        Write-Host "InstalledLocation is empty for module $($_.Name). Skipping removal."
+                    }
+                    
                 }
             }
         }
