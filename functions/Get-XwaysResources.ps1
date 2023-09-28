@@ -302,7 +302,7 @@ function Get-XwaysResources {
     $errText = $_.Exception.Message
     Write-Error "$errText"
     Write-Warning "If you are getting 'Unauthorized' try using the -ResetCredentials switch and rerun the script`n Exiting"
-    Exit-PSHostProcess -Verbose
+    Exit-PSHostProcess
   }
   Out-Host -InputObject "All Done!"
 }

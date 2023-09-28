@@ -107,4 +107,4 @@ function Start-SpeedTest {
     }
 }
 
-# Start-SpeedTest -ColorMeSilly -Verbose
+# Start-SpeedTest -ColorMeSilly

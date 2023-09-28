@@ -124,9 +124,9 @@ function Get-KapeBinaries {
         if (Test-Path -Path $DownloadedBinaries) {
           Remove-Item -Path $DownloadedBinaries -Force -ErrorAction SilentlyContinue
         }
-        Start-BitsTransfer -Source "$_" -Destination "$DownloadedBinaries" -Verbose
+        Start-BitsTransfer -Source "$_" -Destination "$DownloadedBinaries"
       }
-      #Get-BitsTransfer -Verbose | Complete-BitsTransfer -Verbose
+      #Get-BitsTransfer | Complete-BitsTransfer
     }
 
   }

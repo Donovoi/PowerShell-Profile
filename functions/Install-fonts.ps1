@@ -118,5 +118,5 @@ function Install-Fonts {
   }
 }
 
-#Install-Fonts -Path 'I:\nerd-fonts-master (1)\' -Verbose
+#Install-Fonts -Path 'I:\nerd-fonts-master (1)\'
 

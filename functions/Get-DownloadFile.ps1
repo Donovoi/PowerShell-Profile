@@ -49,7 +49,7 @@ function Get-DownloadFile {
             # Check for aria2c, download if not found
             if (-not (Test-Path "$PWD/aria2c/*/aria2c.exe")) {
                 Write-Host "Downloading aria2c..."
-                Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip -Verbose
+                Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip
             
                 # Add aria2c to the PATH
                 $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
@@ -70,7 +70,7 @@ function Get-DownloadFile {
                 if ($IsPrivateRepo) {
                     # Install any needed modules and import them
                     if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -Verbose -RemoveAllModules
+                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
                     }
                     if ($null -ne $SecretName) {
                         # Validate the secret exists and is valid

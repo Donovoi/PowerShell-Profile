@@ -68,7 +68,7 @@ function Get-LatestGitHubRelease {
     begin {
         # Install any needed modules and import them
         if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -Verbose
+            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
         }
     
         # Prepare API headers without Authorization

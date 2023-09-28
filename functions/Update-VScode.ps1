@@ -87,7 +87,7 @@ function Update-VSCode {
                     foreach ($url in $urls) {
                         Get-DownloadFile -URL $url.URL -OutFile $url.OutFile -UseAria2 
                         if (Test-Path $url.OutFile) {
-                            Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
+                            Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $url.OutFile
                         }
                         else {
@@ -102,7 +102,7 @@ function Update-VSCode {
                         Get-DownloadFile -URL $url.URL -OutFile $url.OutFile -UseAria2 
                         if (Test-Path $url.OutFile) {
                             # Expand the downloaded archive to the destination path
-                            Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force -Verbose
+                            Expand-Archive -Path $url.OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $url.OutFile
                         }
                         else {

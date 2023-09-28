@@ -11,7 +11,7 @@ function Set-ACLs {
   $ErrorActionPreference = 'Continue'
   $NewOwner = New-Object System.Security.Principal.NTAccount ("$ENV:COMPUTERNAME","$ENV:USERNAME")
   # Now we run the es.exe tool to get a list of all files in the $FolderToScan
-  # Start-Process -FilePath "D:\Projects\PowerShell-Profile\Non PowerShell Tools\FastFileEnum\bin\Debug\net7.0\win32.exe" -ArgumentList "$(Resolve-Path $FolderToScan)" -Wait -NoNewWindow -Verbose
+  # Start-Process -FilePath "D:\Projects\PowerShell-Profile\Non PowerShell Tools\FastFileEnum\bin\Debug\net7.0\win32.exe" -ArgumentList "$(Resolve-Path $FolderToScan)" -Wait -NoNewWindow
 
   # TODO: Replace this with the Get-Everything cmdlet
   Start-Process -FilePath ".\Non PowerShell Tools\everything portable\es.exe" -ArgumentList "-full-path-and-name -export-csv OUTPUT.csv folder: $($XWAYSUSB)\ -no-header" -Wait -NoNewWindow
@@ -22,7 +22,7 @@ function Set-ACLs {
 
     # handle apostrophes in file paths
     $SanitizedFilePath = $_.Trim('"')
-    $ResolvedFilePath = Resolve-Path -Path $SanitizedFilePath -Verbose
+    $ResolvedFilePath = Resolve-Path -Path $SanitizedFilePath
     $acl = (Get-Acl $ResolvedFilePath)
     if ($acl.Owner -ne $NewOwner) {
       $acl.SetOwner($NewOwner)
@@ -53,5 +53,5 @@ function Set-ACLs {
 
 
 }
-#Set-ACLs -Verbose
+#Set-ACLs
 
