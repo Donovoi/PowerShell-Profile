@@ -82,6 +82,7 @@ function Get-DownloadFile {
                         Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
                     }
                 }
+                Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe
             }
             else {
                 Write-Host "Using Invoke-WebRequest for download."
