@@ -25,6 +25,9 @@ If set, installs default PowerShell modules.
 
 .PARAMETER InstallDefaultNugetPackages
 If set, installs default NuGet packages.
+
+.PARAMETER LocalModulesDirectory
+Specifies the directory where to save the PowerShell modules locally. If null or empty, modules will be saved to the default directory.
 #>
 function Install-ExternalDependencies {
     [CmdletBinding()]
@@ -35,7 +38,8 @@ function Install-ExternalDependencies {
         [switch]$NoPSModules,
         [switch]$NoNugetPackages,
         [switch]$InstallDefaultPSModules,
-        [switch]$InstallDefaultNugetPackages
+        [switch]$InstallDefaultNugetPackages,
+        [string]$LocalModulesDirectory
     )
 
     # Run as admin
@@ -51,9 +55,10 @@ function Install-ExternalDependencies {
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        InstallPSModules $InstallDefaultPSModules $PSModules $RemoveAllModules
+        InstallPSModules $InstallDefaultPSModules $PSModules $RemoveAllModules $LocalModulesDirectory  # <-- Passed new parameter
     }
 }
+
 
 function RunAsAdmin {
     # Check if the current user is an administrator
@@ -161,7 +166,7 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
 }
     
 
-function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$RemoveAllModules) {
+function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$RemoveAllModules, [string]$LocalModulesDirectory) {
     try {
         # Determine which modules are needed based on the InstallDefault flag
         $neededModules = if ($InstallDefault) {
@@ -201,8 +206,11 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
                     # Check if the module is already installed
                     if (-not (Get-Module -Name $_ -ListAvailable)) {
                         Write-Host "Installing module $_"
-                        # Save the module locally
-                        Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                        
+                        # Save the module locally only if LocalModulesDirectory is null or empty
+                        if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                            Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                        }
                     }
                     else {
                         Write-Host "Module $_ already installed"
