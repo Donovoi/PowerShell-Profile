@@ -182,24 +182,22 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
         else {
             $PSModules
         }
-    
+
         # Uninstall modules if RemoveAllModules flag is set
         if ($RemoveAllModules) {
-            $neededModules.ForEach({
-                    # Get the module path
-                    $modulePath = Get-Module -ListAvailable | Where-Object { $_.Name -eq $_ } | Select-Object -ExpandProperty Path
-                    # Uninstall the module
-                    Uninstall-Module -Name $_ -Force -AllVersions -ErrorAction SilentlyContinue
-                    # Remove the module directory if it exists
-                    if ($null -ne $modulePath) {
-                        $moduleDir = Split-Path (Split-Path $modulePath -Parent) -Parent
-                        Remove-Item $moduleDir -Recurse -Force -ErrorAction SilentlyContinue
-                    }
-                })
+            $installedModules = Get-InstalledModule -AllVersions
+            $installedModules | ForEach-Object {
+                if ($_.Name -in $neededModules) {
+                    Write-Host "Removing module $($_.Name) from $($_.InstalledLocation)"
+                    Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
+                    Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
-    
+
         # Install and import modules
         $neededModules.ForEach({
+            try {
                 # Check if the module is already installed
                 if (-not (Get-Module -Name $_ -ListAvailable)) {
                     Write-Host "Installing module $_"
@@ -209,18 +207,26 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
                 else {
                     Write-Host "Module $_ already installed"
                 }
-    
-                # Import Pansies module for logging (assumes it's a dependency for logging)
-                Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue
-    
+
                 # Import all saved modules
                 $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
                 Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
-            })
+            }
+            catch {
+                Write-Host "An error occurred while processing module $_: $($_.Exception)"
+            }
+        })
     }
     catch {
-        Write-Host "An error occurred: $_"
-        Write-Host "Error details: $($_.Exception)"
+        if ($_.Exception.Message -match '.ps1xml') {
+            Write-Host "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module."
+            $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
+            Remove-Item $moduleDir -Recurse -Force
+            Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
+        }
+        else {
+            Write-Host "An unexpected global error occurred: $_"
+        }
     }
-}    
+}
 
