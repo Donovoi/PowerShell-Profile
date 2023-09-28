@@ -55,7 +55,7 @@ function Invoke-AriaDownload {
             throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
         }
     }
-  
+
     process {
         try {
             # If the output file already exists, remove it
