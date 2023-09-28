@@ -66,7 +66,7 @@ function Invoke-AriaDownload {
             # Construct the authorization header if a valid secret name is provided and the url is from github
             $authHeader = ""
             if ($URL -like '*github.com*') {               
-                if ($null -ne $SecretName) {
+                if (-not [string]::IsNullOrEmpty($SecretName)) {
                     $secret = Get-Secret -Name $SecretName -AsPlainText
                     if ($null -ne $secret) {
                         $authHeader = "--header=`"Authorization: token $secret`""
@@ -89,7 +89,7 @@ function Invoke-AriaDownload {
                 "--out=$(Split-Path -Leaf $OutFile)",
                 $authHeader, # Include the authorization header if it was constructed
                 $URL
-            ) -NoNewWindow -Wait -ErrorAction Stop
+            ) -NoNewWindow -Wait -ErrorAction Break
 
             return $OutFile
         }
