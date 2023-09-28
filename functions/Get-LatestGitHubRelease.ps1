@@ -163,7 +163,28 @@ function Get-LatestGitHubRelease {
             # Download asset
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
-                    Get-DownloadFile -URL $asset.Browser_Download_url -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name) -UseAria2 -SecretName $TokenName -IsPrivateRepo $isPrivateRepo
+                    # Initialize an empty hashtable
+                    $downloadFileParams = @{}
+
+                    # Mandatory parameters
+                    $downloadFileParams['URL'] = $asset.Browser_Download_url
+                    $downloadFileParams['OutFile'] = (Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name)
+
+                    # Conditionally add parameters
+                    if ($UseAria2) {
+                        $downloadFileParams['UseAria2'] = $true
+                    }
+
+                    if ($TokenName) {
+                        $downloadFileParams['SecretName'] = $TokenName
+                    }
+
+                    if ($isPrivateRepo) {
+                        $downloadFileParams['IsPrivateRepo'] = $true
+                    }
+
+                    # Splat the parameters onto the function call
+                    Get-DownloadFile @downloadFileParams                
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
