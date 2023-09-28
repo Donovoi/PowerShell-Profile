@@ -177,7 +177,7 @@ function Get-LatestGitHubRelease {
                         $downloadFileParams['UseAria2'] = $true
                     }
 
-                    if ($TokenName) {
+                    if ($TokenName -and $isPrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                     }
 
