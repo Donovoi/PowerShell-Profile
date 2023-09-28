@@ -713,13 +713,15 @@ Set-PSReadLineKeyHandler -Key Alt+a `
   [Microsoft.PowerShell.PSConsoleReadLine]::SelectForwardChar($null, ($nextAst.Extent.EndOffset - $nextAst.Extent.StartOffset) - $endOffsetAdjustment)
 }
 
+if ($PSVersionTable.PSVersion -ge [Version]'7.2') {
+  Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+  Set-PSReadLineOption -PredictionViewStyle ListView
+  Set-PSReadLineOption -EditMode Windows
+}
 
-Set-PSReadLineOption -PredictionSource HistoryAndPlugin
-Set-PSReadLineOption -PredictionViewStyle ListView
-Set-PSReadLineOption -EditMode Windows
 
 # Crazy oh my posh random theme function
-function Invoke-WithRandomTheme {
+function Invoke-OhMyPoshRandomTheme {
   # Get a list of all available Oh My Posh themes
   # check if folder exists
   if (Test-Path "$ENV:USERPROFILE\AppData\Local\Programs\oh-my-posh\themes") {
@@ -737,7 +739,7 @@ function Invoke-WithRandomTheme {
   oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression
 }
 
-Invoke-WithRandomTheme
+Invoke-OhMyPoshRandomTheme
 
 # This is an example of a macro that you might use to execute a command.
 # This will add the command to history.
