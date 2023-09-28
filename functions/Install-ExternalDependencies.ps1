@@ -194,7 +194,7 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
             $installedModules | ForEach-Object {
                 if ($_.Name -in $neededModules) {
                     Write-Host "Removing module $($_.Name)"
-                    Remove-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
+                    Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
                     Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
                     if ($null -ne $_.InstalledLocation) {
                         Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
