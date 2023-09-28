@@ -197,25 +197,25 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
 
         # Install and import modules
         $neededModules.ForEach({
-            try {
-                # Check if the module is already installed
-                if (-not (Get-Module -Name $_ -ListAvailable)) {
-                    Write-Host "Installing module $_"
-                    # Save the module locally
-                    Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
-                }
-                else {
-                    Write-Host "Module $_ already installed"
-                }
+                try {
+                    # Check if the module is already installed
+                    if (-not (Get-Module -Name $_ -ListAvailable)) {
+                        Write-Host "Installing module $_"
+                        # Save the module locally
+                        Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        Write-Host "Module $_ already installed"
+                    }
 
-                # Import all saved modules
-                $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-                Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
-            }
-            catch {
-                Write-Host "An error occurred while processing module $_: $($_.Exception)"
-            }
-        })
+                    # Import all saved modules
+                    $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+                    Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+                }
+                catch {
+                    Write-Host "An error occurred while processing module $_`: $($_.Exception)"
+                }
+            })
     }
     catch {
         if ($_.Exception.Message -match '.ps1xml') {
