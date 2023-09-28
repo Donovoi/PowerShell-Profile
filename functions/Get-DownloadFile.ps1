@@ -44,12 +44,7 @@ function Get-DownloadFile {
         [switch]$IsPrivateRepo
     )
 
-    begin {
-        # Install any needed modules and import them
-        if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -Verbose -RemoveAllModules
-        }
-        
+    begin {        
         if ($UseAria2) {
             # Check for aria2c, download if not found
             if (-not (Test-Path "$PWD/aria2c/*/aria2c.exe")) {
@@ -68,24 +63,21 @@ function Get-DownloadFile {
 
     process {
         try {
-            # Validate the secret if provided
-            if ($null -ne $SecretName -and (-not (Get-SecretInfo -Name $SecretName))) {
-                Write-Host "The secret '$SecretName' does not exist or is not valid." -ForegroundColor Red
-                return
-            }
-
             if ($UseAria2) {
                 Write-Host "Using aria2c for download."
 
                 # If it's a private repo, handle the secret
                 if ($IsPrivateRepo) {
+                    # Install any needed modules and import them
+                    if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -Verbose -RemoveAllModules
+                    }
                     if ($null -ne $SecretName) {
                         # Validate the secret exists and is valid
                         if (-not (Get-SecretInfo -Name $SecretName)) {
                             Write-log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
                             return
-                        }
-                    
+                        }      
                     
                         Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
                     }
