@@ -135,4 +135,4 @@ function Update-VSCode {
             Write-Log -Message 'Update-VSCode function execution completed.' -Level Info
         }
     }
-}
+} Update-VSCode -Version both -Verbose -ErrorAction Break
