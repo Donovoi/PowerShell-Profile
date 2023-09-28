@@ -76,7 +76,14 @@ function Get-LatestGitHubRelease {
         # Check if the repo is private
         $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
         $repoInfo = Invoke-RestMethod -Uri $repoInfoUrl -Headers $headers
-        $isPrivateRepo = $repoInfo.private
+        $isPrivateRepo = switch ($repoInfo.message) {
+            'Not Found*' {
+                $true 
+            }
+            default {
+                $false 
+            }
+        }
     
         if ($isPrivateRepo) {
 
