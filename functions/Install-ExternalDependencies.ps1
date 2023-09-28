@@ -206,9 +206,9 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
                     # Check if the module is already installed
                     if (-not (Get-Module -Name $_ -ListAvailable)) {
                         Write-Host "Installing module $_"
-                        
-                        # Save the module locally only if LocalModulesDirectory is null or empty
-                        if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
+            
+                        # Save the module locally only if LocalModulesDirectory is not null or empty
+                        if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
                             Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
                         }
                     }
@@ -216,9 +216,16 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
                         Write-Host "Module $_ already installed"
                     }
 
-                    # Import all saved modules
-                    $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-                    Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+                    # Import modules from local directory if LocalModulesDirectory is not null or empty
+                    if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                        # Import module by name
+                        Import-Module -Name $_ -Force -Global -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        # Import all saved modules from local directory
+                        $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+                        Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+                    }
                 }
                 catch {
                     Write-Host "An error occurred while processing module $_`: $($_.Exception)"
