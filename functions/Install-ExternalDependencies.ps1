@@ -190,7 +190,7 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
 
         # Uninstall modules if RemoveAllModules flag is set
         if ($RemoveAllModules) {
-            $installedModules = Get-InstalledModule -AllVersions
+            $installedModules = Get-Module -ListAvailable
             $installedModules | ForEach-Object {
                 if ($_.Name -in $neededModules) {
                     Write-Host "Removing module $($_.Name) from $($_.InstalledLocation)"
