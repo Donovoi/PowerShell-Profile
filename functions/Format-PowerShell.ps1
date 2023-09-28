@@ -36,7 +36,7 @@ function Format-Powershell {
       #   IncludeRules = $rules
       # }
   
-      # Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings -Verbose | Out-File -FilePath $file.FullName -Force
+      # Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings | Out-File -FilePath $file.FullName -Force
     }
   }
  

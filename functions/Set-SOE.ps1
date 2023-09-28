@@ -41,7 +41,7 @@ function Install-PackageManagers {
   #Make sure have winget aswell
   if (-not (winget.exe | Select-String 'Windows Package Manager')) {
     Write-Verbose 'Installing winget'
-    Install-WinGet -Verbose
+    Install-WinGet
   }
 
 
@@ -72,7 +72,7 @@ function Set-SOE {
 
     Install-Module -Name WingetTools -Force
     if ($psversiontable.psversion.major -gt 5) {
-      Install-Module -Name WindowsCompatibility -Force -Verbose
+      Install-Module -Name WindowsCompatibility -Force
     }
 
     if (-not (Test-Path $Profile)) {
@@ -83,11 +83,11 @@ function Set-SOE {
 
   process {
     Write-Verbose "Setting Power to be always on"
-    Set-PowerCFG -Verbose
+    Set-PowerCFG
 
     # They have a password get their creds
     if (-not ($NoPassword)) {
-      $creds = Get-Credential -Credential $ENV:USERNAME -Verbose
+      $creds = Get-Credential -Credential $ENV:USERNAME
     }
 
     Install-ChocoBox
@@ -114,7 +114,7 @@ function Set-SOE {
     Install-BoxstarterPackage @Parameters -
     # Make sure we have the latest Redistributables
     Write-Verbose 'Updating Redistributables'
-    Update-VcRedist -Verbose
+    Update-VcRedist
 
     Install-PackageManagers
 
@@ -135,7 +135,7 @@ function Set-SOE {
     . . "$PSScriptRoot\Sophia Script for *\Functions.ps1"
     # Run the script with the functions that we are after
     Write-Verbose 'Running the script with the functions that we are after'
-    Sophia -Functions 'Checkings -Warning','CreateRestorePoint','DiagTrackService -Enable','FeedbackFrequency -Automatically','LanguageListAccess -Disable','AdvertisingID -Disable','WindowsWelcomeExperience -Hide','WindowsTips -Disable','SettingsSuggestedContent -Hide','AppsSilentInstalling -Disable','WhatsNewInWindows -Disable','TailoredExperiences -Disable','BingSearch -Disable','ThisPC -Show','CheckBoxes -Disable','HiddenItems -Enable','FileExtensions -Show','MergeConflicts -Show','OpenFileExplorerTo -ThisPC','CortanaButton -Hide','OneDriveFileExplorerAd -Hide','FileTransferDialog -Detailed','FileExplorerRibbon -Expanded','RecycleBinDeleteConfirmation -Enable','3DObjects -Hide','TaskbarSearch -Hide','TaskViewButton -Hide','SearchHighlights -Hide','PeopleTaskbar -Hide','SecondsInSystemClock -Show','WindowsInkWorkspace -Hide','NotificationAreaIcons -Show','MeetNow -Hide','NewsInterests -Disable','UnpinTaskbarShortcuts -Shortcuts Edge, Store, Mail','ControlPanelView -SmallIcons','WindowsColorMode -Dark','AppColorMode -Dark','NewAppInstalledNotification -Hide','FirstLogonAnimation -Disable','JPEGWallpapersQuality -Max','TaskManagerWindow -Expanded','RestartNotification -Show','PrtScnSnippingTool -Enable','OneDrive -Uninstall','StorageSense -Enable','StorageSenseFrequency -Month','StorageSenseTempFiles -Enable','Hibernation -Disable','Win32LongPathLimit -Disable','BSoDStopError -Enable','AdminApprovalMode -Never','MappedDrivesAppElevatedAccess -Enable','DeliveryOptimization -Enable','WaitNetworkStartup -Enable','WindowsManageDefaultPrinter -Disable','WindowsFeatures -Disable','WindowsFeatures -Enable','WindowsCapabilities -Uninstall','WindowsCapabilities -Install','UpdateMicrosoftProducts -Enable','PowerPlan -High','LatestInstalled.NET -Enable','NetworkAdaptersSavePower -Disable','InputMethod -English','WinPrtScrFolder -Desktop','RecommendedTroubleshooting -Automatically','FoldersLaunchSeparateProcess -Enable','ReservedStorage -Enable','F1HelpPage -Disable','NumLock -Enable','StickyShift -Disable','Autoplay -Disable','ThumbnailCacheRemoval -Disable','SaveRestartableApps -Enable','NetworkDiscovery -Enable','ActiveHours -Automatically','RestartDeviceAfterUpdate -Enable','UninstallPCHealthCheck','InstallVCRedistx64','InstallDotNetRuntime6','WSL','AppSuggestions -Hide','RunPowerShellShortcut -Elevated','PinToStart -Tiles ControlPanel, DevicesPrinters, PowerShell','UninstallUWPApps','RestoreUWPApps','HEIF -Install','CortanaAutostart -Disable','BackgroundUWPApps -Disable','CheckUWPAppsUpdates','XboxGameBar -Disable','XboxGameTips -Disable','SetAppGraphicsPerformance','GPUScheduling -Enable','CleanupTask -Register','SoftwareDistributionTask -Register','TempTask -Register','DismissMSAccount','DismissSmartScreenFilter','AuditProcess -Enable','EventViewerCustomView -Enable','PowerShellModulesLogging -Enable','PowerShellScriptsLogging -Enable','AppsSmartScreen -Disable','SaveZoneInformation -Disable','MSIExtractContext -Show','CABInstallContext -Show','RunAsDifferentUserContext -Show','CastToDeviceContext -Hide','ShareContext -Hide','EditWithPaint3DContext -Hide','EditWithPhotosContext -Hide','CreateANewVideoContext -Hide','PrintCMDContext -Hide','IncludeInLibraryContext -Hide','RichTextDocumentNewContext -Hide','CompressedFolderNewContext -Hide','MultipleInvokeContext -Enable','UseStoreOpenWith -Hide','UpdateLGPEPolicies','Errors','RefreshEnvironment' -Verbose
+    Sophia -Functions 'Checkings -Warning','CreateRestorePoint','DiagTrackService -Enable','FeedbackFrequency -Automatically','LanguageListAccess -Disable','AdvertisingID -Disable','WindowsWelcomeExperience -Hide','WindowsTips -Disable','SettingsSuggestedContent -Hide','AppsSilentInstalling -Disable','WhatsNewInWindows -Disable','TailoredExperiences -Disable','BingSearch -Disable','ThisPC -Show','CheckBoxes -Disable','HiddenItems -Enable','FileExtensions -Show','MergeConflicts -Show','OpenFileExplorerTo -ThisPC','CortanaButton -Hide','OneDriveFileExplorerAd -Hide','FileTransferDialog -Detailed','FileExplorerRibbon -Expanded','RecycleBinDeleteConfirmation -Enable','3DObjects -Hide','TaskbarSearch -Hide','TaskViewButton -Hide','SearchHighlights -Hide','PeopleTaskbar -Hide','SecondsInSystemClock -Show','WindowsInkWorkspace -Hide','NotificationAreaIcons -Show','MeetNow -Hide','NewsInterests -Disable','UnpinTaskbarShortcuts -Shortcuts Edge, Store, Mail','ControlPanelView -SmallIcons','WindowsColorMode -Dark','AppColorMode -Dark','NewAppInstalledNotification -Hide','FirstLogonAnimation -Disable','JPEGWallpapersQuality -Max','TaskManagerWindow -Expanded','RestartNotification -Show','PrtScnSnippingTool -Enable','OneDrive -Uninstall','StorageSense -Enable','StorageSenseFrequency -Month','StorageSenseTempFiles -Enable','Hibernation -Disable','Win32LongPathLimit -Disable','BSoDStopError -Enable','AdminApprovalMode -Never','MappedDrivesAppElevatedAccess -Enable','DeliveryOptimization -Enable','WaitNetworkStartup -Enable','WindowsManageDefaultPrinter -Disable','WindowsFeatures -Disable','WindowsFeatures -Enable','WindowsCapabilities -Uninstall','WindowsCapabilities -Install','UpdateMicrosoftProducts -Enable','PowerPlan -High','LatestInstalled.NET -Enable','NetworkAdaptersSavePower -Disable','InputMethod -English','WinPrtScrFolder -Desktop','RecommendedTroubleshooting -Automatically','FoldersLaunchSeparateProcess -Enable','ReservedStorage -Enable','F1HelpPage -Disable','NumLock -Enable','StickyShift -Disable','Autoplay -Disable','ThumbnailCacheRemoval -Disable','SaveRestartableApps -Enable','NetworkDiscovery -Enable','ActiveHours -Automatically','RestartDeviceAfterUpdate -Enable','UninstallPCHealthCheck','InstallVCRedistx64','InstallDotNetRuntime6','WSL','AppSuggestions -Hide','RunPowerShellShortcut -Elevated','PinToStart -Tiles ControlPanel, DevicesPrinters, PowerShell','UninstallUWPApps','RestoreUWPApps','HEIF -Install','CortanaAutostart -Disable','BackgroundUWPApps -Disable','CheckUWPAppsUpdates','XboxGameBar -Disable','XboxGameTips -Disable','SetAppGraphicsPerformance','GPUScheduling -Enable','CleanupTask -Register','SoftwareDistributionTask -Register','TempTask -Register','DismissMSAccount','DismissSmartScreenFilter','AuditProcess -Enable','EventViewerCustomView -Enable','PowerShellModulesLogging -Enable','PowerShellScriptsLogging -Enable','AppsSmartScreen -Disable','SaveZoneInformation -Disable','MSIExtractContext -Show','CABInstallContext -Show','RunAsDifferentUserContext -Show','CastToDeviceContext -Hide','ShareContext -Hide','EditWithPaint3DContext -Hide','EditWithPhotosContext -Hide','CreateANewVideoContext -Hide','PrintCMDContext -Hide','IncludeInLibraryContext -Hide','RichTextDocumentNewContext -Hide','CompressedFolderNewContext -Hide','MultipleInvokeContext -Enable','UseStoreOpenWith -Hide','UpdateLGPEPolicies','Errors','RefreshEnvironment'
 
   }
 

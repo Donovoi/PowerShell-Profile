@@ -44,7 +44,7 @@ System.Management.Automation.PSCustomObject
 System.Object
 
 .EXAMPLE
-Get-Process powershell | Set-Window -X 20 -Y 40 -Passthru -Verbose
+Get-Process powershell | Set-Window -X 20 -Y 40 -Passthru
 VERBOSE: powershell (Id=11140, Handle=132410)
 
 Id          : 11140

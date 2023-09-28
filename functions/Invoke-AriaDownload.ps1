@@ -44,7 +44,7 @@ function Invoke-AriaDownload {
     begin {
         # Install any needed modules and import them
         if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -Verbose
+            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
         }
 
         # Print the name of the running script
@@ -60,7 +60,7 @@ function Invoke-AriaDownload {
         try {
             # If the output file already exists, remove it
             if (Test-Path $OutFile) {
-                Remove-Item -Path $OutFile -Force -Verbose -ErrorAction Stop
+                Remove-Item -Path $OutFile -Force -ErrorAction Stop
             }
             
             # Construct the authorization header if a valid secret name is provided and the url is from github

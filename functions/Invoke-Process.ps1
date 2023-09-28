@@ -5,7 +5,7 @@ It is a wrapper around the Start-Process cmdlet.
 
 .DESCRIPTION
 Taken from work done by Adam Bertram https://www.powershellgallery.com/packages/Invoke-Process/1.4/Content/Invoke-Process.ps1
-The Invoke-Process function is an advanced function that supports common parameters like -Verbose, -Debug etc.
+The Invoke-Process function is an advanced function that supports common parameters like, -Debug etc.
 It takes a mandatory file path and an optional argument list as input parameters.
 The function also defines dynamic parameters for the Start-Process cmdlet excluding the 'FilePath', 'ArgumentList' and common parameters.
 
@@ -41,7 +41,7 @@ This example demonstrates how to use the Invoke-Process function to start a proc
 The function creates temporary files for standard output and error. It then starts the process and keeps checking the process until it has exited. During this time, it writes new lines of standard output and error to the console. If any exception occurs, it throws a terminating error. Finally, it removes the temporary files.
 #>
 function Invoke-Process {
-    # CmdletBinding attribute is used to make this function advanced which means it will support common parameters like -Verbose, -Debug etc.
+    # CmdletBinding attribute is used to make this function advanced which means it will support common parameters like, -Debug etc.
     [CmdletBinding(SupportsShouldProcess)]
     param(
         # Mandatory parameter for file path. It should not be null or empty.

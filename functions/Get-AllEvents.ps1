@@ -64,7 +64,7 @@ function Get-AllEvents {
           $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
           $filename = "Events_$date`_$Computer.csv" -replace ':', '_'
           $filename = $filename -replace '/', '-'
-          $EventsSorted | Export-Csv (Join-Path $ExportToCSVPath $filename) -NoTypeInformation -Verbose
+          $EventsSorted | Export-Csv (Join-Path $ExportToCSVPath $filename) -NoTypeInformation
         }
         else {
           try {
