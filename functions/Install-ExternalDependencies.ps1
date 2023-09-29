@@ -97,7 +97,7 @@ function SetupPackageProviders {
 
             # Extract the nupkg (it's just a zip file)
             Add-Type -AssemblyName System.IO.Compression.FileSystem
-            [System.IO.Compression.ZipFile]::ExtractToDirectory($downloadPath, $extractPath)
+            Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
 
             # Find the DLL path
             $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
