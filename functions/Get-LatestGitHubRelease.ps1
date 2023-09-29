@@ -67,15 +67,23 @@ function Get-LatestGitHubRelease {
     
     begin {
     
-        # Prepare API headers without Authorization
-        $headers = @{
-            'Accept'               = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
+        # Initialize a hashtable to hold the parameters
+        $params = @{
+            Uri         = $repoInfoUrl
+            Headers     = $headers
+            ErrorAction = 'SilentlyContinue'
         }
-    
-        # Check if the repo is private
-        $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
-        $repoInfo = Invoke-RestMethod -Uri $repoInfoUrl -Headers $headers -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+
+        # Conditionally add the SkipHttpErrorCheck parameter based on your condition
+        # Replace $YourCondition with the actual condition you want to check
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $params['SkipHttpErrorCheck'] = $true
+        }
+
+        # Use splatting to call Invoke-RestMethod
+        $repoInfo = Invoke-RestMethod @params
+
+        # Rest of your code
         $isPrivateRepo = switch ($repoInfo.message) {
             'Not Found*' {
                 $true 
@@ -84,6 +92,7 @@ function Get-LatestGitHubRelease {
                 $false 
             }
         }
+
     
         if ($isPrivateRepo) {
 
