@@ -66,8 +66,15 @@ function Get-LatestGitHubRelease {
     )
     
     begin {
+
+          # Prepare API headers without Authorization
+          $headers = @{
+            'Accept'               = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+        }
     
         # Initialize a hashtable to hold the parameters
+        $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
         $params = @{
             Uri         = $repoInfoUrl
             Headers     = $headers
