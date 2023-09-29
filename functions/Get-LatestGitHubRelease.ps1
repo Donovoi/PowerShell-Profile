@@ -99,8 +99,6 @@ function Get-LatestGitHubRelease {
         }
         catch {
             $errorMessage = $_.Exception.Message
-            Write-Host "Caught an exception: $errorMessage"
-
             # Check for 'Not Found' or any other conditions
             if ($errorMessage -like 'Not Found*') {
                 $isPrivateRepo = $true
@@ -266,4 +264,5 @@ function Get-LatestGitHubRelease {
         }
     }
 }
+
 
