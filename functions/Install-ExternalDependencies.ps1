@@ -76,6 +76,43 @@ function RunAsAdmin {
 function SetupPackageProviders {
     try {
         # Ensure NuGet package provider is installed and registered
+        if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
+            # Define the URL for the latest PackageManagement nupkg
+            $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
+
+            # Define the download path
+            $downloadPath = Join-Path $env:TEMP "PackageManagement.nupkg"
+
+            # Download the nupkg file
+            Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
+
+            # Define the extraction path
+            $extractPath = Join-Path $env:TEMP "PackageManagement"
+
+            # Create the extraction directory if it doesn't exist
+            if (-Not (Test-Path $extractPath)) {
+                New-Item -Path $extractPath -ItemType Directory
+            }
+
+            # Extract the nupkg (it's just a zip file)
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($downloadPath, $extractPath)
+
+            # Find the DLL path
+            $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
+
+            # Import the module
+            Import-Module $dllPath
+
+            # Test to see if it's working
+            Get-Command -Module PackageManagement
+
+            # Clean up
+            Remove-Item -Path $downloadPath
+            Remove-Item -Path $extractPath -Recurse
+
+
+        }
         Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
         if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
             Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
@@ -251,4 +288,3 @@ function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$R
         }
     }
 }
-
