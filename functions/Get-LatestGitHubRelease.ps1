@@ -72,34 +72,40 @@ function Get-LatestGitHubRelease {
             'Accept'               = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
         }
-    
+
         # Initialize a hashtable to hold the parameters
         $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
         $params = @{
             Uri         = $repoInfoUrl
             Headers     = $headers
-            ErrorAction = 'SilentlyContinue'
+            ErrorAction = 'Stop'  # Changed to 'Stop' to catch it in try-catch
         }
 
-        # Conditionally add the SkipHttpErrorCheck parameter based on your condition
-        # Replace $YourCondition with the actual condition you want to check
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $params['SkipHttpErrorCheck'] = $true
-        }
+        $isPrivateRepo = $false  # Default value
 
-        # Use splatting to call Invoke-RestMethod
-        $repoInfo = Invoke-RestMethod @params | Out-Null
+        try {
+            # Use splatting to call Invoke-RestMethod
+            $repoInfo = Invoke-RestMethod @params  # Removed Out-Null
 
-        # Rest of your code
-        $isPrivateRepo = switch ($repoInfo.message) {
-            'Not Found*' {
-                $true 
-            }
-            default {
-                $false 
+            # Rest of your code
+            $isPrivateRepo = switch ($repoInfo.message) {
+                'Not Found*' {
+                    $true 
+                }
+                default {
+                    $false 
+                }
             }
         }
+        catch {
+            $errorMessage = $_.Exception.Message
+            Write-Host "Caught an exception: $errorMessage"
 
+            # Check for 'Not Found' or any other conditions
+            if ($errorMessage -like 'Not Found*') {
+                $isPrivateRepo = $true
+            }
+        }
     
         if ($isPrivateRepo) {
 
