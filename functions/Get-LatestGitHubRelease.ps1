@@ -67,8 +67,8 @@ function Get-LatestGitHubRelease {
     
     begin {
 
-          # Prepare API headers without Authorization
-          $headers = @{
+        # Prepare API headers without Authorization
+        $headers = @{
             'Accept'               = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
         }
