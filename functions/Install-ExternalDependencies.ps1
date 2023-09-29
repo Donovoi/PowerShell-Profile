@@ -81,7 +81,7 @@ function SetupPackageProviders {
             $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
 
             # Define the download path
-            $downloadPath = Join-Path $env:TEMP "PackageManagement.nupkg"
+            $downloadPath = Join-Path $env:TEMP "PackageManagement.zip"
 
             # Download the nupkg file
             Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
@@ -90,9 +90,10 @@ function SetupPackageProviders {
             $extractPath = Join-Path $env:TEMP "PackageManagement"
 
             # Create the extraction directory if it doesn't exist
-            if (-Not (Test-Path $extractPath)) {
-                New-Item -Path $extractPath -ItemType Directory
+            if (Test-Path $extractPath) {
+                Remove-Item -Path $extractPath -Recurse -Force
             }
+            New-Item -Path $extractPath -ItemType Directory
 
             # Extract the nupkg (it's just a zip file)
             Add-Type -AssemblyName System.IO.Compression.FileSystem
