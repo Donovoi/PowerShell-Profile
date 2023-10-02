@@ -109,7 +109,7 @@ function Get-LatestGitHubRelease {
             $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
             # Install any needed modules and import them
             if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
-                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
+                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
 
             # Initialize SecretStore configuration
