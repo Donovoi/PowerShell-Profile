@@ -279,6 +279,9 @@ function Install-PSModules {
                             if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
                                 Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
                             }
+
+                            # Install module
+                            Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser
                         }
                         else {
                             Write-Host "Module $_ already installed"
