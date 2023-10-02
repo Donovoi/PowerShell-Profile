@@ -108,17 +108,23 @@ function Get-LatestGitHubRelease {
         if ($isPrivateRepo) {
             $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
             # Install any needed modules and import them
+            # At the start of the session
+            $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
             if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
                 Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
-            $currentConfig = Get-SecretStoreConfiguration
-            if (-not [string]::IsNullOrEmpty($currentConfig.Authentication)) {
+            # Later in the session
+            $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
+
+            # Find new modules installed during this session
+            $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
+            if ($newModules -notcontains "*Secret*") {
                 try {
                     Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
                 }
                 catch {
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password 
+                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
                 }
             }
             else {
