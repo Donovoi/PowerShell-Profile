@@ -120,7 +120,7 @@ function Install-PackageProviders {
         #     Remove-Item -Path $extractPath -Recurse
 
 
-        }
+        #Install-Module -Name PackageManagement -Force -Confirm:$false -AllowClobber -Scope CurrentUser -ErrorAction SilentlyContinue
         Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
         if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
             Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
