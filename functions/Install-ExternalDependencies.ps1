@@ -202,9 +202,9 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
         if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
             # Install NuGet packages
             Add-NuGetDependencies -NugetPackages $deps
-        } else {
+        }
+        else {
             Write-Host "No NuGet packages to install"
-            continue
         }
     }
     catch {
