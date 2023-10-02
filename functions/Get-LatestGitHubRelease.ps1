@@ -129,7 +129,8 @@ function Get-LatestGitHubRelease {
                     Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Password $initialPassword -Confirm:$false -Interaction None
+                    Reset-SecretStore -Authentication Password -Password $initialPassword -PasswordTimeout 3600 -Interaction None -Force
+                    # Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Password $initialPassword -Confirm:$false -Interaction None
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $initialPassword
                 }
                 catch {
