@@ -106,6 +106,7 @@ function Get-LatestGitHubRelease {
         }
     
         if ($isPrivateRepo) {
+            $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
             # Install any needed modules and import them
             if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
                 Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
@@ -113,7 +114,14 @@ function Get-LatestGitHubRelease {
 
             # Initialize SecretStore configuration
             # Check if SecretStore is already configured
-            $currentConfig = Get-SecretStoreConfiguration -ErrorAction SilentlyContinue
+            try {
+                $currentConfig = Get-SecretStoreConfiguration
+            }
+            catch {
+                #try unlocking the secret store
+                Unlock-SecretStore -Password $initialPassword                
+            }
+            $currentConfig = Get-SecretStoreConfiguration
             if ($currentConfig.Authentication -ne 'None') {
                 try {
                     Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
@@ -128,7 +136,7 @@ function Get-LatestGitHubRelease {
                     Write-Host "Initializing the secret store..." -ForegroundColor Yellow
                     Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
                     # Initialize the secret store
-                    $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
+                    
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
 
