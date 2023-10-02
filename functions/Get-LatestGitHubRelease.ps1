@@ -111,18 +111,8 @@ function Get-LatestGitHubRelease {
             if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
                 Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
-
-            # Initialize SecretStore configuration
-            # Check if SecretStore is already configured
-            try {
-                $currentConfig = Get-SecretStoreConfiguration
-            }
-            catch {
-                #try unlocking the secret store
-                Unlock-SecretStore -Password $initialPassword                
-            }
             $currentConfig = Get-SecretStoreConfiguration
-            if ($currentConfig.Authentication -ne 'None') {
+            if (-not [string]::IsNullOrEmpty($currentConfig.Authentication)) {
                 try {
                     Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
@@ -135,8 +125,7 @@ function Get-LatestGitHubRelease {
                 try {
                     Write-Host "Initializing the secret store..." -ForegroundColor Yellow
                     Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                    # Initialize the secret store
-                    
+                    # Initialize the secret store                    
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
 
