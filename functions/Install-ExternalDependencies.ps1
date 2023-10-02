@@ -83,50 +83,53 @@ function Install-PackageProviders {
 
     )
     try {
-        # # Ensure NuGet package provider is installed and registered
-        # if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
-        #     # Define the URL for the latest PackageManagement nupkg
-        #     $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
+        # Ensure NuGet package provider is installed and registered
+        if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
+            # Define the URL for the latest PackageManagement nupkg
+            $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
 
-        #     # Define the download path
-        #     $downloadPath = Join-Path $env:TEMP "PackageManagement.zip"
+            # Define the download path
+            $downloadPath = Join-Path $env:TEMP "PackageManagement.zip"
 
-        #     # Download the nupkg file
-        #     Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
+            # Download the nupkg file
+            Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
 
-        #     # Define the extraction path
-        #     $extractPath = Join-Path $env:TEMP "PackageManagement"
+            # Define the extraction path
+            $extractPath = Join-Path $env:TEMP "PackageManagement"
 
-        #     # Create the extraction directory if it doesn't exist
-        #     if (Test-Path $extractPath) {
-        #         Remove-Item -Path $extractPath -Recurse -Force
-        #     }
-        #     New-Item -Path $extractPath -ItemType Directory
+            # Create the extraction directory if it doesn't exist
+            if (Test-Path $extractPath) {
+                Remove-Item -Path $extractPath -Recurse -Force
+            }
+            New-Item -Path $extractPath -ItemType Directory
 
-        #     # Extract the nupkg (it's just a zip file)
-        #     Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
+            # Extract the nupkg (it's just a zip file)
+            Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
 
-        #     # Find the DLL path
-        #     $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
+            # Find the DLL path
+            $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
 
-        #     # Import the module
-        #     Import-Module $dllPath
+            # Import the module
+            Import-Module $dllPath
 
-        #     # Test to see if it's working
-        #     Get-Command -Module PackageManagement
+            # Test to see if it's working
+            Get-Command -Module PackageManagement
 
-        #     # Clean up
-        #     Remove-Item -Path $downloadPath
-        #     Remove-Item -Path $extractPath -Recurse
-
-
-        #Install-Module -Name PackageManagement -Force -Confirm:$false -AllowClobber -Scope CurrentUser -ErrorAction SilentlyContinue
-        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
-        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
-            Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
-            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            # Clean up
+            Remove-Item -Path $downloadPath
+            Remove-Item -Path $extractPath -Recurse
         }
+        else {
+            Write-Host "PackageManagement module already installed"
+        }
+
+
+        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
+        
+        Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
+        Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
+        Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+        
     
         # Ensure PowerShellGet package provider is installed
         if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue)) {
