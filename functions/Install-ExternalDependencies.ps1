@@ -191,14 +191,21 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
             }
         }
         else {
-            $NugetPackages
+        
+            $deps = $NugetPackages
         }
+        
     
         # Log the installation process (assumes you have a custom logging function)
         Write-Host "Installing NuGet dependencies"
     
-        # Install NuGet packages
-        Add-NuGetDependencies -NugetPackages $deps
+        if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
+            # Install NuGet packages
+            Add-NuGetDependencies -NugetPackages $deps
+        } else {
+            Write-Host "No NuGet packages to install"
+            continue
+        }
     }
     catch {
         # Log any errors that occur during the installation
