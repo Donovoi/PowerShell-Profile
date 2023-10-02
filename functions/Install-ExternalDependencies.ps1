@@ -49,7 +49,7 @@ function Install-ExternalDependencies {
     SetupPackageProviders
 
     # Install NuGet dependencies
-    if (-not $NoNugetPackages) {
+    if (-not $NoNugetPackages ) {
         InstallNugetDeps $InstallDefaultNugetPackages $NugetPackages
     }
 
@@ -57,6 +57,10 @@ function Install-ExternalDependencies {
     if (-not $NoPSModules) {
         InstallPSModules $InstallDefaultPSModules $PSModules $RemoveAllModules $LocalModulesDirectory  
     }
+
+    # refresh environment variables
+    Update-SessionEnvironment
+    
 }
 
 
@@ -96,7 +100,6 @@ function SetupPackageProviders {
             New-Item -Path $extractPath -ItemType Directory
 
             # Extract the nupkg (it's just a zip file)
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
             Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
 
             # Find the DLL path
@@ -204,88 +207,189 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
 }
     
 
-function InstallPSModules ([bool]$InstallDefault, [string[]]$PSModules, [bool]$RemoveAllModules, [string]$LocalModulesDirectory) {
-    try {
-        # Determine which modules are needed based on the InstallDefault flag
-        $neededModules = if ($InstallDefault) {
-            @(
-                'Microsoft.PowerShell.ConsoleGuiTools',
-                'ImportExcel',
-                'PSWriteColor',
-                'JWTDetails',
-                '7zip4powershell',
-                'PSEverything',
-                'PSFramework',
-                'Crescendo',
-                'Microsoft.WinGet.Client',
-                'Microsoft.PowerShell.SecretManagement',
-                'Microsoft.PowerShell.SecretStore'
-            )
-        }
-        else {
-            $PSModules
-        }
+function Install-PSModules {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [bool]$InstallDefaultPSModules,
 
-        # Uninstall modules if RemoveAllModules flag is set
-        if ($RemoveAllModules) {
-            $installedModules = Get-Module -ListAvailable
-            $installedModules | ForEach-Object {
-                if ($_.Name -in $neededModules) {
-                    Write-Host "Removing module $($_.Name)"
-                    Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
-                    Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
-                    if ($null -ne $_.InstalledLocation) {
-                        Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
+        [Parameter(Mandatory = $false)]
+        [string[]]$PSModules,
+
+        [Parameter(Mandatory = $false)]
+        [bool]$RemoveAllModules,
+
+        [Parameter(Mandatory = $false)]
+        [string]$LocalModulesDirectory
+    )
+
+    begin {
+        # Not yet used
+    }
+
+    process {
+        try {
+            # Determine which modules are needed based on the InstallDefaultPSModules flag
+            $neededModules = if ($InstallDefaultPSModules) {
+                @(
+                    'Microsoft.PowerShell.ConsoleGuiTools',
+                    'ImportExcel',
+                    'PSWriteColor',
+                    'JWTDetails',
+                    '7zip4powershell',
+                    'PSEverything',
+                    'PSFramework',
+                    'Crescendo',
+                    'Microsoft.WinGet.Client',
+                    'Microsoft.PowerShell.SecretManagement',
+                    'Microsoft.PowerShell.SecretStore'
+                )
+            }
+            else {
+                $PSModules
+            }
+
+            # Uninstall modules if RemoveAllModules flag is set
+            if ($RemoveAllModules) {
+                $installedModules = Get-Module -ListAvailable
+                $installedModules | ForEach-Object {
+                    if ($_.Name -in $neededModules) {
+                        Write-Host "Removing module $($_.Name)"
+                        Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
+                        Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
+                        if ($null -ne $_.InstalledLocation) {
+                            Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            Write-Host "InstalledLocation is empty for module $($_.Name). Skipping removal."
+                        }
+                        
                     }
-                    else {
-                        Write-Host "InstalledLocation is empty for module $($_.Name). Skipping removal."
-                    }
-                    
                 }
             }
-        }
 
-        # Install and import modules
-        $neededModules.ForEach({
-                try {
-                    # Check if the module is already installed
-                    if (-not (Get-Module -Name $_ -ListAvailable)) {
-                        Write-Host "Installing module $_"
-            
-                        # Save the module locally only if LocalModulesDirectory is not null or empty
-                        if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
-                            Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+            # Install and import modules
+            $neededModules.ForEach({
+                    try {
+                        # Check if the module is already installed
+                        if (-not (Get-Module -Name $_ -ListAvailable)) {
+                            Write-Host "Installing module $_"
+                
+                            # Save the module locally only if LocalModulesDirectory is not null or empty
+                            if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
+                                Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                            }
+                        }
+                        else {
+                            Write-Host "Module $_ already installed"
+                        }
+
+                        # Import modules from local directory if LocalModulesDirectory is not null or empty
+                        if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                            # Import module by name
+                            Import-Module -Name $_ -Force -Global -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            # Import all saved modules from local directory
+                            $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+                            Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
                         }
                     }
-                    else {
-                        Write-Host "Module $_ already installed"
+                    catch {
+                        Write-Host "An error occurred while processing module $_`: $($_.Exception)"
                     }
-
-                    # Import modules from local directory if LocalModulesDirectory is not null or empty
-                    if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
-                        # Import module by name
-                        Import-Module -Name $_ -Force -Global -ErrorAction SilentlyContinue
-                    }
-                    else {
-                        # Import all saved modules from local directory
-                        $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-                        Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
-                    }
-                }
-                catch {
-                    Write-Host "An error occurred while processing module $_`: $($_.Exception)"
-                }
-            })
-    }
-    catch {
-        if ($_.Exception.Message -match '.ps1xml') {
-            Write-Host "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module."
-            $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
-            Remove-Item $moduleDir -Recurse -Force
-            Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
+                })
         }
-        else {
-            Write-Host "An unexpected global error occurred: $_"
+        catch {
+            if ($_.Exception.Message -match '.ps1xml') {
+                Write-Host "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module."
+                $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
+                Remove-Item $moduleDir -Recurse -Force
+                Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
+            }
+            else {
+                Write-Host "An unexpected global error occurred: $_"
+            }
+        }
+    }
+
+    end {
+        # Not yet used
+    }
+}
+
+function Update-SessionEnvironment {    
+    $refreshEnv = $false
+    $invocation = $MyInvocation
+    if ($invocation.InvocationName -eq 'refreshenv') {
+        $refreshEnv = $true
+    }
+
+    if ($refreshEnv) {
+        Write-Output 'Refreshing environment variables from the registry for powershell.exe. Please wait...'
+    }
+    else {
+        Write-Verbose 'Refreshing environment variables from the registry.'
+    }
+
+    $userName = $env:USERNAME
+    $architecture = $env:PROCESSOR_ARCHITECTURE
+    $psModulePath = $env:PSModulePath
+
+    #ordering is important here, $user should override $machine...
+    $ScopeList = 'Process', 'Machine'
+    if ('SYSTEM', "${env:COMPUTERNAME}`$" -notcontains $userName) {
+        # but only if not running as the SYSTEM/machine in which case user can be ignored.
+        $ScopeList += 'User'
+    }
+    foreach ($Scope in $ScopeList) {
+        Get-EnvironmentVariableNames -Scope $Scope |
+            ForEach-Object {
+                Set-Item "Env:$_" -Value (Get-EnvironmentVariable -Scope $Scope -Name $_)
+            }
+    }
+
+    #Path gets special treatment b/c it munges the two together
+    $paths = 'Machine', 'User' |
+        ForEach-Object {
+    (Get-EnvironmentVariable -Name 'PATH' -Scope $_) -split ';'
+        } |
+            Select-Object -Unique
+    $Env:PATH = $paths -join ';'
+
+    # PSModulePath is almost always updated by process, so we want to preserve it.
+    $env:PSModulePath = $psModulePath
+
+    # reset user and architecture
+    if ($userName) {
+        $env:USERNAME = $userName
+    }
+    if ($architecture) {
+        $env:PROCESSOR_ARCHITECTURE = $architecture
+    }
+
+    if ($refreshEnv) {
+        Write-Output 'Finished'
+    }
+}
+
+function Get-EnvironmentVariableNames([System.EnvironmentVariableTarget] $Scope) {
+
+    # HKCU:\Environment may not exist in all Windows OSes (such as Server Core).
+    switch ($Scope) {
+        'User' {
+            Get-Item 'HKCU:\Environment' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property
+        }
+        'Machine' {
+            Get-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' | Select-Object -ExpandProperty Property
+        }
+        'Process' {
+            Get-ChildItem Env:\ | Select-Object -ExpandProperty Key
+        }
+        default {
+            throw "Unsupported environment scope: $Scope"
         }
     }
 }
+
+
