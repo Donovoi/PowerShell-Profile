@@ -34,21 +34,11 @@ function Set-StoredSecret {
         $SecretName
     )
 
-    # run my profile to import the functions
-    $myDocuments = [Environment]::GetFolderPath('MyDocuments')
-    $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
-    if (Test-Path -Path $myProfile) {
-        . $myProfile
-    }
-    else {
-        Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
-    }
-
     # Install and import secret management modules if not already installed
     $modulestoinstall = @('Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore')
     $modulestoinstall | ForEach-Object {
         if (-not (Get-Module -ListAvailable -Name $_)) {
-            Install-Module -Name $_ -Scope CurrentUser -Force
+            Install-Module -Name $_ -Scope CurrentUser -Force -Confirm:$false -AllowClobber
         }
         Import-Module -Name $_ -Force
     }
@@ -70,9 +60,10 @@ function Set-StoredSecret {
     else {
         # if there is no secret store, create one
         try {
-            Write-Log -Message "Initializing the secret store..." -Level INFO
-            Write-Log -Message "You will now be asked to enter a password for the secret store: " -Level WARNING
-            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+            Write-Host "Initializing the secret store..." -ForegroundColor Yellow
+            Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
+            Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
+            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecretStorePassword
         }
         catch {
             Write-Log -Message "An error occurred while initializing the secret store: $_" -Level ERROR
