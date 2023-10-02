@@ -46,7 +46,7 @@ function Install-ExternalDependencies {
     RunAsAdmin
 
     # Setup package providers
-    SetupPackageProviders
+    Install-PackageProviders
 
     # Install NuGet dependencies
     if (-not $NoNugetPackages ) {
@@ -77,7 +77,7 @@ function RunAsAdmin {
     }
 }
 
-function SetupPackageProviders {
+function Install-PackageProviders {
     try {
         # Ensure NuGet package provider is installed and registered
         if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
