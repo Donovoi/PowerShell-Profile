@@ -55,7 +55,7 @@ function Install-ExternalDependencies {
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        InstallPSModules $InstallDefaultPSModules $PSModules $RemoveAllModules $LocalModulesDirectory  
+        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModules:$PSModules -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
     }
 
     # refresh environment variables
@@ -384,10 +384,10 @@ function Get-EnvironmentVariable {
         [parameter(ValueFromRemainingArguments = $true)][Object[]] $ignoredArguments
     )
 
-    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\";
+    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\"
     [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME)
     if ($Scope -eq [System.EnvironmentVariableTarget]::User) {
-        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = "Environment";
+        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = "Environment"
         [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($USER_ENVIRONMENT_REGISTRY_KEY_NAME)
     }
     elseif ($Scope -eq [System.EnvironmentVariableTarget]::Process) {
