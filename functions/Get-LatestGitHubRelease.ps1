@@ -118,31 +118,31 @@ function Get-LatestGitHubRelease {
 
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
-            if ($newModules -notlike "*Secret*") {
-                try {
-                    Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
-                    Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
-                }
-                catch {
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
-                }
-            }
-            else {
-                try {
-                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow
-                    Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                    # Initialize the secret store                    
-                    Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
+            # if ($newModules -notlike "*Secret*") {
+            #     try {
+            #         Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
+            #         Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
+            #     }
+            #     catch {
+            #         Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+            #     }
+            # }
+            # else {
+            try {
+                Write-Host "Initializing the secret store..." -ForegroundColor Yellow
+                Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
+                # Initialize the secret store                    
+                Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
+                Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
 
-                    # Now switch to None
-                    Set-SecretStoreConfiguration -Authentication None -Interaction None -Confirm:$false
-                }
-                catch {
-                    Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
-                    throw
-                }
+                # Now switch to None
+                Set-SecretStoreConfiguration -Authentication None -Interaction None -Confirm:$false
             }
+            catch {
+                Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
+                throw
+            }
+            # }
     
             # Retrieve GitHub token
             $Token = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
