@@ -85,7 +85,7 @@ function Get-LatestGitHubRelease {
 
         try {
             # Use splatting to call Invoke-RestMethod
-            $repoInfo = Invoke-RestMethod @params  # Removed Out-Null
+            $repoInfo = Invoke-RestMethod @params  
 
             # Rest of your code
             $isPrivateRepo = switch ($repoInfo.message) {
