@@ -118,7 +118,7 @@ function Get-LatestGitHubRelease {
 
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
-            if ($newModules -notcontains "*Secret*") {
+            if ($newModules -notlike "*Secret*") {
                 try {
                     Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
