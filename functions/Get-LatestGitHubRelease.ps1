@@ -62,6 +62,9 @@ function Get-LatestGitHubRelease {
         [switch] $VersionOnly,
 
         [Parameter(Mandatory = $false)]
+        [string] $SecretStorePassword = 'P@ssw0rd',
+
+        [Parameter(Mandatory = $false)]
         [string] $TokenName = 'GitHubToken'
     )
     
@@ -120,14 +123,15 @@ function Get-LatestGitHubRelease {
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
                 }
                 catch {
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password 
                 }
             }
             else {
                 try {
                     Write-Host "Initializing the secret store..." -ForegroundColor Yellow
                     Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                    Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
+                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecretStorePassword
                 }
                 catch {
                     Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
