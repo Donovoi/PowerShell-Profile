@@ -90,7 +90,7 @@ function Invoke-AriaDownload {
                 "--out=$(Split-Path -Leaf $OutFile)",
                 $authHeader, # Include the authorization header if it was constructed
                 $URL
-            ) -NoNewWindow -Wait -ErrorAction Break
+            ) -NoNewWindow -Wait
 
             return $OutFile
         }
