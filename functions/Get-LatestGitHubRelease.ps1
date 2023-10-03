@@ -29,7 +29,7 @@
    A switch parameter that, when used, instructs the function to only return the version of the latest release, without downloading any assets.
 
 .PARAMETER TokenName
-   Specifies the name of the secret containing the GitHub token to be used for authentication. This is only required for private repositories and defaults to 'GitHubToken'.
+   Specifies the name of the secret containing the GitHub token to be used for authentication. This is only required for private repositories and defaults to ReadOnlyGitHubToken.
 
 .EXAMPLE
    Get-LatestGitHubRelease -OwnerRepository 'owner/repository' -TokenName 'your_secret_token_here'
@@ -62,7 +62,7 @@ function Get-LatestGitHubRelease {
         [switch] $VersionOnly,
 
         [Parameter(Mandatory = $false)]
-        [string] $TokenName = 'GitHubToken'
+        [string] $TokenName = 'ReadOnlyGitHubToken'
     )
     
     begin {
@@ -213,9 +213,6 @@ function Get-LatestGitHubRelease {
 
                     if ($TokenName -and $isPrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
-                    }
-
-                    if ($isPrivateRepo) {
                         $downloadFileParams['IsPrivateRepo'] = $true
                     }
 
