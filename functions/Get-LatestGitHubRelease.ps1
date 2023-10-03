@@ -148,7 +148,7 @@ function Get-LatestGitHubRelease {
             }
             else {
                 $TokenValue = Read-Host -Prompt "Enter the GitHub token" -AsSecureString
-                Set-StoredSecret -Secret $TokenValue -SecretName $TokenName
+                Set-StoredSecret -Secret $TokenValue -SecretName $TokenName -SecurePassword $initialPassword
                 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($TokenValue)
                 $PlainTextToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
                 $headers['Authorization'] = "Bearer $PlainTextToken"
