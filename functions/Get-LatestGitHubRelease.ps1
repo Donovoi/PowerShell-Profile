@@ -110,7 +110,7 @@ function Get-LatestGitHubRelease {
             # Install any needed modules and import them
             # At the start of the session
             $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
-            if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+            if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
                 Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
             # Later in the session
@@ -271,3 +271,23 @@ function Get-LatestGitHubRelease {
         }
     }
 }
+
+# Initialize a hashtable to hold the parameters
+$params = @{
+    OwnerRepository       = "donovoi/rcloned"
+    AssetName             = "asset.zip"
+    DownloadPathDirectory = $PWD
+    ExtractZip            = $true
+    UseAria2              = $true
+    PreRelease            = $true
+    TokenName             = "ReadOnlyGitHubToken"
+    Verbose               = $true
+}
+
+# Conditionally add the ErrorAction parameter if PSVersion is 7 or greater
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+    $params['ErrorAction'] = 'Break'
+}
+
+# Use splatting to call the function
+Get-LatestGitHubRelease @params
