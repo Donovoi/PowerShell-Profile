@@ -129,9 +129,7 @@ function Get-LatestGitHubRelease {
             }
             else {
                 try {
-                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow
-                    Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                    # Initialize the secret store                    
+                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow                    # Initialize the secret store                    
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $initialPassword
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
@@ -143,7 +141,8 @@ function Get-LatestGitHubRelease {
             }
     
             # Retrieve GitHub token
-            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
+            Unlock-SecretStore -Password $initialPassword
+            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText 
             if (-not ([string]::IsNullOrEmpty($PlainTextToken))) {
                 $headers['Authorization'] = "Bearer $PlainTextToken"
             }
