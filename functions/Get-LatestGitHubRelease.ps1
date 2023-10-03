@@ -111,14 +111,14 @@ function Get-LatestGitHubRelease {
             # At the start of the session
             $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
             if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
+                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages -RemoveAllModules
             }
             # Later in the session
             $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
 
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
-            if ($newModules -notlike "*Secret*") {
+            if ($newModules -notcontains "Microsoft.PowerShell.SecretManagement") {
                 try {
                     Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
@@ -271,23 +271,3 @@ function Get-LatestGitHubRelease {
         }
     }
 }
-
-# Initialize a hashtable to hold the parameters
-$params = @{
-    OwnerRepository       = "donovoi/rcloned"
-    AssetName             = "asset.zip"
-    DownloadPathDirectory = $PWD
-    ExtractZip            = $true
-    UseAria2              = $true
-    PreRelease            = $true
-    TokenName             = "ReadOnlyGitHubToken"
-    Verbose               = $true
-}
-
-# Conditionally add the ErrorAction parameter if PSVersion is 7 or greater
-if ($PSVersionTable.PSVersion.Major -ge 7) {
-    $params['ErrorAction'] = 'Break'
-}
-
-# Use splatting to call the function
-Get-LatestGitHubRelease @params
