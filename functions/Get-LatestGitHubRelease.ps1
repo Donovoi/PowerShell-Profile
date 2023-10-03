@@ -128,19 +128,19 @@ function Get-LatestGitHubRelease {
                 }
             }
             else {
-            try {
-                Write-Host "Initializing the secret store..." -ForegroundColor Yellow
-                Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
-                # Initialize the secret store                    
-                # Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
-                # Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $($initialPassword)
-                # Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
+                try {
+                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow
+                    Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
+                    # Initialize the secret store                    
+                    # Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
+                    # Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $($initialPassword)
+                    # Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
+                }
+                catch {
+                    Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
+                    throw
+                }
             }
-            catch {
-                Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
-                throw
-            }
-            # }
     
             # Retrieve GitHub token
             $Token = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
