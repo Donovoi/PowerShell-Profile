@@ -35,42 +35,41 @@ function Set-StoredSecret {
     )
 
     # Install and import secret management modules if not already installed
-    $modulestoinstall = @('Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore')
-    $modulestoinstall | ForEach-Object {
+    $modulesToInstall = @('Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore')
+    $modulesToInstall | ForEach-Object {
         if (-not (Get-Module -ListAvailable -Name $_)) {
             Install-Module -Name $_ -Scope CurrentUser -Force -Confirm:$false -AllowClobber
         }
         Import-Module -Name $_ -Force
     }
 
-    # Check the current configuration
-    $currentConfig = Get-SecretStoreConfiguration
-
-    if ($currentConfig.Authentication -ne 'None') {
-        try {
-            # Attempt to unlock the secret store
-            Write-Log -Message "You will now be asked to enter the password for the current store: " -Level WARNING
-            Unlock-SecretStore -Password $(Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
-        }
-        catch {
-            # If unlocking fails, reconfigure the secret store to not require authentication
-            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+    # Check if a vault is registered
+    $vaults = Get-SecretVault
+    if ($vaults) {
+        $currentConfig = Get-SecretStoreConfiguration
+        if ($currentConfig.Authentication -ne 'None') {
+            
+            try {
+                # Use the provided SecureString password to unlock the secret store
+                Unlock-SecretStore -Password $SecurePassword
+            }
+            catch {
+                # If unlocking fails, reconfigure the secret store to not require authentication
+                Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+            }
         }
     }
     else {
-        # if there is no secret store, create one
         try {
             Write-Host "Initializing the secret store..." -ForegroundColor Yellow
-            Write-Host "You will now be asked to enter a password for the secret store: " -ForegroundColor Yellow
             Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
-            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecretStorePassword
+            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecurePassword
         }
         catch {
-            Write-Log -Message "An error occurred while initializing the secret store: $_" -Level ERROR
+            Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
             throw
         }
     }
-
     # Check if the secret is a SecureString and convert it to plain text if necessary
     if ($Secret -is [System.Security.SecureString]) {
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secret)
