@@ -31,7 +31,11 @@ function Set-StoredSecret {
 
         [Parameter(Mandatory = $true)]
         [string]
-        $SecretName
+        $SecretName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Security.SecureString]
+        $SecurePassword = $(ConvertTo-SecureString -String 'PrettyPassword' -AsPlainText -Force)
     )
 
     # Install and import secret management modules if not already installed
