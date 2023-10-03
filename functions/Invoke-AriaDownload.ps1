@@ -38,14 +38,12 @@ function Invoke-AriaDownload {
         [string]$Aria2cExePath,
         
         [Parameter(Mandatory = $false)]
-        [string]$SecretName
+        [string]$SecretName = 'ReadOnlyGitHubToken'
     )
   
     begin {
-
-
         # Print the name of the running script
-        Write-log -Message 'Downloading Faster? with Aria2' -Level INFO
+        Write-Host 'Downloading Faster? with Aria2' -ForegroundColor Green
         
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
@@ -65,7 +63,7 @@ function Invoke-AriaDownload {
             if ($URL -like '*github.com*') {               
                 if (-not [string]::IsNullOrEmpty($SecretName)) {
                     # Install any needed modules and import them
-                    if (-not (Get-Module -Name SecretManagement) -or (-not (Get-Module -Name SecretStore))) {
+                    if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
                         Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
                     }
                     $secret = Get-Secret -Name $SecretName -AsPlainText
@@ -95,7 +93,7 @@ function Invoke-AriaDownload {
             return $OutFile
         }
         catch {
-            Write-Log -Message "$($_.Exception.Message)" -Level Error
+            Write-Error "$_.Exception.Message"
         }
     }
 }
