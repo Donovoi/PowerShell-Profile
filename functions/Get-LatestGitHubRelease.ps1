@@ -111,7 +111,7 @@ function Get-LatestGitHubRelease {
             # At the start of the session
             $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
             if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages -RemoveAllModules
+                Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
             # Later in the session
             $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
@@ -143,19 +143,20 @@ function Get-LatestGitHubRelease {
             }
     
             # Retrieve GitHub token
-            $Token = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
-            if ($null -eq $Token) {
+            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
+            if (-not ([string]::IsNullOrEmpty($PlainTextToken))) {
+                $headers['Authorization'] = "Bearer $PlainTextToken"
+            }
+            else {
                 $TokenValue = Read-Host -Prompt "Enter the GitHub token" -AsSecureString
                 Set-StoredSecret -Secret $TokenValue -SecretName $TokenName
-                $Token = $TokenValue
+                $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($TokenValue)
+                $PlainTextToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+                $headers['Authorization'] = "Bearer $PlainTextToken"
+                [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
             }
-    
-            # Update headers to include Authorization
-            $headers['Authorization'] = "Bearer $Token"
         }
     }
-    
-
     process {
         try {
             # Define API URL
