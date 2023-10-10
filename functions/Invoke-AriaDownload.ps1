@@ -38,9 +38,8 @@ function Invoke-AriaDownload {
         [string]$Aria2cExePath,
         
         [Parameter(Mandatory = $false)]
-        [string]$SecretName = 'ReadOnlyGitHubToken'
+        [string]$SecretName
     )
-  
     begin {
         # Print the name of the running script
         Write-Host 'Downloading Faster? with Aria2' -ForegroundColor Green

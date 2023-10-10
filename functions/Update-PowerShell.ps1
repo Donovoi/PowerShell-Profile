@@ -9,33 +9,14 @@ function Update-PowerShell {
     [Parameter()]
     [string]
     $PowershellPreviewPath = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
-  )
+  ) 
 
-  # Check PowerShell version
-  $psVersion = $PSVersionTable.PSVersion.Major
+  # $powerShell7ProfilePath = "$ENV:USerProfile\Documents\PowerShell\"
 
-  # Conditional logic for ChildPath based on PS version
-  $childPath = if ($psVersion -eq 5.1) {
-    'WindowsPowerShell\Microsoft.PowerShell_profile.ps1'
-  }
-  else {
-    'PowerShell\Microsoft.PowerShell_profile.ps1'
-  }
-
-  $myDocuments = [Environment]::GetFolderPath('MyDocuments')
-  $myProfile = Join-Path -Path $myDocuments -ChildPath $childPath
-
-  if (Test-Path -Path $myProfile) {
-    . $myProfile
-  }
-  else {
-    Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
-  }
-
-  # Print the name of the running script
-  Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)"
- 
-  
+  # if ($PSVersionTable.PSVersion.Major -eq 7) {
+  #   $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
+  #   $FunctionsFolder.ForEach{ .$_.FullName }
+  # }
 
   Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
 
