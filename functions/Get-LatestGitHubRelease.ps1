@@ -119,8 +119,12 @@ function Get-LatestGitHubRelease {
             }
     
             # Retrieve GitHub token
-            Unlock-SecretStore -Password $initialPassword
-            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText 
+            $currentstoreconfig = Get-SecretStoreConfiguration
+            if ($currentstoreconfig.Authentication -eq 'Password') {
+                Unlock-SecretStore -Password $initialPassword
+            }
+            
+            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
             if (-not ([string]::IsNullOrEmpty($PlainTextToken))) {
                 $headers['Authorization'] = "Bearer $PlainTextToken"
             }
