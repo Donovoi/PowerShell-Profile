@@ -62,7 +62,10 @@ function Get-LatestGitHubRelease {
         [switch] $VersionOnly,
 
         [Parameter(Mandatory = $false)]
-        [string] $TokenName = 'ReadOnlyGitHubToken'
+        [string] $TokenName = 'ReadOnlyGitHubToken',
+
+        [Parameter(Mandatory = $false)]
+        [switch] $PrivateRepo
     )
     
     begin {
@@ -72,40 +75,8 @@ function Get-LatestGitHubRelease {
             'Accept'               = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
         }
-
-        # Initialize a hashtable to hold the parameters
-        $repoInfoUrl = "https://api.github.com/repos/$OwnerRepository"
-        $params = @{
-            Uri         = $repoInfoUrl
-            Headers     = $headers
-            ErrorAction = 'Stop'  # Changed to 'Stop' to catch it in try-catch
-        }
-
-        $isPrivateRepo = $false  # Default value
-
-        try {
-            # Use splatting to call Invoke-RestMethod
-            $repoInfo = Invoke-RestMethod @params  
-
-            # Rest of your code
-            $isPrivateRepo = switch ($repoInfo.message) {
-                'Not Found*' {
-                    $true 
-                }
-                default {
-                    $false 
-                }
-            }
-        }
-        catch {
-            $errorMessage = $_.Exception.Message
-            # Check for 'Not Found' or any other conditions
-            if ($errorMessage -like '*Not Found*') {
-                $isPrivateRepo = $true
-            }
-        }
     
-        if ($isPrivateRepo) {
+        if ($PrivateRepo) {
             $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
             # Install any needed modules and import them
             # At the start of the session
@@ -211,7 +182,7 @@ function Get-LatestGitHubRelease {
                         $downloadFileParams['UseAria2'] = $true
                     }
 
-                    if ($TokenName -and $isPrivateRepo) {
+                    if ($TokenName -and $PrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                         $downloadFileParams['IsPrivateRepo'] = $true
                     }
