@@ -95,7 +95,14 @@ function Get-LatestGitHubRelease {
                     Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
                 }
                 catch {
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                    try {
+                        Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
+                    }
+                    catch {
+                        # Reset store if above fails (means we forgot the password to the original store)
+                        Reset-SecretStore -Authentication None -Scope CurrentUser -Confirm:$false
+                    }
+                    
                 }
             }
             else {
