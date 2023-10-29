@@ -32,14 +32,6 @@
     Author: Mike Cary
     This script is a fork of Eric Zimmerman's Get-ZimmermanTools script which has been modified to parse mkape files or other txt files for urls to download
 #>
-# make sure my usb is available as $XWAYSUSB
-$XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-# import all functions in pwsh $profile to make sure Write-Log is available
-$profile = "$($env:USERPROFILE)\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
-if (Test-Path $profile) {
-  . $profile
-}
-
 
 function Get-KapeBinaries {
   [CmdletBinding()]
