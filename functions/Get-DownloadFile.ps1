@@ -76,12 +76,12 @@ function Get-DownloadFile {
                     $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies")
                     $functions.ForEach{
                         $function = $_
-                        if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
+                        # if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
                             Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
                             $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
                             $Webfunction.Content | Invoke-Expression
                         }
-                    }
+                    # }
 
                     Write-Host "Using aria2c for download."
 
