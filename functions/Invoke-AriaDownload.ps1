@@ -38,7 +38,10 @@ function Invoke-AriaDownload {
         [string]$Aria2cExePath,
         
         [Parameter(Mandatory = $false)]
-        [string]$SecretName
+        [string]$SecretName,
+        
+        [Parameter(Mandatory = $false)]
+        [System.Collections.IDictionary]$Headers
     )
     begin {
         # Print the name of the running script
@@ -72,6 +75,14 @@ function Invoke-AriaDownload {
                 }
             }
             
+            # Create an array to hold header arguments for aria2c
+            $headerArgs = @()
+            if ($Headers) {
+                foreach ($key in $Headers.Keys) {
+                    $headerArgs += "--header=`"$key`: $($Headers[$key])`""
+                }
+            }
+            
             # Start the download process using aria2c
             Start-Process -FilePath $Aria2cExePath -ArgumentList @(
                 '--file-allocation=none',
@@ -85,6 +96,7 @@ function Invoke-AriaDownload {
                 '--allow-overwrite=true',
                 "--dir=$(Split-Path -Parent $OutFile)",
                 "--out=$(Split-Path -Leaf $OutFile)",
+                $headerArgs, # Include custom headers if provided
                 $authHeader, # Include the authorization header if it was constructed
                 $URL
             ) -NoNewWindow -Wait

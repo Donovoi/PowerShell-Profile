@@ -13,6 +13,8 @@
     Get-XwaysResources -XWaysRoot "C:\XwaysResources"
 .EXAMPLE 
     Get-XwaysResources -GetTemplates -XWaysRoot F:\xwfportable -ResetCredentials
+.NOTES
+Now depends on Invoke-AriaDownload and Get-DownloadFile
 #>
 function Get-XwaysResources {
   [CmdletBinding()]
@@ -65,19 +67,23 @@ function Get-XwaysResources {
       $title = "Prepare Credentials Encryption Method"
       $message = "Which mode do you wish to use?"
 
-      $DPAPI = New-Object System.Management.Automation.Host.ChoiceDescription "&DPAPI",`
-         "Use Windows Data Protection API.  This uses your current user context and machine to create the encryption key."
+      $DPAPI = New-Object System.Management.Automation.Host.ChoiceDescription "&DPAPI", `
+        "Use Windows Data Protection API.  This uses your current user context and machine to create the encryption key."
 
-      $AES = New-Object System.Management.Automation.Host.ChoiceDescription "&AES",`
-         "Use a randomly generated SecureKey for AES.  This will generate an AES.key file that you need to protect as it contains the encryption key."
+      $AES = New-Object System.Management.Automation.Host.ChoiceDescription "&AES", `
+        "Use a randomly generated SecureKey for AES.  This will generate an AES.key file that you need to protect as it contains the encryption key."
 
-      $options = [System.Management.Automation.Host.ChoiceDescription[]]($DPAPI,$AES)
+      $options = [System.Management.Automation.Host.ChoiceDescription[]]($DPAPI, $AES)
 
-      $choice = $host.ui.PromptForChoice($title,$message,$options,0)
+      $choice = $host.ui.PromptForChoice($title, $message, $options, 0)
 
       switch ($choice) {
-        0 { $encryptMode = "DPAPI" }
-        1 { $encryptMode = "AES" }
+        0 {
+          $encryptMode = "DPAPI" 
+        }
+        1 {
+          $encryptMode = "AES" 
+        }
       }
       Out-Host -InputObject "Encryption mode $encryptMode was selected to prepare the credentials."
 
@@ -177,7 +183,7 @@ function Get-XwaysResources {
       }
 
       Out-Host -InputObject "Creating credential object..."
-      $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName,$password
+      $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $password
       $passwordClearText = $credObject.GetNetworkCredential().Password
       Out-Host -InputObject "Credential store read.  UserName is $userName and Password is $passwordClearText"
 
@@ -195,59 +201,38 @@ function Get-XwaysResources {
     $Bytes = [System.Text.Encoding]::UTF8.GetBytes($authenticationPair)
     $Base64AuthString = [System.Convert]::ToBase64String($bytes)
 
+    $headers = @{
+      "Authorization" = "Basic $Base64AuthString"
+      "User-Agent"    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36"
+      "Referer"       = "https://x-ways.net/res/"
+    }
 
+    # Get functions from my github profile
+    $functions = @("Get-DownloadFile", "Invoke-AriaDownload")
+    $functions.ForEach{
+      $function = $_
+      if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
+        Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+        Write-Warning -Message "We are about to execute a downloaded function in memory, if you have reviewed the code and are a happy coconut then press any key to continue"
+        Read-Host -Prompt "Press any key to continue"
+        $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+        $Webfunction.Content | Invoke-Expression  
+      }
+    }
     Out-Host -InputObject "Downloading Excire.zip"
-    # headers for xways website - can possibly remove some of these
-    $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
-    $URI = [System.Uri]::new("https://x-ways.net:443/res/Excire.zip")
-    $maximumRedirection = [System.Int32]0
-    $headers = [System.Collections.Generic.Dictionary[string, string]]::new()
-    $headers.Add("Host","x-ways.net")
-    $headers.Add("Authorization","Basic $Base64AuthString")
-    $headers.Add("Sec-Ch-Ua","`"Chromium`";v=`"111`", `"Not_A Brand`";v=`"99`"")
-    $headers.Add("Sec-Ch-Ua-Mobile","?0")
-    $headers.Add("Sec-Ch-Ua-Platform","`"Windows`"")
-    $headers.Add("Upgrade-Insecure-Requests","1")
-    $userAgent = [System.String]::new("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36")
-    $headers.Add("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-    $headers.Add("Sec-Fetch-Site","same-origin")
-    $headers.Add("Sec-Fetch-Mode","navigate")
-    $headers.Add("Sec-Fetch-User","?1")
-    $headers.Add("Sec-Fetch-Dest","document")
-    $headers.Add("Referer","https://x-ways.net/res/")
-    $headers.Add("Accept-Encoding","gzip, deflate")
-    $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$XWaysRoot\Excire.zip")
-    $response
+
+    Get-DownloadFile -URLs "https://x-ways.net/res/Excire.zip" -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
     # Extract zip to destination folder in the Excire folder
     Out-Host -InputObject "Extracting Excire.zip to $XWaysRoot\Excire"
     Expand-Archive -Path "$XWaysRoot\Excire.zip" -DestinationPath "$XWaysRoot\Excire" -Force
 
-    # headers for xways website - can possibly remove some of these
-    $method = [Microsoft.PowerShell.Commands.WebRequestMethod]::"GET"
-    $URI = [System.Uri]::new("https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg")
-    $maximumRedirection = [System.Int32]0
-    $headers = [System.Collections.Generic.Dictionary[string, string]]::new()
-    $headers.Add("Host","x-ways.net")
-    $headers.Add("Authorization","Basic $Base64AuthString")
-    $headers.Add("Sec-Ch-Ua","`"Chromium`";v=`"109`", `"Not_A Brand`";v=`"99`"")
-    $headers.Add("Sec-Ch-Ua-Mobile","?0")
-    $headers.Add("Sec-Ch-Ua-Platform","`"Windows`"")
-    $headers.Add("Upgrade-Insecure-Requests","1")
-    $userAgent = [System.String]::new("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36")
-    $headers.Add("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-    $headers.Add("Sec-Fetch-Site","same-origin")
-    $headers.Add("Sec-Fetch-Mode","navigate")
-    $headers.Add("Sec-Fetch-User","?1")
-    $headers.Add("Sec-Fetch-Dest","document")
-    $headers.Add("Referer","https://x-ways.net/res/")
-    $headers.Add("Accept-Encoding","gzip, deflate")
-    $headers.Add("Accept-Language","en-US,en;q=0.9")
-    $response = (Invoke-WebRequest -Method $method -Uri $URI -MaximumRedirection $maximumRedirection -Headers $headers -UserAgent $userAgent -OutFile "$XWaysRoot\Conditional Coloring.cfg")
-    $response
+    # Remove the zip file
+    Remove-Item -Path "$XWaysRoot\Excire.zip" -Force
 
-
+    # Download the Conditional Coloring file
+    Out-Host -InputObject "Downloading Conditional Coloring.cfg"
+    Get-DownloadFile -URLs "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg" -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
     if ($GetTemplates) {
 
@@ -257,7 +242,7 @@ function Get-XwaysResources {
       }
 
       # Now we copy all TPL files from x-ways.net/winhex/templates two other sites to the XWScriptsAndTemplates folder on $XWAYSUSB
-      $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/","https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip","https://x-ways.net/winhex/templates/")
+      $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/", "https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip", "https://x-ways.net/winhex/templates/")
 
       $UrlsToDownloadTemplates.ForEach{
         $url = $_
@@ -265,7 +250,7 @@ function Get-XwaysResources {
           "*.zip" {
             $ProgressPreference = 'SilentlyContinue'
             Out-Host -InputObject "Downloading kacos2000's Templates as a zip"
-            Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])";
+            Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])"
             break
           }
           default {
@@ -282,7 +267,7 @@ function Get-XwaysResources {
               # remove any url encoding
               $newname = [System.Web.HttpUtility]::UrlDecode($_)
               # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-              Invoke-WebRequest -Uri $(-join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
+              Invoke-WebRequest -Uri $( -join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
             }
           }
         }
@@ -306,3 +291,6 @@ function Get-XwaysResources {
   }
   Out-Host -InputObject "All Done!"
 }
+
+
+# Get-XwaysResources -XWaysRoot "D:\" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break

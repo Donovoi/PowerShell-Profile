@@ -1,97 +1,154 @@
 <#
 .SYNOPSIS
-Downloads a file from a given URL using either aria2c or Invoke-WebRequest.
+Downloads files from given URLs using either aria2c or Invoke-WebRequest, with controlled concurrency.
 
 .DESCRIPTION
-Downloads a file from a URL. Optionally uses aria2c for the download; otherwise, uses Invoke-WebRequest.
+This function downloads files from a list of specified URLs. It uses either aria2c (if specified) or Invoke-WebRequest to perform the download. The function allows for concurrent downloads with a user-specified or default maximum limit to prevent overwhelming the network.
 
-.PARAMETER URL
-The URL of the file to download.
+.PARAMETER URLs
+An array of URLs of the files to be downloaded.
 
-.PARAMETER OutFile
-The output file path.
+.PARAMETER OutFileDirectory
+The directory where the downloaded files will be saved.
 
 .PARAMETER UseAria2
-Switch to use aria2c for downloading.
+Switch to use aria2c for downloading. Ensure aria2c is installed and in your PATH if this switch is used.
 
 .PARAMETER SecretName
-Name of the secret containing the GitHub token.
+Name of the secret containing the GitHub token. This is used when downloading from a private repository.
 
 .PARAMETER IsPrivateRepo
-Switch to indicate if the repo is private.
+Switch to indicate if the repository from where the file is being downloaded is private.
+
+.PARAMETER MaxConcurrentDownloads
+The maximum number of concurrent downloads allowed. Default is 5. Users can specify a higher number if they have a robust internet connection.
+
+.PARAMETER Headers
+An IDictionary containing custom headers to be used during the file download process.
 
 .EXAMPLE
-Get-DownloadFile -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -UseAria2 -SecretName "GitHubPAT"
+$urls = "http://example.com/file1.zip", "http://example.com/file2.zip"
+Get-DownloadFile -URLs $urls -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
+
+This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
 
 .NOTES
-If using aria2c, ensure it's installed and in your PATH.
+Ensure aria2c is installed and in the PATH if the UseAria2 switch is used.
+When downloading from a private repository, ensure the secret containing the GitHub token is properly configured.
 #>
 
 function Get-DownloadFile {
     [CmdletBinding()]
     [OutputType([string])]
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$URL,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string[]]$URLs,
 
         [Parameter(Mandatory = $true)]
-        [string]$OutFile,
+        [string]$OutFileDirectory,
 
         [switch]$UseAria2,
 
         [string]$SecretName = 'ReadOnlyGitHubToken',
 
-        [switch]$IsPrivateRepo
+        [System.Collections.IDictionary]$Headers,
+
+        [switch]$IsPrivateRepo,
+
+        [int]$MaxConcurrentDownloads = 5
     )
 
-    begin {        
-        if ($UseAria2) {
-            # Check for aria2c, download if not found
-            if (-not (Test-Path "$PWD/aria2c/*/aria2c.exe")) {
-                Write-Host "Downloading aria2c..."
-                Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64*' -DownloadPathDirectory "$PWD/Aria2c" -ExtractZip
-            
-                # Add aria2c to the PATH
-                $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
-                Write-log -Message "Downloaded Aria2c to $aria2cExe" -Level INFO
+    begin {
+        $downloadScript = {
+            param (
+                [string]$URL,
+                [string]$OutFile,
+                [switch]$UseAria2,
+                [string]$SecretName,
+                [System.Collections.IDictionary]$Headers,
+                [switch]$IsPrivateRepo
+            )
+
+            try {
+                if ($UseAria2) {
+                    Write-Host "Using aria2c for download."
+
+                    # If it's a private repo, handle the secret
+                    if ($IsPrivateRepo) {
+                        # Install any needed modules and import them
+                        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
+                            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
+                        }
+                        if ($null -ne $SecretName) {
+                            # Validate the secret exists and is valid
+                            if (-not (Get-SecretInfo -Name $SecretName)) {
+                                Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                                throw
+                            }      
+
+                            Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                        }
+                    }
+                    else {
+                        Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
+                    }
+                }
+                else {
+                    Write-Host "Using Invoke-WebRequest for download."
+                    Invoke-WebRequest -Uri $URL -OutFile $OutFile -Headers $Headers
+                }
             }
-            else {
-                $aria2cExe = $(Resolve-Path -Path "$PWD/aria2c/*/aria2c.exe").Path
+            catch {
+                Write-Host "An error occurred: $_" -ForegroundColor Red
+                throw
+            }
+        }
+
+        $runspacePool = [RunspaceFactory]::CreateRunspacePool(1, $MaxConcurrentDownloads)
+        $runspacePool.Open()
+    }
+
+    process {
+        $jobs = @()
+        foreach ($URL in $URLs) {
+            $OutFile = Join-Path -Path $OutFileDirectory -ChildPath ($URL | Split-Path -Leaf)
+            $params = @{
+                URL           = $URL
+                OutFile       = $OutFile
+                UseAria2      = $UseAria2
+                SecretName    = $SecretName
+                Headers       = $Headers
+                IsPrivateRepo = $IsPrivateRepo
+            }
+            
+            $job = [powershell]::Create().AddScript($downloadScript).AddParameters($params)
+            $job.RunspacePool = $runspacePool
+            
+            $result = $job.BeginInvoke()
+            $jobs += @{
+                Job    = $job
+                Result = $result
+            }
+        }
+
+        $jobs.Result | ForEach-Object { $_.AsyncWaitHandle.WaitOne() }
+        
+        $jobs | ForEach-Object {
+            $jobOutput = $_.Job.EndInvoke($_.Result)
+            $jobError = $_.Job.Streams.Error
+            $_.Job.Dispose()
+            
+            if ($jobOutput) {
+                Write-Output "Job completed successfully: $($jobOutput)"
+            }
+            
+            if ($jobError) {
+                Write-Error "Error occurred: $($jobError)"
             }
         }
     }
 
-    process {
-        try {
-            if ($UseAria2) {
-                Write-Host "Using aria2c for download."
-
-                # If it's a private repo, handle the secret
-                if ($IsPrivateRepo) {
-                    # Install any needed modules and import them
-                    if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
-                    }
-                    if ($null -ne $SecretName) {
-                        # Validate the secret exists and is valid
-                        if (-not (Get-SecretInfo -Name $SecretName)) {
-                            Write-log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
-                            throw
-                        }      
-                    
-                        Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName
-                    }
-                }
-                Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe
-            }
-            else {
-                Write-Host "Using Invoke-WebRequest for download."
-                Invoke-WebRequest -Uri $URL -OutFile $OutFile
-            }
-        }
-        catch {
-            Write-Host "An error occurred: $_" -ForegroundColor Red
-            throw
-        }
+    end {
+        $runspacePool.Close()
     }
 }
