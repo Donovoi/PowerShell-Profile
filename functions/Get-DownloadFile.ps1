@@ -71,6 +71,19 @@ function Get-DownloadFile {
 
             try {
                 if ($UseAria2) {
+
+                    # Get functions from my github profile
+                    $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies")
+                    $functions.ForEach{
+                        $function = $_
+                        if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
+                            Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                            $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                            $Webfunction.Content | Invoke-Expression  
+                            Out-Host "Imported $function"
+                        }
+                    }
+
                     Write-Host "Using aria2c for download."
 
                     # If it's a private repo, handle the secret
