@@ -75,23 +75,21 @@ function Get-DownloadFile {
 
             try {
                 if ($UseAria2) {
+                    # Get functions from my github profile
+                    $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies", "Get-LatestGitHubRelease")
+                    $functions.ForEach{
+                        $function = $_                        
+                        Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                        $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                        $Webfunction.Content | Invoke-Expression
+                    }
+
+
                     if (-not(Test-Path -Path $aria2cExe)) {
                         Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "aria2_win-64bit-build1.zip" -OutFileDirectory "C:\aria2"
                         Expand-Archive -Path "C:\aria2\aria2_win-64bit-build1.zip" -DestinationPath "C:\aria2"
                         $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
                     }
-
-                    # Get functions from my github profile
-                    $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies")
-                    $functions.ForEach{
-                        $function = $_
-                        # if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
-                            Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                            $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                            $Webfunction.Content | Invoke-Expression
-                        }
-                    # }
-
                     Write-Host "Using aria2c for download."
 
                     # If it's a private repo, handle the secret
