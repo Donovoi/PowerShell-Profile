@@ -49,6 +49,9 @@ function Get-DownloadFile {
 
         [switch]$UseAria2,
 
+        [Parameter(Mandatory = $false)]
+        [string]$aria2cExe = "c:\aria2\aria2c.exe",
+
         [string]$SecretName = 'ReadOnlyGitHubToken',
 
         [System.Collections.IDictionary]$Headers,
@@ -65,12 +68,18 @@ function Get-DownloadFile {
                 [string]$OutFile,
                 [switch]$UseAria2,
                 [string]$SecretName,
+                [string]$aria2cExe,
                 [System.Collections.IDictionary]$Headers,
                 [switch]$IsPrivateRepo
             )
 
             try {
                 if ($UseAria2) {
+                    if (-not(Test-Path -Path $aria2cExe)) {
+                        Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "aria2_win-64bit-build1.zip" -OutFileDirectory "C:\aria2"
+                        Expand-Archive -Path "C:\aria2\aria2_win-64bit-build1.zip" -DestinationPath "C:\aria2"
+                        $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
+                    }
 
                     # Get functions from my github profile
                     $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies")
