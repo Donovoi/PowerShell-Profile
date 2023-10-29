@@ -66,6 +66,7 @@ function Get-DownloadFile {
             param (
                 [string]$URL,
                 [string]$OutFile,
+                [string]$OutFileDirectory,
                 [switch]$UseAria2,
                 [string]$SecretName,
                 [string]$aria2cExe,
