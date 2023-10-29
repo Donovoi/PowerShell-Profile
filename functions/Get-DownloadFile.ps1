@@ -79,8 +79,7 @@ function Get-DownloadFile {
                         if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
                             Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
                             $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                            $Webfunction.Content | Invoke-Expression  
-                            Out-Host "Imported $function"
+                            $Webfunction.Content | Invoke-Expression
                         }
                     }
 
