@@ -113,7 +113,7 @@ function Get-DownloadFile {
                     }
 
                     if (-not(Test-Path -Path $aria2cExe)) {
-                        Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "*-win-64bit-*" -DownloadPathDirectory "C:\aria2" -ExtractZip
+                        Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
                         $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
                     }
                     Write-Host "Using aria2c for download."
