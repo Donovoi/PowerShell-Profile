@@ -186,7 +186,7 @@ function Get-LatestGitHubRelease {
 
                     # Mandatory parameters
                     $downloadFileParams['URL'] = $asset.Browser_Download_url
-                    $downloadFileParams['OutFile'] = (Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name)
+                    $downloadFileParams['OutFile'] = (Join-Path -Path $(Get-LongName -ShortName $DownloadPathDirectory) -ChildPath $asset.Name)
 
                     # Conditionally add parameters
                     if ($UseAria2) {
