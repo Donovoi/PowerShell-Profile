@@ -10,13 +10,10 @@ function Update-PowerShell {
     [string]
     $PowershellPreviewPath = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
   ) 
-
-  # $powerShell7ProfilePath = "$ENV:USerProfile\Documents\PowerShell\"
-
-  # if ($PSVersionTable.PSVersion.Major -eq 7) {
-  #   $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
-  #   $FunctionsFolder.ForEach{ .$_.FullName }
-  # }
+  # load functions in folder but do not load this script 
+  $CurrentScriptPath = (Get-PSCallStack)[0].ScriptName
+  $FunctionsFolder = Get-ChildItem -Path "$PWD/functions/*.ps*" -Recurse | Where-Object { (Resolve-Path $_.FullName).path -ne (Resolve-Path $CurrentScriptPath).path }
+  $FunctionsFolder.ForEach{ .$_.FullName }
 
   Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
 
@@ -112,8 +109,10 @@ function Update-PowerShell {
 
       # Call the function with the parameters
       $DownloadPath = Get-LatestGitHubRelease @params
+
+      $resolvedPath = Resolve-Path -Path $DownloadPath
       # Install the latest version silently
-      Start-Process -FilePath msiexec.exe -ArgumentList "/i $DownloadPath /quiet /norestart" -Wait
+      Start-Process -FilePath msiexec.exe -ArgumentList "/i $resolvedPath /quiet /norestart" -Wait
       # Remove the installer
       Remove-Item $DownloadPath
     }
