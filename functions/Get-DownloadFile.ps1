@@ -38,29 +38,73 @@
  #>
  
 function Get-DownloadFile {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([string])]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(
+            Mandatory = $true,
+            ValueFromPipeline = $true,
+            Position = 0
+        )]
+        [ValidateNotNullOrEmpty()]
         [string[]]$URLs,
- 
-        [Parameter(Mandatory = $true)]
+
+        [Parameter(
+            Mandatory = $true,
+            Position = 1
+        )]
+        [ValidateScript({
+                if (-not (Test-Path $_ -PathType Container)) {
+                    throw "The directory '$_' does not exist."
+                }
+                $true
+            })]
+        [Alias('OutputDir')]
         [string]$OutFileDirectory,
- 
+
+        [Parameter(
+            Mandatory = $false,
+            ParameterSetName = 'UseAria2'
+        )]
         [switch]$UseAria2,
- 
-        [Parameter(Mandatory = $false)]
+
+        [Parameter(
+            Mandatory = $false,
+            ParameterSetName = 'UseAria2'
+        )]
+        [ValidateScript({
+                if (-not (Test-Path $_ -PathType Leaf)) {
+                    throw "The aria2 executable at '$_' does not exist."
+                }
+                $true
+            })]
         [string]$aria2cExe = "c:\aria2\aria2c.exe",
- 
+
+        [Parameter(
+            Mandatory = $false,
+            ParameterSetName = 'Auth'
+        )]
+        [ValidateNotNullOrEmpty()]
         [string]$SecretName = 'ReadOnlyGitHubToken',
- 
+
+        [Parameter(
+            Mandatory = $false
+        )]
+        [ValidateNotNull()]
         [System.Collections.IDictionary]$Headers,
- 
+
+        [Parameter(
+            Mandatory = $false,
+            ParameterSetName = 'Auth'
+        )]
         [switch]$IsPrivateRepo,
- 
+
+        [Parameter(
+            Mandatory = $false
+        )]
+        [ValidateRange(1, 20)]
         [int]$MaxConcurrentDownloads = 5
     )
- 
     begin {
         $downloadScript = {
             param (
@@ -73,7 +117,7 @@ function Get-DownloadFile {
                 [System.Collections.IDictionary]$Headers,
                 [switch]$IsPrivateRepo
             )
- 
+
             try {
                 if ($UseAria2) {
                     # Get functions from my github profile
@@ -84,15 +128,14 @@ function Get-DownloadFile {
                         $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
                         $Webfunction.Content | Invoke-Expression
                     }
- 
- 
+
                     if (-not(Test-Path -Path $aria2cExe)) {
                         Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "aria2_win-64bit-build1.zip" -DownloadPathDirectory "C:\aria2"
                         Expand-Archive -Path "C:\aria2\aria2_win-64bit-build1.zip" -DestinationPath "C:\aria2"
                         $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
                     }
                     Write-Host "Using aria2c for download."
- 
+
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
                         # Install any needed modules and import them
@@ -105,7 +148,7 @@ function Get-DownloadFile {
                                 Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
                                 throw
                             }      
- 
+
                             Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
                         }
                     }
@@ -123,11 +166,11 @@ function Get-DownloadFile {
                 throw
             }
         }
- 
+
         $runspacePool = [RunspaceFactory]::CreateRunspacePool(1, $MaxConcurrentDownloads)
         $runspacePool.Open()
     }
- 
+
     process {
         $jobs = @()
         foreach ($URL in $URLs) {
@@ -153,24 +196,23 @@ function Get-DownloadFile {
         }
 
         $jobs.Result | ForEach-Object { $_.AsyncWaitHandle.WaitOne() }
-         
+        
         $jobs | ForEach-Object {
             $jobOutput = $_.Job.EndInvoke($_.Result)
             $jobError = $_.Job.Streams.Error
             $_.Job.Dispose()
-             
+            
             if ($jobOutput) {
                 Write-Output "Job completed successfully: $($jobOutput)"
             }
-             
+            
             if ($jobError) {
                 Write-Error "Error occurred: $($jobError)"
             }
         }
     }
- 
+
     end {
         $runspacePool.Close()
     }
 }
- 
