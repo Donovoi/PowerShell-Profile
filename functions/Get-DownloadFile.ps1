@@ -102,6 +102,9 @@ function Get-DownloadFile {
     process {
         try {
             foreach ($download In $url) { 
+                # Construct the output file path
+                $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $(Split-Path -Path $download -Leaf)
+                
                 if ($UseAria2) {
                     # Get functions from my github profile
                     $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies", "Get-LatestGitHubRelease")
