@@ -208,20 +208,17 @@ function Get-XwaysResources {
     }
 
     # Get functions from my github profile
-    $functions = @("Get-DownloadFile", "Invoke-AriaDownload")
+    $functions = @("Get-DownloadFile")
     $functions.ForEach{
       $function = $_
-      if (-not (Get-Command -Name $function -ErrorAction SilentlyContinue)) {
-        Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-        Write-Warning -Message "We are about to execute a downloaded function in memory, if you have reviewed the code and are a happy coconut then press any key to continue"
-        Read-Host -Prompt "Press any key to continue"
-        $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-        $Webfunction.Content | Invoke-Expression  
-      }
+      Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+      $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+      $Webfunction.Content | Invoke-Expression  
     }
-    Out-Host -InputObject "Downloading Excire.zip"
+    Out-Host -InputObject "Downloading Excire.zip and Conditional Coloring.cfg"
+    $urls = "https://x-ways.net/res/Excire.zip", "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg"
 
-    Get-DownloadFile -URLs "https://x-ways.net/res/Excire.zip" -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
+    Get-DownloadFile -URL $urls -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
     # Extract zip to destination folder in the Excire folder
     Out-Host -InputObject "Extracting Excire.zip to $XWaysRoot\Excire"
@@ -229,10 +226,6 @@ function Get-XwaysResources {
 
     # Remove the zip file
     Remove-Item -Path "$XWaysRoot\Excire.zip" -Force
-
-    # Download the Conditional Coloring file
-    Out-Host -InputObject "Downloading Conditional Coloring.cfg"
-    Get-DownloadFile -URLs "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg" -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
     if ($GetTemplates) {
 
@@ -267,7 +260,7 @@ function Get-XwaysResources {
               # remove any url encoding
               $newname = [System.Web.HttpUtility]::UrlDecode($_)
               # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-              Invoke-WebRequest -Uri $( -join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
+              Get-DownloadFile -URLS $( -join "$url" + "$_") -OutFileDirectory "$XWScriptsAndTemplatesFolder\$newname" -UseAria2
             }
           }
         }
@@ -293,4 +286,4 @@ function Get-XwaysResources {
 }
 
 
-# Get-XwaysResources -XWaysRoot "D:\" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break
+Get-XwaysResources -XWaysRoot "D:\xwfportable" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break

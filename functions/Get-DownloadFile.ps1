@@ -1,42 +1,42 @@
 <#
- .SYNOPSIS
- Downloads files from given URLs using either aria2c or Invoke-WebRequest, with controlled concurrency.
- 
- .DESCRIPTION
- This function downloads files from a list of specified URLs. It uses either aria2c (if specified) or Invoke-WebRequest to perform the download. The function allows for concurrent downloads with a user-specified or default maximum limit to prevent overwhelming the network.
- 
- .PARAMETER URLs
- An array of URLs of the files to be downloaded.
- 
- .PARAMETER OutFileDirectory
- The directory where the downloaded files will be saved.
- 
- .PARAMETER UseAria2
- Switch to use aria2c for downloading. Ensure aria2c is installed and in your PATH if this switch is used.
- 
- .PARAMETER SecretName
- Name of the secret containing the GitHub token. This is used when downloading from a private repository.
- 
- .PARAMETER IsPrivateRepo
- Switch to indicate if the repository from where the file is being downloaded is private.
- 
- .PARAMETER MaxConcurrentDownloads
- The maximum number of concurrent downloads allowed. Default is 5. Users can specify a higher number if they have a robust internet connection.
- 
- .PARAMETER Headers
- An IDictionary containing custom headers to be used during the file download process.
- 
- .EXAMPLE
- $URL = "http://example.com/file1.zip", "http://example.com/file2.zip"
- Get-DownloadFile -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
- 
- This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
- 
- .NOTES
- Ensure aria2c is installed and in the PATH if the UseAria2 switch is used.
- When downloading from a private repository, ensure the secret containing the GitHub token is properly configured.
- #>
- 
+  .SYNOPSIS
+  Downloads files from given URLs using either aria2c or Invoke-WebRequest, with controlled concurrency.
+  
+  .DESCRIPTION
+  This function downloads files from a list of specified URLs. It uses either aria2c (if specified) or Invoke-WebRequest to perform the download. The function allows for concurrent downloads with a user-specified or default maximum limit to prevent overwhelming the network.
+  
+  .PARAMETER URLs
+  An array of URLs of the files to be downloaded.
+  
+  .PARAMETER OutFileDirectory
+  The directory where the downloaded files will be saved.
+  
+  .PARAMETER UseAria2
+  Switch to use aria2c for downloading. Ensure aria2c is installed and in your PATH if this switch is used.
+  
+  .PARAMETER SecretName
+  Name of the secret containing the GitHub token. This is used when downloading from a private repository.
+  
+  .PARAMETER IsPrivateRepo
+  Switch to indicate if the repository from where the file is being downloaded is private.
+  
+  .PARAMETER MaxConcurrentDownloads
+  The maximum number of concurrent downloads allowed. Default is 5. Users can specify a higher number if they have a robust internet connection.
+  
+  .PARAMETER Headers
+  An IDictionary containing custom headers to be used during the file download process.
+  
+  .EXAMPLE
+  $URL = "http://example.com/file1.zip", "http://example.com/file2.zip"
+  Get-DownloadFile -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
+  
+  This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
+  
+  .NOTES
+  Ensure aria2c is installed and in the PATH if the UseAria2 switch is used.
+  When downloading from a private repository, ensure the secret containing the GitHub token is properly configured.
+  #>
+  
 function Get-DownloadFile {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([string])]
@@ -114,7 +114,7 @@ function Get-DownloadFile {
 
                     if (-not(Test-Path -Path $aria2cExe)) {
                         Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
-                        $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
+                        $aria2cExe = $(Get-ChildItem -Recurse -Path "C:\aria2\" -Filter "aria2c.exe").FullName
                     }
                     Write-Host "Using aria2c for download."
 
