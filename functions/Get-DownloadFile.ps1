@@ -27,8 +27,8 @@
  An IDictionary containing custom headers to be used during the file download process.
  
  .EXAMPLE
- $urls = "http://example.com/file1.zip", "http://example.com/file2.zip"
- Get-DownloadFile -URLs $urls -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
+ $URL = "http://example.com/file1.zip", "http://example.com/file2.zip"
+ Get-DownloadFile -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
  
  This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
  
@@ -47,7 +47,7 @@ function Get-DownloadFile {
             Position = 0
         )]
         [ValidateNotNullOrEmpty()]
-        [string[]]$URLs,
+        [string[]]$URL,
 
         [Parameter(
             Mandatory = $true,
@@ -101,51 +101,54 @@ function Get-DownloadFile {
     )
     process {
         try {
-            if ($UseAria2) {
-                # Get functions from my github profile
-                $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies", "Get-LatestGitHubRelease")
-                $functions.ForEach{
-                    $function = $_                        
-                    Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                    $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                    $Webfunction.Content | Invoke-Expression
-                }
-
-                if (-not(Test-Path -Path $aria2cExe)) {
-                    Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "aria2_win-64bit-build1.zip" -DownloadPathDirectory "C:\aria2"
-                    Expand-Archive -Path "C:\aria2\aria2_win-64bit-build1.zip" -DestinationPath "C:\aria2"
-                    $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
-                }
-                Write-Host "Using aria2c for download."
-
-                # If it's a private repo, handle the secret
-                if ($IsPrivateRepo) {
-                    # Install any needed modules and import them
-                    if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
+            foreach ($download In $url) { 
+                if ($UseAria2) {
+                    # Get functions from my github profile
+                    $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies", "Get-LatestGitHubRelease")
+                    $functions.ForEach{
+                        $function = $_                        
+                        Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                        $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+                        $Webfunction.Content | Invoke-Expression
                     }
-                    if ($null -ne $SecretName) {
-                        # Validate the secret exists and is valid
-                        if (-not (Get-SecretInfo -Name $SecretName)) {
-                            Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
-                            throw
-                        }      
 
-                        Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                    if (-not(Test-Path -Path $aria2cExe)) {
+                        Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "aria2_win-64bit-build1.zip" -DownloadPathDirectory "C:\aria2"
+                        Expand-Archive -Path "C:\aria2\aria2_win-64bit-build1.zip" -DestinationPath "C:\aria2"
+                        $aria2cExe = $(Resolve-Path -Path "C:\aria2\aria2c.exe").Path
+                    }
+                    Write-Host "Using aria2c for download."
+
+                    # If it's a private repo, handle the secret
+                    if ($IsPrivateRepo) {
+                        # Install any needed modules and import them
+                        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
+                            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
+                        }
+                        if ($null -ne $SecretName) {
+                            # Validate the secret exists and is valid
+                            if (-not (Get-SecretInfo -Name $SecretName)) {
+                                Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                                throw
+                            }      
+
+                            Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                        }
+                    }
+                    else {
+                        Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
                     }
                 }
                 else {
-                    Invoke-AriaDownload -URL $URL -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
+                    Write-Host "Using Invoke-WebRequest for download."
+                    Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
                 }
-            }
-            else {
-                Write-Host "Using Invoke-WebRequest for download."
-                Invoke-WebRequest -Uri $URL -OutFile $OutFile -Headers $Headers
             }
         }
         catch {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
+        
     }
 }
