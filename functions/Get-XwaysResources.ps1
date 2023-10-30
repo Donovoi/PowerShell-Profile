@@ -286,4 +286,4 @@ function Get-XwaysResources {
 }
 
 
-Get-XwaysResources -XWaysRoot "D:\xwfportable" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break
+# Get-XwaysResources -XWaysRoot "D:\xwfportable" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break
