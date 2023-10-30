@@ -1,30 +1,30 @@
-<#
-.SYNOPSIS
-This function downloads a file from a given URL using aria2c.
-
-.DESCRIPTION
-The Invoke-AriaDownload function uses aria2c to download a file from a provided URL.
-If the output file already exists, it will be removed before the download starts.
-
-.PARAMETER URL
-The URL of the file to download.
-
-.PARAMETER OutFile
-The name of the output file.
-
-.PARAMETER Aria2cExePath
-The path to the aria2c executable.
-
-.PARAMETER SecretName
-The name of the secret in the secret store which contains the GitHub Personal Access Token.
-
-.EXAMPLE
-Invoke-AriaDownload -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -Aria2cExePath "C:\path\to\aria2c.exe" -SecretName "GitHubPAT"
-
-.NOTES
-Make sure aria2c is installed and accessible from your PATH.
-#>
-function Invoke-AriaDownload {
+ <#
+ .SYNOPSIS
+ This function downloads a file from a given URL using aria2c.
+ 
+ .DESCRIPTION
+ The Invoke-AriaDownload function uses aria2c to download a file from a provided URL.
+ If the output file already exists, it will be removed before the download starts.
+ 
+ .PARAMETER URL
+ The URL of the file to download.
+ 
+ .PARAMETER OutFile
+ The name of the output file.
+ 
+ .PARAMETER Aria2cExePath
+ The path to the aria2c executable.
+ 
+ .PARAMETER SecretName
+ The name of the secret in the secret store which contains the GitHub Personal Access Token.
+ 
+ .EXAMPLE
+ Invoke-AriaDownload -URL "http://example.com/file.zip" -OutFile "C:\Downloads\file.zip" -Aria2cExePath "C:\path\to\aria2c.exe" -SecretName "GitHubPAT"
+ 
+ .NOTES
+ Make sure aria2c is installed and accessible from your PATH.
+ #>
+ function Invoke-AriaDownload {
     [CmdletBinding()]
     [OutputType([string])]
     param (
@@ -96,7 +96,7 @@ function Invoke-AriaDownload {
                 '--allow-overwrite=true',
                 "--dir=$(Split-Path -Parent $OutFile)",
                 "--out=$(Split-Path -Leaf $OutFile)",
-                $headerArgs, # Include custom headers if provided
+                $headerArgs.GetEnumerator(), # Include custom headers if provided
                 $authHeader, # Include the authorization header if it was constructed
                 $URL
             ) -NoNewWindow -Wait
