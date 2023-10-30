@@ -212,8 +212,8 @@ function Get-XwaysResources {
     $functions.ForEach{
       $function = $_
       Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-      $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-      $Webfunction.Content | Invoke-Expression  
+      $Webfunction = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
+      $Webfunction | Invoke-Expression  
     }
     Out-Host -InputObject "Downloading Excire.zip and Conditional Coloring.cfg"
     $urls = "https://x-ways.net/res/Excire.zip", "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg"
@@ -260,7 +260,7 @@ function Get-XwaysResources {
               # remove any url encoding
               $newname = [System.Web.HttpUtility]::UrlDecode($_)
               # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-              Get-DownloadFile -URLS $( -join "$url" + "$_") -OutFileDirectory "$XWScriptsAndTemplatesFolder\$newname" -UseAria2
+              Invoke-WebRequest -Uri $( -join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
             }
           }
         }
@@ -284,6 +284,3 @@ function Get-XwaysResources {
   }
   Out-Host -InputObject "All Done!"
 }
-
-
-# Get-XwaysResources -XWaysRoot "D:\xwfportable" -XWScriptsAndTemplatesFolder "D:\XWScriptsAndTemplates" -GetTemplates -Verbose -ErrorAction Break
