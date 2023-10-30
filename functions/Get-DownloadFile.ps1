@@ -103,7 +103,8 @@ function Get-DownloadFile {
         try {
             foreach ($download In $url) { 
                 # Construct the output file path
-                $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $(Split-Path -Path $download -Leaf)
+                $OutFilenotdecoded = Join-Path -Path $OutFileDirectory -ChildPath $(Split-Path -Path $download -Leaf)
+                $OutFile = [System.Web.HttpUtility]::HtmlDecode($OutFilenotdecoded)
                 
                 if ($UseAria2) {
                     # Get functions from my github profile
