@@ -53,12 +53,6 @@ function Get-DownloadFile {
             Mandatory = $true,
             Position = 1
         )]
-        [ValidateScript({
-                if (-not (Test-Path $_ -PathType Container)) {
-                    throw "The directory '$_' does not exist."
-                }
-                $true
-            })]
         [Alias('OutputDir')]
         [string]$OutFileDirectory,
 
