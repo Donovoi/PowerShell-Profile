@@ -88,6 +88,7 @@ function Update-VSCode {
                         if (-not( Test-Path -Path $url.OutFileDirectory -ErrorAction SilentlyContinue)) {
                             New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
                         }
+                        $outfile = ''
                         $OutFile = Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2 
                         if ( Resolve-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
