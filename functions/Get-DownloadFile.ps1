@@ -142,11 +142,11 @@ function Get-DownloadFile {
                                 throw
                             }      
 
-                            Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                            $OutFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
                         }
                     }
                     else {
-                        Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
+                        $OutFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
                     }
                 }
                 else {
@@ -159,6 +159,6 @@ function Get-DownloadFile {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
-        
+        return $OutFile
     }
 }
