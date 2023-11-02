@@ -102,9 +102,16 @@ function Get-DownloadFile {
     process {
         try {
             foreach ($download In $url) { 
-                # Construct the output file path
-                $OutFilenotdecoded = Join-Path -Path $OutFileDirectory -ChildPath $(Split-Path -Path $download -Leaf)
-                $OutFile = [System.Web.HttpUtility]::HtmlDecode($OutFilenotdecoded)
+                # Construct the output file path for when the url has the filename in it
+                #First we check if the url has the filename in it
+                if ($download.Split('/')[-1] -match '\.[a-zA-Z0-9]{1,5}$') {
+                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $download.Split('/')[-1]
+                }
+                else {
+                    # If the url does not have the filename in it, we get the filename from the headers
+                    $Headers = Invoke-WebRequest -Uri $download -Headers $Headers -Method Head
+                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $Headers.Headers['Content-Disposition'].Split('=')[-1]
+                }
                 
                 if ($UseAria2) {
                     # Get functions from my github profile
