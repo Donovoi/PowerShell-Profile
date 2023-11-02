@@ -54,6 +54,12 @@ function Get-DownloadFile {
             Position = 1
         )]
         [Alias('OutputDir')]
+        [ValidateScript({
+                if ($_ -match '\.[a-zA-Z0-9]{1,5}$') {
+                    throw "Parameter OutFileDirectory must be valid directory."
+                }
+                $true
+            })]
         [string]$OutFileDirectory,
 
         [Parameter(
