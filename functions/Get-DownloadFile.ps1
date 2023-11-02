@@ -104,6 +104,7 @@ function Get-DownloadFile {
             foreach ($download In $url) { 
                 # Construct the output file path for when the url has the filename in it
                 #First we check if the url has the filename in it
+                $outfile = ''
                 if ($download.Split('/')[-1] -match '\.[a-zA-Z0-9]{1,5}$') {
                     $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $download.Split('/')[-1]
                 }
