@@ -109,8 +109,8 @@ function Get-DownloadFile {
                 }
                 else {
                     # If the url does not have the filename in it, we get the filename from the headers
-                    $Headers = Invoke-WebRequest -Uri $download -Headers $Headers -Method Head
-                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $Headers.Headers['Content-Disposition'].Split('=')[-1]
+                    $HeadersForFileType = Invoke-WebRequest -Uri $download -Headers:$Headers -Method Head
+                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $HeadersForFileType.Headers['Content-Disposition'].Split('=')[-1]
                 }
                 
                 if ($UseAria2) {
