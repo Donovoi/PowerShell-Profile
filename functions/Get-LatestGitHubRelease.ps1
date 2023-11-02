@@ -199,7 +199,7 @@ function Get-LatestGitHubRelease {
                     }
 
                     # Splat the parameters onto the function call
-                    $JunkReturnValue = Get-DownloadFile @downloadFileParams                
+                    $null = Get-DownloadFile @downloadFileParams                
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
@@ -214,7 +214,7 @@ function Get-LatestGitHubRelease {
                         Write-Log -Message "exiting script.." -Level warning
                         exit
                     }
-                    Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
+                    $null = Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
                 }
                 else {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {

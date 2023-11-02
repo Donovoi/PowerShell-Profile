@@ -104,14 +104,13 @@ function Get-DownloadFile {
             foreach ($download In $url) { 
                 # Construct the output file path for when the url has the filename in it
                 #First we check if the url has the filename in it
-                $outfile = ''
                 if ($download.Split('/')[-1] -match '\.[a-zA-Z0-9]{1,5}$') {
                     $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $download.Split('/')[-1]
                 }
                 else {
                     # If the url does not have the filename in it, we get the filename from the headers
                     $HeadersForFileType = Invoke-WebRequest -Uri $download -Headers:$Headers -Method Head
-                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $HeadersForFileType.Headers['Content-Disposition'].Split('=')[-1]
+                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $HeadersForFileType.Headers['Content-Disposition'].Split('=')[-1].Split('"')[1]
                 }
                 
                 if ($UseAria2) {
@@ -125,7 +124,7 @@ function Get-DownloadFile {
                     }
 
                     if (-not(Test-Path -Path $aria2cExe)) {
-                        $aria2cReleasePath = Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
+                        $null = Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
                         $aria2cExe = $(Get-ChildItem -Recurse -Path "C:\aria2\" -Filter "aria2c.exe").FullName
                     }
                     Write-Host "Using aria2c for download."
@@ -143,11 +142,11 @@ function Get-DownloadFile {
                                 throw
                             }      
 
-                            $OutFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                            Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
                         }
                     }
                     else {
-                        $OutFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
+                        Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
                     }
                 }
                 else {
@@ -160,6 +159,6 @@ function Get-DownloadFile {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
-        return $OutFile
+        
     }
 }
