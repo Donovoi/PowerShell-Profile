@@ -199,7 +199,7 @@ function Get-LatestGitHubRelease {
                     }
 
                     # Splat the parameters onto the function call
-                    Get-DownloadFile @downloadFileParams                
+                    $JunkReturnValue = Get-DownloadFile @downloadFileParams                
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
