@@ -85,10 +85,13 @@ function Update-VSCode {
                 'both' {
                     # If 'both' is specified, download and expand both versions
                     foreach ($url in $urls) {
-                        Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2 
-                        if (Test-Path $url.OutFileDirectory) {
-                            Expand-Archive -Path $url.OutFileDirectory -DestinationPath $url.DestinationPath -Force
-                            Remove-Item $url.OutFileDirectory
+                        if (-not( Test-Path -Path $url.OutFileDirectory -ErrorAction SilentlyContinue)) {
+                            New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
+                        }
+                        $OutFile = Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2 
+                        if ( Test-Path -Path $OutFile -ErrorAction SilentlyContinue) {
+                            Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
+                            Remove-Item $OutFile
                         }
                         else {
                             throw "Failed to download from $($url.URL)"
@@ -99,11 +102,13 @@ function Update-VSCode {
                     # If 'stable' or 'insider' is specified, download and expand the corresponding version
                     $url = $urls | Where-Object { $_.Version -eq $Version }
                     if ($url) {
-                        Get-DownloadFile -URL $url.URL -OutFile $url.OutFileDirectory -UseAria2 
-                        if (Test-Path $url.OutFileDirectory) {
-                            # Expand the downloaded archive to the destination path
-                            Expand-Archive -Path $url.OutFileDirectory -DestinationPath $url.DestinationPath -Force
-                            Remove-Item $url.OutFileDirectory
+                        if (-not( Test-Path -Path $url.OutFileDirectory -ErrorAction SilentlyContinue)) {
+                            New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
+                        }
+                        $OutFile = Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2 
+                        if ( Test-Path -Path $OutFile -ErrorAction SilentlyContinue) {
+                            Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
+                            Remove-Item $OutFile
                         }
                         else {
                             throw "Failed to download from $($url.URL)"
