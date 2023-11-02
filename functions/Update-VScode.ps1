@@ -134,3 +134,5 @@ function Update-VSCode {
         }
     }
 }
+
+Update-VSCode -Verbose -ErrorAction Break
