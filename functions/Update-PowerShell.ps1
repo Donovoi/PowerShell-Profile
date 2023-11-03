@@ -10,10 +10,6 @@ function Update-PowerShell {
     [string]
     $PowershellPreviewPath = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
   ) 
-  # load functions in folder but do not load this script 
-  $CurrentScriptPath = (Get-PSCallStack)[0].ScriptName
-  $FunctionsFolder = Get-ChildItem -Path "$PWD/functions/*.ps*" -Recurse | Where-Object { (Resolve-Path $_.FullName).path -ne (Resolve-Path $CurrentScriptPath).path }
-  $FunctionsFolder.ForEach{ .$_.FullName }
 
   Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
 
