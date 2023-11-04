@@ -217,9 +217,15 @@ function Get-GitPull {
             
             # Define the root path of the repository
             $repoRootPath = Get-Location
+            try {
+                # Search for the lock file recursively
+                $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
+            }
+            catch {
+                Write-Warning "Unable to get lock file for $($_)"
+                Write-Warning "Error is: $_.Exception.Message"
+            }
 
-            # Search for the lock file recursively
-            $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
 
             # Check if the lock file was found
             if ($null -ne $lockFile) {
