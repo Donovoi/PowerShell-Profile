@@ -55,7 +55,7 @@ function Install-ExternalDependencies {
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModules:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
+        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
     }
 
     # refresh environment variables
