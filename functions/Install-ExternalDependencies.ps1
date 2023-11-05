@@ -243,8 +243,8 @@ function Install-PSModules {
 
     process {
         try {
-            # Determine which modules are needed based on the InstallDefaultPSModules flag
-            $neededModules = if ($InstallDefaultPSModules) {
+            # Determine which modules are to be installed
+            $ModulesToBeInstalled = if ($InstallDefaultPSModules) {
                 @(
                     'Microsoft.PowerShell.ConsoleGuiTools',
                     'ImportExcel',
@@ -261,14 +261,14 @@ function Install-PSModules {
                 )
             }
             else {
-                $neededModules = $PSModule
+                $ModulesToBeInstalled = $PSModule
             }
 
             # Uninstall modules if RemoveAllModules flag is set
             if ($RemoveAllModules) {
                 $installedModules = Get-Module -ListAvailable
                 $installedModules | ForEach-Object {
-                    if ($_.Name -in $neededModules) {
+                    if ($_.Name -in $ModulesToBeInstalled) {
                         Write-Host "Removing module $($_.Name)"
                         Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
                         Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
@@ -284,7 +284,7 @@ function Install-PSModules {
             }
 
             # Install and import modules
-            $neededModules.ForEach({
+            $ModulesToBeInstalled.ForEach({
                     try {
                         # Check if the module is already installed
                         if (-not (Get-Module -Name $_ -ListAvailable)) {
