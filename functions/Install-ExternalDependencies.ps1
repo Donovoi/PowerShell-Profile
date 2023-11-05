@@ -33,7 +33,7 @@ function Install-ExternalDependencies {
     [CmdletBinding()]
     param(
         [switch]$RemoveAllModules,
-        [string[]]$PSModules,
+        [string[]]$PSModule,
         [string[]]$NugetPackages,
         [switch]$NoPSModules,
         [switch]$NoNugetPackages,
@@ -55,7 +55,7 @@ function Install-ExternalDependencies {
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModules:$PSModules -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
+        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModules:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
     }
 
     # refresh environment variables
@@ -228,7 +228,7 @@ function Install-PSModules {
         [bool]$InstallDefaultPSModules,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$PSModules,
+        [string[]]$PSModule,
 
         [Parameter(Mandatory = $false)]
         [bool]$RemoveAllModules,
@@ -256,11 +256,12 @@ function Install-PSModules {
                     'Crescendo',
                     'Microsoft.WinGet.Client',
                     'Microsoft.PowerShell.SecretManagement',
-                    'Microsoft.PowerShell.SecretStore'
+                    'Microsoft.PowerShell.SecretStore',
+                    'Microsoft.WinGet.Client'
                 )
             }
             else {
-                $PSModules
+                $neededModules = $PSModule
             }
 
             # Uninstall modules if RemoveAllModules flag is set
