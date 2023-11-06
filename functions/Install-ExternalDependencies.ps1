@@ -244,8 +244,9 @@ function Install-PSModules {
     process {
         try {
             # Determine which modules are to be installed
-            $ModulesToBeInstalled = if ($InstallDefaultPSModules) {
-                @(
+            $ModulesToBeInstalled = @()
+            if ($InstallDefaultPSModules) {
+                $ModulesToBeInstalled = @(
                     'Microsoft.PowerShell.ConsoleGuiTools',
                     'ImportExcel',
                     'PSWriteColor',
@@ -259,8 +260,9 @@ function Install-PSModules {
                     'Microsoft.PowerShell.SecretStore',
                     'Microsoft.WinGet.Client'
                 )
+                return $ModulesToBeInstalled
             }
-            else {
+            elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
                 $ModulesToBeInstalled = $PSModule
             }
 
@@ -462,5 +464,3 @@ function Get-EnvironmentVariableNames([System.EnvironmentVariableTarget] $Scope)
         }
     }
 }
-
-
