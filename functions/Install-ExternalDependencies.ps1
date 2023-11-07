@@ -39,6 +39,8 @@ function Install-ExternalDependencies {
         [switch]$NoNugetPackages,
         [switch]$InstallDefaultPSModules,
         [switch]$InstallDefaultNugetPackages,
+        [switch]$AddDefaultAssemblies,
+        [string[]]$AddCustomAssemblies,
         [string]$LocalModulesDirectory
     )
 
@@ -56,6 +58,11 @@ function Install-ExternalDependencies {
     # Install PowerShell modules
     if (-not $NoPSModules) {
         Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
+    }
+
+    # Add assemblies
+    if ($AddDefaultAssemblies -or $AddCustomAssemblies) {
+        Add-Assemblies -UseDefault:$AddDefaultAssemblies -CustomAssemblies:$AddCustomAssemblies
     }
 
     # refresh environment variables
@@ -155,8 +162,9 @@ function Install-PackageProviders {
     }
 }    
 
-function AddAssemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
+function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     # Initialize the list of assemblies to add
+    $assembliesToAdd = @()
     $assembliesToAdd = if ($UseDefault) {
         @(
             'PresentationFramework',
@@ -169,9 +177,7 @@ function AddAssemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
             'System.Xml'
         )
     }
-    else {
-        $CustomAssemblies
-    }
+    $assembliesToAdd += $CustomAssemblies
     
     # Add each assembly
     foreach ($assembly in $assembliesToAdd) {
