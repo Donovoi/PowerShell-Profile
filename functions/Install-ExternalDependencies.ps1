@@ -1,34 +1,3 @@
-<#
-.SYNOPSIS
-Installs external dependencies.
-
-.DESCRIPTION
-This function installs external dependencies required by the script. It can install NuGet packages and PowerShell modules.
-
-.PARAMETER RemoveAllModules
-Specifies whether to remove all existing modules before installation.
-
-.PARAMETER PSModules
-An array of PowerShell modules to install.
-
-.PARAMETER NugetPackages
-An array of NuGet packages to install.
-
-.PARAMETER NoPSModules
-If set, skips installing PowerShell modules.
-
-.PARAMETER NoNugetPackages
-If set, skips installing NuGet packages.
-
-.PARAMETER InstallDefaultPSModules
-If set, installs default PowerShell modules.
-
-.PARAMETER InstallDefaultNugetPackages
-If set, installs default NuGet packages.
-
-.PARAMETER LocalModulesDirectory
-Specifies the directory where to save the PowerShell modules locally. If null or empty, modules will be saved to the default directory.
-#>
 function Install-ExternalDependencies {
     [CmdletBinding()]
     param(
@@ -43,34 +12,34 @@ function Install-ExternalDependencies {
         [string[]]$AddCustomAssemblies,
         [string]$LocalModulesDirectory
     )
-
+  
     # Run as admin
     RunAsAdmin
-
+  
     # Setup package providers
     Install-PackageProviders
-
+  
     # Install NuGet dependencies
     if (-not $NoNugetPackages ) {
         InstallNugetDeps $InstallDefaultNugetPackages $NugetPackages
     }
-
+  
     # Install PowerShell modules
     if (-not $NoPSModules) {
         Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory  
     }
-
+  
     # Add assemblies
     if ($AddDefaultAssemblies -or $AddCustomAssemblies) {
         Add-Assemblies -UseDefault:$AddDefaultAssemblies -CustomAssemblies:$AddCustomAssemblies
     }
-
+  
     # refresh environment variables
     Update-SessionEnvironment
     
 }
-
-
+  
+  
 function RunAsAdmin {
     # Check if the current user is an administrator
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -83,54 +52,54 @@ function RunAsAdmin {
         exit
     }
 }
-
+  
 function Install-PackageProviders {
     [CmdletBinding()]
     param (
-
+  
     )
     try {
         # Ensure NuGet package provider is installed and registered
         if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
             # Define the URL for the latest PackageManagement nupkg
             $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
-
+  
             # Define the download path
             $downloadPath = Join-Path $env:TEMP "PackageManagement.zip"
-
+  
             # Download the nupkg file
             Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
-
+  
             # Define the extraction path
             $extractPath = Join-Path $env:TEMP "PackageManagement"
-
+  
             # Create the extraction directory if it doesn't exist
             if (Test-Path $extractPath) {
                 Remove-Item -Path $extractPath -Recurse -Force
             }
             New-Item -Path $extractPath -ItemType Directory
-
+  
             # Extract the nupkg (it's just a zip file)
             Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
-
+  
             # Find the DLL path
             $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
-
+  
             # Import the module
             Import-Module $dllPath
-
+  
             # Test to see if it's working
             Get-Command -Module PackageManagement
-
+  
             # Clean up
             Remove-Item -Path $downloadPath
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            Write-Host "PackageManagement module already installed"
+            Write-Log -Message "PackageManagement module already installed" -Level VERBOSE
         }
-
-
+  
+  
         Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
         
         Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
@@ -161,7 +130,7 @@ function Install-PackageProviders {
         Write-Host "An error occurred while setting up package providers: $_"
     }
 }    
-
+  
 function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     # Initialize the list of assemblies to add
     $assembliesToAdd = @()
@@ -177,7 +146,10 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
             'System.Xml'
         )
     }
-    $assembliesToAdd += $CustomAssemblies
+    if ($CustomAssemblies) {
+        $assembliesToAdd += $CustomAssemblies
+    }
+    
     
     # Add each assembly
     foreach ($assembly in $assembliesToAdd) {
@@ -191,7 +163,7 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     }
 }
     
-
+  
 function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
     try {
         # Determine which NuGet packages are needed based on the InstallDefault flag
@@ -226,27 +198,27 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
     }
 }
     
-
+  
 function Install-PSModules {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [bool]$InstallDefaultPSModules,
-
+  
         [Parameter(Mandatory = $false)]
         [string[]]$PSModule,
-
+  
         [Parameter(Mandatory = $false)]
         [bool]$RemoveAllModules,
-
+  
         [Parameter(Mandatory = $false)]
         [string]$LocalModulesDirectory
     )
-
+  
     begin {
         # Not yet used
     }
-
+  
     process {
         try {
             # Determine which modules are to be installed
@@ -271,7 +243,7 @@ function Install-PSModules {
             elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
                 $ModulesToBeInstalled = $PSModule
             }
-
+  
             # Uninstall modules if RemoveAllModules flag is set
             if ($RemoveAllModules) {
                 $installedModules = Get-Module -ListAvailable
@@ -290,7 +262,7 @@ function Install-PSModules {
                     }
                 }
             }
-
+  
             # Install and import modules
             $ModulesToBeInstalled.ForEach({
                     try {
@@ -302,14 +274,14 @@ function Install-PSModules {
                             if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
                                 Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
                             }
-
+  
                             # Install module
                             Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser
                         }
                         else {
                             Write-Host "Module $_ already installed"
                         }
-
+  
                         # Import modules from local directory if LocalModulesDirectory is not null or empty
                         if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
                             # Import module by name
@@ -338,30 +310,30 @@ function Install-PSModules {
             }
         }
     }
-
+  
     end {
         # Not yet used
     }
 }
-
+  
 function Update-SessionEnvironment {    
     $refreshEnv = $false
     $invocation = $MyInvocation
     if ($invocation.InvocationName -eq 'refreshenv') {
         $refreshEnv = $true
     }
-
+  
     if ($refreshEnv) {
         Write-Output 'Refreshing environment variables from the registry for powershell.exe. Please wait...'
     }
     else {
         Write-Verbose 'Refreshing environment variables from the registry.'
     }
-
+  
     $userName = $env:USERNAME
     $architecture = $env:PROCESSOR_ARCHITECTURE
     $psModulePath = $env:PSModulePath
-
+  
     #ordering is important here, $user should override $machine...
     $ScopeList = 'Process', 'Machine'
     if ('SYSTEM', "${env:COMPUTERNAME}`$" -notcontains $userName) {
@@ -374,7 +346,7 @@ function Update-SessionEnvironment {
                 Set-Item "Env:$_" -Value (Get-EnvironmentVariable -Scope $Scope -Name $_)
             }
     }
-
+  
     #Path gets special treatment b/c it munges the two together
     $paths = 'Machine', 'User' |
         ForEach-Object {
@@ -382,10 +354,10 @@ function Update-SessionEnvironment {
         } |
             Select-Object -Unique
     $Env:PATH = $paths -join ';'
-
+  
     # PSModulePath is almost always updated by process, so we want to preserve it.
     $env:PSModulePath = $psModulePath
-
+  
     # reset user and architecture
     if ($userName) {
         $env:USERNAME = $userName
@@ -393,14 +365,14 @@ function Update-SessionEnvironment {
     if ($architecture) {
         $env:PROCESSOR_ARCHITECTURE = $architecture
     }
-
+  
     if ($refreshEnv) {
         Write-Output 'Finished'
     }
 }
-
+  
 function Get-EnvironmentVariable {
-
+  
     [CmdletBinding()]
     [OutputType([string])]
     param(
@@ -409,7 +381,7 @@ function Get-EnvironmentVariable {
         [Parameter(Mandatory = $false)][switch] $PreserveVariables = $false,
         [parameter(ValueFromRemainingArguments = $true)][Object[]] $ignoredArguments
     )
-
+  
     [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\"
     [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME)
     if ($Scope -eq [System.EnvironmentVariableTarget]::User) {
@@ -419,16 +391,16 @@ function Get-EnvironmentVariable {
     elseif ($Scope -eq [System.EnvironmentVariableTarget]::Process) {
         return [Environment]::GetEnvironmentVariable($Name, $Scope)
     }
-
+  
     [Microsoft.Win32.RegistryValueOptions] $registryValueOptions = [Microsoft.Win32.RegistryValueOptions]::None
-
+  
     if ($PreserveVariables) {
         Write-Verbose "Choosing not to expand environment names"
         $registryValueOptions = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
     }
-
+  
     [string] $environmentVariableValue = [string]::Empty
-
+  
     try {
         #Write-Verbose "Getting environment variable $Name"
         if ($null -ne $win32RegistryKey) {
@@ -444,16 +416,16 @@ function Get-EnvironmentVariable {
             $win32RegistryKey.Close()
         }
     }
-
+  
     if ($null -eq $environmentVariableValue -or $environmentVariableValue -eq '') {
         $environmentVariableValue = [Environment]::GetEnvironmentVariable($Name, $Scope)
     }
-
+  
     return $environmentVariableValue
 }
-
+  
 function Get-EnvironmentVariableNames([System.EnvironmentVariableTarget] $Scope) {
-
+  
     # HKCU:\Environment may not exist in all Windows OSes (such as Server Core).
     switch ($Scope) {
         'User' {
