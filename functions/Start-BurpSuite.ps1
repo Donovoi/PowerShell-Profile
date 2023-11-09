@@ -52,5 +52,5 @@ Function Start-BurpSuite {
         }
     }
 }
-Import-Module .\Microsoft.PowerShell_profile.ps1
-Start-BurpSuite -BurpSuiteJarPath "$xwaysusb\chocolatey apps\chocolatey\bin\burpsuite.jar"
+# Import-Module .\Microsoft.PowerShell_profile.ps1
+# Start-BurpSuite -BurpSuiteJarPath "$xwaysusb\chocolatey apps\chocolatey\bin\burpsuite.jar"
