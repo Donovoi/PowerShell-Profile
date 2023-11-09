@@ -16,7 +16,7 @@ function Create-TestUsers {
   )
   #Define variables
   $OU = 'OU=Users,DC=testdomain,DC=com'
-  $Departments = @('IT','Finance','Logistics','Sourcing','Human Resources')
+  $Departments = @('IT', 'Finance', 'Logistics', 'Sourcing', 'Human Resources')
   $Names = Import-Csv FirstLastEurope.csv
   $firstnames = $Names.Firstname
   $lastnames = $Names.Lastname
@@ -47,13 +47,13 @@ function Create-TestUsers {
     }
     #Generate username and check for duplicates
 
-    $username = $firstname.Substring(0,3).ToLower() + $lastname.Substring(0,3).ToLower()
+    $username = $firstname.Substring(0, 3).ToLower() + $lastname.Substring(0, 3).ToLower()
     $exit = 0
     $count = 1
     do {
       try {
         $userexists = Get-ADUser -Identity $username
-        $username = $firstname.Substring(0,3).ToLower() + $lastname.Substring(0,3).ToLower() + $count++
+        $username = $firstname.Substring(0, 3).ToLower() + $lastname.Substring(0, 3).ToLower() + $count++
       }
       catch {
         $exit = 1
@@ -68,10 +68,10 @@ function Create-TestUsers {
     #Create the user
     Write-Log -Message "Creating user $username in $ou"
     New-ADUser -Name $displayname -DisplayName $displayname `
-       -SamAccountName $username -UserPrincipalName $upn `
-       -GivenName $firstname -Surname $lastname -Description 'Test User' `
-       -Path $ou -Enabled $true -ChangePasswordAtLogon $false -Department $Department `
-       -AccountPassword (ConvertTo-SecureString $Password -AsPlainText -Force)
+      -SamAccountName $username -UserPrincipalName $upn `
+      -GivenName $firstname -Surname $lastname -Description 'Test User' `
+      -Path $ou -Enabled $true -ChangePasswordAtLogon $false -Department $Department `
+      -AccountPassword (ConvertTo-SecureString $Password -AsPlainText -Force)
 
     $NumUsers --
   }

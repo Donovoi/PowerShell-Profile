@@ -11,7 +11,8 @@ function Get-NeededReboot {
             Write-Log -Message "Restarting the system..."
             Restart-Computer -Force
         }
-    } else {
+    }
+    else {
         Write-Log -Message "Windows does not require a reboot"
     }
 }

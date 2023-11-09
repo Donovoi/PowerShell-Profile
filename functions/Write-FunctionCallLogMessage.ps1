@@ -57,7 +57,7 @@ Write-FunctionCallLogMessage -Invocation $MyInvocation -Parameters $PSBoundParam
     $argumentsPassed = ''
     foreach ($param in $parameters.GetEnumerator()) {
         if ($param.Key -eq 'ignoredArguments') {
-            continue;
+            continue
         }
         $paramValue = $param.Value -Join ' '
         if ($param.Key -eq 'sensitiveStatements' -or $param.Key -eq 'password') {

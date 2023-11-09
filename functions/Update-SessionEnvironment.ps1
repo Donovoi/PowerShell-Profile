@@ -47,7 +47,7 @@ None
 None
 #>
 
-    Write-FunctionCallLogMessage -Invocation $MyInvocation -Parameters $PSBoundParameters
+    Write-FunctionCallLogMessage -invocation $MyInvocation -parameters $PSBoundParameters
 
     $refreshEnv = $false
     $invocation = $MyInvocation
@@ -84,7 +84,7 @@ None
         ForEach-Object {
       (Get-EnvironmentVariable -Name 'PATH' -Scope $_) -split ';'
         } |
-        Select-Object -Unique
+            Select-Object -Unique
     $Env:PATH = $paths -join ';'
 
     # PSModulePath is almost always updated by process, so we want to preserve it.
@@ -92,10 +92,10 @@ None
 
     # reset user and architecture
     if ($userName) {
-        $env:USERNAME = $userName;
+        $env:USERNAME = $userName
     }
     if ($architecture) {
-        $env:PROCESSOR_ARCHITECTURE = $architecture;
+        $env:PROCESSOR_ARCHITECTURE = $architecture
     }
 
     if ($refreshEnv) {

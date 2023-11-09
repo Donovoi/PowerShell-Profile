@@ -12,16 +12,16 @@ function Clear-AllRecycleBins {
     
     # Get a list of logical disks with DriveType=3 and filter out subst drives
     Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType=3' | 
-    Where-Object { $substDrives -notcontains $_.DeviceID } | 
-    ForEach-Object {
-        $driveLetter = ($_.DeviceID -replace ':', '')
-        Write-Host "Attempting to clear recycle bin for drive: $driveLetter"
+        Where-Object { $substDrives -notcontains $_.DeviceID } | 
+            ForEach-Object {
+                $driveLetter = ($_.DeviceID -replace ':', '')
+                Write-Host "Attempting to clear recycle bin for drive: $driveLetter"
         
-        try {
-            Clear-RecycleBin -DriveLetter $driveLetter -Confirm:$false
-        }
-        catch {
-            Write-Host "Failed to clear recycle bin for drive $driveLetter`: $_"
-        }
-    }
+                try {
+                    Clear-RecycleBin -DriveLetter $driveLetter -Confirm:$false
+                }
+                catch {
+                    Write-Host "Failed to clear recycle bin for drive $driveLetter`: $_"
+                }
+            }
 }

@@ -20,7 +20,7 @@ if (-not $isAdmin) {
 
 # Function to search Event Viewer logs for relevant entries
 function SearchEventViewerLogs() {
-    $eventLog = Get-EventLog -LogName 'System' -Newest 1000 | Where-Object {$_.EntryType -eq 'Error' -or $_.EntryType -eq 'Warning'}
+    $eventLog = Get-EventLog -LogName 'System' -Newest 1000 | Where-Object { $_.EntryType -eq 'Error' -or $_.EntryType -eq 'Warning' }
     $relevantEvents = $eventLog | Where-Object { $_.Message -match 'screen' }
     
     if ($relevantEvents) {

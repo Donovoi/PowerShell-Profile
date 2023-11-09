@@ -29,8 +29,7 @@
 #Requires -RunAsAdministrator
 #Requires -Version 5.1
 
-function Sophia
-{
+function Sophia {
 	[CmdletBinding()]
 	param
 	(
@@ -39,13 +38,12 @@ function Sophia
 		$Functions
 	)
 
-	foreach ($Function in $Functions)
-	{
+	foreach ($Function in $Functions) {
 		Invoke-Expression -Command $Function
 	}
 
 	# The "PostActions" and "Errors" functions will be executed at the end
-	Invoke-Command -ScriptBlock {PostActions; Errors}
+	Invoke-Command -ScriptBlock { PostActions; Errors }
 }
 
 Clear-Host
@@ -75,23 +73,19 @@ $Parameters = @{
 
 		# Get functions list with arguments to complete
 		$Commands = (Get-Module -Name Sophia).ExportedCommands.Keys
-		foreach ($Command in $Commands)
-		{
-			$ParameterSets = (Get-Command -Name $Command).Parametersets.Parameters | Where-Object -FilterScript {$null -eq $_.Attributes.AliasNames}
+		foreach ($Command in $Commands) {
+			$ParameterSets = (Get-Command -Name $Command).Parametersets.Parameters | Where-Object -FilterScript { $null -eq $_.Attributes.AliasNames }
 
 			# If a module command is OneDrive
-			if ($Command -eq "OneDrive")
-			{
-				(Get-Command -Name $Command).Name | Where-Object -FilterScript {$_ -like "*$wordToComplete*"}
+			if ($Command -eq "OneDrive") {
+				(Get-Command -Name $Command).Name | Where-Object -FilterScript { $_ -like "*$wordToComplete*" }
 
 				# Get all command arguments, excluding defaults
-				foreach ($ParameterSet in $ParameterSets.Name)
-				{
+				foreach ($ParameterSet in $ParameterSets.Name) {
 					# If an argument is AllUsers
-					if ($ParameterSet -eq "AllUsers")
-					{
+					if ($ParameterSet -eq "AllUsers") {
 						# The "OneDrive -Install -AllUsers" construction
-						"OneDrive" + " " + "-Install" + " " + "-" + $ParameterSet | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+						"OneDrive" + " " + "-Install" + " " + "-" + $ParameterSet | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 					}
 
 					continue
@@ -99,23 +93,19 @@ $Parameters = @{
 			}
 
 			# If a module command is UnpinTaskbarShortcuts
-			if ($Command -eq "UnpinTaskbarShortcuts")
-			{
+			if ($Command -eq "UnpinTaskbarShortcuts") {
 				# Get all command arguments, excluding defaults
-				foreach ($ParameterSet in $ParameterSets.Name)
-				{
+				foreach ($ParameterSet in $ParameterSets.Name) {
 					# If an argument is Shortcuts
-					if ($ParameterSet -eq "Shortcuts")
-					{
-						$ValidValues = ((Get-Command -Name UnpinTaskbarShortcuts).Parametersets.Parameters | Where-Object -FilterScript {$null -eq $_.Attributes.AliasNames}).Attributes.ValidValues
-						foreach ($ValidValue in $ValidValues)
-						{
+					if ($ParameterSet -eq "Shortcuts") {
+						$ValidValues = ((Get-Command -Name UnpinTaskbarShortcuts).Parametersets.Parameters | Where-Object -FilterScript { $null -eq $_.Attributes.AliasNames }).Attributes.ValidValues
+						foreach ($ValidValue in $ValidValues) {
 							# The "UnpinTaskbarShortcuts -Shortcuts <function>" construction
-							"UnpinTaskbarShortcuts" + " " + "-" + $ParameterSet + " " + $ValidValue | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+							"UnpinTaskbarShortcuts" + " " + "-" + $ParameterSet + " " + $ValidValue | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 						}
 
 						# The "UnpinTaskbarShortcuts -Shortcuts <functions>" construction
-						"UnpinTaskbarShortcuts" + " " + "-" + $ParameterSet + " " + ($ValidValues -join ", ") | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+						"UnpinTaskbarShortcuts" + " " + "-" + $ParameterSet + " " + ($ValidValues -join ", ") | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 					}
 
 					continue
@@ -123,18 +113,15 @@ $Parameters = @{
 			}
 
 			# If a module command is UninstallUWPApps
-			if ($Command -eq "UninstallUWPApps")
-			{
-				(Get-Command -Name $Command).Name | Where-Object -FilterScript {$_ -like "*$wordToComplete*"}
+			if ($Command -eq "UninstallUWPApps") {
+				(Get-Command -Name $Command).Name | Where-Object -FilterScript { $_ -like "*$wordToComplete*" }
 
 				# Get all command arguments, excluding defaults
-				foreach ($ParameterSet in $ParameterSets.Name)
-				{
+				foreach ($ParameterSet in $ParameterSets.Name) {
 					# If an argument is ForAllUsers
-					if ($ParameterSet -eq "ForAllUsers")
-					{
+					if ($ParameterSet -eq "ForAllUsers") {
 						# The "UninstallUWPApps -ForAllUsers" construction
-						"UninstallUWPApps" + " " + "-" + $ParameterSet | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+						"UninstallUWPApps" + " " + "-" + $ParameterSet | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 					}
 
 					continue
@@ -142,40 +129,35 @@ $Parameters = @{
 			}
 
 			# If a module command is DNSoverHTTPS
-			if ($Command -eq "DNSoverHTTPS")
-			{
-				(Get-Command -Name $Command).Name | Where-Object -FilterScript {$_ -like "*$wordToComplete*"}
+			if ($Command -eq "DNSoverHTTPS") {
+				(Get-Command -Name $Command).Name | Where-Object -FilterScript { $_ -like "*$wordToComplete*" }
 
 				# Get the valid IPv4 addresses array
 				# ((Get-Command -Name DNSoverHTTPS).Parametersets.Parameters | Where-Object -FilterScript {$null -eq $_.Attributes.AliasNames}).Attributes.ValidValues | Select-Object -Unique
-				$ValidValues = @((Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DohWellKnownServers).PSChildName) | Where-Object {$_ -notmatch ":"}
-				foreach ($ValidValue in $ValidValues)
-				{
-					$ValidValuesDescending = @((Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DohWellKnownServers).PSChildName) | Where-Object {$_ -notmatch ":"}
-					foreach ($ValidValueDescending in $ValidValuesDescending)
-					{
+				$ValidValues = @((Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DohWellKnownServers).PSChildName) | Where-Object { $_ -notmatch ":" }
+				foreach ($ValidValue in $ValidValues) {
+					$ValidValuesDescending = @((Get-ChildItem -Path HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DohWellKnownServers).PSChildName) | Where-Object { $_ -notmatch ":" }
+					foreach ($ValidValueDescending in $ValidValuesDescending) {
 						# The "DNSoverHTTPS -Enable -PrimaryDNS x.x.x.x -SecondaryDNS x.x.x.x" construction
-						"DNSoverHTTPS -Enable -PrimaryDNS $ValidValue -SecondaryDNS $ValidValueDescending" | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+						"DNSoverHTTPS -Enable -PrimaryDNS $ValidValue -SecondaryDNS $ValidValueDescending" | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 					}
 				}
 			}
 
 			# If a module command is Set-Policy
-			if ($Command -eq "Set-Policy")
-			{
+			if ($Command -eq "Set-Policy") {
 				continue
 			}
 
-			foreach ($ParameterSet in $ParameterSets.Name)
-			{
+			foreach ($ParameterSet in $ParameterSets.Name) {
 				# The "Function -Argument" construction
-				$Command + " " + "-" + $ParameterSet | Where-Object -FilterScript {$_ -like "*$wordToComplete*"} | ForEach-Object -Process {"`"$_`""}
+				$Command + " " + "-" + $ParameterSet | Where-Object -FilterScript { $_ -like "*$wordToComplete*" } | ForEach-Object -Process { "`"$_`"" }
 
 				continue
 			}
 
 			# Get functions list without arguments to complete
-			Get-Command -Name $Command | Where-Object -FilterScript {$null -eq $_.Parametersets.Parameters} | Where-Object -FilterScript {$_.Name -like "*$wordToComplete*"}
+			Get-Command -Name $Command | Where-Object -FilterScript { $null -eq $_.Parametersets.Parameters } | Where-Object -FilterScript { $_.Name -like "*$wordToComplete*" }
 
 			continue
 		}

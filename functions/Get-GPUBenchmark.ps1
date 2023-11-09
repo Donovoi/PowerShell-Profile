@@ -5,7 +5,7 @@ function Get-GPUBenchmark {
     )
 
     Add-Type -AssemblyName System.Runtime.Intrinsics
-    Add-type -AssemblyName System.Runtime.Intrinsics.X86
+    Add-Type -AssemblyName System.Runtime.Intrinsics.X86
 
 
     # Define the benchmark kernel using SIMD and intrinsics

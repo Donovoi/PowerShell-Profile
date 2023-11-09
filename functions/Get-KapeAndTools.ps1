@@ -5,7 +5,7 @@ function Get-KapeAndTools {
   param(
 
   )
-    Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
+  Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
   $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
@@ -16,7 +16,7 @@ function Get-KapeAndTools {
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
   $KapeAncillaryUpdater = Get-LatestGitHubRelease -OwnerRepository 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater' -AssetName 'KAPE-EZToolsAncillaryUpdater.ps1'
-  Start-Process -FilePath "pwsh.exe" -ArgumentList "-File","$($KapeAncillaryUpdater)",'-silent' -Wait -NoNewWindow
+  Start-Process -FilePath "pwsh.exe" -ArgumentList "-File", "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
 
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + '\ZimmermanTools.zip'))
   Expand-Archive -Path $("$XWAYSUSB" + '\ZimmermanTools.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force

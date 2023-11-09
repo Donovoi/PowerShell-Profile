@@ -59,8 +59,8 @@ function Invoke-Winget {
             # MSBuild Structured Log Viewer KirillOsenkov.MSBuildStructuredLogViewer 2.1.790 Tag: nuget winget
 
             $WingetObjects = @{}
-            $parsedWingetOutput = $wingetOutput | ConvertFrom-String -PropertyNames Name, Id, Version, Match, Source | Where-Object { $_.Name -ne 'Name'} | Where-Object {$_ -notmatch '(?!.*[a-zA-Z]).*'}
-            foreach($line in $parsedWingetOutput) {
+            $parsedWingetOutput = $wingetOutput | ConvertFrom-String -PropertyNames Name, Id, Version, Match, Source | Where-Object { $_.Name -ne 'Name' } | Where-Object { $_ -notmatch '(?!.*[a-zA-Z]).*' }
+            foreach ($line in $parsedWingetOutput) {
                 if ([string]::IsNullOrWhiteSpace($_.Name) -or ($_.Name -eq 'Name')) {
                     continue
                 }
