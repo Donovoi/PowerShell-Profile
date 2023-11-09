@@ -124,9 +124,9 @@ function Show-GPTForm {
     }
     
     $buttonsPanel = New-Object -TypeName System.Windows.Controls.StackPanel -Property @{
-        Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        Orientation         = [System.Windows.Controls.Orientation]::Horizontal
         HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-        Margin = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
+        Margin              = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
     }
     
     $buttonsPanel.Children.Add($okButton)

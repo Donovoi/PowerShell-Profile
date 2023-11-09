@@ -1,6 +1,6 @@
 function Get-TopModulesByDownloadCount {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$ModuleName
     )
 
@@ -29,7 +29,7 @@ function Get-TopModulesByDownloadCount {
 
             # Add the module info to the array
             $moduleInfo += New-Object PSObject -Property @{
-                Name = $module.Name
+                Name          = $module.Name
                 DownloadCount = [int]$downloadCount
             }
         }

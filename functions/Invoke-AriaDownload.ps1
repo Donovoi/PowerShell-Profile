@@ -1,4 +1,4 @@
- <#
+<#
  .SYNOPSIS
  This function downloads a file from a given URL using aria2c.
  
@@ -24,7 +24,7 @@
  .NOTES
  Make sure aria2c is installed and accessible from your PATH.
  #>
- function Invoke-AriaDownload {
+function Invoke-AriaDownload {
     [CmdletBinding()]
     [OutputType([string])]
     param (

@@ -30,17 +30,15 @@ Import-LocalizedData -BindingVariable Global:Localization -BaseDirectory $PSScri
 	Use commas to separate funtions
 	Разделяйте функции запятыми
 #>
-if ($Functions)
-{
-	Invoke-Command -ScriptBlock {InitialActions}
+if ($Functions) {
+	Invoke-Command -ScriptBlock { InitialActions }
 
-	foreach ($Function in $Functions)
-	{
+	foreach ($Function in $Functions) {
 		Invoke-Expression -Command $Function
 	}
 
 	# The "PostActions" and "Errors" functions will be executed at the end
-	Invoke-Command -ScriptBlock {PostActions; Errors}
+	Invoke-Command -ScriptBlock { PostActions; Errors }
 
 	exit
 }

@@ -87,7 +87,7 @@ function Get-LatestTerminalSettings {
             # The local settings.json file is up to date.
             Write-Output "The local settings.json file is up to date."
         }
-        elseif (($localVersion -gt $githubVersion) -or ([string]::IsNullOrWhiteSpace($githubVersion))){
+        elseif (($localVersion -gt $githubVersion) -or ([string]::IsNullOrWhiteSpace($githubVersion))) {
             # The local settings.json file is newer than the version on GitHub.
             Write-Output "The local settings.json file is newer than the version on GitHub."
             Set-TerminalSettings -settingsPath $settingsPath.FullName -ToUpload

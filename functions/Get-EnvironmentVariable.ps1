@@ -67,10 +67,10 @@ Set-EnvironmentVariable
     # Do not log function call, it may expose variable names
     ## Called from chocolateysetup.psm1 - wrap any Write-Host in try/catch
 
-    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\";
+    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\"
     [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME)
     if ($Scope -eq [System.EnvironmentVariableTarget]::User) {
-        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = "Environment";
+        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = "Environment"
         [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($USER_ENVIRONMENT_REGISTRY_KEY_NAME)
     }
     elseif ($Scope -eq [System.EnvironmentVariableTarget]::Process) {

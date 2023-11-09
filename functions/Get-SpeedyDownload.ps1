@@ -55,7 +55,7 @@ function Get-SpeedyDownload {
     }
 
     # copy the downloaded data to the buffer
-    [array]::Copy($bytesRead,0,$buffer,$offset,$bytesRead.Count)
+    [array]::Copy($bytesRead, 0, $buffer, $offset, $bytesRead.Count)
 
     # update the progress bar
     Write-Progress -Activity "Downloading" -Status "$($offset / 1MB) MB / $($length / 1MB) MB" -PercentComplete ($offset / $length * 100)
@@ -70,10 +70,10 @@ function Get-SpeedyDownload {
     $offset += $bytesRead.Length
 
     # copy the downloaded data to the buffer
-    $arrayvar = [array]::Copy($bytesRead,0,$buffer,$offset,$bytesRead.Length)
+    $arrayvar = [array]::Copy($bytesRead, 0, $buffer, $offset, $bytesRead.Length)
   }
 
   # save the downloaded data to a file
-  [System.IO.File]::WriteAllBytes("C:\temp\file.zip",$buffer)
+  [System.IO.File]::WriteAllBytes("C:\temp\file.zip", $buffer)
 }
 

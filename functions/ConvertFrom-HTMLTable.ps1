@@ -48,19 +48,23 @@ function ConvertFrom-HTMLTable {
 
     $twoColumnsWithoutName = 0
 
-    if ($tableName) { $tableNameTxt = "'$tableName'" }
+    if ($tableName) {
+        $tableNameTxt = "'$tableName'" 
+    }
 
-    $columnName = $table.getElementsByTagName("th") | % { $_.innerText -replace "^\s*|\s*$" }
+    $columnName = $table.getElementsByTagName("th") | ForEach-Object { $_.innerText -replace "^\s*|\s*$" }
 
     if (!$columnName) {
         $numberOfColumns = @($table.getElementsByTagName("tr")[0].getElementsByTagName("td")).count
         if ($numberOfColumns -eq 2) {
             ++$twoColumnsWithoutName
             Write-Verbose "Table $tableNameTxt has two columns without column names. Resultant object will use first column as objects property 'Name' and second as 'Value'"
-        } elseif ($numberOfColumns) {
+        }
+        elseif ($numberOfColumns) {
             Write-Warning "Table $tableNameTxt doesn't contain column names, numbers will be used instead"
             $columnName = 1..$numberOfColumns
-        } else {
+        }
+        else {
             throw "Table $tableNameTxt doesn't contain column names and summarization of columns failed"
         }
     }
@@ -69,13 +73,14 @@ function ConvertFrom-HTMLTable {
         # table has two columns without names
         $property = [ordered]@{ }
 
-        $table.getElementsByTagName("tr") | % {
+        $table.getElementsByTagName("tr") | ForEach-Object {
             # read table per row and return object
-            $columnValue = $_.getElementsByTagName("td") | % { $_.innerText -replace "^\s*|\s*$" }
+            $columnValue = $_.getElementsByTagName("td") | ForEach-Object { $_.innerText -replace "^\s*|\s*$" }
             if ($columnValue) {
                 # use first column value as object property 'Name' and second as a 'Value'
                 $property.($columnValue[0]) = $columnValue[1]
-            } else {
+            }
+            else {
                 # row doesn't contain <td>
             }
         }
@@ -84,15 +89,16 @@ function ConvertFrom-HTMLTable {
         }
 
         New-Object -TypeName PSObject -Property $property
-    } else {
+    }
+    else {
         # table doesn't have two columns or they are named
-        $table.getElementsByTagName("tr") | % {
+        $table.getElementsByTagName("tr") | ForEach-Object {
             # read table per row and return object
-            $columnValue = $_.getElementsByTagName("td") | % { $_.innerText -replace "^\s*|\s*$" }
+            $columnValue = $_.getElementsByTagName("td") | ForEach-Object { $_.innerText -replace "^\s*|\s*$" }
             if ($columnValue) {
                 $property = [ordered]@{ }
                 $i = 0
-                $columnName | % {
+                $columnName | ForEach-Object {
                     $property.$_ = $columnValue[$i]
                     ++$i
                 }
@@ -101,7 +107,8 @@ function ConvertFrom-HTMLTable {
                 }
 
                 New-Object -TypeName PSObject -Property $property
-            } else {
+            }
+            else {
                 # row doesn't contain <td>, its probably row with column names
             }
         }

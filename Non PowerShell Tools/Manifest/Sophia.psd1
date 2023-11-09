@@ -9,12 +9,12 @@
 	ProcessorArchitecture = 'AMD64'
 	FunctionsToExport     = '*'
 
-	PrivateData = @{
+	PrivateData           = @{
 		PSData = @{
-			LicenseUri    = 'https://github.com/farag2/Sophia-Script-for-Windows/blob/master/LICENSE'
-			ProjectUri    = 'https://github.com/farag2/Sophia-Script-for-Windows'
-			IconUri       = 'https://raw.githubusercontent.com/farag2/Sophia-Script-for-Windows/master/img/Sophia.png'
-			ReleaseNotes  = 'https://github.com/farag2/Sophia-Script-for-Windows/blob/master/CHANGELOG.md'
+			LicenseUri   = 'https://github.com/farag2/Sophia-Script-for-Windows/blob/master/LICENSE'
+			ProjectUri   = 'https://github.com/farag2/Sophia-Script-for-Windows'
+			IconUri      = 'https://raw.githubusercontent.com/farag2/Sophia-Script-for-Windows/master/img/Sophia.png'
+			ReleaseNotes = 'https://github.com/farag2/Sophia-Script-for-Windows/blob/master/CHANGELOG.md'
 		}
 	}
 }

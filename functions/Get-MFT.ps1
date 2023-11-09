@@ -1,6 +1,6 @@
 function Get-MFT {
 
-<#
+  <#
     .SYNOPSIS
     
     Extracts master file table from volume.
@@ -73,7 +73,7 @@ function Get-MFT {
     Write-Verbose "[*] Running locally..."
     $ComputerName = $env:COMPUTERNAME
     $OutputFilePath = Join-Path (Split-Path $OutputFilePath | Resolve-Path) (Split-Path $OutputFilePath -Leaf) -ErrorAction Stop
-    $OutputFileStream = New-Object IO.FileStream $OutputFilePath,'Append','Write','Read'
+    $OutputFileStream = New-Object IO.FileStream $OutputFilePath, 'Append', 'Write', 'Read'
 
 
     if ($Volume -ne 0) {
@@ -104,10 +104,10 @@ function Get-MFT {
     $OPEN_EXISTING = 0x03
 
     $DynAssembly = New-Object System.Reflection.AssemblyName ('MFT')
-    $AssemblyBuilder = [System.Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($DynAssembly,[Reflection.Emit.AssemblyBuilderAccess]::Run)
+    $AssemblyBuilder = [System.Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($DynAssembly, [Reflection.Emit.AssemblyBuilderAccess]::Run)
     $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule('InMemory')
 
-    $TypeBuilder = $ModuleBuilder.DefineType('kernel32','Public, Class')
+    $TypeBuilder = $ModuleBuilder.DefineType('kernel32', 'Public, Class')
     $DllImportConstructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor(@([string]))
     $SetLastError = [Runtime.InteropServices.DllImportAttribute].GetField('SetLastError')
     $SetLastErrorCustomAttribute = New-Object Reflection.Emit.CustomAttributeBuilder ($DllImportConstructor,
@@ -116,18 +116,18 @@ function Get-MFT {
       @($True))
 
     #CreateFile
-    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CreateFile','kernel32.dll',
+    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CreateFile', 'kernel32.dll',
       ([Reflection.MethodAttributes]::Public -bor [Reflection.MethodAttributes]::Static),
       [Reflection.CallingConventions]::Standard,
       [IntPtr],
-      [Type[]]@([string],[int32],[uint32],[IntPtr],[uint32],[uint32],[IntPtr]),
+      [Type[]]@([string], [int32], [uint32], [IntPtr], [uint32], [uint32], [IntPtr]),
       [Runtime.InteropServices.CallingConvention]::Winapi,
       [Runtime.InteropServices.CharSet]::Ansi)
 
     $PInvokeMethodBuilder.SetCustomAttribute($SetLastErrorCustomAttribute)
 
     #CloseHandle
-    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CloseHandle','kernel32.dll',
+    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CloseHandle', 'kernel32.dll',
       ([Reflection.MethodAttributes]::Public -bor [Reflection.MethodAttributes]::Static),
       [Reflection.CallingConventions]::Standard,
       [bool],
@@ -144,12 +144,12 @@ function Get-MFT {
     #Get handle to volume
     if ($Volume -ne 0) {
 
-      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'),$GENERIC_READWRITE,$FILE_SHARE_READWRITE,[IntPtr]::Zero,$OPEN_EXISTING,0,[IntPtr]::Zero)
+      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
 
     }
 
     else {
-      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $env:SystemDrive),$GENERIC_READWRITE,$FILE_SHARE_READWRITE,[IntPtr]::Zero,$OPEN_EXISTING,0,[IntPtr]::Zero)
+      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $env:SystemDrive), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
       $Volume = ($env:SystemDrive).TrimEnd(':')
     }
 
@@ -159,40 +159,46 @@ function Get-MFT {
     }
 
     # Create a FileStream to read from the volume handle
-    $FileStream = New-Object IO.FileStream ($VolumeHandle,[IO.FileAccess]::Read)
+    $FileStream = New-Object IO.FileStream ($VolumeHandle, [IO.FileAccess]::Read)
 
     # Read VBR from volume
     $VolumeBootRecord = New-Object Byte[] (512)
-    if ($FileStream.Read($VolumeBootRecord,0,$VolumeBootRecord.Length) -ne 512) { Write-Error "Error reading volume boot record." }
+    if ($FileStream.Read($VolumeBootRecord, 0, $VolumeBootRecord.Length) -ne 512) {
+      Write-Error "Error reading volume boot record." 
+    }
 
     # Parse MFT offset from VBR and set stream to its location
-    $MftOffset = [Bitconverter]::ToInt32($VolumeBootRecord[0x30..0x37],0) * 0x1000
+    $MftOffset = [Bitconverter]::ToInt32($VolumeBootRecord[0x30..0x37], 0) * 0x1000
     $FileStream.Position = $MftOffset
 
     # Read MFT's file record header
     $MftFileRecordHeader = New-Object byte[] (48)
-    if ($FileStream.Read($MftFileRecordHeader,0,$MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) { Write-Error "Error reading MFT file record header." }
+    if ($FileStream.Read($MftFileRecordHeader, 0, $MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) {
+      Write-Error "Error reading MFT file record header." 
+    }
 
     # Parse values from MFT's file record header
-    $OffsetToAttributes = [Bitconverter]::ToInt16($MftFileRecordHeader[0x14..0x15],0)
-    $AttributesRealSize = [Bitconverter]::ToInt32($MftFileRecordHeader[0x18..0x21],0)
+    $OffsetToAttributes = [Bitconverter]::ToInt16($MftFileRecordHeader[0x14..0x15], 0)
+    $AttributesRealSize = [Bitconverter]::ToInt32($MftFileRecordHeader[0x18..0x21], 0)
 
     # Read MFT's full file record
     $MftFileRecord = New-Object byte[] ($AttributesRealSize)
     $FileStream.Position = $MftOffset
-    if ($FileStream.Read($MftFileRecord,0,$MftFileRecord.Length) -ne $AttributesRealSize) { Write-Error "Error reading MFT file record." }
+    if ($FileStream.Read($MftFileRecord, 0, $MftFileRecord.Length) -ne $AttributesRealSize) {
+      Write-Error "Error reading MFT file record." 
+    }
 
     # Parse MFT's attributes from file record
     $Attributes = New-Object byte[] ($AttributesRealSize - $OffsetToAttributes)
-    [array]::Copy($MftFileRecord,$OffsetToAttributes,$Attributes,0,$Attributes.Length)
+    [array]::Copy($MftFileRecord, $OffsetToAttributes, $Attributes, 0, $Attributes.Length)
 
     # Find Data attribute
     $CurrentOffset = 0
 
     do {
 
-      $AttributeType = [Bitconverter]::ToInt32($Attributes[$CurrentOffset..$($CurrentOffset + 3)],0)
-      $AttributeSize = [Bitconverter]::ToInt32($Attributes[$($CurrentOffset + 4)..$($CurrentOffset + 7)],0)
+      $AttributeType = [Bitconverter]::ToInt32($Attributes[$CurrentOffset..$($CurrentOffset + 3)], 0)
+      $AttributeSize = [Bitconverter]::ToInt32($Attributes[$($CurrentOffset + 4)..$($CurrentOffset + 7)], 0)
       $CurrentOffset += $AttributeSize
 
     } until ($AttributeType -eq 128)
@@ -201,10 +207,10 @@ function Get-MFT {
     $DataAttribute = $Attributes[$($CurrentOffset - $AttributeSize)..$($CurrentOffset - 1)]
 
     # Parse MFT size from data attribute
-    $MftSize = [Bitconverter]::ToUInt64($DataAttribute[0x30..0x37],0)
+    $MftSize = [Bitconverter]::ToUInt64($DataAttribute[0x30..0x37], 0)
 
     # Parse data runs from data attribute
-    $OffsetToDataRuns = [Bitconverter]::ToInt16($DataAttribute[0x20..0x21],0)
+    $OffsetToDataRuns = [Bitconverter]::ToInt16($DataAttribute[0x20..0x21], 0)
     $DataRuns = $DataAttribute[$OffsetToDataRuns..$($DataAttribute.Length - 1)]
 
     # Convert data run info to string[] for calculations
@@ -223,16 +229,20 @@ function Get-MFT {
       $DataRunStart = "0x"
       $DataRunLength = "0x"
 
-      for ($i = $StartBytes; $i -gt 0; $i --) { $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] }
+      for ($i = $StartBytes; $i -gt 0; $i --) {
+        $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] 
+      }
 
-      for ($i = $LengthBytes; $i -gt 0; $i --) { $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $StartBytes + $i)] }
+      for ($i = $LengthBytes; $i -gt 0; $i --) {
+        $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $StartBytes + $i)] 
+      }
 
       $FileStreamOffset += ([int]$DataRunStart * 0x1000)
       $FileStream.Position = $FileStreamOffset
 
       for ($i = 1; $i -lt [int]$DataRunLength + 1; $i++) {
 
-        $readlen = $FileStream.Read($MftData,0,$MftData.Length)
+        $readlen = $FileStream.Read($MftData, 0, $MftData.Length)
         [array]$SendBuffer += $MftData[0..($readlen - 1)]
 
 
@@ -250,11 +260,13 @@ function Get-MFT {
             $SendBuffer = $null
           }
 
-          { ![math]::Equals(($_ % 4092),0) } {
+          { ![math]::Equals(($_ % 4092), 0) } {
             $SendBuffer = $null
           }
 
-          default { continue }
+          default {
+            continue 
+          }
 
         }
 
@@ -281,7 +293,7 @@ function Get-MFT {
   #Powershell Runspace
   $ListenerBlock = {
 
-    param($Lport,$OutputFilePath)
+    param($Lport, $OutputFilePath)
 
     #Start TCP SERVER
     $Tcplistener = New-Object System.Net.Sockets.TcpListener $lport
@@ -292,20 +304,22 @@ function Get-MFT {
     $remotesvr = $TcpClient.Client.RemoteEndPoint.Address.IPAddressToString
     $TcpNetworkstream = $TCPClient.GetStream()
     $Receivebuffer = New-Object Byte[] $TcpClient.ReceiveBufferSize
-    $OutputFileStream = New-Object IO.FileStream $OutputFilePath,'Append','Write','Read'
+    $OutputFileStream = New-Object IO.FileStream $OutputFilePath, 'Append', 'Write', 'Read'
 
     try {
 
       while ($TcpClient.Connected) {
 
-        $Read = $TcpNetworkstream.Read($Receivebuffer,0,$Receivebuffer.Length)
+        $Read = $TcpNetworkstream.Read($Receivebuffer, 0, $Receivebuffer.Length)
 
-        if ($Read -eq 0) { break }
+        if ($Read -eq 0) {
+          break 
+        }
         else {
 
           [array]$Bytesreceived += $Receivebuffer[0..($Read - 1)]
-          [array]::Clear($Receivebuffer,0,$Read)
-          $OutputFileStream.Write($Bytesreceived,0,$Bytesreceived.Length)
+          [array]::Clear($Receivebuffer, 0, $Read)
+          $OutputFileStream.Write($Bytesreceived, 0, $Bytesreceived.Length)
           $TcpNetworkstream.Flush()
           $Bytesreceived = $null
 
@@ -315,7 +329,9 @@ function Get-MFT {
 
     }
 
-    catch { exit (1) }
+    catch {
+      exit (1) 
+    }
 
     $OutputFileStream.Close()
     $Tcplistener.Stop()
@@ -327,15 +343,15 @@ function Get-MFT {
   $runspacepool = [runspacefactory]::CreateRunspacePool($InitialSessionState)
 
   Write-Verbose "[*] Opening Runspace..."
-  sleep 1
+  Start-Sleep 1
   $runspacepool.Open()
   $runspace = [powershell]::Create()
   $runspace.runspacePool = $runspacepool
 
   Write-Verbose "[+] Runspace Open"
-  sleep 1
+  Start-Sleep 1
   $ParamList = @{ "Lport" = $Lport
-    "OutputFilePath" = $OutputFilePath
+    "OutputFilePath"      = $OutputFilePath
   }
 
   Write-Verbose "[*] Forking Listener to Runspace..."
@@ -343,21 +359,25 @@ function Get-MFT {
 
   Write-Verbose "[*] Starting Listener..."
 
-  sleep 1
+  Start-Sleep 1
   $runspace.begininvoke() | Out-Null
 
   if (-not ($runspace.HadErrors)) {
 
-    if ($(netstat -ant | findstr $Lport)) { Write-Verbose "[+] Successfully forked TCP listener on port $Lport to background" }
+    if ($(netstat -ant | findstr $Lport)) {
+      Write-Verbose "[+] Successfully forked TCP listener on port $Lport to background" 
+    }
 
   }
 
-  else { Write-Verbose "[-] Couldn't start Listener. Exiting." }
+  else {
+    Write-Verbose "[-] Couldn't start Listener. Exiting." 
+  }
 
   #Scriptblock to dump MFT on Remote host
   $ScriptBlock = {
 
-    param($calling_host,$Volume,$Lport)
+    param($calling_host, $Volume, $Lport)
 
     if ($Volume -ne 0) {
 
@@ -387,10 +407,10 @@ function Get-MFT {
     $OPEN_EXISTING = 0x03
 
     $DynAssembly = New-Object System.Reflection.AssemblyName ('MFT')
-    $AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly($DynAssembly,[Reflection.Emit.AssemblyBuilderAccess]::Run)
-    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule('InMemory',$false)
+    $AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly($DynAssembly, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule('InMemory', $false)
 
-    $TypeBuilder = $ModuleBuilder.DefineType('kernel32','Public, Class')
+    $TypeBuilder = $ModuleBuilder.DefineType('kernel32', 'Public, Class')
     $DllImportConstructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor(@([string]))
     $SetLastError = [Runtime.InteropServices.DllImportAttribute].GetField('SetLastError')
     $SetLastErrorCustomAttribute = New-Object Reflection.Emit.CustomAttributeBuilder ($DllImportConstructor,
@@ -399,18 +419,18 @@ function Get-MFT {
       @($True))
 
     #CreateFile
-    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CreateFile','kernel32.dll',
+    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CreateFile', 'kernel32.dll',
       ([Reflection.MethodAttributes]::Public -bor [Reflection.MethodAttributes]::Static),
       [Reflection.CallingConventions]::Standard,
       [IntPtr],
-      [Type[]]@([string],[int32],[uint32],[IntPtr],[uint32],[uint32],[IntPtr]),
+      [Type[]]@([string], [int32], [uint32], [IntPtr], [uint32], [uint32], [IntPtr]),
       [Runtime.InteropServices.CallingConvention]::Winapi,
       [Runtime.InteropServices.CharSet]::Ansi)
 
     $PInvokeMethodBuilder.SetCustomAttribute($SetLastErrorCustomAttribute)
 
     #CloseHandle
-    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CloseHandle','kernel32.dll',
+    $PInvokeMethodBuilder = $TypeBuilder.DefinePInvokeMethod('CloseHandle', 'kernel32.dll',
       ([Reflection.MethodAttributes]::Public -bor [Reflection.MethodAttributes]::Static),
       [Reflection.CallingConventions]::Standard,
       [bool],
@@ -427,12 +447,12 @@ function Get-MFT {
     #Get handle to volume
     if ($Volume -ne 0) {
 
-      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'),$GENERIC_READWRITE,$FILE_SHARE_READWRITE,[IntPtr]::Zero,$OPEN_EXISTING,0,[IntPtr]::Zero)
+      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
 
     }
 
     else {
-      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $env:SystemDrive),$GENERIC_READWRITE,$FILE_SHARE_READWRITE,[IntPtr]::Zero,$OPEN_EXISTING,0,[IntPtr]::Zero)
+      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $env:SystemDrive), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
       $Volume = ($env:SystemDrive).TrimEnd(':')
     }
 
@@ -442,40 +462,46 @@ function Get-MFT {
     }
 
     # Create a FileStream to read from the volume handle
-    $FileStream = New-Object IO.FileStream ($VolumeHandle,[IO.FileAccess]::Read)
+    $FileStream = New-Object IO.FileStream ($VolumeHandle, [IO.FileAccess]::Read)
 
     # Read VBR from volume
     $VolumeBootRecord = New-Object Byte[] (512)
-    if ($FileStream.Read($VolumeBootRecord,0,$VolumeBootRecord.Length) -ne 512) { Write-Error "Error reading volume boot record." }
+    if ($FileStream.Read($VolumeBootRecord, 0, $VolumeBootRecord.Length) -ne 512) {
+      Write-Error "Error reading volume boot record." 
+    }
 
     # Parse MFT offset from VBR and set stream to its location
-    $MftOffset = [Bitconverter]::ToInt32($VolumeBootRecord[0x30..0x37],0) * 0x1000
+    $MftOffset = [Bitconverter]::ToInt32($VolumeBootRecord[0x30..0x37], 0) * 0x1000
     $FileStream.Position = $MftOffset
 
     # Read MFT's file record header
     $MftFileRecordHeader = New-Object byte[] (48)
-    if ($FileStream.Read($MftFileRecordHeader,0,$MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) { Write-Error "Error reading MFT file record header." }
+    if ($FileStream.Read($MftFileRecordHeader, 0, $MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) {
+      Write-Error "Error reading MFT file record header." 
+    }
 
     # Parse values from MFT's file record header
-    $OffsetToAttributes = [Bitconverter]::ToInt16($MftFileRecordHeader[0x14..0x15],0)
-    $AttributesRealSize = [Bitconverter]::ToInt32($MftFileRecordHeader[0x18..0x21],0)
+    $OffsetToAttributes = [Bitconverter]::ToInt16($MftFileRecordHeader[0x14..0x15], 0)
+    $AttributesRealSize = [Bitconverter]::ToInt32($MftFileRecordHeader[0x18..0x21], 0)
 
     # Read MFT's full file record
     $MftFileRecord = New-Object byte[] ($AttributesRealSize)
     $FileStream.Position = $MftOffset
-    if ($FileStream.Read($MftFileRecord,0,$MftFileRecord.Length) -ne $AttributesRealSize) { Write-Error "Error reading MFT file record." }
+    if ($FileStream.Read($MftFileRecord, 0, $MftFileRecord.Length) -ne $AttributesRealSize) {
+      Write-Error "Error reading MFT file record." 
+    }
 
     # Parse MFT's attributes from file record
     $Attributes = New-Object byte[] ($AttributesRealSize - $OffsetToAttributes)
-    [array]::Copy($MftFileRecord,$OffsetToAttributes,$Attributes,0,$Attributes.Length)
+    [array]::Copy($MftFileRecord, $OffsetToAttributes, $Attributes, 0, $Attributes.Length)
 
     # Find Data attribute
     $CurrentOffset = 0
 
     do {
 
-      $AttributeType = [Bitconverter]::ToInt32($Attributes[$CurrentOffset..$($CurrentOffset + 3)],0)
-      $AttributeSize = [Bitconverter]::ToInt32($Attributes[$($CurrentOffset + 4)..$($CurrentOffset + 7)],0)
+      $AttributeType = [Bitconverter]::ToInt32($Attributes[$CurrentOffset..$($CurrentOffset + 3)], 0)
+      $AttributeSize = [Bitconverter]::ToInt32($Attributes[$($CurrentOffset + 4)..$($CurrentOffset + 7)], 0)
       $CurrentOffset += $AttributeSize
 
     } until ($AttributeType -eq 128)
@@ -484,10 +510,10 @@ function Get-MFT {
     $DataAttribute = $Attributes[$($CurrentOffset - $AttributeSize)..$($CurrentOffset - 1)]
 
     # Parse MFT size from data attribute
-    $MftSize = [Bitconverter]::ToUInt64($DataAttribute[0x30..0x37],0)
+    $MftSize = [Bitconverter]::ToUInt64($DataAttribute[0x30..0x37], 0)
 
     # Parse data runs from data attribute
-    $OffsetToDataRuns = [Bitconverter]::ToInt16($DataAttribute[0x20..0x21],0)
+    $OffsetToDataRuns = [Bitconverter]::ToInt16($DataAttribute[0x20..0x21], 0)
     $DataRuns = $DataAttribute[$OffsetToDataRuns..$($DataAttribute.Length - 1)]
 
     # Convert data run info to string[] for calculations
@@ -506,7 +532,7 @@ function Get-MFT {
     $serverip = (([System.Net.Dns]::GetHostAddresses($calling_host))[0]).IPAddressToString
 
     try {
-      $Tcpclient.Connect($serverip,$lport)
+      $Tcpclient.Connect($serverip, $lport)
       $TcpNetworkStream = $Tcpclient.GetStream()
 
       do {
@@ -515,16 +541,20 @@ function Get-MFT {
         $DataRunStart = "0x"
         $DataRunLength = "0x"
 
-        for ($i = $StartBytes; $i -gt 0; $i --) { $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] }
+        for ($i = $StartBytes; $i -gt 0; $i --) {
+          $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] 
+        }
 
-        for ($i = $LengthBytes; $i -gt 0; $i --) { $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)] }
+        for ($i = $LengthBytes; $i -gt 0; $i --) {
+          $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)] 
+        }
 
         $FileStreamOffset += ([int]$DataRunStart * 0x1000)
         $FileStream.Position = $FileStreamOffset
 
         for ($i = 1; $i -lt [int]$DataRunLength + 1; $i++) {
 
-          $readlen = $FileStream.Read($MftData,0,$MftData.Length)
+          $readlen = $FileStream.Read($MftData, 0, $MftData.Length)
           [array]$SendBuffer += $MftData[0..($readlen - 1)]
 
 
@@ -539,19 +569,21 @@ function Get-MFT {
           switch ($Sendbuffer.Length) {
 
             16384 {
-              $TcpNetworkstream.Write($Sendbuffer,0,$Sendbuffer.Length)
+              $TcpNetworkstream.Write($Sendbuffer, 0, $Sendbuffer.Length)
               $TcpNetworkstream.Flush()
               $SendBuffer = $null
             }
 
-            { ![math]::Equals(($_ % 4092),0) } {
+            { ![math]::Equals(($_ % 4092), 0) } {
 
-              $TcpNetworkstream.Write($Sendbuffer,0,$Sendbuffer.Length)
+              $TcpNetworkstream.Write($Sendbuffer, 0, $Sendbuffer.Length)
               $TcpNetworkstream.Flush()
               $SendBuffer = $null
             }
 
-            default { continue }
+            default {
+              continue 
+            }
 
           }
 
@@ -572,7 +604,9 @@ function Get-MFT {
 
     }
 
-    catch { 0 }
+    catch {
+      0 
+    }
 
   }
 
@@ -583,11 +617,15 @@ function Get-MFT {
   Write-Verbose "[+] Added Firewall rule `"$FirewallRuleName`" for port $LPort"
   $scriptTime = [Diagnostics.Stopwatch]::StartNew()
 
-  Write-Verbose "[+] Execution Start time: $(get-date -Format t)"
+  Write-Verbose "[+] Execution Start time: $(Get-Date -Format t)"
   Write-Verbose "[*] Writing to $OutputFilePath"
-  $ReturnedObjects = Invoke-Command -Session $remote_pssession -ScriptBlock $ScriptBlock -ArgumentList @($calling_host,$Volume,$LPort)
-  if ($ReturnedObjects -eq 0) { Write-Verbose "[-] Failed to transfer MFT." }
-  else { Write-Verbose "[+] Successfully copied MFT with a size of $($ReturnedObjects / 1024 / 1024) MB" }
+  $ReturnedObjects = Invoke-Command -Session $remote_pssession -ScriptBlock $ScriptBlock -ArgumentList @($calling_host, $Volume, $LPort)
+  if ($ReturnedObjects -eq 0) {
+    Write-Verbose "[-] Failed to transfer MFT." 
+  }
+  else {
+    Write-Verbose "[+] Successfully copied MFT with a size of $($ReturnedObjects / 1024 / 1024) MB" 
+  }
 
   Write-Verbose "[*] Removing Runspace..."
   $runspace.Stop()

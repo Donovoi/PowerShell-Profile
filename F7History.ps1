@@ -15,7 +15,7 @@
 # 
 function ocgv_history {
   param(
-    [parameter(Mandatory=$true)]
+    [parameter(Mandatory = $true)]
     [Boolean]
     $global
   )
@@ -30,7 +30,8 @@ function ocgv_history {
     [array]::Reverse($history) 
     $selection = $history | Select-Object -Unique | Out-ConsoleGridView -OutputMode Single -Filter $line -Title "Global Command Line History"
 
-  } else {
+  }
+  else {
     # Local history
     $history = Get-History | Sort-Object -Descending -Property Id -Unique | Select-Object CommandLine -ExpandProperty CommandLine 
     $selection = $history | Out-ConsoleGridView -OutputMode Single -Filter $line -Title "Command Line History"
@@ -50,10 +51,10 @@ function ocgv_history {
 
 # When F7 is pressed, show the local command line history in OCGV
 $parameters = @{
-  Key = 'F7'
+  Key              = 'F7'
   BriefDescription = 'Show Matching History'
-  LongDescription = 'Show Matching History using Out-ConsoleGridView'
-  ScriptBlock = {
+  LongDescription  = 'Show Matching History using Out-ConsoleGridView'
+  ScriptBlock      = {
     ocgv_history -Global $false 
   }
 }
@@ -61,10 +62,10 @@ Set-PSReadLineKeyHandler @parameters
 
 # When Shift-F7 is pressed, show the local command line history in OCGV
 $parameters = @{
-  Key = 'Shift-F7'
+  Key              = 'Shift-F7'
   BriefDescription = 'Show Matching Global History'
-  LongDescription = 'Show Matching History for all PowerShell instances using Out-ConsoleGridView'
-  ScriptBlock = {
+  LongDescription  = 'Show Matching History for all PowerShell instances using Out-ConsoleGridView'
+  ScriptBlock      = {
     ocgv_history -Global $true
   }
 }

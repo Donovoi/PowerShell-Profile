@@ -52,9 +52,9 @@ pub extern fn search_files(search_term: *const u8, directory: *const u8) {
 }
 '@
 
-if (-not (Test-Path -Path "$ENV:TEMP\src")) {
-    New-Item -Path "$ENV:TEMP\src" -ItemType Directory -Force
-}
+    if (-not (Test-Path -Path "$ENV:TEMP\src")) {
+        New-Item -Path "$ENV:TEMP\src" -ItemType Directory -Force
+    }
     Set-Content -Path "$ENV:TEMP\lib.rs" -Value $rustCode -Force
 
     # Compile the Rust code into a DLL
