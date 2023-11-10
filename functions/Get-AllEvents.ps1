@@ -85,12 +85,6 @@ function Get-AllEvents {
     }
   }
 
-  function Test-IsAdministrator {
-    $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
-    $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  }
-
   $CurrentDate = Get-Date
   $startDateTime = $CurrentDate.AddHours(-1)
   $endDateTime = $CurrentDate
