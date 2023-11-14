@@ -48,26 +48,20 @@ function Get-DownloadFile {
         )]
         [ValidateNotNullOrEmpty()]
         [string[]]$URL,
-
+  
         [Parameter(
             Mandatory = $true,
             Position = 1
         )]
         [Alias('OutputDir')]
-        [ValidateScript({
-                if ($_ -match '\.[a-zA-Z0-9]{1,5}$') {
-                    throw "Parameter OutFileDirectory must be valid directory."
-                }
-                $true
-            })]
         [string]$OutFileDirectory,
-
+  
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'UseAria2'
         )]
         [switch]$UseAria2,
-
+  
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'UseAria2'
@@ -79,20 +73,20 @@ function Get-DownloadFile {
                 $true
             })]
         [string]$aria2cExe = "c:\aria2\aria2c.exe",
-
+  
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'Auth'
         )]
         [ValidateNotNullOrEmpty()]
         [string]$SecretName = 'ReadOnlyGitHubToken',
-
+  
         [Parameter(
             Mandatory = $false
         )]
         [ValidateNotNull()]
         [System.Collections.IDictionary]$Headers,
-
+  
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'Auth'
@@ -112,23 +106,14 @@ function Get-DownloadFile {
                     $HeadersForFileType = Invoke-WebRequest -Uri $download -Headers:$Headers -Method Head
                     $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $HeadersForFileType.Headers['Content-Disposition'].Split('=')[-1].Split('"')[1]
                 }
-                
+                  
                 if ($UseAria2) {
-                    # Get functions from my github profile
-                    $functions = @("Write-Log", "Invoke-AriaDownload", "Install-ExternalDependencies", "Get-LatestGitHubRelease")
-                    $functions.ForEach{
-                        $function = $_                        
-                        Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                        $Webfunction = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-                        $Webfunction.Content | Invoke-Expression
-                    }
-
                     if (-not(Test-Path -Path $aria2cExe)) {
                         $null = Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
                         $aria2cExe = $(Get-ChildItem -Recurse -Path "C:\aria2\" -Filter "aria2c.exe").FullName
                     }
                     Write-Host "Using aria2c for download."
-
+  
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
                         # Install any needed modules and import them
@@ -141,7 +126,7 @@ function Get-DownloadFile {
                                 Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
                                 throw
                             }      
-
+  
                             Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
                         }
                     }
@@ -159,6 +144,6 @@ function Get-DownloadFile {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
-        
+          
     }
 }
