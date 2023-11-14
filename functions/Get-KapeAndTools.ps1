@@ -10,13 +10,21 @@ function Get-KapeAndTools {
   $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
 
-  Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ea silentlycontinue
+  Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ErrorAction silentlycontinue
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1') -ea silentlycontinue
 
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
-  $KapeAncillaryUpdater = Get-LatestGitHubRelease -OwnerRepository 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater' -AssetName 'KAPE-EZToolsAncillaryUpdater.ps1'
-  Start-Process -FilePath "pwsh.exe" -ArgumentList "-File", "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
+  $params = @{
+    OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
+    AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
+    DownloadPathDirectory = "$ENV:USERPROFILE\Documents\PowerShell\Non PoweShell Tools"
+    ExtractZip            = $true
+    UseAria2              = $true
+  }
+
+  $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
+  Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoProfile -NoExit -File", "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
 
   Invoke-WebRequest -Uri 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFile $(Resolve-Path -Path $("$XWAYSUSB" + '\ZimmermanTools.zip'))
   Expand-Archive -Path $("$XWAYSUSB" + '\ZimmermanTools.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
