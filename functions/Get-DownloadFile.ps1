@@ -72,7 +72,7 @@ function Get-DownloadFile {
                 }
                 $true
             })]
-        [string]$aria2cExe = "c:\aria2\aria2c.exe",
+        [string]$aria2cExe = $(Resolve-Path "c:\aria2*\*\aria2c.exe" -ErrorAction SilentlyContinue).Path,
   
         [Parameter(
             Mandatory = $false,
