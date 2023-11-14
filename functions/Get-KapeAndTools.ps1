@@ -18,7 +18,7 @@ function Get-KapeAndTools {
   $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = "$ENV:USERPROFILE\Documents\PowerShell\Non PoweShell Tools"
+    DownloadPathDirectory = $(Join-Path -Path "$ENV:USERPROFILE" -ChildPath "\Documents\PowerShell\Non PowerShell Tools" -Resolve)
     ExtractZip            = $true
     UseAria2              = $true
   }
