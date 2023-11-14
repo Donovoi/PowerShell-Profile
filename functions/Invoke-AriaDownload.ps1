@@ -88,14 +88,14 @@ function Invoke-AriaDownload {
                 '--file-allocation=none',
                 '--continue=false',
                 '--max-connection-per-server=16',
-                "--log=$($(Split-Path -Parent $OutFile) + '\aria2c.log')",
+                "--log=$($(Split-Path -Parent `"$OutFile`") + '\aria2c.log')",
                 '--disable-ipv6',
                 '--split=16',
                 '--min-split-size=1M',
                 '--max-tries=0',
                 '--allow-overwrite=true',
-                "--dir=$(Split-Path -Parent $OutFile)",
-                "--out=$(Split-Path -Leaf $OutFile)",
+                "--dir=$(Split-Path -Parent `"$OutFile`")",
+                "--out=$(Split-Path -Leaf `"$OutFile`")",
                 $headerArgs.GetEnumerator(), # Include custom headers if provided
                 $authHeader, # Include the authorization header if it was constructed
                 $URL
