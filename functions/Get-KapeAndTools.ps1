@@ -15,10 +15,12 @@ function Get-KapeAndTools {
 
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
+  $documentsPath = [Environment]::GetFolderPath("MyDocuments")
+  
   $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = $(Join-Path -Path "$ENV:USERPROFILE" -ChildPath "\Documents\PowerShell\Non PowerShell Tools" -Resolve)
+    DownloadPathDirectory = $(Join-Path -Path $documentsPath -ChildPath "\PowerShell\Non PowerShell Tools" -Resolve)
     ExtractZip            = $true
     UseAria2              = $true
   }
