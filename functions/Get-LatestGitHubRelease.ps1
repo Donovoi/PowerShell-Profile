@@ -55,9 +55,9 @@ function Get-LatestGitHubRelease {
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [switch] $UseAria2,
       
-        [Parameter()]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = $(Resolve-Path -Path "$PWD/aria*/*/aria2c.exe").Path,    
+        $Aria2cExePath = $(Resolve-Path -Path "$ENV:SystemDrive/aria*/*/aria2c.exe").Path,    
   
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
@@ -194,7 +194,10 @@ function Get-LatestGitHubRelease {
   
                     # Conditionally add parameters          
                     $downloadFileParams['UseAria2'] = $true
-                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                    if ((Test-Path -Path $Aria2cExePath -ErrorAction silentlycontinue)) {
+                        $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                    }
+                    
             
   
                     if ($TokenName -and $PrivateRepo) {
