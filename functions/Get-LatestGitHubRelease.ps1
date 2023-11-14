@@ -42,34 +42,38 @@ function Get-LatestGitHubRelease {
     param(
         [Parameter(Mandatory = $true)]
         [string] $OwnerRepository,
-
+  
         [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
         [string] $AssetName,
-
+  
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string] $DownloadPathDirectory = $PWD,
-
+  
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [switch] $ExtractZip,
-
+  
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [switch] $UseAria2,
-
+      
+        [Parameter()]
+        [string]
+        $Aria2cExePath = $(Resolve-Path -Path "$PWD/aria*/*/aria2c.exe").Path,    
+  
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
-
+  
         [Parameter(Mandatory = $false, ParameterSetName = 'VersionOnly')]
         [switch] $VersionOnly,
-
+  
         [Parameter(Mandatory = $false)]
         [string] $TokenName = 'ReadOnlyGitHubToken',
-
+  
         [Parameter(Mandatory = $false)]
         [switch] $PrivateRepo
     )
     
     begin {
-
+  
         # Prepare API headers without Authorization
         $headers = @{
             'Accept'               = 'application/vnd.github+json'
@@ -86,7 +90,7 @@ function Get-LatestGitHubRelease {
             }
             # Later in the session
             $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
-
+  
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
             if ($newModules -notcontains "Microsoft.PowerShell.SecretManagement") {
@@ -142,7 +146,7 @@ function Get-LatestGitHubRelease {
         try {
             # Define API URL
             $apiurl = "https://api.github.com/repos/$OwnerRepository/releases"
-
+  
             # Retrieve release information
             $Release = if ($PreRelease) {
                 $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
@@ -151,9 +155,9 @@ function Get-LatestGitHubRelease {
             else {
                 Invoke-RestMethod -Uri ($apiurl + '/latest') -Headers $headers
             }
-
+  
             # Handle 'Not Found' response
-            if ($Release.Message -like '*Not Found*') {
+            if ($Release -like '*Not Found*') {
                 Write-Log -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
                 $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
                 $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
@@ -163,7 +167,7 @@ function Get-LatestGitHubRelease {
                     exit
                 }
             }
-
+  
             # Handle 'VersionOnly' parameter
             if ($PSBoundParameters.ContainsKey('VersionOnly')) {
                 $Version = $Release.name.Split(' ')[0]
@@ -172,34 +176,34 @@ function Get-LatestGitHubRelease {
             else {
                 $asset = $Release.assets | Where-Object { $_ -like "*$AssetName*" } | Select-Object -First 1
             }
-
+  
             # Prepare for download
             if (-not (Test-Path $DownloadPathDirectory)) {
                 New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
             }
-
+  
             # Download asset
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
                     # Initialize an empty hashtable
                     $downloadFileParams = @{}
-
+  
                     # Mandatory parameters
                     $downloadFileParams['URL'] = $asset.Browser_Download_url
-                    $downloadFileParams['OutFile'] = (Join-Path -Path $(Get-LongName -ShortName $DownloadPathDirectory) -ChildPath $asset.Name)
-
-                    # Conditionally add parameters
-                    if ($UseAria2) {
-                        $downloadFileParams['UseAria2'] = $true
-                    }
-
+                    $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
+  
+                    # Conditionally add parameters          
+                    $downloadFileParams['UseAria2'] = $true
+                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+            
+  
                     if ($TokenName -and $PrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                         $downloadFileParams['IsPrivateRepo'] = $true
                     }
-
+  
                     # Splat the parameters onto the function call
-                    $null = Get-DownloadFile @downloadFileParams                
+                    Get-DownloadFile @downloadFileParams                
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
@@ -227,7 +231,7 @@ function Get-LatestGitHubRelease {
                     $outFile
                 }
             }
-
+  
             # Handle 'ExtractZip' parameter
             if ($ExtractZip) {
                 if ($downloadedFile -notlike '*.zip') {
