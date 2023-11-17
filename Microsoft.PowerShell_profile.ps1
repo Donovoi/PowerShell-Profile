@@ -59,17 +59,12 @@ if (-not (Get-Module pansies -ErrorAction SilentlyContinue)) {
 }
 Import-Module pansies -Force
 
-# #Run Start-SpeedTest if it is not running in the background
-# if (-not(Get-Process -Name speedtest-rs -ErrorAction SilentlyContinue)) {
-#   Start-SpeedTest -TimeInterval 300
-# }
+# update package providers
+# PowerShellGet version 2
+Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
 
-# # update package providers
-# # PowerShellGet version 2
-# Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
-
-# # PowerShellGet version 3
-# Install-PSResource AnyPackage
+# PowerShellGet version 3
+Install-PSResource AnyPackage
 
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
@@ -99,24 +94,6 @@ $modules | ForEach-Object {
     }    
   }
 }
-
-#  Extract this to a Function TODO
-# $Modules = Get-Module -ListAvailable
-
-# $Modules.ForEach{ 
-#   $ErrorActionPreference = 'silentlycontinue'
-#   if ($_ -notlike '*PSReadline*') {
-#     Import-Module $_ -Force -SkipEditionCheck
-#   }
-#   else {
-#     Install-Module PowerShellGet -Force
-#     Update-Module PowerShellGet -Force
-#     Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
-#     Set-PSReadLineOption -PredictionSource History
-#   }
-  
-# }
-
 
 $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
 $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
