@@ -5,7 +5,7 @@ function Update-PSProfile {
   )
   Start-AsAdmin
   Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -Level INFO
-  if (-not (Test-Path $PROFILE)) {
+  if (-not (Test-Path $PROFILE -ErrorAction SilentlyContinue)) {
     New-Item $PROFILE -Force
     $sourcefolder = $XWAYSUSB + '\Projects\Powershell-Profile\*'
     Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
@@ -35,11 +35,16 @@ function Update-PSProfile {
     $currentProcessId = $PID
 
     # Start a new elevated instance of wt.exe
-    Start-Process wt.exe -Verb RunAs
+    $windowsterminallocation = if (-not(Test-Path -Path "$ENV:USERPROFILE\AppData\Local\Microsoft\WindowsApps\wt.exe")) {
+      $(Resolve-Path -Path "C:\Program Files\WindowsApps\Microsoft.WindowsTerminalPreview*\wt.exe").Path
+    }
+    else {
+      "$ENV:USERPROFILE\AppData\Local\Microsoft\WindowsApps\wt.exe"
+    }
+    Start-Process -FilePath $windowsterminallocation -Verb RunAs
 
     # End the current PowerShell process
     Stop-Process -Id $currentProcessId
 
   }
 }
-
