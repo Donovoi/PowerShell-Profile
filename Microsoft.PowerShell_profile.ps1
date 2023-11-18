@@ -17,26 +17,25 @@ $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '
 
 # Check if PowerShell 7 is installed
 if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-  Write-Host "PowerShell 7 is not installed. Installing now..." -ForegroundColor Yellow
-    
+  Write-Host 'PowerShell 7 is not installed. Installing now...' -ForegroundColor Yellow    
   # Download and install PowerShell 7 (you might want to check the URL for the latest version)
   winget install powershell
     
-  Write-Host "PowerShell 7 installed successfully!" -ForegroundColor Green
+  Write-Host 'PowerShell 7 installed successfully!' -ForegroundColor Green
 }
 
 # Check and create profile folders for Windows PowerShell
 if (-not (Test-Path -Path $windowsPowerShellProfilePath)) {
-  Write-Host "Windows PowerShell profile folders do not exist. Creating now..." -ForegroundColor Yellow
+  Write-Host 'Windows PowerShell profile folders do not exist. Creating now...' -ForegroundColor Yellow
   PowerShell.exe -command "New-Item -Path $PROFILE"
-  Write-Host "Windows PowerShell profile folders created successfully!" -ForegroundColor Green
+  Write-Host 'Windows PowerShell profile folders created successfully!' -ForegroundColor Green
 }
 
 # Check and create profile folders for PowerShell 7
 if (-not (Test-Path -Path $powerShell7ProfilePath)) {
-  Write-Host "PowerShell 7 profile folders do not exist. Creating now..." -ForegroundColor Yellow
+  Write-Host 'PowerShell 7 profile folders do not exist. Creating now...' -ForegroundColor Yellow
   New-Item -Path $PROFILE
-  Write-Host "PowerShell 7 profile folders created successfully!" -ForegroundColor Green
+  Write-Host 'PowerShell 7 profile folders created successfully!' -ForegroundColor Green
 }
 
 if ($PSVersionTable.PSVersion.Major -eq 7) {
@@ -60,16 +59,19 @@ if (-not (Get-Module pansies -ErrorAction SilentlyContinue)) {
 Import-Module pansies -Force
 
 # update package providers
-# PowerShellGet version 2
-Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
 
-# PowerShellGet version 3
-Install-PSResource AnyPackage
-
+if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
+  # PowerShellGet version 2
+  Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
+}
+if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
+  # PowerShellGet version 3
+  Install-PSResource AnyPackage
+}
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
 # install and import modules needed for oh my posh
-$modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors', "F7History")
+$modules = @('Terminal-Icons', 'posh-git', 'PSReadLine', 'PSColors', 'F7History')
 $modules | ForEach-Object {
   if ( -not(Get-Module -ListAvailable $_)) {
     if ($_ -like '*PSReadLine*') {
