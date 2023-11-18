@@ -6,8 +6,8 @@ function Get-KapeAndTools {
 
   )
   Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
-  $Global:XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-  $Global:ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
+  $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+  $ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
 
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ErrorAction silentlycontinue
@@ -15,11 +15,10 @@ function Get-KapeAndTools {
 
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
-  $documentsPath = [Environment]::GetFolderPath('MyDocuments')
     $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = $(Join-Path -Path $documentsPath -ChildPath '\PowerShell\Non PowerShell Tools' -Resolve)
+    DownloadPathDirectory = $XWAYSUSB
     ExtractZip            = $true
     UseAria2              = $true
   }
@@ -35,7 +34,7 @@ function Get-KapeAndTools {
   }
   # Now we have a folder with all the zimmerman tools in it. We need to copy them to the $ENV:ChocolateyInstall folder, but just the binaries and their dependencies.
   Get-ChildItem -Path $("$XWAYSUSB" + '\ZimmermanTools\extracted') -Recurse | ForEach-Object -Process {
-    Copy-Item -Path $_.FullName -Destination $Global:ENV:ChocolateyInstall -Force
+    Copy-Item -Path $_.FullName -Destination $ENV:ChocolateyInstall -Force
   }
 }
 
