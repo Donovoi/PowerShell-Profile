@@ -18,7 +18,7 @@ function Get-KapeAndTools {
     $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = $XWAYSUSB
+    DownloadPathDirectory = "$XWAYSUSB\triage\kape"
     ExtractZip            = $true
     UseAria2              = $true
   }
