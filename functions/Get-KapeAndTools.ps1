@@ -15,21 +15,20 @@ function Get-KapeAndTools {
 
   Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
-  $documentsPath = [Environment]::GetFolderPath("MyDocuments")
-  
-  $params = @{
+  $documentsPath = [Environment]::GetFolderPath('MyDocuments')
+    $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = $(Join-Path -Path $documentsPath -ChildPath "\PowerShell\Non PowerShell Tools" -Resolve)
+    DownloadPathDirectory = $(Join-Path -Path $documentsPath -ChildPath '\PowerShell\Non PowerShell Tools' -Resolve)
     ExtractZip            = $true
     UseAria2              = $true
   }
 
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
-  Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoProfile -NoExit -File", "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
+  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
 
-  Get-DownloadFile -URL 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFileDirectory "$XWAYSUSB" -UseAria2 -
-  Expand-Archive -Path $("$XWAYSUSB" + '\ZimmermanTools.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
+  Get-DownloadFile -URL 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFileDirectory "$XWAYSUSB" -UseAria2
+  Expand-Archive -Path $("$XWAYSUSB" + 'All_6.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
   # We now have a a folder with many zip files in it. We need to extract each one to the same folder "$ENV:TEMP\extracted" .
   Get-ChildItem -Path $("$XWAYSUSB" + '\ZimmermanTools') -Filter *.zip -File | ForEach-Object -Process {
     Expand-Archive -Path $_.FullName -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools\extracted') -Force
