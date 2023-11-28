@@ -27,7 +27,7 @@ function Start-SleepWithCountdown {
         for ($i = $Seconds; $i -gt 0; $i--) {
             if ($i % 5 -eq 0) {
                 # Log a message every 5 seconds
-                Write-Log -Message "Sleeping for $i more second(s)" -Level INFO -NoConsoleOutput:$NoConsoleOutput
+                Write-Logg -Message "Sleeping for $i more second(s)" -Level INFO -NoConsoleOutput:$NoConsoleOutput
             }
             Start-Sleep -Seconds 1
         }

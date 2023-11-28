@@ -8,7 +8,7 @@ function Update-VcRedist {
   param(
     
   )
-  Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
+  Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
   Invoke-RestMethod 'https://api.github.com/repos/abbodi1406/vcredist/releases/latest' | ForEach-Object assets | Where-Object name -Like "*VisualCppRedist_AIO_x86_x64*.exe" | ForEach-Object { 
     Invoke-WebRequest $_.browser_download_url -OutFile $_.name
     # Run the installer

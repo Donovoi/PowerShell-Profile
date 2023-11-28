@@ -44,9 +44,9 @@ function Invoke-Winget {
         try {
             $params = $PSBoundParameters
             $params.Remove('WCommand') | Out-Null            
-            Write-Log -Message "Executing command: winget $WCommand $($($params.Values.GetEnumerator())[-1])"
+            Write-Logg -Message "Executing command: winget $WCommand $($($params.Values.GetEnumerator())[-1])"
             $wingetoutput = cmd /c "winget $WCommand $($($params.Values.GetEnumerator())[-1])" | Out-String -Stream
-            Write-Log -Message "Command output: $wingetoutput"
+            Write-Logg -Message "Command output: $wingetoutput"
 
             # convert output to objects using ConvertFrom-String
             # parse the wingetout into objects

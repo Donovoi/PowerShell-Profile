@@ -24,7 +24,7 @@ function Update-VisualStudio {
 
     # Update each instance
     foreach ($instance in $instances) {
-        Write-Log -Message "Updating $($instance.installationPath)..."
+        Write-Logg -Message "Updating $($instance.installationPath)..."
         & $vsInstaller update --installPath $($instance.installationPath)
     }
 

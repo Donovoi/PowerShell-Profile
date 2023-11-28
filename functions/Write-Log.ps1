@@ -27,7 +27,7 @@ Specifies whether to suppress console output for the log message. By default, co
 .PARAMETER WPFPopUpMessage
 Specifies whether to display a WPF popup message with the log message. By default, this is disabled.
 #>
-function Write-Log {
+function Write-Logg {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

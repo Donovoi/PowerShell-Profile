@@ -6,17 +6,17 @@ function Update-RustAndFriends {
 
     )
     
-    Write-Log -Message 'Installing Rust'
+    Write-Logg -Message 'Installing Rust'
     winget install Rustlang.Rustup --force --accept-source-agreements --accept-package-agreements
-    Write-Log -Message 'Finished installing Rust'
+    Write-Logg -Message 'Finished installing Rust'
 
-    Write-Log -Message 'Installing Rust MSVC'
+    Write-Logg -Message 'Installing Rust MSVC'
     winget install Rustlang.Rust.MSVC --force --accept-source-agreements --accept-package-agreements
-    Write-Log -Message 'Finished installing Rust MSVC'
+    Write-Logg -Message 'Finished installing Rust MSVC'
 
-    Write-Log -Message 'Updating cargo'
+    Write-Logg -Message 'Updating cargo'
     cargo install cargo-update
     cargo install-update -a
-    Write-Log -Message 'Finished updating cargo'
+    Write-Logg -Message 'Finished updating cargo'
 
 }

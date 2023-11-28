@@ -131,9 +131,9 @@ function Get-XwaysResources {
       Add-Content $credentialFilePath $password
 
       if ($encryptMode -eq "AES") {
-        Write-Log -Message "IMPORTANT! Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure."
+        Write-Logg -Message "IMPORTANT! Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure."
       }
-      Write-Log -Message "Credentials collected and stored."
+      Write-Logg -Message "Credentials collected and stored."
     }
     else {
       # Root Folder
@@ -157,7 +157,7 @@ function Get-XwaysResources {
       }
       catch {
         $errText = $error[0]
-        Write-Log "AES Key file detected, but could not be read.  Error Message was: $errText" -Type ERROR
+        Write-Logg "AES Key file detected, but could not be read.  Error Message was: $errText" -Type ERROR
         exit -1
       }
     }
@@ -189,7 +189,7 @@ function Get-XwaysResources {
     catch {
       $errText = $error[0]
       Out-Host -InputObject "Failed to Prepare Credentials.  Error Message was: $errText" -Type ERROR
-      Write-Log -Message "Failed to Prepare Credentials.  Please check Log File."
+      Write-Logg -Message "Failed to Prepare Credentials.  Please check Log File."
       exit -1
     }
     #endregion Credentials

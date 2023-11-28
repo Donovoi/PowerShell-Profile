@@ -96,7 +96,7 @@ function Install-PackageProviders {
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            Write-Log -Message "PackageManagement module already installed" -Level VERBOSE
+            Write-Logg -Message "PackageManagement module already installed" -Level VERBOSE
         }
   
   

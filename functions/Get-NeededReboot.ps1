@@ -6,13 +6,13 @@ function Get-NeededReboot {
 
     $rebootRequired = (Get-CimInstance -ClassName Win32_OperatingSystem).RebootPending
     if ($rebootRequired) {
-        Write-Log -Message "Windows requires a reboot"
+        Write-Logg -Message "Windows requires a reboot"
         if ($RestartIfNeeded) {
-            Write-Log -Message "Restarting the system..."
+            Write-Logg -Message "Restarting the system..."
             Restart-Computer -Force
         }
     }
     else {
-        Write-Log -Message "Windows does not require a reboot"
+        Write-Logg -Message "Windows does not require a reboot"
     }
 }

@@ -49,11 +49,11 @@ function Update-VSCode {
             . $myProfile
         }
         else {
-            Write-Log -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
+            Write-Logg -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
         }
 
         # Print the name of the running script
-        Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)"
+        Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)"
     
     } process {
         try {
@@ -123,7 +123,7 @@ function Update-VSCode {
             }
         }
         catch {
-            Write-Log -Message "$($_.Exception.Message)" -Level Error
+            Write-Logg -Message "$($_.Exception.Message)" -Level Error
         }
         finally {
             if (-not($DoNotAddDataFolder)) {
@@ -134,9 +134,9 @@ function Update-VSCode {
                         New-Item -Path $_ -ItemType Directory -Force
                     }
                 }
-                Write-Log -Message "Data folders Created" -Level Info
+                Write-Logg -Message "Data folders Created" -Level Info
             }
-            Write-Log -Message 'Update-VSCode function execution completed.' -Level Info
+            Write-Logg -Message 'Update-VSCode function execution completed.' -Level Info
         }
     }
 }

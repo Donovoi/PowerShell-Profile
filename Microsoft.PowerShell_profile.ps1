@@ -88,7 +88,7 @@ $modules | ForEach-Object {
         Write-Error $_.Exception.Message
         Write-Warning "This could be due to terminal-icons, removing all xmls in $("$env:APPDATA\powershell\Community\Terminal-Icons")"
         Remove-Item -Path "$env:APPDATA\powershell\Community\Terminal-Icons\*.xml" -Force -ErrorAction SilentlyContinue
-        Write-Log -Message 'Please press any key to exit PowerShell. Once exited, open PowerShell and try again...' -ForegroundColor Green
+        Write-Logg -Message 'Please press any key to exit PowerShell. Once exited, open PowerShell and try again...' -ForegroundColor Green
         $host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') | Out-Null
         exit
       }
