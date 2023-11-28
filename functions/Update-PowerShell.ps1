@@ -11,7 +11,7 @@ function Update-PowerShell {
     $PowershellPreviewPath = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
   ) 
 
-  Write-Log -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
+  Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
 
   function Get-PowerShellVersion {
     param (
@@ -48,23 +48,23 @@ function Update-PowerShell {
     # Get the current PowerShell version
     if (Test-Path $PowershellStablePath) {
       $CurrentVersionStable = Get-PowerShellVersion -PowerShellPath $PowershellStablePath      
-      Write-Log -Message "Current PowerShell Version: $CurrentVersionStable" -Level INFO
+      Write-Logg -Message "Current PowerShell Version: $CurrentVersionStable" -Level INFO
     }
     else {
-      Write-Log -Message "PowerShell Stable not found at $PowershellStablePath" -Level INFO
+      Write-Logg -Message "PowerShell Stable not found at $PowershellStablePath" -Level INFO
     }    
 
     # Check for PowerShell Preview version
     if (Test-Path $PowershellPreviewPath) {
       $CurrentVersionPreview = Get-PowerShellVersion -PowerShellPath $PowershellPreviewPath
-      Write-Log -Message "PowerShell Preview Version: $previewVersion" -Level INFO
+      Write-Logg -Message "PowerShell Preview Version: $previewVersion" -Level INFO
     }
     else {
-      Write-Log -Message "PowerShell Preview not found at $CurrentVersionPreview" -Level INFO
+      Write-Logg -Message "PowerShell Preview not found at $CurrentVersionPreview" -Level INFO
     }
 
     if ((-not (Test-Path $PowershellStablePath)) -or (-not (Test-Path $PowershellPreviewPath))) {
-      Write-Log -Message "No PowerShell exe found, downloading Powershell $_" -Level INFO 
+      Write-Logg -Message "No PowerShell exe found, downloading Powershell $_" -Level INFO 
     }
     else {      
       $UpdatePreview = $false
@@ -112,7 +112,7 @@ function Update-PowerShell {
       # Remove the installer
       Remove-Item $DownloadPath
     }
-    Write-Log -Message "Powershell $_ is up to date" -level info
+    Write-Logg -Message "Powershell $_ is up to date" -level info
 
   } 
 

@@ -163,7 +163,7 @@ function Get-DownloadFile {
                         if ($null -ne $SecretName) {
                             # Validate the secret exists and is valid
                             if (-not (Get-SecretInfo -Name $SecretName)) {
-                                Write-Log -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                                Write-Logg -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
                                 throw
                             }      
   

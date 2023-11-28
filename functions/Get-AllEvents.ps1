@@ -1,14 +1,12 @@
 function Get-AllEvents {
+  [CmdletBinding()]
   param (
-    [CmdletBinding()]
-    [Parameter(
-      ValueFromPipeline = $True,
-      ValueFromPipelineByPropertyName = $True,
-      HelpMessage = 'Enter one or more hosts'
-    )]
+    [Parameter(ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True, HelpMessage = 'Enter one or more hosts')]
     [Alias('ComputerName', 'MachineName', 'Server', 'Host')]
     [switch]$ExportToCsv,
-    [string]$ExportToCSVPath = '.'
+    [string]$ExportToCSVPath = '.',
+    [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe",
+    [switch]$ViewInTimelineExplorer
   )
 
   if (!(Test-IsAdministrator)) {
@@ -16,16 +14,14 @@ function Get-AllEvents {
     return
   }
 
+  Install-ExternalDependencies -PSModule 'pansies' -NoNugetPackages 
+
   $culture = [System.Globalization.CultureInfo]::InvariantCulture
   $Computer = $env:COMPUTERNAME
 
   function Get-Events {
-    param(
-      [Parameter(Mandatory = $true, HelpMessage = 'Please enter the full start date and time')]
-      [Alias('BeginDate', 'BeginTime', 'StartDate')]
+    param (
       [datetime]$StartTime,
-      [Parameter(Mandatory = $true, HelpMessage = 'Please enter the full end date and time')]
-      [Alias('EndDate')]
       [datetime]$EndTime
     )
 
@@ -36,44 +32,31 @@ function Get-AllEvents {
         Write-Warning $warnmessage
       }
 
-      $Events = foreach ($log in $EventLogs) {
-        $Percentage = [Array]::IndexOf($EventLogs, $log) / $EventLogs.Count
-
-        Write-Progress -Activity "Retrieving events from Logs ($($EventLogs.IndexOf($log) + 1) of $($EventLogs.Count))" -PercentComplete ($Percentage * 100) -CurrentOperation $log.LogName -Status 'Processing ...'
-
+      $Events = $EventLogs | ForEach-Object -Parallel {
         Get-WinEvent -FilterHashtable @{
-          logname   = $log.LogName
-          StartTime = $StartTime
-          EndTime   = $EndTime
+          logname   = $_.LogName
+          StartTime = $using:StartTime
+          EndTime   = $using:EndTime
         } -ea 0
-      }
+      } -ThrottleLimit 100
 
       if ($Events.Count -gt 0) {
-        $EventsSorted = $Events |
-          Sort-Object -Property TimeCreated |
-            Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
+        $EventsSorted = $Events | Sort-Object -Property TimeCreated | Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
 
-        Write-Progress -Activity 'Almost there' -PercentComplete 100 -CurrentOperation 'Generating gridview output data ...' -Completed -Status 'Done'
-
-        if ($ExportToCsv) {
-          if (!(Test-Path $ExportToCSVPath)) {
-            Write-Error "$ExportToCSVPath doesn't exist, re-run script ..."
-            return
+        if ($script:ExportToCsv) {
+          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportPath $script:ExportToCSVPath -ComputerName $Computer
+          if ($ViewInTimelineExplorer) {
+            Open-WithTimelineExplorer -filePath $csvpath -TimelineExplorerPath $script:TimelineExplorerPath
+            exit
           }
-          
-          $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-          $filename = "Events_$date`_$Computer.csv" -replace ':', '_'
-          $filename = $filename -replace '/', '-'
-          $EventsSorted | Export-Csv (Join-Path $ExportToCSVPath $filename) -NoTypeInformation
+        }
+        elseif ($ViewInTimelineExplorer) {
+          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportPath $script:ExportToCSVPath -ComputerName $Computer
+          Open-WithTimelineExplorer -filePath $csvpath -TimelineExplorerPath $script:TimelineExplorerPath
+          exit
         }
         else {
-          try {
-            $EventsSorted | Out-GridView -Title 'Events Found'
-          }
-          catch {
-            Write-Warning "Error using the Out-GridView cmdlet, use the '$EventsSorted' variable to see all found events sorted on date and time. Or use the -ExportToCSV parameter with this script's function to export the results to CSV."
-            Write-Warning $_.Exception.Message
-          }
+          $EventsSorted | Out-GridView -Title 'Events Found'
         }
       }
       else {
@@ -85,12 +68,64 @@ function Get-AllEvents {
     }
   }
 
+  function Export-EventsToCsv {
+    param (
+      [object[]]$Events = { Get-Events -StartTime $startDateTime -EndTime $endDateTime },
+      [string]$ExportFolder = $PWD,
+      [string]$ComputerName = $Computer
+    )
+
+    $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    $filename = "Events_${date}_${ComputerName}.csv" -replace ':', '_' -replace '/', '-'
+    $fullPath = Join-Path $ExportFolder $filename
+    $Events | Export-Csv $fullPath -NoTypeInformation
+    Write-Logg -Message "Events exported to $fullPath" -Level Info
+    if (-not(Resolve-Path $fullPath)) {
+      write-logg -message 'Export failed. Please check the log for details.' -level error
+      throw
+    }
+    return $fullPath
+  }
+
+  function Open-WithTimelineExplorer {
+    [CmdletBinding()]
+    param (
+      [Parameter(Mandatory = $false)]
+      [string]$filePath,
+
+      [Parameter(Mandatory = $false)]
+      [string]$TimelineExplorerPath = $(Get-ChildItem -Path "$ENV:TEMP\TimelineExplorer" -Include '*.exe' -Force -Recurse).FullName
+    )
+
+    if ((Test-Path $TimelineExplorerPath) -and (Test-Path $filePath)) {
+      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $filePath
+    }
+    else {
+      Write-Logg -Message "Timeline Explorer not found at $TimelineExplorerPath" -Level Warning
+      Write-Logg -Message 'Downloading now from https://ericzimmerman.github.io/#!index.md' -Level Info
+      $downloadUrl = 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/TimelineExplorer.zip'
+      $downloadPath = "$env:TEMP"
+      $downloadfile = Get-DownloadFile -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
+      Write-Logg -Message "Extracting $downloadfile to $env:TEMP" -Level Info
+      Expand-Archive -Path $downloadfile -DestinationPath $env:TEMP -Force
+
+      # If the file doesn't exist, export the events to CSV
+      if (-not (Test-Path $filePath)) {
+        $filePath = Export-EventsToCsv -Events $EventsSorted
+      }
+
+      $TimelineExplorerPath = Join-Path -Path "$env:TEMP\timelineexplorer" -ChildPath 'TimelineExplorer.exe'
+      Write-Logg -Message "Opening $filePath in Timeline Explorer" -Level Info
+      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $filePath
+    }
+  }
+
   $CurrentDate = Get-Date
   $startDateTime = $CurrentDate.AddHours(-1)
   $endDateTime = $CurrentDate
 
   $xaml = @'
-<Window 
+<Window
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   Topmost="True" SizeToContent="Height" Title="Retrieve Events from all Event Logs" Width="525" Height="450">
@@ -160,7 +195,6 @@ function Get-AllEvents {
   $window.Retrieve.Add_Click({
       $startDateTime = Get-Date -Year $window.DateBegin.SelectedDate.Year -Month $window.DateBegin.SelectedDate.Month -Day $window.DateBegin.SelectedDate.Day -Hour $window.Time1.Text.Split(':')[0] -Minute $window.Time1.Text.Split(':')[1] -Second $window.Time1.Text.Split(':')[2]
       $endDateTime = Get-Date -Year $window.DateEnd.SelectedDate.Year -Month $window.DateEnd.SelectedDate.Month -Day $window.DateEnd.SelectedDate.Day -Hour $window.Time2.Text.Split(':')[0] -Minute $window.Time2.Text.Split(':')[1] -Second $window.Time2.Text.Split(':')[2]
-    
       $window.Cursor = [System.Windows.Input.Cursors]::AppStarting
       Get-Events -StartTime $startDateTime -EndTime $endDateTime
       $window.Cursor = [System.Windows.Input.Cursors]::Arrow
@@ -168,5 +202,5 @@ function Get-AllEvents {
 
   $window.ShowDialog()
 
-  Write-Log -Message 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
+  Write-Logg -Message 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
 }

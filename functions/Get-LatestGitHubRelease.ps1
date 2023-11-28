@@ -158,12 +158,12 @@ function Get-LatestGitHubRelease {
   
             # Handle 'Not Found' response
             if ($Release -like '*Not Found*') {
-                Write-Log -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
+                Write-Logg -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
                 $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
                 $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
                 if ([string]::IsNullOrEmpty($manualDownloadurl)) {
-                    Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                    Write-Log -Message "exiting script.." -Level warning
+                    Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                    Write-Logg -Message "exiting script.." -Level warning
                     exit
                 }
             }
@@ -217,16 +217,16 @@ function Get-LatestGitHubRelease {
             else {
                 if ($UseAria2) {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {
-                        Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                        Write-Log -Message "exiting script.." -Level warning
+                        Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                        Write-Logg -Message "exiting script.." -Level warning
                         exit
                     }
                     $null = Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
                 }
                 else {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {
-                        Write-Log -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                        Write-Log -Message "exiting script.." -Level warning
+                        Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                        Write-Logg -Message "exiting script.." -Level warning
                         exit
                     }
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]
@@ -238,16 +238,16 @@ function Get-LatestGitHubRelease {
             # Handle 'ExtractZip' parameter
             if ($ExtractZip) {
                 if ($downloadedFile -notlike '*.zip') {
-                    Write-Log -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
+                    Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
                     return $downloadedFile
                 }
                 Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
                 $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath ($asset.Name -replace '.zip', '')
-                Write-Log -Message "Extracted $downloadedFile to $ExtractedFiles"
+                Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
                 return $ExtractedFiles
             }
             else {
-                Write-Log -Message "Downloaded $downloadedFile to $DownloadPathDirectory"
+                Write-Logg -Message "Downloaded $downloadedFile to $DownloadPathDirectory"
                 return $downloadedFile
             }
         }

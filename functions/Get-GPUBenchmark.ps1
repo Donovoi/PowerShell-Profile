@@ -40,16 +40,16 @@ function Get-GPUBenchmark {
         $null = Add-Type -TypeDefinition $benchmarkKernel -Language CSharp -ErrorAction Stop
     }
     catch {
-        Write-Log -Message "Failed to compile the benchmark kernel. Error: $_"
+        Write-Logg -Message "Failed to compile the benchmark kernel. Error: $_"
         return
     }
 
     # Call the GPU benchmark function
     try {
         $benchmarkResult = [GPUBenchmark]::RunBenchmark($BenchmarkTimeInSeconds)
-        Write-Log -Message "GPU Benchmark Score: $benchmarkResult"
+        Write-Logg -Message "GPU Benchmark Score: $benchmarkResult"
     }
     catch {
-        Write-Log -Message "Failed to run the GPU benchmark. Error: $_"
+        Write-Logg -Message "Failed to run the GPU benchmark. Error: $_"
     }
 }

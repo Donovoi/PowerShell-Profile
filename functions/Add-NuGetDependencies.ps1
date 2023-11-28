@@ -31,12 +31,12 @@ function Add-NuGetDependencies {
 
         if ($SaveLocally) {
             $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'nugetpackages'
-            Write-Log -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
+            Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
             # Get a unique temporary directory to store all the NuGet packages we need later
             $TempWorkDir = Join-Path "$($env:TEMP)" "$CurrentFileNameHash"
-            Write-Log -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE
+            Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE
         }
 
         if (-not (Test-Path -Path "$TempWorkDir" -PathType Container)) {
@@ -47,9 +47,9 @@ function Add-NuGetDependencies {
             $version = $NugetPackages[$dep]
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -and (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
-                Write-Log -Message "Installing package $dep version $version" -Level VERBOSE
+                Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
                 Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -SkipDependencies -ProviderName NuGet -Source Nuget -Force | Out-Null
-                Write-Log -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
+                Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 # Update the installed dependencies hashtable
                 $InstalledDependencies[$dep] = $version
@@ -61,21 +61,21 @@ function Add-NuGetDependencies {
                 $BasePath = Join-Path (Join-Path "$destinationPath" 'lib') 'net45'
             }
 
-            Write-Log -Message "Adding file ${dep}.dll to application domain" -Level VERBOSE
+            Write-Logg -Message "Adding file ${dep}.dll to application domain" -Level VERBOSE
             Add-FileToAppDomain -BasePath $BasePath -File "${dep}.dll"
         }
     }
     catch {
-        Write-Log -Message "An error occurred: $_" -Level ERROR
-        Write-Log -Message "Error details: $($_.Exception)" -Level ERROR
+        Write-Logg -Message "An error occurred: $_" -Level ERROR
+        Write-Logg -Message "Error details: $($_.Exception)" -Level ERROR
     }
     finally {
         if ($TempWorkDir -and (Test-Path -Path "$TempWorkDir" -PathType Container)) {
             if ($SaveLocally) {
-                Write-Log -Message "Packages saved locally to $TempWorkDir" -Level VERBOSE
+                Write-Logg -Message "Packages saved locally to $TempWorkDir" -Level VERBOSE
             }
             else {
-                Write-Log -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE
+                Write-Logg -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE
                 Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
             }
         }

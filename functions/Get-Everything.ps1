@@ -26,8 +26,8 @@ function Get-Everything {
   begin {
     # we need to check if the Everything executable is present
     if (-not (Test-Path $EverythingEXE -ErrorAction SilentlyContinue)) {
-      Write-Log -Message 'Everything executable not found' -Level Info
-      WRite-log -Message 'Downloading Everything' -Level Info
+      Write-Logg -Message 'Everything executable not found' -Level Info
+      Write-Logg -Message 'Downloading Everything' -Level Info
 
       
     }

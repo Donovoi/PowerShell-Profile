@@ -66,7 +66,7 @@ function Create-TestUsers {
     $upn = $username + '@' + (Get-ADDomain).DNSRoot
 
     #Create the user
-    Write-Log -Message "Creating user $username in $ou"
+    Write-Logg -Message "Creating user $username in $ou"
     New-ADUser -Name $displayname -DisplayName $displayname `
       -SamAccountName $username -UserPrincipalName $upn `
       -GivenName $firstname -Surname $lastname -Description 'Test User' `

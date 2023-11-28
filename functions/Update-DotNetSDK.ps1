@@ -7,9 +7,9 @@ function Update-DotNetSDK {
     )
 
     foreach ($DotNetVersion in $DotNetVersions) {
-        Write-Log -Message "Installing .NET SDK version $DotNetVersion"
+        Write-Logg -Message "Installing .NET SDK version $DotNetVersion"
         winget install $('Microsoft.DotNet.SDK.' + $($DotNetVersion)) --force --accept-source-agreements --accept-package-agreements
-        Write-Log -Message "Finished installing .NET SDK version $DotNetVersion"
+        Write-Logg -Message "Finished installing .NET SDK version $DotNetVersion"
     }
 
 }

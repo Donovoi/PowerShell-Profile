@@ -66,11 +66,11 @@ function Get-RepositoryFork {
                     $encryptMode = 'AES' 
                 }
             }
-            Write-Log -NoLogFile -Message "Encryption mode $encryptMode was selected to prepare the credentials." -Level INFO
+            Write-Logg -NoLogFile -Message "Encryption mode $encryptMode was selected to prepare the credentials." -Level INFO
   
-            Write-Log -NoLogFile -Message 'Collecting Credentials to create a secure credential file...' -Level INFO
+            Write-Logg -NoLogFile -Message 'Collecting Credentials to create a secure credential file...' -Level INFO
             # Collect the credentials to be used.
-            Write-Log -NoLogFile -Message 'Please enter your GitHub Token.  This will be stored securely-ish' -Level INFO
+            Write-Logg -NoLogFile -Message 'Please enter your GitHub Token.  This will be stored securely-ish' -Level INFO
             $creds = Get-Credential -UserName $ENV:USERNAME
   
             # Store the details in a hashed format
@@ -112,11 +112,11 @@ function Get-RepositoryFork {
             Add-Content $credentialFilePath $GitHubToken
   
             if ($encryptMode -eq 'AES') {
-                Write-Log -NoLogFile -Message 'IMPORTANT: Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure.' -Level WARNING
+                Write-Logg -NoLogFile -Message 'IMPORTANT: Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure.' -Level WARNING
             }
   
-            Write-Log -NoLogFile -Message 'Credentials collected and stored.' -Level INFO
-            Write-Log -NoLogFile -Message 'Credentials collected and stored.' -Level INFO
+            Write-Logg -NoLogFile -Message 'Credentials collected and stored.' -Level INFO
+            Write-Logg -NoLogFile -Message 'Credentials collected and stored.' -Level INFO
         }
         else {
             # Root Folder
@@ -134,23 +134,23 @@ function Get-RepositoryFork {
         # Check to see if we have an AES Key file.  If so, then we will use it to decrypt the secure credential file
         if (Test-Path $AESKeyFilePath) {
             try {
-                Write-Log -NoLogFile -Message 'Found an AES Key File.  Using this to decrypt the secure credential file.' -Level INFO
+                Write-Logg -NoLogFile -Message 'Found an AES Key File.  Using this to decrypt the secure credential file.' -Level INFO
                 $decryptMode = 'AES'
                 $AESKey = Get-Content $AESKeyFilePath
             }
             catch {
                 $errText = $error[0]
-                Write-Log -NoLogFile -Message "AES Key file detected, but could not be read.  Error Message was: $errText" -level ERROR
+                Write-Logg -NoLogFile -Message "AES Key file detected, but could not be read.  Error Message was: $errText" -level ERROR
                 exit -1
             }
         }
         else {
-            Write-Log -NoLogFile -Message 'No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file.' -Level INFO
+            Write-Logg -NoLogFile -Message 'No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file.' -Level INFO
             $decryptMode = 'DPAPI'
         }
   
         try {
-            Write-Log -NoLogFile -Message "Reading secure credential file at $credentialFilePath." -Level INFO
+            Write-Logg -NoLogFile -Message "Reading secure credential file at $credentialFilePath." -Level INFO
             $credFiles = Get-Content $credentialFilePath
             $userName = $credFiles[0]
             if ($decryptMode -eq 'DPAPI') {
@@ -163,16 +163,16 @@ function Get-RepositoryFork {
                 # Placeholder in case there are other decrypt modes
             }
   
-            Write-Log -NoLogFile -Message 'Creating credential object...' -Level INFO
+            Write-Logg -NoLogFile -Message 'Creating credential object...' -Level INFO
             $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $GitHubToken
             $Token = $credObject.GetNetworkCredential().Password
-            # Write-Log -NoLogFile -Message "Token is $GitHubTokenClearText" -Level INFO
+            # Write-Logg -NoLogFile -Message "Token is $GitHubTokenClearText" -Level INFO
   
         }
         catch {
             $errText = $error[0]
-            Write-Log -NoLogFile -Message "Failed to Prepare Credentials.  Error Message was: $errText" -Level ERROR
-            Write-Log -NoLogFile -Message 'Failed to Prepare Credentials.  Please check Log File.' -Level ERROR
+            Write-Logg -NoLogFile -Message "Failed to Prepare Credentials.  Error Message was: $errText" -Level ERROR
+            Write-Logg -NoLogFile -Message 'Failed to Prepare Credentials.  Please check Log File.' -Level ERROR
             exit -1
         }
         #endregion Credentials
