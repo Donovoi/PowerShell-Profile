@@ -61,11 +61,39 @@ function Get-AllEvents {
       param (
         [object]$Window
       )
+  
+      # Helper function to combine date and time
+      function Join-DateAndTime {
+        param (
+          [DateTime]$date,
+          [string]$timeString
+        )
+        try {
+          $time = [TimeSpan]::Parse($timeString)
+          $combinedDateTime = $date.Date + $time
+          return $combinedDateTime
+        }
+        catch {
+          Write-Warning "Invalid time format: $timeString"
+          return $null
+        }
+      }
+  
       # Extract selected dates from the GUI
-      $startDateTime = $Window.DateBegin.SelectedDate
-      $endDateTime = $Window.DateEnd.SelectedDate
+      $startDate = $Window.DateBegin.SelectedDate
+      $endDate = $Window.DateEnd.SelectedDate
+  
+      # Extract times from the TextBoxes
+      $startTimeString = $Window.Time1.Text
+      $endTimeString = $Window.Time2.Text
+  
+      # Combine dates and times
+      $startDateTime = Join-DateAndTime -date $startDate -timeString $startTimeString
+      $endDateTime = Join-DateAndTime -date $endDate -timeString $endTimeString
+  
       return @{Start = $startDateTime; End = $endDateTime }
     }
+  
 
     function Close-EventLogGui {
       param (
@@ -79,8 +107,7 @@ function Get-AllEvents {
 
     function Convert-XAMLtoWindow {
       param (
-        [string[]]$NamedElements,
-        [switch]$PassThru
+        [string[]]$NamedElements
       )
 
       $xaml = @'
@@ -122,23 +149,16 @@ function Get-AllEvents {
         $result | Add-Member -MemberType NoteProperty -Name $Name -Value $result.FindName($Name) -Force
       }
 
-      if ($PassThru) {
-        $result
-      }
-      else {
-        # Initialize date-time pickers to current date and time
-        $currentDateTime = Get-Date
-        $result.Time1.Text = $currentDateTime.AddHours(-1).ToString('HH:mm:ss')
-        $result.Time2.Text = $currentDateTime.ToString('HH:mm:ss')
+      # Initialize date-time pickers to current date and time
+      $currentDateTime = Get-Date
+      $result.Time1.Text = $currentDateTime.AddHours(-1).ToString('HH:mm:ss')
+      $result.Time2.Text = $currentDateTime.ToString('HH:mm:ss')
 
-        # Set DateBegin to 1 hour ago and DateEnd to current time
-        $result.DateBegin.SelectedDate = $currentDateTime.AddHours(-1)
-        $result.DateEnd.SelectedDate = $currentDateTime
+      # Set DateBegin to 1 hour ago and DateEnd to current time
+      $result.DateBegin.SelectedDate = $currentDateTime.AddHours(-1)
+      $result.DateEnd.SelectedDate = $currentDateTime
 
-        $result.ShowDialog() | Out-Null
-      }
-
-      # add a handler for the retrieve button
+      # add a onclick handler for the retrieve button
       $result.Retrieve.Add_Click({
           $selectedDates = Get-SelectedDateTimeFromGui -Window $result
           $startDateTime = $selectedDates.Start
@@ -149,8 +169,8 @@ function Get-AllEvents {
       
           $result.Close()
         })
-      # return the selected dates
-      return $result
+
+      $result.ShowDialog() | Out-Null
     }
 
     function Get-Events {
@@ -266,20 +286,18 @@ function Get-AllEvents {
         [string]$TimelineExplorerPath
       )
 
-      # Sort the events
-      $EventsSorted = Sort-Events -Events $Events
 
       # Process events based on parameters
       if ($ExportToCsv) {
-        $csvPath = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath
+        $csvPath = Export-EventsToCsv -Events $Events -ExportFolder $ExportToCSVPath
       }
 
       if ($ViewInTimelineExplorer) {
-        $csvPath = $csvPath ? $csvPath : $(Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath)
+        $csvPath = $csvPath ? $csvPath : $(Export-EventsToCsv -Events $Events -ExportFolder $ExportToCSVPath)
         Open-WithTimelineExplorer -CsvFilePath $csvPath -TimelineExplorerPath $TimelineExplorerPath
       }
       elseif (-not $ExportToCsv) {
-        $EventsSorted | Out-ConsoleGridView -Title 'Events Found'
+        $Events | Out-ConsoleGridView -Title 'Events Found'
       }
     }
 
@@ -310,14 +328,6 @@ function Get-AllEvents {
     Close-EventLogGui -Window $window
   }
 }
-
-# Definitions for Import-RequiredScripts, Check-ExternalDependencies, Assert-AdminPrivileges, Initialize-EventLogGui, Get-SelectedDateTimeFromGui, Close-EventLogGui go here...
-
-# Definitions for Get-Events and Out-EventsFormatted, based on your existing logic, need to be updated here...
-
-
-# Helper functions (Get-Events, Out-EventsFormatted, Import-RequiredScripts, etc.) go here...
-
 
 
 # Get-AllEvents -ExportToCsv -ViewInTimelineExplorer -Verbose -ErrorAction Break
