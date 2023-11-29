@@ -28,3 +28,4 @@ Non PowerShell Tools/beautify.wbt
 Non PowerShell Tools/formatBatchScript-New.wbt
 Non PowerShell Tools/formatBatchScript.bat
 Non PowerShell Tools/formatBatchScript.wbt
+*.csv
