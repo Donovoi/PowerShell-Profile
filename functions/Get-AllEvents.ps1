@@ -1,58 +1,97 @@
 function Get-AllEvents {
   [CmdletBinding()]
   param (
-    [Parameter(ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True, HelpMessage = 'Enter one or more hosts')]
+    [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = 'Enter one or more hosts')]
     [Alias('ComputerName', 'MachineName', 'Server', 'Host')]
     [switch]$ExportToCsv,
+
+    [Parameter(HelpMessage = 'Specify the path to export CSV file')]
     [string]$ExportToCSVPath = '.',
+
+    [Parameter(HelpMessage = 'Specify the path of Timeline Explorer')]
     [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe",
+
+    [Parameter(HelpMessage = 'View in Timeline Explorer')]
     [switch]$ViewInTimelineExplorer
   )
+  # # get all files in the current directory except this file and import it as a script
+  # $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
+  # $ScriptParentPath = Split-Path -Path $(Resolve-Path -Path $($ActualScriptName.foreach{ $_ }) ) -Parent
+  # $scriptstonotimport = @("$($($ActualScriptName.foreach{$_}).split('\')[-1])", 'Get-KapeAndTools.ps1', '*RustandFriends*', '*zimmerman*', '*memorycapture*' )
+  # Get-ChildItem -Path $ScriptParentPath -Exclude $scriptstonotimport | ForEach-Object {
+  #   . $_.FullName
+  # }
 
-  if (!(Test-IsAdministrator)) {
-    Write-Warning "This session is running under non-admin privileges.`nPlease restart with admin privileges (run as Administrator) in order to read all logs on the system."
-    return
+  # Check if Test-IsAdministrator function exists before calling it
+  if (Get-Command Test-IsAdministrator -ErrorAction SilentlyContinue) {
+    if (!(Test-IsAdministrator)) {
+      Write-Warning "This session is running under non-admin privileges.`nPlease restart with admin privileges (run as Administrator) in order to read all logs on the system."
+      return
+    }
   }
 
-  Install-ExternalDependencies -PSModule 'pansies' -NoNugetPackages 
+  # Check if Install-ExternalDependencies function exists before calling it
+  if (Get-Command Install-ExternalDependencies -ErrorAction SilentlyContinue) {
+    Install-ExternalDependencies -PSModule 'pansies' -NoNugetPackages
+  }
 
   $culture = [System.Globalization.CultureInfo]::InvariantCulture
   $Computer = $env:COMPUTERNAME
 
   function Get-Events {
-    param (
-      [datetime]$StartTime,
-      [datetime]$EndTime
+    [CmdletBinding()]
+    param(
+      [datetime]$startDateTime,
+      [datetime]$endDateTime,
+      [string]$ComputerName = $Computer,
+      [switch]$ExportToCsv,
+      [string]$ExportToCSVPath,
+      [string]$TimelineExplorerPath,
+      [switch]$ViewInTimelineExplorer
     )
 
     try {
-      $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ea 0
-      $err | ForEach-Object -Process {
-        $warnmessage = $_.exception.message -replace '.*about the ', ''
-        Write-Warning $warnmessage
-      }
+      try {
+        $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ErrorAction Stop
+        $err | ForEach-Object -Process {
+          $warnmessage = $_.Exception.Message -replace '.*about the ', ''
+          Write-Warning $warnmessage
+        }
 
-      $Events = $EventLogs | ForEach-Object -Parallel {
-        Get-WinEvent -FilterHashtable @{
-          logname   = $_.LogName
-          StartTime = $using:StartTime
-          EndTime   = $using:EndTime
-        } -ea 0
-      } -ThrottleLimit 100
+        # Get all event logs
+        $Events = $EventLogs | ForEach-Object -Parallel {
+          try {
+            Get-WinEvent -FilterHashtable @{
+              LogName   = "$($_.LogName)"
+              StartTime = $using:startDateTime
+              EndTime   = $using:endDateTime
+            } -MaxEvents $([System.Int64]::MaxValue) -Force -ErrorAction stop
+          }
+          catch {
+            # Output the log name along with the error message
+            $errorMessage = "Error querying log $($_): $($_.Exception.Message)"
+            Write-Verbose $errorMessage
+          }
+        } -ThrottleLimit 100
+      }
+      catch {
+        Write-Warning "An error occurred: $($_.Exception.Message)"
+      }
+    
 
       if ($Events.Count -gt 0) {
         $EventsSorted = $Events | Sort-Object -Property TimeCreated | Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
 
-        if ($script:ExportToCsv) {
-          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportPath $script:ExportToCSVPath -ComputerName $Computer
+        if ($ExportToCsv) {
+          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath -ComputerName $Computer
           if ($ViewInTimelineExplorer) {
-            Open-WithTimelineExplorer -filePath $csvpath -TimelineExplorerPath $script:TimelineExplorerPath
+            Open-WithTimelineExplorer -CsvFilePath $csvpath -TimelineExplorerPath $TimelineExplorerPath
             exit
           }
         }
         elseif ($ViewInTimelineExplorer) {
-          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportPath $script:ExportToCSVPath -ComputerName $Computer
-          Open-WithTimelineExplorer -filePath $csvpath -TimelineExplorerPath $script:TimelineExplorerPath
+          $csvpath = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath -ComputerName $Computer
+          Open-WithTimelineExplorer -CsvFilePath $csvpath -TimelineExplorerPath $TimelineExplorerPath
           exit
         }
         else {
@@ -60,7 +99,7 @@ function Get-AllEvents {
         }
       }
       else {
-        Write-Warning "No events found between $StartTime and $EndTime"
+        Write-Warning "No events found between $startDateTime and $endDateTime"
       }
     }
     catch {
@@ -69,9 +108,11 @@ function Get-AllEvents {
   }
 
   function Export-EventsToCsv {
+    [CmdletBinding()]
+    [CmdletBinding()]
     param (
-      [object[]]$Events = { Get-Events -StartTime $startDateTime -EndTime $endDateTime },
-      [string]$ExportFolder = $PWD,
+      [object[]]$Events = $EventsSorted,
+      [string]$ExportFolder = $PWD.Path,
       [string]$ComputerName = $Computer
     )
 
@@ -90,17 +131,14 @@ function Get-AllEvents {
   function Open-WithTimelineExplorer {
     [CmdletBinding()]
     param (
-      [Parameter(Mandatory = $false)]
-      [string]$filePath,
-
-      [Parameter(Mandatory = $false)]
-      [string]$TimelineExplorerPath = $(Get-ChildItem -Path "$ENV:TEMP\TimelineExplorer" -Include '*.exe' -Force -Recurse).FullName
+      [string]$CsvFilePath = $fullPath,
+      [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe"
     )
 
-    if ((Test-Path $TimelineExplorerPath) -and (Test-Path $filePath)) {
-      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $filePath
+    if ((Test-Path $TimelineExplorerPath) -and (Test-Path $CsvFilePath)) {
+      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath
     }
-    else {
+    elseif (-not (Test-Path $TimelineExplorerPath)) {
       Write-Logg -Message "Timeline Explorer not found at $TimelineExplorerPath" -Level Warning
       Write-Logg -Message 'Downloading now from https://ericzimmerman.github.io/#!index.md' -Level Info
       $downloadUrl = 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/TimelineExplorer.zip'
@@ -108,17 +146,20 @@ function Get-AllEvents {
       $downloadfile = Get-DownloadFile -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
       Write-Logg -Message "Extracting $downloadfile to $env:TEMP" -Level Info
       Expand-Archive -Path $downloadfile -DestinationPath $env:TEMP -Force
-
-      # If the file doesn't exist, export the events to CSV
-      if (-not (Test-Path $filePath)) {
-        $filePath = Export-EventsToCsv -Events $EventsSorted
-      }
-
-      $TimelineExplorerPath = Join-Path -Path "$env:TEMP\timelineexplorer" -ChildPath 'TimelineExplorer.exe'
-      Write-Logg -Message "Opening $filePath in Timeline Explorer" -Level Info
-      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $filePath
+      Copy-Item -Path "$env:TEMP\timelineexplorer\TimelineExplorer.exe" -Destination $env:TEMP -Force
+      $TimelineExplorerPath = "$env:TEMP\TimelineExplorer.exe"
     }
+    # If the csv file doesn't exist, export the events to CSV
+    if (-not (Test-Path $CsvFilePath)) {
+      Write-Logg -Message 'Windows Event Log CSV not found at creating one now..' -Level Warning
+      $exportedCSV = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath -ComputerName $Computer
+      $fullcsvpath = $(Resolve-Path -Path $exportedCSV).Path
+    }
+
+    Write-Logg -Message "Opening $fullcsvpath in Timeline Explorer" -Level Info
+    Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath
   }
+
 
   $CurrentDate = Get-Date
   $startDateTime = $CurrentDate.AddHours(-1)
@@ -196,11 +237,28 @@ function Get-AllEvents {
       $startDateTime = Get-Date -Year $window.DateBegin.SelectedDate.Year -Month $window.DateBegin.SelectedDate.Month -Day $window.DateBegin.SelectedDate.Day -Hour $window.Time1.Text.Split(':')[0] -Minute $window.Time1.Text.Split(':')[1] -Second $window.Time1.Text.Split(':')[2]
       $endDateTime = Get-Date -Year $window.DateEnd.SelectedDate.Year -Month $window.DateEnd.SelectedDate.Month -Day $window.DateEnd.SelectedDate.Day -Hour $window.Time2.Text.Split(':')[0] -Minute $window.Time2.Text.Split(':')[1] -Second $window.Time2.Text.Split(':')[2]
       $window.Cursor = [System.Windows.Input.Cursors]::AppStarting
-      Get-Events -StartTime $startDateTime -EndTime $endDateTime
+      # Call Get-Events function
+      Get-Events -startDateTime $startDateTime -endDateTime $endDateTime -ComputerName $ComputerName -ExportToCsv:$ExportToCsv -ExportToCSVPath $ExportToCSVPath -TimelineExplorerPath $TimelineExplorerPath -ViewInTimelineExplorer:$ViewInTimelineExplorer
       $window.Cursor = [System.Windows.Input.Cursors]::Arrow
     })
 
   $window.ShowDialog()
 
-  Write-Logg -Message 'TIP: Use the $EventsSorted variable to interact with the results yourself.'
+  # If ExportToCsv switch is set, call Export-EventsToCsv function
+  if ($ExportToCsv) {
+    $CsvFilePath = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath -ComputerName $ComputerName
+  }
+  # If ViewInTimelineExplorer switch is set, call Open-WithTimelineExplorer function
+  if ($ViewInTimelineExplorer) {
+    Open-WithTimelineExplorer -TimelineExplorerPath $TimelineExplorerPath
+  }
+
+  # close any dialog boxes and clear memory, the window does not close with $window.Close() so we need to force
+  $window.Dispatcher.Invoke([action] { $window.Close() })
+  $window.Dispatcher.InvokeShutdown()
+  $window = $null
+  [GC]::Collect()
+  exit
 }
+
+# Get-AllEvents -ExportToCsv -ViewInTimelineExplorer -Verbose -ErrorAction Break
