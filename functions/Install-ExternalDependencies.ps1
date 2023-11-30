@@ -236,7 +236,8 @@ function Install-PSModules {
                     'Microsoft.WinGet.Client',
                     'Microsoft.PowerShell.SecretManagement',
                     'Microsoft.PowerShell.SecretStore',
-                    'Microsoft.WinGet.Client'
+                    'Microsoft.WinGet.Client',
+                    'Pscx'
                 )
                 return $ModulesToBeInstalled
             }
@@ -276,7 +277,7 @@ function Install-PSModules {
                             }
   
                             # Install module
-                            Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser
+                            Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck
                         }
                         else {
                             Write-Host "Module $_ already installed"
