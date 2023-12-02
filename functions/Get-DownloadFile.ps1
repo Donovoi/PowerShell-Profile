@@ -72,7 +72,7 @@ function Get-DownloadFile {
                 }
                 $true
             })]
-        [string]$aria2cExe = $(Resolve-Path "c:\aria2*\*\aria2c.exe" -ErrorAction SilentlyContinue).Path,
+        [string]$aria2cExe = $(Resolve-Path 'c:\aria2*\*\aria2c.exe' -ErrorAction SilentlyContinue).Path,
   
         [Parameter(
             Mandatory = $false,
@@ -138,7 +138,7 @@ function Get-DownloadFile {
                     }
                     else {
                         # Generate a temp filename
-                        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+                        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
                         $fileExtension = [System.IO.Path]::GetExtension([System.Uri]::new($downloadUrl).LocalPath)
                         $finalFileName = "TempFile-$timestamp$fileExtension"
                     }
@@ -149,10 +149,9 @@ function Get-DownloadFile {
                   
                 if ($UseAria2) {
                     if (-not(Test-Path -Path $aria2cExe)) {
-                        $null = Get-LatestGitHubRelease -OwnerRepository "aria2/aria2" -AssetName "-win-64bit-" -DownloadPathDirectory "C:\aria2" -ExtractZip
-                        $aria2cExe = $(Get-ChildItem -Recurse -Path "C:\aria2\" -Filter "aria2c.exe").FullName
+                        $null = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -DownloadPathDirectory 'C:\aria2' -ExtractZip
+                        $aria2cExe = $(Get-ChildItem -Recurse -Path 'C:\aria2\' -Filter 'aria2c.exe').FullName
                     }
-                    Write-Host "Using aria2c for download."
   
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
@@ -175,7 +174,7 @@ function Get-DownloadFile {
                     }
                 }
                 else {
-                    Write-Host "Using Invoke-WebRequest for download."
+                    Write-Host 'Using Invoke-WebRequest for download.'
                     Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
                 }
             }
@@ -184,6 +183,6 @@ function Get-DownloadFile {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
-        
+        return $OutFile
     }
 }

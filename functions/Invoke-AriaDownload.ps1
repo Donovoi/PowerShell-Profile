@@ -92,9 +92,6 @@ function Invoke-AriaDownload {
         [string]$AriaConsoleLogLevel = 'info'
     )
     begin {
-        # Print the name of the running script
-        Write-Output 'Downloading With Aria2c'
-
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
             throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
@@ -189,10 +186,15 @@ function Invoke-AriaDownload {
 
             # Return the output file path
             Pop-Location
-            return $OutFile
+            if ($PSBoundParameters['OutFile']) {
+                return $OutFile
+            }
+            else {
+                return $DownloadDirectory
+            }
         }
         catch {
-            Write-Error "$_.Exception.Message"
+            Write-Error $_
         }
     }
 }
