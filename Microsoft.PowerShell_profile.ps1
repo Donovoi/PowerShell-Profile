@@ -4,15 +4,14 @@
 .NOTES
   INSTALL THIS PROFILE BY RUNNING THE FOLLOWING COMMAND:
 IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)
-  
+
 #>
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-# Define the profile paths for both Windows PowerShell and PowerShell 7
-$windowsPowerShellProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\WindowsPowerShell'
+# Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
 # Check if PowerShell 7 is installed
@@ -40,10 +39,6 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
 
 if ($PSVersionTable.PSVersion.Major -eq 7) {
   $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
-  $FunctionsFolder.ForEach{ .$_.FullName }
-}
-else {
-  $FunctionsFolder = Get-ChildItem -Path "$windowsPowerShellProfilePath/functions/*.ps*" -Recurse
   $FunctionsFolder.ForEach{ .$_.FullName }
 }
 
@@ -86,14 +81,14 @@ $modules | ForEach-Object {
       }
       catch {
         Write-Error $_.Exception.Message
-        Write-Warning "This could be due to terminal-icons, removing all xmls in $("$env:APPDATA\powershell\Community\Terminal-Icons")"
+        Write-Warning "This could be due to terminal-icons, removing all xmls in $(`"$env:APPDATA\powershell\Community\Terminal-Icons`")"
         Remove-Item -Path "$env:APPDATA\powershell\Community\Terminal-Icons\*.xml" -Force -ErrorAction SilentlyContinue
         Write-Logg -Message 'Please press any key to exit PowerShell. Once exited, open PowerShell and try again...' -ForegroundColor Green
         $host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') | Out-Null
         exit
       }
 
-    }    
+    }
   }
 }
 
