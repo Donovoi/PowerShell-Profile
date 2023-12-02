@@ -51,19 +51,19 @@ function Get-AllEvents {
 
     function Initialize-EventLogGui {
       $window = Convert-XAMLtoWindow -NamedElements 'Retrieve', 'Begin', 'DateBegin', 'DateEnd', 'Time1', 'Time2', 'Begin1', 'End'
-
-
-
       return $window
     }
 
     function Get-SelectedDateTimeFromGui {
+      [CmdletBinding()]
       param (
         [object]$Window
       )
   
       # Helper function to combine date and time
       function Join-DateAndTime {
+        [CmdletBinding()]
+        [OutputType([hashtable])]
         param (
           [DateTime]$date,
           [string]$timeString
@@ -96,6 +96,7 @@ function Get-AllEvents {
   
 
     function Close-EventLogGui {
+      [CmdletBinding()]
       param (
         [object]$Window
       )
@@ -106,6 +107,7 @@ function Get-AllEvents {
     }
 
     function Convert-XAMLtoWindow {
+      [CmdletBinding()]
       param (
         [string[]]$NamedElements
       )
@@ -223,7 +225,6 @@ function Get-AllEvents {
 
     function Export-EventsToCsv {
       [CmdletBinding()]
-      [CmdletBinding()]
       param (
         [object[]]$Events = $EventsSorted,
         [string]$ExportFolder = $PWD.Path
@@ -243,7 +244,7 @@ function Get-AllEvents {
     function Open-WithTimelineExplorer {
       [CmdletBinding()]
       param (
-        [string]$CsvFilePath = $fullPath,
+        [string]$CsvFilePath,
         [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe"
       )
 
@@ -255,9 +256,12 @@ function Get-AllEvents {
         Write-Logg -Message 'Downloading now from https://ericzimmerman.github.io/#!index.md' -Level Info
         $downloadUrl = 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/TimelineExplorer.zip'
         $downloadPath = "$env:TEMP"
-        $downloadfile = Get-DownloadFile -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
+        Get-DownloadFile -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
+        $downloadzip = "$env:TEMP\TimelineExplorer.zip"
         Write-Logg -Message "Extracting $downloadfile to $env:TEMP" -Level Info
-        Expand-Archive -Path $downloadfile -DestinationPath $env:TEMP -Force
+        $extracteddownloadfolder = Expand-Archive -Path $downloadzip -DestinationPath $env:TEMP -Force
+        Write-Logg -Message "Extracted $downloadzip to $extracteddownloadfolder" -Level Info
+        Write-Logg -Message 'Copying TimelineExplorer.exe to $env:TEMP' -Level Info
         Copy-Item -Path "$env:TEMP\timelineexplorer\TimelineExplorer.exe" -Destination $env:TEMP -Force
         $TimelineExplorerPath = "$env:TEMP\TimelineExplorer.exe"
       }
@@ -269,10 +273,11 @@ function Get-AllEvents {
       }
 
       Write-Logg -Message "Opening $fullcsvpath in Timeline Explorer" -Level Info
-      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath
+      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath -Wait
     }
 
     function Out-EventsFormatted {
+      [CmdletBinding()]
       param (
         [Parameter(Mandatory = $true)]
         [object[]]$Events,
@@ -312,22 +317,11 @@ function Get-AllEvents {
     }
     Install-ExternalDependencies -PSModule 'pansies' -NoNugetPackages
     Test-AdminPrivilege
-    $window = Initialize-EventLogGui
   }
 
   process {
-    $selectedDates = Get-SelectedDateTimeFromGui -Window $window
-    $startDateTime = $selectedDates.Start
-    $endDateTime = $selectedDates.End
+    Initialize-EventLogGui
 
-    $events = Get-Events -StartDateTime $startDateTime -EndDateTime $endDateTime
-    Out-EventsFormatted -Events $events -ExportToCsv:$ExportToCsv -ExportToCSVPath:$ExportToCSVPath -ViewInTimelineExplorer:$ViewInTimelineExplorer -TimelineExplorerPath:$TimelineExplorerPath
-  }
 
-  end {
-    Close-EventLogGui -Window $window
   }
 }
-
-
-# Get-AllEvents -ExportToCsv -ViewInTimelineExplorer -Verbose -ErrorAction Break
