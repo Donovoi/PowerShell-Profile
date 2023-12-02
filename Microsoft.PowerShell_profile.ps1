@@ -19,15 +19,8 @@ if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
   Write-Host 'PowerShell 7 is not installed. Installing now...' -ForegroundColor Yellow    
   # Download and install PowerShell 7 (you might want to check the URL for the latest version)
   winget install powershell
-    
-  Write-Host 'PowerShell 7 installed successfully!' -ForegroundColor Green
-}
 
-# Check and create profile folders for Windows PowerShell
-if (-not (Test-Path -Path $windowsPowerShellProfilePath)) {
-  Write-Host 'Windows PowerShell profile folders do not exist. Creating now...' -ForegroundColor Yellow
-  PowerShell.exe -command "New-Item -Path $PROFILE"
-  Write-Host 'Windows PowerShell profile folders created successfully!' -ForegroundColor Green
+  Write-Host 'PowerShell 7 installed successfully!' -ForegroundColor Green
 }
 
 # Check and create profile folders for PowerShell 7
