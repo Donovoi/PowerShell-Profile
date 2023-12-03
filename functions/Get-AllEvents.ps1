@@ -30,10 +30,10 @@ function Get-AllEvents {
     [switch]$ExportToCsv,
 
     [Parameter()]
-    [string]$ExportToCSVPath = '.',
+    [string]$ExportCSVToFolder = '.',
 
     [Parameter()]
-    [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe",
+    [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer\TimelineExplorer.exe",
 
     [Parameter()]
     [switch]$ViewInTimelineExplorer
@@ -167,7 +167,7 @@ function Get-AllEvents {
           $endDateTime = $selectedDates.End
       
           $events = Get-Events -startDateTime $startDateTime -endDateTime $endDateTime
-          Out-EventsFormatted -Events $events -ExportToCsv:$ExportToCsv -ExportToCSVPath:$ExportToCSVPath -ViewInTimelineExplorer:$ViewInTimelineExplorer -TimelineExplorerPath:$TimelineExplorerPath
+          Out-EventsFormatted -Events $events -ExportToCsv:$ExportToCsv -ExportCSVToFolder:$ExportCSVToFolder -ViewInTimelineExplorer:$ViewInTimelineExplorer -TimelineExplorerPath:$TimelineExplorerPath
       
           $result.Close()
         })
@@ -227,10 +227,15 @@ function Get-AllEvents {
       [CmdletBinding()]
       param (
         [object[]]$Events = $EventsSorted,
-        [string]$ExportFolder = $PWD.Path
+        [string]$ExportFolder
       )
       $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
       $filename = "Events_${date}_${ENV:COMPUTERNAME}.csv" -replace ':', '_' -replace '/', '-'
+      
+      if (($ExportFolder -match '\.') -or ($ExportFolder -eq $PWD)) {
+        # Expand the path if it is a relative path
+        $ExportFolder = Resolve-Path -Path $ExportFolder
+      }
       $fullPath = Join-Path $ExportFolder $filename
       $Events | Export-Csv $fullPath -NoTypeInformation
       Write-Logg -Message "Events exported to $fullPath" -Level Info
@@ -245,7 +250,7 @@ function Get-AllEvents {
       [CmdletBinding()]
       param (
         [string]$CsvFilePath,
-        [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer.exe"
+        [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer\TimelineExplorer.exe"
       )
 
       if ((Test-Path $TimelineExplorerPath) -and (Test-Path $CsvFilePath)) {
@@ -268,12 +273,12 @@ function Get-AllEvents {
       # If the csv file doesn't exist, export the events to CSV
       if (-not (Test-Path $CsvFilePath)) {
         Write-Logg -Message 'Windows Event Log CSV not found at creating one now..' -Level Warning
-        $exportedCSV = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportToCSVPath
+        $exportedCSV = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportCSVToFolder
         $fullcsvpath = $(Resolve-Path -Path $exportedCSV).Path
       }
 
       Write-Logg -Message "Opening $fullcsvpath in Timeline Explorer" -Level Info
-      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath -Wait
+      Start-Process -FilePath $TimelineExplorerPath -ArgumentList $fullcsvpath -Wait
     }
 
     function Out-EventsFormatted {
@@ -284,7 +289,7 @@ function Get-AllEvents {
 
         [switch]$ExportToCsv,
 
-        [string]$ExportToCSVPath,
+        [string]$ExportCSVToFolder,
 
         [switch]$ViewInTimelineExplorer,
 
@@ -294,34 +299,21 @@ function Get-AllEvents {
 
       # Process events based on parameters
       if ($ExportToCsv) {
-        $csvPath = Export-EventsToCsv -Events $Events -ExportFolder $ExportToCSVPath
+        $csvPath = Export-EventsToCsv -Events $Events -ExportFolder $ExportCSVToFolder
       }
 
       if ($ViewInTimelineExplorer) {
-        $csvPath = $csvPath ? $csvPath : $(Export-EventsToCsv -Events $Events -ExportFolder $ExportToCSVPath)
+        $csvPath = $csvPath ? $csvPath : $(Export-EventsToCsv -Events $Events -ExportFolder $ExportCSVToFolder)
         Open-WithTimelineExplorer -CsvFilePath $csvPath -TimelineExplorerPath $TimelineExplorerPath
       }
       elseif (-not $ExportToCsv) {
         $Events | Out-ConsoleGridView -Title 'Events Found'
       }
     }
-
-    # get all files in the current directory except this file and import it as a script
-    $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
-    $ScriptParentPath = Split-Path -Path $(Resolve-Path -Path $($ActualScriptName.foreach{ $_ }) ) -Parent
-    $scriptstonotimport = @("$($($ActualScriptName.foreach{$_}).split('\')[-1])", 'Get-KapeAndTools.ps1', '*RustandFriends*', '*zimmerman*', '*memorycapture*' )
-    Get-ChildItem -Path $ScriptParentPath -Exclude $scriptstonotimport -Include '*.ps1' -Force -Recurse | ForEach-Object {
-      $fullpath = $_.FullName
-      Write-Verbose "Importing $fullpath"
-      . $fullpath
-    }
-    Install-ExternalDependencies -PSModule 'pansies' -NoNugetPackages
     Test-AdminPrivilege
   }
 
   process {
     Initialize-EventLogGui
-
-
   }
 }
