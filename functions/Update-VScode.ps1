@@ -31,26 +31,6 @@ function Update-VSCode {
         $DoNotAddDataFolder
     )
     begin {
-        # Check PowerShell version
-        $psVersion = $PSVersionTable.PSVersion.Major
-
-        # Conditional logic for ChildPath based on PS version
-        $childPath = if ($psVersion -eq 5.1) {
-            'WindowsPowerShell\Microsoft.PowerShell_profile.ps1'
-        }
-        else {
-            'PowerShell\Microsoft.PowerShell_profile.ps1'
-        }
-
-        $myDocuments = [Environment]::GetFolderPath('MyDocuments')
-        $myProfile = Join-Path -Path $myDocuments -ChildPath $childPath
-
-        if (Test-Path -Path $myProfile) {
-            . $myProfile
-        }
-        else {
-            Write-Logg -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
-        }
 
         # Print the name of the running script
         Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)"

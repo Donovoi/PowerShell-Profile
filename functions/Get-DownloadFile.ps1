@@ -99,21 +99,25 @@ function Get-DownloadFile {
                 # Construct the output file path for when the url has the filename in it
                 #First we check if the url has the filename in it
                 $UriParts = [System.Uri]::new($download)
-                $OutFile = [System.IO.Path]::GetFileName($UriParts.LocalPath)
-                if ($OutFile) {
-                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
+                if ($UriParts.IsFile) {
+                    $OutFile = [System.IO.Path]::GetFileName($UriParts.LocalPath)
+                    if ($OutFile) {
+                        $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
+                    }
                 }
                 else {
                     # If the url does not have the filename in it, we get the filename from the headers
                     # Make a HEAD request to get headers
-                    $response = Invoke-WebRequest -Uri $downloadUrl -Headers $Headers -Method Head
+                    $response = Invoke-WebRequest -Uri $download -Headers $Headers -Method Head
                     $potentialFileNames = @()
 
                     # Check Content-Disposition first
+                    $filenamematch = $false
                     if ($response.Headers['Content-Disposition']) {
                         $contentDisposition = $response.Headers['Content-Disposition']
-                        if ($contentDisposition -match 'filename\*?=([^;]+)') {
-                            $fileName = $matches[1]
+                        $filenamematch = $([regex]::Match($contentDisposition, '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})'))
+                        if ($filenamematch.Success) {
+                            $fileName = $filenamematch.Value
                             if ($fileName -match "^UTF-8''(.+)$") {
                                 $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
                             }
@@ -123,13 +127,15 @@ function Get-DownloadFile {
                             $potentialFileNames += $fileName
                         }
                     }
-
-                    # Regex search across all headers for additional filenames
-                    foreach ($header in $response.Headers.GetEnumerator()) {
-                        if ($header.Value -match '\b(\w+[-\w.]*\.\w+)\b') {
-                            $potentialFileNames += $matches[1]
+                    if (-not ($filenamematch)) {
+                        # Regex search across all headers for additional filenames
+                        foreach ($header in $response.Headers.GetEnumerator()) {
+                            if ($header.Value -match '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})') {
+                                $potentialFileNames += $matches[1]
+                            }
                         }
                     }
+
 
                     # Determine the final filename
                     $finalFileName = $null
@@ -170,7 +176,7 @@ function Get-DownloadFile {
                         }
                     }
                     else {
-                        Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
                     }
                 }
                 else {
@@ -183,6 +189,6 @@ function Get-DownloadFile {
             Write-Host "An error occurred: $_" -ForegroundColor Red
             throw
         }
-        return $OutFile
+        return $DownloadedFile
     }
 }
