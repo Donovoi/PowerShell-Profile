@@ -48,21 +48,21 @@ function Get-GPTResponse {
 function Show-GPTForm {
     [CmdletBinding()]
     param ()
-    
+
     Add-Type -AssemblyName PresentationFramework
-    
+
     $window = New-Object -TypeName System.Windows.Window -Property @{
         Title                 = 'OpenAI GPT-3 Query'
         SizeToContent         = 'WidthAndHeight'
         WindowStartupLocation = 'CenterScreen'
         ResizeMode            = 'CanMinimize'
     }
-    
+
     $grid = New-Object -TypeName System.Windows.Controls.Grid
     $window.Content = $grid
-    
+
     $row = 0
-    
+
     $fields = @(
         [PSCustomObject]@{
             Label = 'Problem Description:'
@@ -89,13 +89,13 @@ function Show-GPTForm {
             Name  = 'Question'
         }
     )
-    
+
     foreach ($field in $fields) {
         $label = New-Object -TypeName System.Windows.Controls.Label -Property @{
             Content = $field.Label
             Margin  = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
         }
-        
+
         $textBox = New-Object -TypeName System.Windows.Controls.TextBox -Property @{
             Name                        = $field.Name
             AcceptsReturn               = $true
@@ -103,62 +103,62 @@ function Show-GPTForm {
             VerticalScrollBarVisibility = 'Auto'
             Margin                      = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
         }
-        
+
         $grid.RowDefinitions.Add((New-Object -TypeName System.Windows.Controls.RowDefinition))
         $grid.Children.Add($label)
         $label.SetValue([System.Windows.Controls.Grid]::RowProperty, $row)
         $grid.Children.Add($textBox)
         $textBox.SetValue([System.Windows.Controls.Grid]::RowProperty, $row)
-        
+
         $row++
     }
-    
+
     $okButton = New-Object -TypeName System.Windows.Controls.Button -Property @{
         Content = 'Done'
         Margin  = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
     }
-    
+
     $cancelButton = New-Object -TypeName System.Windows.Controls.Button -Property @{
         Content = 'Cancel'
         Margin  = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
     }
-    
+
     $buttonsPanel = New-Object -TypeName System.Windows.Controls.StackPanel -Property @{
         Orientation         = [System.Windows.Controls.Orientation]::Horizontal
         HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
         Margin              = New-Object -TypeName System.Windows.Thickness -ArgumentList 5
     }
-    
+
     $buttonsPanel.Children.Add($okButton)
     $buttonsPanel.Children.Add($cancelButton)
-    
-    
+
+
     $grid.RowDefinitions.Add((New-Object -TypeName System.Windows.Controls.RowDefinition))
     $grid.Children.Add($buttonsPanel)
     $buttonsPanel.SetValue([System.Windows.Controls.Grid]::RowProperty, $row)
-    
+
     $okButton.Add_Click({
             $window.DialogResult = $true
             $window.Close()
         })
-    
+
     $cancelButton.Add_Click({
             $window.DialogResult = $false
             $window.Close()
         })
-    
+
     $window.ShowDialog() | Out-Null
-    
+
     if ($window.DialogResult -eq $true) {
         $fields | ForEach-Object {
             $textBox = $grid.FindName($_.Name)
             $_.Value = $textBox.Text.Trim()
         }
-        
+
         foreach ($field in $fields) {
             "Label: {0}`nValue: {1}`n" -f $field.Label, $field.Value
         }
     }
-    
+
     return $fields
 }

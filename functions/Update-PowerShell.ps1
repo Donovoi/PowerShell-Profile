@@ -9,7 +9,7 @@ function Update-PowerShell {
     [Parameter()]
     [string]
     $PowershellPreviewPath = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
-  ) 
+  )
 
   Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
 
@@ -47,12 +47,12 @@ function Update-PowerShell {
     # Check the currently installed version
     # Get the current PowerShell version
     if (Test-Path $PowershellStablePath) {
-      $CurrentVersionStable = Get-PowerShellVersion -PowerShellPath $PowershellStablePath      
+      $CurrentVersionStable = Get-PowerShellVersion -PowerShellPath $PowershellStablePath
       Write-Logg -Message "Current PowerShell Version: $CurrentVersionStable" -Level INFO
     }
     else {
       Write-Logg -Message "PowerShell Stable not found at $PowershellStablePath" -Level INFO
-    }    
+    }
 
     # Check for PowerShell Preview version
     if (Test-Path $PowershellPreviewPath) {
@@ -64,28 +64,28 @@ function Update-PowerShell {
     }
 
     if ((-not (Test-Path $PowershellStablePath)) -or (-not (Test-Path $PowershellPreviewPath))) {
-      Write-Logg -Message "No PowerShell exe found, downloading Powershell $_" -Level INFO 
+      Write-Logg -Message "No PowerShell exe found, downloading Powershell $_" -Level INFO
     }
-    else {      
+    else {
       $UpdatePreview = $false
       $UpdateStable = $false
       # First check the latest version of powershell
       if ($_ -eq 'Preview') {
         $LatestVersionPreview = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly -PreRelease
         # compare the versions
-        if ($LatestVersionPreview -gt $CurrentVersionPreview) {        
-          $script:UpdatePreview = $true        
+        if ($LatestVersionPreview -gt $CurrentVersionPreview) {
+          $script:UpdatePreview = $true
         }
 
       }
       elseif ($_ -eq 'Stable') {
-        $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly 
+        $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly
         if ($LatestVersionStable -gt $CurrentVersionStable) {
           $script:UpdateStable = $true
         }
-      } 
+      }
     }
-  
+
 
     # Compare the versions
     if ($script:UpdatePreview -or $script:UpdateStable -or (-not (Test-Path $PowershellStablePath)) -or (-not (Test-Path $PowershellPreviewPath))) {
@@ -114,6 +114,6 @@ function Update-PowerShell {
     }
     Write-Logg -Message "Powershell $_ is up to date" -level info
 
-  } 
+  }
 
 }

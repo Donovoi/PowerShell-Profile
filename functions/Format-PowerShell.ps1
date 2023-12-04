@@ -29,17 +29,17 @@ function Format-Powershell {
     foreach ($file in $files) {
       Edit-DTWBeautifyScript -SourcePath $file.FullName
       # $beautifiedContent = [System.IO.File]::ReadAllText($file.FullName)
-  
+
       # $rules = (Get-ScriptAnalyzerRule).RuleName
-  
+
       # $settings = @{
       #   IncludeRules = $rules
       # }
-  
+
       # Invoke-Formatter -ScriptDefinition $beautifiedContent -Settings $settings | Out-File -FilePath $file.FullName -Force
     }
   }
- 
+
 }
 
 

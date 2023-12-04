@@ -7,7 +7,7 @@
     It supports 'stable', 'insider', or 'both' versions.
 
 .PARAMETER Version
-    The version of Visual Studio Code to downloads and extract. 
+    The version of Visual Studio Code to downloads and extract.
     Valid values are 'stable', 'insider', or 'both'. Default is 'both'.
 
 .EXAMPLE
@@ -34,7 +34,7 @@ function Update-VSCode {
 
         # Print the name of the running script
         Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)"
-    
+
     } process {
         try {
             # Get the drive with label like 'X-Ways'
@@ -68,8 +68,8 @@ function Update-VSCode {
                         if (-not( Test-Path -Path $url.OutFileDirectory -ErrorAction SilentlyContinue)) {
                             New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
                         }
-                        
-                        $OutFile = Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2 
+
+                        $OutFile = Get-DownloadFile -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2
                         if ( Resolve-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $OutFile

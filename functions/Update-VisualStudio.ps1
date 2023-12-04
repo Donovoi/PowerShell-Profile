@@ -10,7 +10,7 @@
 #>
 function Update-VisualStudio {
     [CmdletBinding()]
-    
+
     param(
         [Parameter(Mandatory = $false)]
         [string]

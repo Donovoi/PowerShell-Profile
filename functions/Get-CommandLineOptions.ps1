@@ -16,7 +16,7 @@ function Get-CommandlineOptions {
 
     # Run radare2 and output the options to a file
     $output = cmd.exe /c "$r2path -file $ExePath "
-    
+
 
     $output | ConvertFrom-Json | Select-Object -ExpandProperty opcode | Where-Object { $_ -match '^cmp' } | ForEach-Object { $_.Split(',')[1].Trim() }
 

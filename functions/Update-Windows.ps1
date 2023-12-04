@@ -3,8 +3,8 @@
 Automatically updates Windows using the KBUpdate module and schedules a task for the same.
 
 .DESCRIPTION
-The function checks if KBUpdate and BurntToast modules are installed, installs them if they aren't, 
-and schedules a task to update Windows every hour. 
+The function checks if KBUpdate and BurntToast modules are installed, installs them if they aren't,
+and schedules a task to update Windows every hour.
 
 .PARAMETER None
 

@@ -1,11 +1,11 @@
 # This function will update rust and cargo and make sure all exes installed by cargo are up to date
 function Update-RustAndFriends {
     [CmdletBinding()]
-    
+
     param(
 
     )
-    
+
     Write-Logg -Message 'Installing Rust'
     winget install Rustlang.Rustup --force --accept-source-agreements --accept-package-agreements
     Write-Logg -Message 'Finished installing Rust'

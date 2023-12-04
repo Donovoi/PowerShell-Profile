@@ -52,7 +52,7 @@ public class TextFilter
         if ($startProcessing) {
             # Skip lines that start with '-' or '\'
             if ($asciiLine -match '^-|^-\\|^\s*-|^\s*-\\') {
-                continue 
+                continue
             }
             if ($DebugMode) {
                 Write-Debug("index=$index, fieldcount=$($fieldnames.Count), fieldnames=$($fieldnames -join ':'), re='$re'")

@@ -29,7 +29,7 @@ function Get-Everything {
       Write-Logg -Message 'Everything executable not found' -Level Info
       Write-Logg -Message 'Downloading Everything' -Level Info
 
-      
+
     }
   }
 

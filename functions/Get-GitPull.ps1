@@ -41,7 +41,7 @@ function Get-GitPull {
   use std::ffi::{CStr, CString};
   use std::mem;
   use std::os::raw::c_char;
-  
+
   #[no_mangle]
   pub unsafe extern "C" fn find_directory_count_given_name(
       dir_path: *const c_char,
@@ -52,15 +52,15 @@ function Get-GitPull {
           CStr::from_ptr(dir_path)
       };
       let dir_path = dir_path.to_str().unwrap();
-  
+
       let search_name = {
           assert!(!search_name.is_null());
           CStr::from_ptr(search_name)
       };
       let search_name = search_name.to_str().unwrap();
-  
+
       let mut matching_paths: Vec<*const c_char> = vec![];
-  
+
       for entry in WalkDir::new(dir_path).skip_hidden(false).into_iter() {
           let entry = entry.unwrap();
           if entry.file_name().to_string_lossy() == search_name && entry.file_type().is_dir() {
@@ -69,7 +69,7 @@ function Get-GitPull {
               matching_paths.push(path_cstr.into_raw());
           }
       }
-  
+
       let paths_len = matching_paths.len();
       let data_layout = Layout::array::<*const c_char>(paths_len + 1).unwrap();
       let result = alloc_zeroed(data_layout) as *mut *const c_char;
@@ -78,9 +78,9 @@ function Get-GitPull {
       }
       mem::forget(matching_paths);
       result.add(paths_len).write(std::ptr::null());
-  
+
       result
-  }  
+  }
 '@
 
     if (-not(Test-Path -Path "$PWD/target/release/findfiles.dll")) {
@@ -113,7 +113,7 @@ function Get-GitPull {
   using System.Collections.Generic;
   using System.Runtime.InteropServices;
   using System.Text;
-  
+
   public class FileFinder
   {
       [DllImport(
@@ -125,7 +125,7 @@ function Get-GitPull {
           string dir_path,
           string search_name
       );
-  
+
       private static List<string> ConvertStringArray(IntPtr ptr)
       {
           List<string> result = new List<string>();
@@ -139,7 +139,7 @@ function Get-GitPull {
           }
           return result;
       }
-  
+
       private static void FreeStringArray(IntPtr ptr)
       {
           while (true)
@@ -151,7 +151,7 @@ function Get-GitPull {
               ptr += IntPtr.Size;
           }
       }
-  
+
       public static List<string> GetFoundPaths(string dir_path, string search_name)
       {
           IntPtr resultPtr = find_directory_count_given_name(dir_path, search_name);
@@ -160,7 +160,7 @@ function Get-GitPull {
           return result;
       }
   }
-  
+
 '@
 
     $typeName = 'FileFinder'
@@ -176,10 +176,10 @@ function Get-GitPull {
 
 
     # Get the repositories
-    
+
     $dir_path = Resolve-Path -Path $Path -ErrorAction Stop
     $search_name = '.git'
-  
+
     if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
         # Start the stopwatch
         $StopwatchENumMethod = [System.Diagnostics.Stopwatch]::StartNew()
@@ -214,7 +214,7 @@ function Get-GitPull {
         # Check if the upstream remote is added
         $upstream = git remote -v | Select-String "upstream"
         if ($null -ne $upstream) {
-            
+
             # Define the root path of the repository
             $repoRootPath = Get-Location
             try {
@@ -242,13 +242,13 @@ function Get-GitPull {
                 Write-Host "Lock file not found."
             }
             try {
-    
+
 
                 # If upstream is added, reset local changes and pull the latest changes from upstream
                 git reset --hard
                 git clean -fd
                 git fetch upstream
-    
+
                 # Get the name of the default branch from the upstream remote
                 $defaultBranch = git remote show upstream | Select-String "HEAD branch" | Out-String
                 $defaultBranch = ($defaultBranch -split ":")[1].Trim()
@@ -277,7 +277,7 @@ function Get-GitPull {
                 catch {
                     #    ignore error
                 }
-                
+
             }
         }
         else {
@@ -287,7 +287,7 @@ function Get-GitPull {
             catch {
                 Write-Warning "Unable to pull from $($_)"
             }
-        }      
+        }
         Write-Logg -NoConsoleOutput -Message "git pull complete for $($_)" -Level INFO
         #  Show progress
         #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)

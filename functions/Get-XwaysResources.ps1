@@ -11,7 +11,7 @@
     Use this if you would like to get all Templates that I could find on the internet.
 .EXAMPLE
     Get-XwaysResources -XWaysRoot "C:\XwaysResources"
-.EXAMPLE 
+.EXAMPLE
     Get-XwaysResources -GetTemplates -XWaysRoot F:\xwfportable -ResetCredentials
 .NOTES
 Now depends on Invoke-AriaDownload and Get-DownloadFile
@@ -51,7 +51,7 @@ function Get-XwaysResources {
     #region Credentials
     #TODO Export the credential stuff to a function
     # THE Following CREDENTIAL STUFF IS MOSTLY WORK FROM https://gist.github.com/davefunkel THANK YOU DAVE and from
-    # https://purple.telstra.com.au/blog/using-saved-credentials-securely-in-powershell-scripts Thank you purple Telstra        
+    # https://purple.telstra.com.au/blog/using-saved-credentials-securely-in-powershell-scripts Thank you purple Telstra
     if (-not (Test-Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES")) {
       # Root Folder
       $rootFolder = "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES"
@@ -79,10 +79,10 @@ function Get-XwaysResources {
 
       switch ($choice) {
         0 {
-          $encryptMode = "DPAPI" 
+          $encryptMode = "DPAPI"
         }
         1 {
-          $encryptMode = "AES" 
+          $encryptMode = "AES"
         }
       }
       Out-Host -InputObject "Encryption mode $encryptMode was selected to prepare the credentials."
@@ -110,7 +110,7 @@ function Get-XwaysResources {
         if (!(Test-Path $AESKeyFileDir)) {
           New-Item -Type Directory $AESKeyFileDir | Out-Null
         }
-        Set-Content $AESKeyFilePath $AESKey # Any existing AES Key file will be overwritten		
+        Set-Content $AESKeyFilePath $AESKey # Any existing AES Key file will be overwritten
         $password = $passwordSecureString | ConvertFrom-SecureString -Key $AESKey
       }
       else {
@@ -211,7 +211,7 @@ function Get-XwaysResources {
       $function = $_
       Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
       $Webfunction = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-      $Webfunction | Invoke-Expression  
+      $Webfunction | Invoke-Expression
     }
     Out-Host -InputObject "Downloading Excire.zip and Conditional Coloring.cfg"
     $urls = "https://x-ways.net/res/Excire.zip", "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg"

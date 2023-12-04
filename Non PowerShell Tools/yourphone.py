@@ -94,8 +94,8 @@ def worker(output_zip, queue):
             break
         process_directory(directory, output_zip)
         queue.task_done()
-        
-        
+
+
 
 
 

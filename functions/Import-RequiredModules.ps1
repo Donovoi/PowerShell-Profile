@@ -22,7 +22,7 @@ function Import-RequiredModule {
       }
       else {
         if (($Module -like '*psreadline*') -and ((Get-Module $Module).Version -lt '2.2.6')) {
-          #Get-Module -ListAvailable $Module | Uninstall-Module -Force 
+          #Get-Module -ListAvailable $Module | Uninstall-Module -Force
           Install-Module -Name $Module -AllowClobber -SkipPublisherCheck -Force -AllowPrerelease
         }
       }

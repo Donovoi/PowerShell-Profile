@@ -42,7 +42,7 @@ function Get-LongName {
         Try {
             $longNameBuilder = New-Object System.Text.StringBuilder(255)
             $result = [LongPath]::GetLongPathName($ShortName, $longNameBuilder, $longNameBuilder.Capacity)
-        
+
             if ($result -eq 0) {
                 Throw "Failed to resolve long name for path '$ShortName'."
             }

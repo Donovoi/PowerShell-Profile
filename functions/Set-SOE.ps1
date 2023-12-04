@@ -31,7 +31,7 @@ function Install-PackageManagers {
     $InstallWinget
   )
 
-  # Install Chocolatey 
+  # Install Chocolatey
   Write-Verbose 'Installing Chocolatey'
   if (-not (Test-Path $Profile)) {
     New-Item $Profile -Force

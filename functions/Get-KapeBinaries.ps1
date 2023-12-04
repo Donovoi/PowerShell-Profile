@@ -5,7 +5,7 @@
 .DESCRIPTION
     This script will discover and download all available EXE, ZIP, and PS1 files referenced in KAPE Module files and download them to $Dest
     or optionally can be fed a txt file containing URLs to download.
-    A file will also be created in $Dest that tracks the SHA-1 of each file, so rerunning the script will only download new versions. 
+    A file will also be created in $Dest that tracks the SHA-1 of each file, so rerunning the script will only download new versions.
     To redownload, remove lines from or delete the CSV file created under $Dest and rerun. Note this only works for Eric Zimmerman's tools. All others will be downloaded each time.
 .PARAMETER Dest
     The path you want to save the programs to. Typically this will be the Bin folder in your KAPE\Modules directory
@@ -14,15 +14,15 @@
 .PARAMETER CreateBinaryList
     Optional switch which scans mkape file and dumps binary urls found to console.
 .PARAMETER UseBinaryList
-    Optional switch to enable use of txt file to specify which binaries to download.  
+    Optional switch to enable use of txt file to specify which binaries to download.
 .PARAMETER BinaryListPath
-    The path of txt file containing Binary URLs.  
+    The path of txt file containing Binary URLs.
 .EXAMPLE
     PS C:\Tools> .\Get-KapeModuleBinaries.ps1 -Dest "C:\Forensic Program Files\Zimmerman\Kape\Modules\Bin" -ModulePath "C:\Forensic Program Files\Zimmerman\Kape\Modules"
     Downloads/extracts and saves binaries and binary details to "C:\Forensic Program Files\Zimmerman\Kape\Modules\Bin" directory.
 .EXAMPLE
     PS C:\Tools> .\Get-KapeModuleBinaries.ps1 -ModulePath "C:\Forensic Program Files\Zimmerman\Kape\Modules" -CreateBinaryList
-    Scans modules directory for mkape files, extracts URLs and dumps to console. This can be used to create a text file for use 
+    Scans modules directory for mkape files, extracts URLs and dumps to console. This can be used to create a text file for use
     with the -UseBinaryList and -BinaryList path parameters or just to verify which tools will be downloaded prior to running
     .\Get-KapeModuleBinaries.ps1 -Dest <desired tool path> -ModulePath "<Kape Modules Path>"
 .EXAMPLE
@@ -47,7 +47,7 @@ function Get-KapeBinaries {
     [switch]$CreateBinaryList, #Optional switch which scans mkape file and dumps binary urls found to console
 
     [Parameter()]
-    [switch]$DownloadBinaries, # Optional switch to enable downloading of binaries after list is created       
+    [switch]$DownloadBinaries, # Optional switch to enable downloading of binaries after list is created
 
     [Parameter()]
     [switch]$UseBinaryList, # Optional switch to enable use of txt file to specify which binaries to download
@@ -55,7 +55,7 @@ function Get-KapeBinaries {
   )
 
 
-  Write-Logg -Message "This script will automate the downloading of binaries used by KAPE module files to $Dest" 
+  Write-Logg -Message "This script will automate the downloading of binaries used by KAPE module files to $Dest"
 
   $newInstall = $false
 
@@ -93,13 +93,13 @@ function Get-KapeBinaries {
 
   #If $CreateBinaryList switch is used dump list of Binary URLs to console
   elseif ($CreateBinaryList) {
-    Write-Logg -Message "Dumping list of Binary URLs to console" 
+    Write-Logg -Message "Dumping list of Binary URLs to console"
     try {
       $mkapeFiles = Get-ChildItem -Recurse -Force -Path $modulePath\*.mkape -ErrorAction Stop
       $mkapeContent = $mkapeFiles | Get-Content
     }
     catch {
-      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" 
+      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory"
     }
 
     # $UniqueURLs = @{}
@@ -118,14 +118,14 @@ function Get-KapeBinaries {
     Write-Output $FinalUrls
 
     if ($DownloadBinaries) {
-      $FinalUrls.foreach{ 
+      $FinalUrls.foreach{
         $DownloadedBinaries = $(Join-Path -Path $Dest -ChildPath "$($_.split('/')[-1])")
         if (Test-Path -Path $DownloadedBinaries) {
           Remove-Item -Path $DownloadedBinaries -Force -ErrorAction SilentlyContinue
         }
         Get-DownloadFile -Url $_ -OutFile $DownloadedBinaries -UseAria2
       }
-      
+
     }
 
   }
@@ -136,7 +136,7 @@ function Get-KapeBinaries {
       $mkapeContent = Get-Content $modulePath\*.mkape -ErrorAction Stop
     }
     catch {
-      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory" 
+      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory"
     }
 
     $progressPreference = 'Continue'
@@ -179,7 +179,7 @@ function Get-KapeBinaries {
         Size = $size
       }
     }
-    # Downloading 
+    # Downloading
     else {
       $getUrl = $matchdetails.Value
       $sha = "N/A"
@@ -217,16 +217,16 @@ function Get-KapeBinaries {
   }
 
   if ($toDownload.Count -eq 0) {
-    Write-Logg -Message "All files current. Exiting." 
+    Write-Logg -Message "All files current. Exiting."
     return
   }
 
-  #if (-not (test-path ".\7z\7za.exe")) 
+  #if (-not (test-path ".\7z\7za.exe"))
   #{
-  #    Write-Logg -Message ".\7z\7za.exe needed! Exiting" 
+  #    Write-Logg -Message ".\7z\7za.exe needed! Exiting"
   #    return
-  #} 
-  #set-alias sz ".\7z\7za.exe"  
+  #}
+  #set-alias sz ".\7z\7za.exe"
 
   $downloadedOK = @()
 
@@ -235,7 +235,7 @@ function Get-KapeBinaries {
       $dUrl = $td.URL
       $size = $td.Size
       $name = $td.Name
-      Write-Logg -Message "Downloading $name (Size: $size)" 
+      Write-Logg -Message "Downloading $name (Size: $size)"
       $destFile = Join-Path -Path $dest -ChildPath $td.Name
 
       $progressPreference = 'silentlyContinue'
@@ -244,7 +244,7 @@ function Get-KapeBinaries {
       }
       catch {
         $ErrorMessage = $_.Exception.Message
-        Write-Logg -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" 
+        Write-Logg -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again"
         continue
       }
 
@@ -270,14 +270,14 @@ function Get-KapeBinaries {
             Expand-Archive -Path $destFile -DestinationPath $Dest -Force -ErrorAction Stop
           }
           catch {
-            Write-Logg -Message "Unable to extract file:$destFile. Verify file is not in use and that you have access to $Dest." 
+            Write-Logg -Message "Unable to extract file:$destFile. Verify file is not in use and that you have access to $Dest."
           }
         }
       }
     }
     catch {
       $ErrorMessage = $_.Exception.Message
-      Write-Logg -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again" 
+      Write-Logg -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again"
     }
     finally {
       $progressPreference = 'Continue'
@@ -333,7 +333,7 @@ function Get-KapeBinaries {
         New-Item -ItemType directory -Path $ReCmdDir -ErrorAction Stop > $null
       }
       catch {
-        Write-Logg -Message "Unable to create directory path: $RECmdDir. You may need to manually create \Kape\Modules\Bin\ReCmd" 
+        Write-Logg -Message "Unable to create directory path: $RECmdDir. You may need to manually create \Kape\Modules\Bin\ReCmd"
       }
     }
 
@@ -344,7 +344,7 @@ function Get-KapeBinaries {
         Move-Item -Path $change -Destination $ReCmdDir -Force -ErrorAction Stop
       }
       catch {
-        Write-Logg -Message "Unable to move $change to $RECmdDir. You may need to manually move this for RECmd.mkape to function properly" 
+        Write-Logg -Message "Unable to move $change to $RECmdDir. You may need to manually move this for RECmd.mkape to function properly"
       }
     }
 
@@ -353,7 +353,7 @@ function Get-KapeBinaries {
       Remove-Item -Path "$Dest\RegistryExplorer" -Recurse -Force -ErrorAction Stop
     }
     catch {
-      Write-Logg -Message "Unable to delete $Dest\RegistryExplorer" 
+      Write-Logg -Message "Unable to delete $Dest\RegistryExplorer"
     }
   }
 
@@ -367,7 +367,7 @@ function Get-KapeBinaries {
         Move-Item -Path $tool -Destination $Dest -Force -ErrorAction Stop
       }
       catch {
-        Write-Logg -Message "Unable to move $tool to $Dest. You may need to manually move this for the module to function properly" 
+        Write-Logg -Message "Unable to move $tool to $Dest. You may need to manually move this for the module to function properly"
       }
 
       # Delete Tool Directory
@@ -376,11 +376,11 @@ function Get-KapeBinaries {
         Remove-Item -Path $toolDir -Recurse -Force -ErrorAction Stop
       }
       catch {
-        Write-Logg -Message "Unable to delete $toolDir" 
+        Write-Logg -Message "Unable to delete $toolDir"
       }
     }
   }
 
-  Write-Logg -Message "Saving downloaded version information to $localDetailsFile" 
+  Write-Logg -Message "Saving downloaded version information to $localDetailsFile"
   $downloadedOK | Export-Csv -Path $localDetailsFile
 }

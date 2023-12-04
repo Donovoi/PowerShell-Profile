@@ -30,32 +30,32 @@ function Get-Handle {
         [string]$FilePath
     )
 
-    $processHandler = New-Object ProcessHandler 
+    $processHandler = New-Object ProcessHandler
     $escapedFilePath = $FilePath -replace '\\', '\\\\'
-    $escapedFileNameWithExtension = Split-Path $escapedFilePath -Leaf 
+    $escapedFileNameWithExtension = Split-Path $escapedFilePath -Leaf
 
     do {
         $processes = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%$escapedFileNameWithExtension%'"
-        
+
         $processes | ForEach-Object {
-            $procHandle = $processHandler.GetProcessHandle($_.ProcessId) 
-            
-            if ($procHandle -ne [IntPtr]::Zero) { 
-                $userDecision = $null 
-                do { 
-                    $userDecision = Read-Host "Invalidate handles or Kill Process($($_.Caption) - $($_.ExecutablePath))?(I/K/Ignore)" 
-                    if ($userDecision -eq 'I') { 
-                        $processHandler.CloseProcessHandle($procHandle) 
-                        Write-Logg -Message 'Handle invalidated.' 
-                    } 
-                    elseif ($userDecision -eq 'K') { 
-                        Stop-Process -Id $_.ProcessId -Force 
-                        Write-Logg -Message 'Process killed.' 
-                    } 
-                } while ($userDecision -ne 'I' -and $userDecision -ne 'K' -and $userDecision -ne 'Ignore') 
+            $procHandle = $processHandler.GetProcessHandle($_.ProcessId)
+
+            if ($procHandle -ne [IntPtr]::Zero) {
+                $userDecision = $null
+                do {
+                    $userDecision = Read-Host "Invalidate handles or Kill Process($($_.Caption) - $($_.ExecutablePath))?(I/K/Ignore)"
+                    if ($userDecision -eq 'I') {
+                        $processHandler.CloseProcessHandle($procHandle)
+                        Write-Logg -Message 'Handle invalidated.'
+                    }
+                    elseif ($userDecision -eq 'K') {
+                        Stop-Process -Id $_.ProcessId -Force
+                        Write-Logg -Message 'Process killed.'
+                    }
+                } while ($userDecision -ne 'I' -and $userDecision -ne 'K' -and $userDecision -ne 'Ignore')
                 $processHandler.CloseProcessHandle($procHandle)
             }
         }
-        Start-Sleep -Seconds 1 
+        Start-Sleep -Seconds 1
     } while ((Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%$escapedFileNameWithExtension%'").Count -gt 0)
 }

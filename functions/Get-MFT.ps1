@@ -2,22 +2,22 @@ function Get-MFT {
 
   <#
     .SYNOPSIS
-    
+
     Extracts master file table from volume.
-    
+
     Version: 0.1
     Author : Jesse Davis (@secabstraction)
     License: BSD 3-Clause
-    
+
     Version: 0.1
     Author : Matt Pichelmayer
     License: BSD 3-Clause
-    
+
     .DESCRIPTION
     This module reads the Master File Table from a remote host and streams it to a local path on the workstation the script is ran from.
-    .PARAMETER ComputerName 
+    .PARAMETER ComputerName
     Specify host to retrieve the Master File Table from.
-    .PARAMETER Volume 
+    .PARAMETER Volume
     Specify a volume to retrieve its master file table.
     .PARAMETER FirewallRuleName
     Speficy the name of the FirewallRuleName to use when opening a firewall port.
@@ -29,14 +29,14 @@ function Get-MFT {
     PS C:\> Get-RemoteMFT -ComputerName <computer_name> -OutputFilePath "C:\mft.bin" -FirewallRuleName "MFT File Transfer" -Port 7777
     .NOTES
     This script is a slightly modified version + wrapper for Jesse Davis's Export-MFT (https://gist.github.com/secabstraction/4044f4aadd3ef21f0ca9).  It will parse the MFT and
-    send it over the network to prevent any writes to disk.    
-    The MFT location isn't always fixed on the volume. You should get the starting MFT offset from the boot sector (sector 0 of the volume, you can find the structure online). 
-    The first file in the MFT is the "$MFT" file which is the file record for the entire MFT itself. You can parse the attributes of this file like any other file and get it's 
-    data run list. When you know the size of each fragment in clusters, parse the last cluster for each 1024 byte record of the last fragment (although I believe a fragmented 
+    send it over the network to prevent any writes to disk.
+    The MFT location isn't always fixed on the volume. You should get the starting MFT offset from the boot sector (sector 0 of the volume, you can find the structure online).
+    The first file in the MFT is the "$MFT" file which is the file record for the entire MFT itself. You can parse the attributes of this file like any other file and get it's
+    data run list. When you know the size of each fragment in clusters, parse the last cluster for each 1024 byte record of the last fragment (although I believe a fragmented
     MFT is rare). The last record in the MFT is the last record in that particular cluster marked "FILE0", if you encounter a null magic number that would be 1024 bytes too far.
-    Or you can just get the file size from it's attributes and calculate the offset to the end of the MFT based on how many fragments it has. Then subtract 1024 from the offset 
+    Or you can just get the file size from it's attributes and calculate the offset to the end of the MFT based on how many fragments it has. Then subtract 1024 from the offset
     and you should be looking at the last file.
-    
+
     .INPUTS
     .OUTPUTS
     .LINK
@@ -164,7 +164,7 @@ function Get-MFT {
     # Read VBR from volume
     $VolumeBootRecord = New-Object Byte[] (512)
     if ($FileStream.Read($VolumeBootRecord, 0, $VolumeBootRecord.Length) -ne 512) {
-      Write-Error "Error reading volume boot record." 
+      Write-Error "Error reading volume boot record."
     }
 
     # Parse MFT offset from VBR and set stream to its location
@@ -174,7 +174,7 @@ function Get-MFT {
     # Read MFT's file record header
     $MftFileRecordHeader = New-Object byte[] (48)
     if ($FileStream.Read($MftFileRecordHeader, 0, $MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) {
-      Write-Error "Error reading MFT file record header." 
+      Write-Error "Error reading MFT file record header."
     }
 
     # Parse values from MFT's file record header
@@ -185,7 +185,7 @@ function Get-MFT {
     $MftFileRecord = New-Object byte[] ($AttributesRealSize)
     $FileStream.Position = $MftOffset
     if ($FileStream.Read($MftFileRecord, 0, $MftFileRecord.Length) -ne $AttributesRealSize) {
-      Write-Error "Error reading MFT file record." 
+      Write-Error "Error reading MFT file record."
     }
 
     # Parse MFT's attributes from file record
@@ -230,11 +230,11 @@ function Get-MFT {
       $DataRunLength = "0x"
 
       for ($i = $StartBytes; $i -gt 0; $i --) {
-        $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] 
+        $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)]
       }
 
       for ($i = $LengthBytes; $i -gt 0; $i --) {
-        $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $StartBytes + $i)] 
+        $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $StartBytes + $i)]
       }
 
       $FileStreamOffset += ([int]$DataRunStart * 0x1000)
@@ -252,7 +252,7 @@ function Get-MFT {
 
         }
 
-        #Logic to only write to stream only if buffer is full (16384) 
+        #Logic to only write to stream only if buffer is full (16384)
         #or not divisble by 4096, meaning it's the last write
         switch ($Sendbuffer.Length) {
 
@@ -265,7 +265,7 @@ function Get-MFT {
           }
 
           default {
-            continue 
+            continue
           }
 
         }
@@ -313,7 +313,7 @@ function Get-MFT {
         $Read = $TcpNetworkstream.Read($Receivebuffer, 0, $Receivebuffer.Length)
 
         if ($Read -eq 0) {
-          break 
+          break
         }
         else {
 
@@ -330,7 +330,7 @@ function Get-MFT {
     }
 
     catch {
-      exit (1) 
+      exit (1)
     }
 
     $OutputFileStream.Close()
@@ -365,13 +365,13 @@ function Get-MFT {
   if (-not ($runspace.HadErrors)) {
 
     if ($(netstat -ant | findstr $Lport)) {
-      Write-Verbose "[+] Successfully forked TCP listener on port $Lport to background" 
+      Write-Verbose "[+] Successfully forked TCP listener on port $Lport to background"
     }
 
   }
 
   else {
-    Write-Verbose "[-] Couldn't start Listener. Exiting." 
+    Write-Verbose "[-] Couldn't start Listener. Exiting."
   }
 
   #Scriptblock to dump MFT on Remote host
@@ -467,7 +467,7 @@ function Get-MFT {
     # Read VBR from volume
     $VolumeBootRecord = New-Object Byte[] (512)
     if ($FileStream.Read($VolumeBootRecord, 0, $VolumeBootRecord.Length) -ne 512) {
-      Write-Error "Error reading volume boot record." 
+      Write-Error "Error reading volume boot record."
     }
 
     # Parse MFT offset from VBR and set stream to its location
@@ -477,7 +477,7 @@ function Get-MFT {
     # Read MFT's file record header
     $MftFileRecordHeader = New-Object byte[] (48)
     if ($FileStream.Read($MftFileRecordHeader, 0, $MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) {
-      Write-Error "Error reading MFT file record header." 
+      Write-Error "Error reading MFT file record header."
     }
 
     # Parse values from MFT's file record header
@@ -488,7 +488,7 @@ function Get-MFT {
     $MftFileRecord = New-Object byte[] ($AttributesRealSize)
     $FileStream.Position = $MftOffset
     if ($FileStream.Read($MftFileRecord, 0, $MftFileRecord.Length) -ne $AttributesRealSize) {
-      Write-Error "Error reading MFT file record." 
+      Write-Error "Error reading MFT file record."
     }
 
     # Parse MFT's attributes from file record
@@ -542,11 +542,11 @@ function Get-MFT {
         $DataRunLength = "0x"
 
         for ($i = $StartBytes; $i -gt 0; $i --) {
-          $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] 
+          $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)]
         }
 
         for ($i = $LengthBytes; $i -gt 0; $i --) {
-          $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)] 
+          $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)]
         }
 
         $FileStreamOffset += ([int]$DataRunStart * 0x1000)
@@ -564,7 +564,7 @@ function Get-MFT {
 
           }
 
-          #Logic to only write to stream only if buffer is full (16384) 
+          #Logic to only write to stream only if buffer is full (16384)
           #or not divisble by 4096, meaning it's the last write
           switch ($Sendbuffer.Length) {
 
@@ -582,7 +582,7 @@ function Get-MFT {
             }
 
             default {
-              continue 
+              continue
             }
 
           }
@@ -605,7 +605,7 @@ function Get-MFT {
     }
 
     catch {
-      0 
+      0
     }
 
   }
@@ -621,10 +621,10 @@ function Get-MFT {
   Write-Verbose "[*] Writing to $OutputFilePath"
   $ReturnedObjects = Invoke-Command -Session $remote_pssession -ScriptBlock $ScriptBlock -ArgumentList @($calling_host, $Volume, $LPort)
   if ($ReturnedObjects -eq 0) {
-    Write-Verbose "[-] Failed to transfer MFT." 
+    Write-Verbose "[-] Failed to transfer MFT."
   }
   else {
-    Write-Verbose "[+] Successfully copied MFT with a size of $($ReturnedObjects / 1024 / 1024) MB" 
+    Write-Verbose "[+] Successfully copied MFT with a size of $($ReturnedObjects / 1024 / 1024) MB"
   }
 
   Write-Verbose "[*] Removing Runspace..."
