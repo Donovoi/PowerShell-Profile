@@ -3,7 +3,7 @@
    This function retrieves the latest release from a specified GitHub repository and optionally downloads it to your system.
 
 .DESCRIPTION
-   The Get-LatestGitHubRelease function is designed to help you easily find and download the latest release from a GitHub repository. 
+   The Get-LatestGitHubRelease function is designed to help you easily find and download the latest release from a GitHub repository.
    It can return details about the latest release, download assets, and even extract downloaded zip files automatically.
    The function will only prompt for a GitHub token if the repository is private.
 
@@ -42,44 +42,44 @@ function Get-LatestGitHubRelease {
     param(
         [Parameter(Mandatory = $true)]
         [string] $OwnerRepository,
-  
+
         [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
         [string] $AssetName,
-  
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string] $DownloadPathDirectory = $PWD,
-  
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [switch] $ExtractZip,
-  
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [switch] $UseAria2,
-      
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = $(Resolve-Path -Path "$ENV:SystemDrive/aria*/*/aria2c.exe").Path,    
-  
+        $Aria2cExePath = $(Resolve-Path -Path "$ENV:SystemDrive/aria*/*/aria2c.exe").Path,
+
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
-  
+
         [Parameter(Mandatory = $false, ParameterSetName = 'VersionOnly')]
         [switch] $VersionOnly,
-  
+
         [Parameter(Mandatory = $false)]
         [string] $TokenName = 'ReadOnlyGitHubToken',
-  
+
         [Parameter(Mandatory = $false)]
         [switch] $PrivateRepo
     )
-    
+
     begin {
-  
+
         # Prepare API headers without Authorization
         $headers = @{
             'Accept'               = 'application/vnd.github+json'
             'X-GitHub-Api-Version' = '2022-11-28'
         }
-    
+
         if ($PrivateRepo) {
             $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
             # Install any needed modules and import them
@@ -90,7 +90,7 @@ function Get-LatestGitHubRelease {
             }
             # Later in the session
             $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
-  
+
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
             if ($newModules -notcontains "Microsoft.PowerShell.SecretManagement") {
@@ -106,12 +106,12 @@ function Get-LatestGitHubRelease {
                         # Reset store if above fails (means we forgot the password to the original store)
                         Reset-SecretStore -Authentication None -Scope CurrentUser -Confirm:$false
                     }
-                    
+
                 }
             }
             else {
                 try {
-                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow                    # Initialize the secret store                    
+                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow                    # Initialize the secret store
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $initialPassword
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
@@ -121,13 +121,13 @@ function Get-LatestGitHubRelease {
                     throw
                 }
             }
-    
+
             # Retrieve GitHub token
             $currentstoreconfig = Get-SecretStoreConfiguration
             if ($currentstoreconfig.Authentication -eq 'Password') {
                 Unlock-SecretStore -Password $initialPassword
             }
-            
+
             $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
             if (-not ([string]::IsNullOrEmpty($PlainTextToken))) {
                 $headers['Authorization'] = "Bearer $PlainTextToken"
@@ -146,7 +146,7 @@ function Get-LatestGitHubRelease {
         try {
             # Define API URL
             $apiurl = "https://api.github.com/repos/$OwnerRepository/releases"
-  
+
             # Retrieve release information
             $Release = if ($PreRelease) {
                 $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
@@ -155,7 +155,7 @@ function Get-LatestGitHubRelease {
             else {
                 Invoke-RestMethod -Uri ($apiurl + '/latest') -Headers $headers
             }
-  
+
             # Handle 'Not Found' response
             if ($Release -like '*Not Found*') {
                 Write-Logg -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
@@ -167,7 +167,7 @@ function Get-LatestGitHubRelease {
                     exit
                 }
             }
-  
+
             # Handle 'VersionOnly' parameter
             if ($PSBoundParameters.ContainsKey('VersionOnly')) {
                 $Version = $Release.name.Split(' ')[0]
@@ -176,37 +176,37 @@ function Get-LatestGitHubRelease {
             else {
                 $asset = $Release.assets | Where-Object { $_ -like "*$AssetName*" } | Select-Object -First 1
             }
-  
+
             # Prepare for download
             if (-not (Test-Path $DownloadPathDirectory)) {
                 New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
             }
-  
+
             # Download asset
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
                     # Initialize an empty hashtable
                     $downloadFileParams = @{}
-  
+
                     # Mandatory parameters
                     $downloadFileParams['URL'] = $asset.Browser_Download_url
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-  
-                    # Conditionally add parameters          
+
+                    # Conditionally add parameters
                     $downloadFileParams['UseAria2'] = $true
                     if ((Test-Path -Path $Aria2cExePath -ErrorAction silentlycontinue)) {
                         $downloadFileParams['aria2cexe'] = $Aria2cExePath
                     }
-                    
-            
-  
+
+
+
                     if ($TokenName -and $PrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                         $downloadFileParams['IsPrivateRepo'] = $true
                     }
-  
+
                     # Splat the parameters onto the function call
-                    Get-DownloadFile @downloadFileParams                
+                    Get-DownloadFile @downloadFileParams
                 }
                 else {
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
@@ -234,7 +234,7 @@ function Get-LatestGitHubRelease {
                     $outFile
                 }
             }
-  
+
             # Handle 'ExtractZip' parameter
             if ($ExtractZip) {
                 if ($downloadedFile -notlike '*.zip') {

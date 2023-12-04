@@ -22,7 +22,7 @@ if (-not $isAdmin) {
 function SearchEventViewerLogs() {
     $eventLog = Get-EventLog -LogName 'System' -Newest 1000 | Where-Object { $_.EntryType -eq 'Error' -or $_.EntryType -eq 'Warning' }
     $relevantEvents = $eventLog | Where-Object { $_.Message -match 'screen' }
-    
+
     if ($relevantEvents) {
         Write-Logg -Message "Relevant events found in Event Viewer logs:" -ForegroundColor Green
         $relevantEvents | Select-Object EventID, TimeGenerated, Message | Format-Table -AutoSize
@@ -38,7 +38,7 @@ function RunFlickeringTests() {
 
     # For demonstration purposes, let's assume the tests failed
     $flickeringTestsResult = $false
-    
+
     $flickeringTestsResult
 }
 

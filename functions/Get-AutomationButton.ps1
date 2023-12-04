@@ -3,7 +3,7 @@
 This function retrieves a specified button from a base automation element.
 
 .DESCRIPTION
-The Get-AutomationButton function retrieves a specified button from a base automation element. 
+The Get-AutomationButton function retrieves a specified button from a base automation element.
 It uses the FlaUI library to interact with the UI Automation framework.
 
 .PARAMETER BaseAutomationElement

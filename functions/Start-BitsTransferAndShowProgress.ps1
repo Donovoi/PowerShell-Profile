@@ -27,7 +27,7 @@ function Start-BitsTransferAndShowProgress {
     )
     try {
         Restart-Service -Name BITS -Force
-        Get-BitsTransfer | Remove-BitsTransfer 
+        Get-BitsTransfer | Remove-BitsTransfer
 
         $job = Start-BitsTransfer -Source $URL -Destination $OutFile -Asynchronous
 
@@ -49,7 +49,7 @@ function Start-BitsTransferAndShowProgress {
             Write-Progress -Activity ' ' -Status "Speed: $currentSpeedStr/second, TotalDownloaded: $totalDownloadedStr" -Id 2
 
             Start-Sleep -Seconds 1
-        }    
+        }
 
         if ($job.JobState -eq 'Transferred') {
             Complete-BitsTransfer -BitsJob $job

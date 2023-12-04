@@ -4,15 +4,15 @@ Function Set-Window {
 Retrieve/Set the window size and coordinates of a process window.
 
 .DESCRIPTION
-Retrieve/Set the size (height,width) and coordinates (x,y) 
+Retrieve/Set the size (height,width) and coordinates (x,y)
 of a process window.
 
 .PARAMETER ProcessName
-Name of the process to determine the window characteristics. 
+Name of the process to determine the window characteristics.
 (All processes if omitted).
 
 .PARAMETER Id
-Id of the process to determine the window characteristics. 
+Id of the process to determine the window characteristics.
 
 .PARAMETER X
 Set the position of the window in pixels from the left.
@@ -34,7 +34,7 @@ Name:   Set-Window
 Author: Boe Prox
 Version History:
     1.0//Boe Prox - 11/24/2015 - Initial build
-    1.1//JosefZ   - 19.05.2018 - Treats more process instances 
+    1.1//JosefZ   - 19.05.2018 - Treats more process instances
                                  of supplied process name properly
     1.2//JosefZ   - 21.02.2019 - Parameter Id
 
@@ -61,11 +61,11 @@ WARNING: cmd (1096) is minimized! Coordinates will not be accurate.
 
     PS C:\>$windowArray | Format-Table -AutoSize
 
-  Id ProcessName    Size     TopLeft       BottomRight  
-  -- -----------    ----     -------       -----------  
+  Id ProcessName    Size     TopLeft       BottomRight
+  -- -----------    ----     -------       -----------
 1096 cmd            199,34   -32000,-32000 -31801,-31966
-4088 explorer       1280,50  0,974         1280,1024    
-6880 powershell     1280,974 0,0           1280,974     
+4088 explorer       1280,50  0,974         1280,1024
+6880 powershell     1280,974 0,0           1280,974
 
 Description: Get the coordinates of all visible windows and save them into the
              $windowArray variable. Then, display them in a table view.
@@ -77,7 +77,7 @@ Set-Window -Id $PID -Passthru | Format-Table
   -- ----------- ----     ------- -----------
 7840 pwsh        1024,638 0,0     1024,638
 
-Description: Display the coordinates of the window for the current 
+Description: Display the coordinates of the window for the current
              PowerShell session in a table view.
 
 
@@ -98,7 +98,7 @@ Description: Display the coordinates of the window for the current
         [switch]$Passthru
     )
     Begin {
-        Try { 
+        Try {
             [void][Window]
         }
         Catch {
@@ -113,10 +113,10 @@ Description: Display the coordinates of the window for the current
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public extern static bool MoveWindow( 
+        public extern static bool MoveWindow(
             IntPtr handle, int x, int y, int width, int height, bool redraw);
 
-        [DllImport("user32.dll")] 
+        [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool ShowWindow(
             IntPtr handle, int state);
@@ -149,11 +149,11 @@ Description: Display the coordinates of the window for the current
                 $Handle = $_.MainWindowHandle
                 Write-Verbose "$($_.ProcessName) `(Id=$($_.Id), Handle=$Handle`)"
                 if ( $Handle -eq [System.IntPtr]::Zero ) {
-                    return 
+                    return
                 }
                 $Return = [Window]::GetWindowRect($Handle, [ref]$Rectangle)
                 If (-NOT $PSBoundParameters.ContainsKey('X')) {
-                    $X = $Rectangle.Left            
+                    $X = $Rectangle.Left
                 }
                 If (-NOT $PSBoundParameters.ContainsKey('Y')) {
                     $Y = $Rectangle.Top
@@ -176,7 +176,7 @@ Description: Display the coordinates of the window for the current
                         $Size = New-Object System.Management.Automation.Host.Size -ArgumentList $Width, $Height
                         $TopLeft = New-Object System.Management.Automation.Host.Coordinates -ArgumentList $Rectangle.Left , $Rectangle.Top
                         $BottomRight = New-Object System.Management.Automation.Host.Coordinates -ArgumentList $Rectangle.Right, $Rectangle.Bottom
-                        If ($Rectangle.Top -lt 0 -AND 
+                        If ($Rectangle.Top -lt 0 -AND
                             $Rectangle.Bottom -lt 0 -AND
                             $Rectangle.Left -lt 0 -AND
                             $Rectangle.Right -lt 0) {

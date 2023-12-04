@@ -11,7 +11,7 @@ function Get-ANSIColorCharts {
             Write-Host -Object "$esc[$fgbg;5;${color}m$field $esc[0m" -NoNewline
             #Display 6 colors per line
             if ( (($color + 1) % 6) -eq 4 ) {
-                Write-Output "`r" 
+                Write-Output "`r"
             }
         }
         Write-Output `n

@@ -3,7 +3,7 @@
    Sets a secret as a named secret in the secret store.
 
 .DESCRIPTION
-   The Set-StoredSecret function stores a provided secret as a named secret in the secret store. 
+   The Set-StoredSecret function stores a provided secret as a named secret in the secret store.
    If a secret with the same name already exists, it will be overwritten.
 
 .PARAMETER Secret
@@ -52,7 +52,7 @@ function Set-StoredSecret {
     if ($vaults) {
         $currentConfig = Get-SecretStoreConfiguration
         if ($currentConfig.Authentication -ne 'None') {
-            
+
             try {
                 # Use the provided SecureString password to unlock the secret store
                 Unlock-SecretStore -Password $SecurePassword

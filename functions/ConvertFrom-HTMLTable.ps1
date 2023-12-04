@@ -49,7 +49,7 @@ function ConvertFrom-HTMLTable {
     $twoColumnsWithoutName = 0
 
     if ($tableName) {
-        $tableNameTxt = "'$tableName'" 
+        $tableNameTxt = "'$tableName'"
     }
 
     $columnName = $table.getElementsByTagName("th") | ForEach-Object { $_.innerText -replace "^\s*|\s*$" }

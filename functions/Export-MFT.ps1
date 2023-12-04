@@ -2,48 +2,48 @@ function Export-MFT {
   <#
     .SYNOPSIS
     Extracts master file table from volume.
-    
+
     Version: 0.1
     Author : Jesse Davis (@secabstraction)
     License: BSD 3-Clause
-    
+
     .DESCRIPTION
     This module exports the master file table (MFT) and writes it to $env:TEMP.
     The object(s) output by this module specify the path of the written MFT file for retrieval via Copy-Item -Path \\NetworkPath\C$
-    
-    .PARAMETER ComputerName 
+
+    .PARAMETER ComputerName
     Specify host(s) to retrieve data from.
-    
-    .PARAMETER ThrottleLimit 
+
+    .PARAMETER ThrottleLimit
     Specify maximum number of simultaneous connections.
-    
-    .PARAMETER Volume 
+
+    .PARAMETER Volume
     Specify a volume to retrieve its master file table.
-    
-    .PARAMETER CSV 
+
+    .PARAMETER CSV
     Specify path to output file, output is formatted as comma separated values.
-    
+
     .EXAMPLE
     The following example extracts the master file table from the local system volume and writes it to TEMP.
-    
+
     PS C:\> Export-MFT
-    
+
     .EXAMPLE
     The following example extracts the master file table from the system volume of Server01 and writes it to TEMP.
-    
+
     PS C:\> Export-MFT -ComputerName Server01
-    
+
     .EXAMPLE
     The following example extracts the master file table from the F volume on Server01 and writes it to TEMP.
-    
+
     PS C:\> Export-MFT -ComputerName Server01 -Volume F
-    
+
     .NOTES
-    
+
     .INPUTS
-    
+
     .OUTPUTS
-    
+
     .LINK
     #>
   [CmdletBinding()]
@@ -131,7 +131,7 @@ function Export-MFT {
 
     # Get handle to volume
     if ($Volume -ne 0) {
-      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero) 
+      $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $Volume + ':'), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
     }
     else {
       $VolumeHandle = $Kernel32::CreateFile(('\\.\' + $env:SystemDrive), $GENERIC_READWRITE, $FILE_SHARE_READWRITE, [IntPtr]::Zero, $OPEN_EXISTING, 0, [IntPtr]::Zero)
@@ -149,7 +149,7 @@ function Export-MFT {
     # Read VBR from volume
     $VolumeBootRecord = New-Object Byte[] (512)
     if ($FileStream.Read($VolumeBootRecord, 0, $VolumeBootRecord.Length) -ne 512) {
-      Write-Error "Error reading volume boot record." 
+      Write-Error "Error reading volume boot record."
     }
 
     # Parse MFT offset from VBR and set stream to its location
@@ -159,7 +159,7 @@ function Export-MFT {
     # Read MFT's file record header
     $MftFileRecordHeader = New-Object byte[] (48)
     if ($FileStream.Read($MftFileRecordHeader, 0, $MftFileRecordHeader.Length) -ne $MftFileRecordHeader.Length) {
-      Write-Error "Error reading MFT file record header." 
+      Write-Error "Error reading MFT file record header."
     }
 
     # Parse values from MFT's file record header
@@ -170,7 +170,7 @@ function Export-MFT {
     $MftFileRecord = New-Object byte[] ($AttributesRealSize)
     $FileStream.Position = $MftOffset
     if ($FileStream.Read($MftFileRecord, 0, $MftFileRecord.Length) -ne $AttributesRealSize) {
-      Write-Error "Error reading MFT file record." 
+      Write-Error "Error reading MFT file record."
     }
 
     # Parse MFT's attributes from file record
@@ -211,12 +211,12 @@ function Export-MFT {
 
       $DataRunStart = "0x"
       for ($i = $StartBytes; $i -gt 0; $i --) {
-        $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)] 
+        $DataRunStart += $DataRunStrings[($DataRunStringsOffset + $LengthBytes + $i)]
       }
 
       $DataRunLength = "0x"
       for ($i = $LengthBytes; $i -gt 0; $i --) {
-        $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)] 
+        $DataRunLength += $DataRunStrings[($DataRunStringsOffset + $i)]
       }
 
       $FileStreamOffset += ([int]$DataRunStart * 0x1000)
@@ -249,15 +249,15 @@ function Export-MFT {
     $ReturnedObjects = Invoke-Command -ComputerName $ComputerName -ScriptBlock $RemoteScriptBlock -ArgumentList @($Volume) -SessionOption (New-PSSessionOption -NoMachineProfile) -ThrottleLimit $ThrottleLimit
   }
   else {
-    $ReturnedObjects = Invoke-Command -ScriptBlock $RemoteScriptBlock -ArgumentList @($Volume) 
+    $ReturnedObjects = Invoke-Command -ScriptBlock $RemoteScriptBlock -ArgumentList @($Volume)
   }
 
   if ($ReturnedObjects -ne $null) {
     if ($PSBoundParameters['CSV']) {
-      $ReturnedObjects | Export-Csv -Path $OutputFilePath -Append -NoTypeInformation -ErrorAction SilentlyContinue 
+      $ReturnedObjects | Export-Csv -Path $OutputFilePath -Append -NoTypeInformation -ErrorAction SilentlyContinue
     }
     else {
-      Write-Output $ReturnedObjects 
+      Write-Output $ReturnedObjects
     }
   }
 

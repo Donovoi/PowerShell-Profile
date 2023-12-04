@@ -41,37 +41,37 @@ function Set-LatestTerminalSettings {
             $repositoryOwner = 'Donovoi'
             $repositoryName = 'PowerShell-Profile'
             $filePath = $SettingsPath
-            $branchName = 'main'  
+            $branchName = 'main'
             $commitMessage = 'Upload settings.json'
-            $destinationFilePath = 'main/Non PowerShell Tools/settings.json'  
-            
+            $destinationFilePath = 'main/Non PowerShell Tools/settings.json'
+
             # Read the file content
             $fileContent = Get-Content -Path $filePath -Raw
-            
+
             # Create the API URL
             $url = "https://api.github.com/repos/$repositoryOwner/$repositoryName/contents/$destinationFilePath"
-            
+
             # Create the request body
             $body = @{
                 message = $commitMessage
                 content = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($fileContent))
                 branch  = $branchName
             }
-            
+
             # Convert the body to JSON
             $jsonBody = $body | ConvertTo-Json
-            
+
             # Create the headers
             $headers = @{
                 'Authorization' = 'Bearer YourPersonalAccessToken'  # Replace with your personal access token
                 'Content-Type'  = 'application/json'
             }
-            
+
             # Send the POST request to GitHub API to create the file
             $response = Invoke-RestMethod -Uri $url -Method Post -Headers $headers -Body $jsonBody
-            
+
             # Output the response
-            $response       
+            $response
         }
 
         # get the local version number from the settings.json file
@@ -85,12 +85,12 @@ function Set-LatestTerminalSettings {
             try {
                 # Download the latest version of the settings.json file from GitHub
                 $githubSettings = Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/Non%20PowerShell%20Tools/settings.json'
-            
+
                 # Check the response status code
                 if ($githubSettings.StatusCode -eq 200) {
                     # Successful download, overwrite the local settings.json file
                     $githubSettings.Content | Set-Content -Path $SettingsPath -Encoding UTF8
-                
+
                     Write-Output 'The local settings.json file has been updated with the latest version from GitHub.'
                 }
                 else {
@@ -101,7 +101,7 @@ function Set-LatestTerminalSettings {
             catch {
                 Write-Error "An error occurred while updating the settings.json file:`n$($_.Exception.Message)"
             }
-        
+
         }
         else {
             Write-Output 'The local settings.json file is already up to date.'

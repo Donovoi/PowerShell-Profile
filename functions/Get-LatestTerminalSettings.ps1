@@ -2,19 +2,19 @@
 .SYNOPSIS
     Gets the latest version of the Windows Terminal settings.json file from GitHub and updates it locally.
 .DESCRIPTION
-    This function checks the version number of the local settings.json 
-    file against the version number of the settings.json file on GitHub. 
+    This function checks the version number of the local settings.json
+    file against the version number of the settings.json file on GitHub.
     If the local version is older, the function downloads the latest version from GitHub and updates the local file.
 .PARAMETER settingsPathPattern
-    The path pattern to the settings.json file. 
+    The path pattern to the settings.json file.
     The default value is "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_*_8wekyb3d8bbwe\LocalState\settings.json".
 .EXAMPLE
     Get-LatestTerminalSettings
     This example gets the latest version of the Windows Terminal settings.json file from GitHub and updates it locally.
 .EXAMPLE
-    Get-LatestTerminalSettings -settingsPathPattern 
+    Get-LatestTerminalSettings -settingsPathPattern
     "$ENV:USERPROFILE\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
-    This example gets the latest version of the Windows Terminal settings.json file 
+    This example gets the latest version of the Windows Terminal settings.json file
     from GitHub and updates it locally using the specified path pattern.
 #>
 function Get-LatestTerminalSettings {
@@ -80,7 +80,7 @@ function Get-LatestTerminalSettings {
         $githubVersion = $githubSettings.version
 
         if ($localVersion -lt $githubVersion) {
-            # The local settings.json file is older. Call Set-LatestTerminalSettings to update it. 
+            # The local settings.json file is older. Call Set-LatestTerminalSettings to update it.
             Set-LatestTerminalSettings -settingsPath $settingsPath.FullName
         }
         elseif ($localVersion -eq $githubVersion) {

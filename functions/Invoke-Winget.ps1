@@ -9,7 +9,7 @@ function Invoke-Winget {
 
     dynamicparam {
         $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
-    
+
         $commandParams = @{
             'install'   = @('Manifest', 'Id', 'Name', 'Moniker', 'Version', 'Source', 'Scope', 'Exact', 'Interactive', 'Silent', 'Log', 'Override', 'Location', 'Force')
             'show'      = @('Manifest', 'Id', 'Version', 'Source')
@@ -23,7 +23,7 @@ function Invoke-Winget {
             'export'    = @('Output', 'Source', 'IncludeVersions')
             'import'    = @('ImportFile', 'IgnoreUnavailable', 'IgnoreVersions')
         }
-    
+
         foreach ($param in $commandParams[$WCommand]) {
             $attributes = New-Object System.Management.Automation.ParameterAttribute
             $attributes.Mandatory = $false
@@ -36,14 +36,14 @@ function Invoke-Winget {
 
             $paramDictionary.Add($param, $(New-Object System.Management.Automation.RuntimeDefinedParameter($param, [string], $attributes)))
         }
-    
+
         return $paramDictionary
     }
-    
+
     process {
         try {
             $params = $PSBoundParameters
-            $params.Remove('WCommand') | Out-Null            
+            $params.Remove('WCommand') | Out-Null
             Write-Logg -Message "Executing command: winget $WCommand $($($params.Values.GetEnumerator())[-1])"
             $wingetoutput = cmd /c "winget $WCommand $($($params.Values.GetEnumerator())[-1])" | Out-String -Stream
             Write-Logg -Message "Command output: $wingetoutput"
@@ -73,7 +73,7 @@ function Invoke-Winget {
                 }
 
                 $WingetObjects += $wingetobjects
-                
+
             }
 
 
@@ -84,5 +84,5 @@ function Invoke-Winget {
             Write-Error "Failed to execute command: $_"
         }
     }
-    
+
 }

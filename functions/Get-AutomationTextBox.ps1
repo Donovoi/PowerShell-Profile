@@ -3,7 +3,7 @@
 This function retrieves a specified textbox from a base automation element.
 
 .DESCRIPTION
-The Get-AutomationTextBox function retrieves a specified textbox from a base automation element. 
+The Get-AutomationTextBox function retrieves a specified textbox from a base automation element.
 It uses the FlaUI library to interact with the UI Automation framework.
 
 .PARAMETER BaseAutomationElement

@@ -17,10 +17,10 @@ function Get-Properties {
             [int]
             $Depth = 0
         )
-        
+
         # Prefix for indentation
         $prefix = "-" * $Depth
-        
+
         if ($visited.Add($NestedObject)) {
             if ($NestedObject -is [System.Collections.Specialized.OrderedDictionary]) {
                 foreach ($key in $NestedObject.Keys) {
@@ -49,5 +49,5 @@ function Get-Properties {
         }
     }
     Get-NestedProperties -NestedObject $Object
-    
+
 }

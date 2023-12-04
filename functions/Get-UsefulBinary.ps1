@@ -3,7 +3,7 @@
    A function to download, extract, and copy binaries from specified GitHub repositories to a local directory.
 
 .DESCRIPTION
-   This function utilizes the Get-LatestGitHubRelease function to download binaries from specified GitHub repositories. 
+   This function utilizes the Get-LatestGitHubRelease function to download binaries from specified GitHub repositories.
    It checks for self-contained binaries, copies them to a specified directory, refreshes the console, and validates the operation.
 
 .PARAMETER PackageNames
@@ -31,7 +31,7 @@ function Get-UsefulBinary {
         [Parameter(Mandatory = $false)]
         [switch] $Interactive
     )
-    
+
     $XWAYS = "Path_To_Your_Directory"
 
     function InteractiveMode {

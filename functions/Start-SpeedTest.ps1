@@ -1,16 +1,16 @@
-function Start-SpeedTest {    
+function Start-SpeedTest {
     [CmdletBinding()]
     param (
         [Parameter()]
         [timespan]
         $TimeInterval = [TimeSpan]::FromSeconds(60),
         [Parameter()]
-        [switch] 
+        [switch]
         $ColorMeSilly,
         [Parameter()]
         [switch]
         $NoRust
-        
+
     )
 
     # install pswritecolor module
@@ -26,11 +26,11 @@ function Start-SpeedTest {
         Start-Process -FilePath 'rustup-init.exe' -ArgumentList '-y' -Wait
         Remove-Item 'rustup-init.exe'
     }
-    
+
     # Check if speedtest-rs is installed
     $installedVersion = cargo install --list | Select-String 'speedtest-rs v' | ForEach-Object { $_.ToString().Split(' ')[1].TrimEnd(':') }
     if ($null -eq $installedVersion) {
-        # Install speedtest-rs 
+        # Install speedtest-rs
         cargo install cargo-update
         cargo install speedtest-rs
         cargo install-update -a
@@ -46,8 +46,8 @@ function Start-SpeedTest {
         [float]$uploadSpeed = $pattern.Matches($speedtest) | ForEach-Object { $_.Groups[2].Value } | Select-Object -Last 1
         $DLspeedType = $pattern.Matches($speedtest) | ForEach-Object { $_.Groups[3].Value } | Select-Object -Index 0
         $UPspeedType = $pattern.Matches($speedtest) | ForEach-Object { $_.Groups[3].Value } | Select-Object -Index 1
-        
-        
+
+
         # Set the background color
         $bgColor = 'White'
 

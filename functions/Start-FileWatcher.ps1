@@ -3,7 +3,7 @@
 Starts a file watcher to monitor changes in the settings.json file.
 
 .DESCRIPTION
-This function starts a FileSystemWatcher to monitor changes in the settings.json file. 
+This function starts a FileSystemWatcher to monitor changes in the settings.json file.
 Whenever the file is modified, the function will increment the version number in the file.
 
 .PARAMETER SettingsPath

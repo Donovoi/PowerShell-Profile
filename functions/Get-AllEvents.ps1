@@ -59,7 +59,7 @@ function Get-AllEvents {
       param (
         [object]$Window
       )
-  
+
       # Helper function to combine date and time
       function Join-DateAndTime {
         [CmdletBinding()]
@@ -78,22 +78,22 @@ function Get-AllEvents {
           return $null
         }
       }
-  
+
       # Extract selected dates from the GUI
       $startDate = $Window.DateBegin.SelectedDate
       $endDate = $Window.DateEnd.SelectedDate
-  
+
       # Extract times from the TextBoxes
       $startTimeString = $Window.Time1.Text
       $endTimeString = $Window.Time2.Text
-  
+
       # Combine dates and times
       $startDateTime = Join-DateAndTime -date $startDate -timeString $startTimeString
       $endDateTime = Join-DateAndTime -date $endDate -timeString $endTimeString
-  
+
       return @{Start = $startDateTime; End = $endDateTime }
     }
-  
+
 
     function Close-EventLogGui {
       [CmdletBinding()]
@@ -165,10 +165,10 @@ function Get-AllEvents {
           $selectedDates = Get-SelectedDateTimeFromGui -Window $result
           $startDateTime = $selectedDates.Start
           $endDateTime = $selectedDates.End
-      
+
           $events = Get-Events -startDateTime $startDateTime -endDateTime $endDateTime
           Out-EventsFormatted -Events $events -ExportToCsv:$ExportToCsv -ExportCSVToFolder:$ExportCSVToFolder -ViewInTimelineExplorer:$ViewInTimelineExplorer -TimelineExplorerPath:$TimelineExplorerPath
-      
+
           $result.Close()
         })
 
@@ -231,7 +231,7 @@ function Get-AllEvents {
       )
       $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
       $filename = "Events_${date}_${ENV:COMPUTERNAME}.csv" -replace ':', '_' -replace '/', '-'
-      
+
       if (($ExportFolder -match '\.') -or ($ExportFolder -eq $PWD)) {
         # Expand the path if it is a relative path
         $ExportFolder = Resolve-Path -Path $ExportFolder

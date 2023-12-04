@@ -12,7 +12,7 @@
     Downloads/extracts and saves details about programs to c:\tools directory.
 .NOTES
     Author: Eric Zimmerman
-    Date:   January 22, 2022    
+    Date:   January 22, 2022
 #>
 function Get-ZimmermanTools() {
 	[CmdletBinding(DefaultParameterSetName = "NoProxy")]
@@ -43,7 +43,7 @@ function Get-ZimmermanTools() {
 		[Parameter(Mandatory = $true,
 			ParameterSetName = "ProxyDefaultCreds")]
 		[switch]$ProxyUseDefaultCredentials
-	
+
 	)
 
 
@@ -128,65 +128,65 @@ function Get-ZimmermanTools() {
 		#if ($Text.Count -eq 0) { return }
 		if ($LinesBefore -ne 0) {
 			for ($i = 0; $i -lt $LinesBefore; $i++) {
-				Write-Host -Object "`n" -NoNewline 
-			} 
+				Write-Host -Object "`n" -NoNewline
+			}
 		} # Add empty line before
 		if ($StartTab -ne 0) {
 			for ($i = 0; $i -lt $StartTab; $i++) {
-				Write-Host -Object "`t" -NoNewline 
-			} 
+				Write-Host -Object "`t" -NoNewline
+			}
 		} # Add TABS before text
 		if ($StartSpaces -ne 0) {
 			for ($i = 0; $i -lt $StartSpaces; $i++) {
-				Write-Host -Object ' ' -NoNewline 
-			} 
+				Write-Host -Object ' ' -NoNewline
+			}
 		} # Add SPACES before text
 		if ($ShowTime) {
-			Write-Host -Object "[$([datetime]::Now.ToString($DateTimeFormat))] " -NoNewline 
+			Write-Host -Object "[$([datetime]::Now.ToString($DateTimeFormat))] " -NoNewline
 		} # Add Time before output
 		if ($Text.Count -ne 0) {
 			if ($Color.Count -ge $Text.Count) {
 				# the real deal coloring
 				if ($null -eq $BackGroundColor) {
 					for ($i = 0; $i -lt $Text.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -NoNewline
 					}
 				}
 				else {
 					for ($i = 0; $i -lt $Text.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -BackgroundColor $BackGroundColor[$i] -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -BackgroundColor $BackGroundColor[$i] -NoNewline
 					}
 				}
 			}
 			else {
 				if ($null -eq $BackGroundColor) {
 					for ($i = 0; $i -lt $Color.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -NoNewline
 					}
 					for ($i = $Color.Length; $i -lt $Text.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $DefaultColor -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $DefaultColor -NoNewline
 					}
 				}
 				else {
 					for ($i = 0; $i -lt $Color.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -BackgroundColor $BackGroundColor[$i] -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $Color[$i] -BackgroundColor $BackGroundColor[$i] -NoNewline
 					}
 					for ($i = $Color.Length; $i -lt $Text.Length; $i++) {
-						Write-Host -Object $Text[$i] -ForegroundColor $DefaultColor -BackgroundColor $BackGroundColor[0] -NoNewline 
+						Write-Host -Object $Text[$i] -ForegroundColor $DefaultColor -BackgroundColor $BackGroundColor[0] -NoNewline
 					}
 				}
 			}
 		}
 		if ($NoNewLine -eq $true) {
-			Write-Host -NoNewline 
+			Write-Host -NoNewline
 		}
 		else {
-			Write-Host 
+			Write-Host
 		} # Support for no new line
 		if ($LinesAfter -ne 0) {
 			for ($i = 0; $i -lt $LinesAfter; $i++) {
-				Write-Host -Object "`n" -NoNewline 
-			} 
+				Write-Host -Object "`n" -NoNewline
+			}
 		} # Add empty line after
 		if ($Text.Count -and $LogFile) {
 			# Save to file
@@ -255,7 +255,7 @@ function Get-ZimmermanTools() {
 	if (!(Test-Path -Path $Dest)) {
 		Write-Color -Text "* ", "$Dest does not exist. Creating..." -Color Green, $defaultColor
 		New-Item -ItemType directory -Path $Dest > $null
-	
+
 		$newInstall = $true
 	}
 
@@ -287,63 +287,63 @@ function Get-ZimmermanTools() {
 	Write-Color -Text "* ", "Getting available programs..." -Color Green, $defaultColor
 	$progressPreference = 'silentlyContinue'
 	while ($matchdetails.Success) {
-	
+
 		if ($matchdetails.Value.EndsWith('All.zip')) {
 			$matchdetails = $matchdetails.NextMatch()
 			continue
 		}
-	
+
 		if ($matchdetails.Value.EndsWith('All_6.zip')) {
 			$matchdetails = $matchdetails.NextMatch()
 			continue
 		}
-	
-	
+
+
 		if ($uniqueUrlhash.Contains($matchdetails.Value)) {
 			$matchdetails = $matchdetails.NextMatch()
 			continue
 		}
-	
+
 		#Write-Host $matchdetails.Value
-	
+
 		$uniqueUrlhash.Add($matchdetails.Value, $matchdetails.Value)
-	
+
 		$isnet6 = $false
-	
+
 		if ($NetVersion -eq 4) {
 			if (!$matchdetails.Value.EndsWith("Get-ZimmermanTools.zip") -and $matchdetails.Value.Contains('/net6/')) {
 				$matchdetails = $matchdetails.NextMatch()
 				continue
 			}
 		}
-	
+
 		if ($NetVersion -eq 6) {
 			if (!$matchdetails.Value.EndsWith("Get-ZimmermanTools.zip") -and !$matchdetails.Value.Contains('/net6/')) {
 				$matchdetails = $matchdetails.NextMatch()
 				continue
 			}
 		}
-	
+
 		$isnet6 = $matchdetails.Value.Contains('/net6/')
-	
+
 		#Write-Host $matchdetails.Value
-	
+
 		$headers = (Invoke-WebRequest @IWRProxyConfig -Uri $matchdetails.Value -UseBasicParsing -Method Head).Headers
-	
+
 		#Check if net version is set and act accordingly
 		#https://f001.backblazeb2.com/file/EricZimmermanTools/AmcacheParser.zip
 		#https://f001.backblazeb2.com/file/EricZimmermanTools/net6/AmcacheParser_6.zip
-	
+
 		$getUrl = $matchdetails.Value
 		$sha = $headers["x-bz-content-sha1"]
 		$name = $headers["x-bz-file-name"]
-	
+
 		if ($isnet6) {
 			$name = Split-Path $name -Leaf
 		}
-	
+
 		$size = $headers["Content-Length"]
-	
+
 		$details = @{
 			Name   = [string]$name
 			SHA1   = [string]$sha
@@ -351,9 +351,9 @@ function Get-ZimmermanTools() {
 			Size   = [string]$size
 			IsNet6 = [bool]$isnet6
 		}
-	
+
 		$webKeyCollection += New-Object PSObject -Property $details
-	
+
 		$matchdetails = $matchdetails.NextMatch()
 	}
 	$progressPreference = 'Continue'
@@ -363,9 +363,9 @@ function Get-ZimmermanTools() {
 			$toDownload += $webKey
 			continue
 		}
-	
+
 		$localFile = $LocalKeyCollection | Where-Object { $_.URL -eq $webKey.URL }
-	
+
 		if ($null -eq $localFile -or $localFile.SHA1 -ne $webKey.SHA1) {
 			#Needs to be downloaded since SHA is different or it doesnt exist
 			$toDownload += $webKey
@@ -387,17 +387,17 @@ function Get-ZimmermanTools() {
 	Write-Color -Text "* ", "Files to download: $dlCount" -Color Green, $defaultColor
 	foreach ($td in $toDownload) {
 		$p = [math]::round(($i / $toDownload.Count) * 100, 2)
-	
+
 		#Write-Host ($td | Format-Table | Out-String)
-	
+
 		$tempDest = $Dest
-	
+
 		try {
 			$dUrl = $td.URL
 			$size = $td.Size -as [long]
 			$name = $td.Name
 			$is6 = $td.IsNet6
-		
+
 			if ($is6) {
 				$tempDest = Join-Path $tempDest "net6"
 				if (!(Test-Path -Path $tempDest)) {
@@ -405,27 +405,27 @@ function Get-ZimmermanTools() {
 					New-Item -ItemType directory -Path $tempDest > $null
 				}
 			}
-		
+
 			Write-Progress -Activity "Updating programs...." -Status "$p% Complete" -PercentComplete $p -CurrentOperation "Downloading $name"
 			$destFile = [IO.Path]::Combine($tempDest, $name)
-		
+
 			$progressPreference = 'silentlyContinue'
 			Invoke-WebRequest @IWRProxyConfig -Uri $dUrl -OutFile $destFile -ErrorAction:Stop -UseBasicParsing
-		
+
 			$extraInfo = ""
 			if ($is6) {
 				$extraInfo = " (net 6)"
 			}
-		
+
 			$sizeNice = '{0:N0}' -f $size
-		
+
 			Write-Color -Text "* ", "Downloaded $name (Size: $sizeNice)", $extraInfo -Color Green, Blue, Red
-		
+
 			if ($name.endswith("zip")) {
-			
+
 				Expand-Archive -Path $destFile -DestinationPath $tempDest -Force
 			}
-		
+
 			$downloadedOK += $td
 		}
 		catch {
@@ -437,7 +437,7 @@ function Get-ZimmermanTools() {
 			if ($name.endswith("zip")) {
 				Remove-Item -Path $destFile
 			}
-		
+
 		}
 		$i += 1
 	}
@@ -448,9 +448,9 @@ function Get-ZimmermanTools() {
 	foreach ($webItems in $webKeyCollection) {
 		#Check what we have locally to see if it also contains what is in the web collection
 		$localFile = $LocalKeyCollection | Where-Object { $_.SHA1 -eq $webItems.SHA1 }
-	
+
 		#if its not null, we have a local file match against what is on the website, so its ok
-	
+
 		if ($null -ne $localFile) {
 			#consider it downloaded since SHAs match
 			$downloadedOK += $webItems

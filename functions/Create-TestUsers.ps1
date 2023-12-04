@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    The Script creates test users to your demo domain based on first and last namnes from csv. 
+    The Script creates test users to your demo domain based on first and last namnes from csv.
 .PARAMETER NumUsers
     Integer - number of users to create, default 100.
 .NOTES
     File Name: CreateTestADUsers.ps1
     Author   : Johan Dahlbom, johan[at]dahlbom.eu
     Blog     : 365lab.net
-    The script are provided "AS IS" with no guarantees, no warranties, and they confer no rights.    
+    The script are provided "AS IS" with no guarantees, no warranties, and they confer no rights.
 #>
 function Create-TestUsers {
   param([Parameter(Mandatory = $false)]

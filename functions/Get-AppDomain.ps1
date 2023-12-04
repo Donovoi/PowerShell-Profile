@@ -3,7 +3,7 @@
 This function loads a specified file into the current application domain.
 
 .DESCRIPTION
-The Add-FileToAppDomain function loads a specified file into the current application domain. 
+The Add-FileToAppDomain function loads a specified file into the current application domain.
 It checks if the file is already loaded into the application domain, and if not, it loads the file.
 
 .PARAMETER BasePath

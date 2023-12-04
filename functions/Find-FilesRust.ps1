@@ -3,7 +3,7 @@ function Find-FilesRust {
     param (
         [Parameter(Mandatory = $true)]
         [string]$SearchTerm,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$Directory
     )
@@ -23,7 +23,7 @@ path = "src/lib.rs"    # The source file of the target.
 crate-type = ["lib"]   # The crate types to generate.
 required-features = [] # Features required to build this target (N/A for lib).
 
-'@ 
+'@
 
     Set-Content -Path "$ENV:TEMP\Cargo.toml" -Value $cargoToml -Force
 
@@ -59,7 +59,7 @@ pub extern fn search_files(search_term: *const u8, directory: *const u8) {
 
     # Compile the Rust code into a DLL
 
-    cargo build --release --manifest-path "$ENV:TEMP\Cargo.toml" --lib 
+    cargo build --release --manifest-path "$ENV:TEMP\Cargo.toml" --lib
 
     # Load the DLL
     Add-Type -TypeDefinition @'

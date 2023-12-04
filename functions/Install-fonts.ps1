@@ -1,34 +1,34 @@
-<#  
-      .SYNOPSIS  
-           Install Open Text and True Type Fonts  
-        
-      .DESCRIPTION  
-           This script will install OTF and TTF fonts that exist in the same directory as the script.  
-        
-      .NOTES  
-           ===========================================================================  
-           Created with:    SAPIEN Technologies, Inc., PowerShell Studio 2021 v5.8.187  
-           Created on:      6/24/2021 9:36 AM  
-           Created by:      Mick Pletcher  
-           Filename:        InstallFonts.ps1  
-           ===========================================================================  
+<#
+      .SYNOPSIS
+           Install Open Text and True Type Fonts
+
+      .DESCRIPTION
+           This script will install OTF and TTF fonts that exist in the same directory as the script.
+
+      .NOTES
+           ===========================================================================
+           Created with:    SAPIEN Technologies, Inc., PowerShell Studio 2021 v5.8.187
+           Created on:      6/24/2021 9:36 AM
+           Created by:      Mick Pletcher
+           Filename:        InstallFonts.ps1
+           ===========================================================================
  #>
 
-<#  
-      .SYNOPSIS  
-           Install the font  
-        
-      .DESCRIPTION  
-           This function will attempt to install the font by copying it to the c:\windows\fonts directory and then registering it in the registry. This also outputs the status of each step for easy tracking.   
-        
-      .PARAMETER FontFile  
-           Name of the Font File to install  
-        
-      .EXAMPLE  
-                     PS C:\> Install-Font -FontFile $value1  
-        
-      .NOTES  
-           Additional information about the function.  
+<#
+      .SYNOPSIS
+           Install the font
+
+      .DESCRIPTION
+           This function will attempt to install the font by copying it to the c:\windows\fonts directory and then registering it in the registry. This also outputs the status of each step for easy tracking.
+
+      .PARAMETER FontFile
+           Name of the Font File to install
+
+      .EXAMPLE
+                     PS C:\> Install-Font -FontFile $value1
+
+      .NOTES
+           Additional information about the function.
  #>
 function Install-Fonts {
   [CmdletBinding()]
@@ -44,7 +44,7 @@ function Install-Fonts {
     #   Force garbage collection
     [System.GC]::Collect()
     $FontFile = $_
-    #Get Font Name from the File's Extended Attributes  
+    #Get Font Name from the File's Extended Attributes
     $oShell = New-Object -com shell.application
     $Folder = $oShell.Namespace($FontFile.DirectoryName)
     $Item = $Folder.Items().Item($FontFile.Name)
@@ -61,7 +61,7 @@ function Install-Fonts {
       $Copy = $true
       Write-Verbose ('Copying' + [char]32 + $FontFile.Name + '.....')
       Copy-Item -Path $fontFile.FullName -Destination ('C:\Windows\Fonts\' + $FontFile.Name) -Force
-      #Test if font is copied over  
+      #Test if font is copied over
       if ((Test-Path ('C:\Windows\Fonts\' + $FontFile.Name)) -eq $true) {
         Write-Verbose ('Success')
       }
@@ -69,9 +69,9 @@ function Install-Fonts {
         Write-Verbose ('Failed')
       }
       $Copy = $false
-      #Test if font registry entry exists  
+      #Test if font registry entry exists
       if ($null -ne (Get-ItemProperty -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -ErrorAction SilentlyContinue)) {
-        #Test if the entry matches the font file name  
+        #Test if the entry matches the font file name
         if ((Get-ItemPropertyValue -Name $FontName -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts') -eq $FontFile.Name) {
           Write-Verbose ('Adding' + [char]32 + $FontName + [char]32 + 'to the registry.....')
           Write-Verbose ('Success')

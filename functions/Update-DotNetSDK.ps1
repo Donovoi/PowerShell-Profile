@@ -1,5 +1,5 @@
 function Update-DotNetSDK {
-    [CmdletBinding()]    
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [string[]]
