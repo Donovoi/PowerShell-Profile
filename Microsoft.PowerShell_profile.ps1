@@ -42,9 +42,8 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 
 # install dependencies for write-log
 if (-not (Get-Module pansies -ErrorAction SilentlyContinue)) {
-  Install-Module pansies -Force -AllowClobber
+  Install-Module pansies -Force -AllowClobber -Scope CurrentUser -SkipPublisherCheck
 }
-Import-Module pansies -Force
 
 # update package providers
 
