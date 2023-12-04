@@ -8,15 +8,10 @@ KAPE-EZToolsAncillaryUpdater.ps1
 vscode.zip.aria2
 *.lock
 *.rs
-*.exe
 *.lng
 *.c
 *.vscode/**
 *.dll
-Non PowerShell Tools/Log-20.07.2023-13-59.txt
-Non PowerShell Tools/Log-20.07.2023-14-00.txt
-Non PowerShell Tools/Log-20.07.2023-14-07.txt
-Non PowerShell Tools/Application_Associations.json
 wingetlogs.log
 target/**
 aria2c/**
@@ -24,8 +19,4 @@ aria2c/**
 *.lzma
 *.txt
 Invoke-CradleCrafter/**
-Non PowerShell Tools/beautify.wbt
-Non PowerShell Tools/formatBatchScript-New.wbt
-Non PowerShell Tools/formatBatchScript.bat
-Non PowerShell Tools/formatBatchScript.wbt
 *.csv
