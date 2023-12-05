@@ -96,11 +96,11 @@ function Install-PackageProviders {
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            try {
-                Write-Logg -Message 'PackageManagement module already installed' -Level VERBOSE
-            }
-            catch {
+            if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Write-Verbose 'PackageManagement module already installed'
+            }
+            else {
+                Write-Logg -Message 'PackageManagement module already installed' -Level VERBOSE
             }
         }
 
