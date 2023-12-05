@@ -32,9 +32,22 @@ function Install-Cmdlet {
         $Url,
         [Parameter(Mandatory = $false)]
         [string]
-        $CmdletToInstall = '*'
+        $CmdletToInstall = '*',
+        [Parameter(Mandatory = $false)]
+        [string]
+        $ModuleName = {
+            # We will generate a random name for the module using terms stored in memory from powershell
+            # Make sure randomname is empty
+            $randomName = ''
+            $wordlist = 'https://raw.githubusercontent.com/sts10/generated-wordlists/main/lists/experimental/ud1.txt'
+            $wordlist = Invoke-RestMethod -Uri $wordlist
+            $wordarray = $($wordlist).ToString().Split("`n")
+            $randomNumber = (Get-Random -Minimum 0 -Maximum $wordarray.Length)
+            $randomName = $wordarray[$randomNumber]
+            $randomName.Insert(0, 'Module-') 
+        }
     )
-    
+
     begin {
         # make sure we are given a valid url
         $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
@@ -48,7 +61,7 @@ function Install-Cmdlet {
         try {
             $method = Invoke-RestMethod -Uri $Url
             $CmdletScriptBlock = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name 'WriteLoggModule' -ScriptBlock $CmdletScriptBlock | Import-Module -Cmdlet $CmdletToInstall
+            New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock | Import-Module -Cmdlet $CmdletToInstall
         }
         catch {
             throw $_
