@@ -15,7 +15,7 @@ function Import-FromInMemoryModule {
         [string[]]
         $ModuleName = 'pansies'
     )
-    
+
     begin {
         try {
 
@@ -46,7 +46,7 @@ function Import-FromInMemoryModule {
                     $ModuleFiles = Get-ChildItem -Path $PowerShellModulesPath\$Module -Recurse -Force -ErrorAction Stop
 
                 #   Copy all files and folders in memory
-                
+
 
 
 
@@ -63,11 +63,11 @@ function Import-FromInMemoryModule {
             throw "Failed to import module '$ModuleName'`: $_"
         }
     }
-    
+
     process {
-        
+
     }
-    
+
     end {
     }
 }
