@@ -44,7 +44,7 @@ function Install-Cmdlet {
             $wordarray = $($wordlist).ToString().Split("`n")
             $randomNumber = (Get-Random -Minimum 0 -Maximum $wordarray.Length)
             $randomName = $wordarray[$randomNumber]
-            $randomName.Insert(0, 'Module-') 
+            $randomName.Insert(0, 'Module-')
         }
     )
 
