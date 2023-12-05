@@ -9,7 +9,7 @@ function Get-Fido {
 
     #  Extract the zip using .net static method
     if (-not(Get-Command 'Expand-7Zip' -ErrorAction SilentlyContinue)) {
-    Install-ExternalDependencies -PSModule 7zip4powershell
+    Install-Dependencies -PSModule 7zip4powershell
     }
     $ScriptPath = Expand-7Zip -ArchiveFileName $ZippedScriptPath -TargetPath $env:TEMP
 

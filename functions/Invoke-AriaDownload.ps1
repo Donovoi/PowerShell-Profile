@@ -111,7 +111,7 @@ function Invoke-AriaDownload {
                 if (-not [string]::IsNullOrEmpty($SecretName)) {
                     # Install any needed modules and import them
                     if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                        Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
+                        Install-Dependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
                     }
                     $secret = Get-Secret -Name $SecretName -AsPlainText
                     if ($null -ne $secret) {

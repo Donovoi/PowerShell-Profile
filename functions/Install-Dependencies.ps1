@@ -1,4 +1,4 @@
-function Install-ExternalDependencies {
+function Install-Dependencies {
     [CmdletBinding()]
     param(
         [switch]$RemoveAllModules,
