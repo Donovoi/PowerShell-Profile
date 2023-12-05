@@ -7,7 +7,7 @@ timeout /t 3 /nobreak > nul
 cls
 
 set DriveLetter=
-set /p DriveLetter=Please enter the drive letter for the Windows 11 image: 
+set /p DriveLetter=Please enter the drive letter for the Windows 11 image:
 set "DriveLetter=%DriveLetter%:"
 echo.
 if not exist "%DriveLetter%\sources\boot.wim" (
@@ -40,7 +40,7 @@ md c:\scratchdir
 dism /mount-image /imagefile:c:\tiny11\sources\install.wim /index:%index% /mountdir:c:\scratchdir
 echo Mounting complete! Performing removal of applications...
 echo Removing Clipchamp...
-dism /image:c:\scratchdir /Remove-ProvisionedAppxPackage /PackageName:Clipchamp.Clipchamp_2.2.8.0_neutral_~_yxz26nhyzhsrt 
+dism /image:c:\scratchdir /Remove-ProvisionedAppxPackage /PackageName:Clipchamp.Clipchamp_2.2.8.0_neutral_~_yxz26nhyzhsrt
 echo Removing News...
 dism /image:c:\scratchdir /Remove-ProvisionedAppxPackage /PackageName:Microsoft.BingNews_2022.507.446.0_neutral_~_8wekyb3d8bbwe
 echo Removing Weather...
@@ -203,7 +203,7 @@ echo Bypassing system requirements(on the setup image):
 			Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f >nul 2>&1
 			Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f >nul 2>&1
 			Reg add "HKLM\zSYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f >nul 2>&1
-echo Tweaking complete! 
+echo Tweaking complete!
 echo Unmounting Registry...
 reg unload HKLM\zCOMPONENTS >nul 2>&1
 reg unload HKLM\zDRIVERS >nul 2>&1
@@ -213,7 +213,7 @@ reg unload HKLM\zSCHEMA >nul 2>&1
 reg unload HKLM\zSOFTWARE >nul 2>&1
 reg unload HKLM\zSYSTEM >nul 2>&1
 echo Unmounting image...
-dism /unmount-image /mountdir:c:\scratchdir /commit 
+dism /unmount-image /mountdir:c:\scratchdir /commit
 cls
 echo the tiny11 image is now completed. Proceeding with the making of the ISO...
 echo Copying unattended file for bypassing MS account on OOBE...
@@ -222,10 +222,10 @@ echo.
 echo Creating ISO image...
 %~dp0oscdimg.exe -m -o -u2 -udfver102 -bootdata:2#p0,e,bc:\tiny11\boot\etfsboot.com#pEF,e,bc:\tiny11\efi\microsoft\boot\efisys.bin c:\tiny11 %~dp0tiny11.iso
 echo Creation completed! Press any key to exit the script...
-pause 
+pause
 echo Performing Cleanup...
-rd c:\tiny11 /s /q 
-rd c:\scratchdir /s /q 
+rd c:\tiny11 /s /q
+rd c:\scratchdir /s /q
 exit
 
 

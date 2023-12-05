@@ -96,7 +96,7 @@ public class TextFilter
                     if ($line -match $re) {
                         $obj = New-Object -TypeName PSObject
                         for ($fieldindex = 0; $fieldindex -lt ($Matches.Count - 1); $fieldindex++) {
-                            Add-Member -InputObject $obj -MemberType NoteProperty -Name $fieldnames[$fieldindex] -Value ($Matches[$fieldindex + 1] -replace '\s+$', '')
+                            Add-Member -InputObject $obj -MemberType NoteProperty -Name $fieldnames[$fieldindex] -Value ($Matches[$fieldindex + 1] -replace '', '')
                         }
                         $obj
                         $objcount++

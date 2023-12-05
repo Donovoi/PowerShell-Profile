@@ -9,7 +9,7 @@
     Another example of how to use this cmdlet
 #>
 function Import-FromInMemoryModule {
-    [CmdletBinding()]    
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [string[]]
