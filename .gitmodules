@@ -1,3 +1,6 @@
 [submodule "Modules/PSReflect"]
 	path = Modules/PSReflect
 	url = https://github.com/mattifestation/PSReflect.git
+[submodule "Modules/PSREFLECT-FUNCTIONS"]
+	path = Modules/PSREFLECT-FUNCTIONS
+	url = https://github.com/jaredcatkinson/PSReflect-Functions.git
