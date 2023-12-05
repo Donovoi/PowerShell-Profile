@@ -62,16 +62,16 @@ function Install-PackageProviders {
         # Ensure NuGet package provider is installed and registered
         if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
             # Define the URL for the latest PackageManagement nupkg
-            $nugetUrl = "https://www.powershellgallery.com/api/v2/package/PackageManagement"
+            $nugetUrl = 'https://www.powershellgallery.com/api/v2/package/PackageManagement'
 
             # Define the download path
-            $downloadPath = Join-Path $env:TEMP "PackageManagement.zip"
+            $downloadPath = Join-Path $env:TEMP 'PackageManagement.zip'
 
             # Download the nupkg file
             Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
 
             # Define the extraction path
-            $extractPath = Join-Path $env:TEMP "PackageManagement"
+            $extractPath = Join-Path $env:TEMP 'PackageManagement'
 
             # Create the extraction directory if it doesn't exist
             if (Test-Path $extractPath) {
@@ -83,7 +83,7 @@ function Install-PackageProviders {
             Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
 
             # Find the DLL path
-            $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter "PackageManagement.dll" | Select-Object -First 1 -ExpandProperty FullName
+            $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter 'PackageManagement.dll' | Select-Object -First 1 -ExpandProperty FullName
 
             # Import the module
             Import-Module $dllPath
@@ -96,7 +96,12 @@ function Install-PackageProviders {
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            Write-Logg -Message "PackageManagement module already installed" -Level VERBOSE
+            try {
+                Write-Logg -Message 'PackageManagement module already installed' -Level VERBOSE
+            }
+            catch {
+                Write-Verbose 'PackageManagement module already installed'
+            }
         }
 
 
@@ -127,7 +132,8 @@ function Install-PackageProviders {
         Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue | Out-Null
     }
     catch {
-        Write-Host "An error occurred while setting up package providers: $_"
+        Write-Error 'An error occurred while setting up package providers:'
+        Write-Error $_.Exception.Message
     }
 }
 
@@ -182,14 +188,14 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
 
 
         # Log the installation process (assumes you have a custom logging function)
-        Write-Host "Installing NuGet dependencies"
+        Write-Host 'Installing NuGet dependencies'
 
         if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
             # Install NuGet packages
             Add-NuGetDependencies -NugetPackages $deps
         }
         else {
-            Write-Host "No NuGet packages to install"
+            Write-Host 'No NuGet packages to install'
         }
     }
     catch {
@@ -301,7 +307,7 @@ function Install-PSModules {
         }
         catch {
             if ($_.Exception.Message -match '.ps1xml') {
-                Write-Host "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module."
+                Write-Host 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.'
                 $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
                 Remove-Item $moduleDir -Recurse -Force
                 Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
@@ -383,10 +389,10 @@ function Get-EnvironmentVariable {
         [parameter(ValueFromRemainingArguments = $true)][Object[]] $ignoredArguments
     )
 
-    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = "SYSTEM\CurrentControlSet\Control\Session Manager\Environment\"
+    [string] $MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment\'
     [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($MACHINE_ENVIRONMENT_REGISTRY_KEY_NAME)
     if ($Scope -eq [System.EnvironmentVariableTarget]::User) {
-        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = "Environment"
+        [string] $USER_ENVIRONMENT_REGISTRY_KEY_NAME = 'Environment'
         [Microsoft.Win32.RegistryKey] $win32RegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($USER_ENVIRONMENT_REGISTRY_KEY_NAME)
     }
     elseif ($Scope -eq [System.EnvironmentVariableTarget]::Process) {
@@ -396,7 +402,7 @@ function Get-EnvironmentVariable {
     [Microsoft.Win32.RegistryValueOptions] $registryValueOptions = [Microsoft.Win32.RegistryValueOptions]::None
 
     if ($PreserveVariables) {
-        Write-Verbose "Choosing not to expand environment names"
+        Write-Verbose 'Choosing not to expand environment names'
         $registryValueOptions = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
     }
 
