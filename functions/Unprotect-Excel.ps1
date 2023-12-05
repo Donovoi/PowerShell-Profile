@@ -32,36 +32,46 @@ function Unprotect-Excel {
     try {
         if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
             function Write-Logg {
-                # URL of the PowerShell script to import.
-                $uri = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Write-Logg.ps1'
+                # Define a unique name for the dynamic module
+                $dynModName = 'DynamicLoggingModule'
 
-                # Create a new PowerShell module from the content obtained from the URI.
-                # 'Invoke-RestMethod' is used to download the script content.
-                # The script content is encapsulated in a script block and a new module is created from it.
-                # 'Export-ModuleMember' exports all functions and aliases from the module.
-                $script:dynMod = New-Module ([scriptblock]::Create(
-                    ((Invoke-RestMethod $uri)) + "`nExport-ModuleMember -Function * -Alias *"
-                    )) | Import-Module -PassThru
+                # Check if the module is already loaded
+                if (-not (Get-Module -Name $dynModName -ErrorAction SilentlyContinue)) {
+                    # URL of the PowerShell script to import
+                    $uri = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Write-Logg.ps1'
 
-                # Check if this function ('Write-Logg') is shadowing the function from the imported module.
-                # If it is, remove this function so that the newly imported function can be used.
+                    # Create a new PowerShell module from the content obtained from the URI
+                    # 'Invoke-RestMethod' is used to download the script content
+                    # The script content is encapsulated in a script block, and a new module is created from it
+                    # 'Export-ModuleMember' exports all functions and aliases from the module
+                    $script:dynMod = New-Module -Name $dynModName ([scriptblock]::Create(
+                        ((Invoke-RestMethod $uri)) + "`nExport-ModuleMember -Function * -Alias *"
+                        )) | Import-Module -PassThru
+                }
+                else {
+                    # Get the already loaded module
+                    $script:dynMod = Get-Module -Name $dynModName
+                }
+
+                # Check if this function ('Write-Logg') is shadowing the function from the imported module
+                # If it is, remove this function so that the newly imported function can be used
                 $myName = $MyInvocation.MyCommand.Name
                 if ((Get-Command -Type Function $myName).ModuleName -ne $dynMod.Name) {
                     Remove-Item -LiteralPath "function:$myName"
                 }
 
-                # Invoke the newly imported function with the same name ('Write-Logg').
-                # Pass all arguments received by this stub function to the imported function.
+                # Invoke the newly defined or already existing function with the same name ('Write-Logg')
+                # Pass all arguments received by this stub function to the imported function
                 & $myName @args
-            }
 
+            }
         }
         # Define paths for temporary and backup files
         $excelFilePath = Split-Path -Path $Excel
         $excelName = Split-Path -Path $Excel -Leaf
         $excelTempDir = Join-Path -Path $excelFilePath -ChildPath "${excelName}_temp"
         $excelFileSaved = Join-Path -Path $excelFilePath -ChildPath "${excelName}_unprotected.xlsx"
-        $excelBackup = Join-Path -Path $excelFilePath -ChildPath "${excelName}_backup.xlsx"
+        $excelBackup = Join-Path -Path $excelFilePath -ChildPath "${excelName}_backup.xlsx.zip"
 
         # Create a backup of the original Excel file
         Copy-Item -Path $Excel -Destination $excelBackup -Force
@@ -69,11 +79,23 @@ function Unprotect-Excel {
         # Remove existing temporary and saved files if they exist
         Remove-Item -Path $excelTempDir, $excelFileSaved -Force -Recurse -ErrorAction SilentlyContinue
 
-        # Add necessary assembly for compression
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-        # Extract the Excel file (which is a ZIP archive)
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($Excel, $excelTempDir)
+        try {
+            Expand-Archive -Path $excelBackup -DestinationPath $excelTempDir -Force
+        }
+        catch {
+            # Show the magic bytes using the Write-Logg function
+            Write-Logg -Message 'Error extracting file:' -Level Error
+            Write-Logg -Message $_.Exception.Message -Level Error
+
+            # Calculate encrypion and entropy and let the user know
+            $encryption = Test-MAMEncryption -FilePath $excelBackup -TestEntropy
+            if ($encryption) {
+                write-logg -message $encryption[1] -level error
+            }
+            throw $_
+        }
+
 
         # Process each sheet in the workbook
         $sheets = Get-ChildItem -Path "$excelTempDir\xl\worksheets" -Filter *.xml
@@ -97,14 +119,14 @@ function Unprotect-Excel {
         }
 
         # Re-create the Excel file from the modified XML files
-        [System.IO.Compression.ZipFile]::CreateFromDirectory($excelTempDir, $excelFileSaved)
+        Compress-Archive -Path "$excelTempDir\*" -DestinationPath $excelFileSaved -Force
 
         # Output success message
         Write-Logg -Message 'Success: Excel sheet protection removed.' -Level info
     }
     catch {
-        # Output failure message and rethrow the exception
-        Write-Logg -Message 'Failed: An error occurred.' -Level error
+        # Log and rethrow any other errors
+        Write-Logg -Message "Failed: $_.Exception.Message" -Level error
         throw $_.Exception.Message
     }
     finally {
@@ -117,5 +139,97 @@ function Unprotect-Excel {
     }
 }
 
+function Test-MAMEncryption {
+    [CmdletBinding()]
+    [OutputType([bool, string])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        # header from microsoft intune encryption mobile application management (MAM) for microsoft 365 apps for enterprise
+        [Parameter(Mandatory = $false)]
+        [string]$signaturePattern = 'MSMAMARPCRYPT',
+        [Parameter(Mandatory = $false)]
+        [switch]$TestEntropy
+
+    )
+
+    try {
+        # Read the first 10 lines of the file
+        $lines = Get-Content -Path $FilePath -TotalCount 10
+
+        # Check if any of the lines match the signature pattern
+        $isEncrypted = $lines -match $signaturePattern
+
+        if ($isEncrypted) {
+            Write-Logg -Message 'It appears file is encrypted by MDM.' -Level Error
+
+            # show entropy
+            if ($TestEntropy) {
+                Write-Logg -message "Here's some more info:" -level info
+                $entropy = Get-EntropyAndAssessment -FilePath $FilePath
+                Write-Logg -Message "Entropy: $($entropy.Entropy)" -Level info
+                Write-Logg -Message "Assessment: $($entropy.Assessment)" -Level info
+            }
+            return $true
+        }
+        else {
+            Write-Logg -message 'The file is not encrypted by MDM.' -level error
+            return $false
+        }
+    }
+    catch {
+        throw $_.Exception.Message
+    }
+}
+
+function Get-EntropyAndAssessment {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    try {
+        # Read all bytes from the file
+        $bytes = [System.IO.File]::ReadAllBytes($FilePath)
+
+        # Get the frequency of each byte
+        $frequencyTable = @{}
+        foreach ($byte in $bytes) {
+            if (!$frequencyTable.ContainsKey($byte)) {
+                $frequencyTable[$byte] = 0
+            }
+            $frequencyTable[$byte]++
+        }
+
+        # Calculate the entropy
+        $entropy = 0.0
+        $totalBytes = $bytes.Length
+        foreach ($byte in $frequencyTable.Keys) {
+            $probability = $frequencyTable[$byte] / $totalBytes
+            $entropy -= $probability * [Math]::Log($probability, 2)
+        }
+
+        # Assess the entropy value
+        $assessment = ''
+        if ($entropy -lt 3) {
+            $assessment = 'Low entropy. Likely plain text or structured data.'
+        }
+        elseif ($entropy -ge 3 -and $entropy -lt 5) {
+            $assessment = 'Moderate entropy. Could be natural language or mixed content.'
+        }
+        elseif ($entropy -ge 5) {
+            $assessment = 'High entropy. Likely encrypted or compressed data.'
+        }
+
+        # Return the entropy value and assessment
+        return @{
+            Entropy    = $entropy
+            Assessment = $assessment
+        }
+    }
+    catch {
+        throw $_.Exception.Message
+    }
+}
 
 
