@@ -163,7 +163,7 @@ function Get-DownloadFile {
                     if ($IsPrivateRepo) {
                         # Install any needed modules and import them
                         if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                            Install-ExternalDependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
+                            Install-Dependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
                         }
                         if ($null -ne $SecretName) {
                             # Validate the secret exists and is valid
