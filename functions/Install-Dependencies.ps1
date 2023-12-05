@@ -243,7 +243,7 @@ function Install-PSModules {
                     'Microsoft.PowerShell.SecretManagement',
                     'Microsoft.PowerShell.SecretStore',
                     'Microsoft.WinGet.Client',
-                    'Pscx'
+                    'PSReflect-Functions'
                 )
                 return $ModulesToBeInstalled
             }
