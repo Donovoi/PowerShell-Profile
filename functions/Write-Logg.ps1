@@ -39,11 +39,32 @@ function Write-Logg {
 
     try {
         # make sure we have pansies to override write-host
-        if (-not(Get-Command -Name 'New-Text' -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
-        }
-        Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
+        if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
+            function Install-Dependencies {
+                # URL of the PowerShell script to import.
+                $uri = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Dependencies.ps1'
 
+                # Create a new PowerShell module from the content obtained from the URI.
+                # 'Invoke-RestMethod' is used to download the script content.
+                # The script content is encapsulated in a script block and a new module is created from it.
+                # 'Export-ModuleMember' exports all functions and aliases from the module.
+                $script:dynMod = New-Module ([scriptblock]::Create(
+                    ((Invoke-RestMethod $uri)) + "`nExport-ModuleMember -Function * -Alias *"
+                    )) | Import-Module -PassThru
+
+                # Check if this function ('Install-Dependencies') is shadowing the function from the imported module.
+                # If it is, remove this function so that the newly imported function can be used.
+                $myName = $MyInvocation.MyCommand.Name
+                if ((Get-Command -Type Function $myName).ModuleName -ne $dynMod.Name) {
+                    Remove-Item -LiteralPath "function:$myName"
+                }
+
+                # Invoke the newly imported function with the same name ('Install-Dependencies').
+                # Pass all arguments received by this stub function to the imported function.
+                & $myName @args
+            }
+        }
+        Install-Dependencies -PSModule 'pansies' -NoPSModules -NoNugetPackages
         # Capitalize the level for WARNING and ERROR for consistency
         if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
             $Level = $Level.ToUpper()

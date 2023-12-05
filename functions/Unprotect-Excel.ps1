@@ -21,7 +21,7 @@
 
 #>
 
-function Unprotect-ExcelSheet {
+function Unprotect-Excel {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
@@ -32,26 +32,29 @@ function Unprotect-ExcelSheet {
     try {
         if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
             function Write-Logg {
+                # URL of the PowerShell script to import.
                 $uri = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Write-Logg.ps1'
-                # Save the module in a script-level variable, and pipe it to Import-Module
-                # so that it can be removed before the script exits.
+
+                # Create a new PowerShell module from the content obtained from the URI.
+                # 'Invoke-RestMethod' is used to download the script content.
+                # The script content is encapsulated in a script block and a new module is created from it.
+                # 'Export-ModuleMember' exports all functions and aliases from the module.
                 $script:dynMod = New-Module ([scriptblock]::Create(
-                  ((Invoke-RestMethod $uri)) + "`nExport-ModuleMember -Function * -Alias *")
-                ) | Import-Module -PassThru
-                # If this stub function shadows the newly defined function in the dynamic
-                # module, remove it first, so that re-invocation by name use the new function.
-                # Note: This happens if this stub function is run in a child scope, such as
-                #       in a (non-dot-sourced) script rather than in the global scope.
-                #       If run in the global scope, curiously, the stub function seemingly
-                #       disappears from view right away - not even Get-Command -All shows it later.
+                    ((Invoke-RestMethod $uri)) + "`nExport-ModuleMember -Function * -Alias *"
+                    )) | Import-Module -PassThru
+
+                # Check if this function ('Write-Logg') is shadowing the function from the imported module.
+                # If it is, remove this function so that the newly imported function can be used.
                 $myName = $MyInvocation.MyCommand.Name
                 if ((Get-Command -Type Function $myName).ModuleName -ne $dynMod.Name) {
                     Remove-Item -LiteralPath "function:$myName"
                 }
-                # Now invoke the newly defined function of the same name, passing the arguments
-                # through.
+
+                # Invoke the newly imported function with the same name ('Write-Logg').
+                # Pass all arguments received by this stub function to the imported function.
                 & $myName @args
             }
+
         }
         # Define paths for temporary and backup files
         $excelFilePath = Split-Path -Path $Excel

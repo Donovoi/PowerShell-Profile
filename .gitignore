@@ -20,3 +20,4 @@ aria2c/**
 *.txt
 Invoke-CradleCrafter/**
 *.csv
+Non PowerShell Tools/tiny11/test.cs
