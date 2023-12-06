@@ -63,13 +63,13 @@ function Unprotect-Excel {
         catch {
             # Show the magic bytes using the Write-Logg function
             Write-Logg -Message 'Error extracting file:' -Level Error
-            Write-Logg -Message $_.Exception.Message -Level Error
+            Write-Logg -Message $_ -Level Error
 
             # Calculate encrypion and entropy and let the user know
             $encryption = Test-MAMEncryption -FilePath $excelBackup
             if ($encryption) {
                 Write-Logg -message "Here's some more info:" -level info
-                $entropy = Get-Entropy -FilePath $FilePath
+                $entropy = Get-Entropy -FilePath $excelBackup
                 Write-Logg -Message "Entropy: $($entropy.Entropy)" -Level info
                 Write-Logg -Message "Assessment: $($entropy.Assessment)" -Level info
             }
@@ -117,5 +117,3 @@ function Unprotect-Excel {
     }
 }
 
-Unprotect-Excel -Excel "$ENV:USERPROFILE\Downloads\Ops - Jun 2023 to Aug 2023 - 10.xlsx" -Verbose
-Unprotect-Excel -Excel 'C:\Users\torro\Downloads\Ops - Jun 2023 to Aug 2023 - 10 (1).xlsx' -Verbose
