@@ -21,3 +21,7 @@ aria2c/**
 Invoke-CradleCrafter/**
 *.csv
 Non PowerShell Tools/tiny11/test.cs
+Modules/PowerForensics
+Non PowerShell Tools/mft
+Non PowerShell Tools/ntfstool
+Non PowerShell Tools/Windows10Debloater

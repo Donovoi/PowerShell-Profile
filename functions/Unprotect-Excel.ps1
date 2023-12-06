@@ -33,8 +33,16 @@ function Unprotect-Excel {
             $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
             $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
             New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-            Get-Module -Name 'InstallCmdlet'
         }
+        $cmdlets = @('Test-MAMEncryption', 'Get-Entropy', 'Write-Logg', 'Install-Dependencies')
+        foreach ($cmdlet in $cmdlets) {
+            Write-Verbose -Message "Importing cmdlet: $cmdlet"
+            if (-not (Get-Command -Name $cmdlet -ErrorAction SilentlyContinue)) {
+                $cmdletmodule = Install-Cmdlet -Url "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1"
+            }
+        }
+
+
         # Define paths for temporary and backup files
         $excelFilePath = Split-Path -Path $Excel
         $excelName = Split-Path -Path $Excel -Leaf
@@ -106,7 +114,8 @@ function Unprotect-Excel {
         if (Test-Path -Path $excelTempDir) {
             Remove-Item -Path $excelTempDir -Force -Recurse
         }
-        # Before exiting, remove (unload) the dynamic module.
-        $dynMod | Remove-Module
     }
 }
+
+Unprotect-Excel -Excel "$ENV:USERPROFILE\Downloads\Ops - Jun 2023 to Aug 2023 - 10.xlsx" -Verbose
+Unprotect-Excel -Excel 'C:\Users\torro\Downloads\Ops - Jun 2023 to Aug 2023 - 10 (1).xlsx' -Verbose

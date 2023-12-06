@@ -23,19 +23,21 @@
     This example installs the Write-Logg cmdlet from the given url.
 
 #>
-
 function Install-Cmdlet {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]
-        $Url,
+        [string]$Url,
+        [Parameter(Mandatory = $false)]
+        [string]$CmdletToInstall = '*',
         [Parameter(Mandatory = $false)]
         [string]
-        $CmdletToInstall = '*',
-        [Parameter(Mandatory = $false)]
-        [string]
-        $ModuleName = {
+        $ModuleName = ''
+    )
+
+    begin {
+
+        if ($ModuleName -eq '') {
             # We will generate a random name for the module using terms stored in memory from powershell
             # Make sure randomname is empty
             $randomName = ''
@@ -44,11 +46,8 @@ function Install-Cmdlet {
             $wordarray = $($wordlist).ToString().Split("`n")
             $randomNumber = (Get-Random -Minimum 0 -Maximum $wordarray.Length)
             $randomName = $wordarray[$randomNumber]
-            $randomName.Insert(0, 'Module-')
+            $ModuleName = ('Module-' + $randomName)
         }
-    )
-
-    begin {
         # make sure we are given a valid url
         $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
         $regexoptions = [System.Text.RegularExpressions.RegexOptions]('IgnoreCase, IgnorePatternWhitespace, Compiled')
@@ -61,12 +60,20 @@ function Install-Cmdlet {
         try {
             $method = Invoke-RestMethod -Uri $Url
             $CmdletScriptBlock = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock | Import-Module -Cmdlet $CmdletToInstall
+            $module = New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock
+            Import-Module -ModuleInfo $module -Global -Force
+
+            # Store the names of the installed cmdlets
+            $installedCmdlets = Get-Command -Module $module.Name
         }
         catch {
             throw $_
         }
     }
     end {
+        # Return the installed cmdlets
+        return $module
     }
 }
+
+
