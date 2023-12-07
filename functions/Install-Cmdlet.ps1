@@ -75,7 +75,8 @@ function Install-Cmdlet {
         }
     }
     end {
-        # Return the installed cmdlets
-        New-Module -ScriptBlock $CmdletScriptBlock -ReturnResult
+        # Create a new module from the script block
+        New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock
+        $ModuleName | Install-Module -Force -Scope AllUsers -AllowClobber | Import-Module -Global
     }
 }
