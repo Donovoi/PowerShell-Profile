@@ -97,7 +97,8 @@ function Install-PackageProviders {
         }
         else {
             if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Write-Verbose 'PackageManagement module already installed'
+                Write-Host 'Panises module not installed, installing now'
+                Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
             }
             else {
                 Write-Logg -Message 'PackageManagement module already installed' -Level VERBOSE
