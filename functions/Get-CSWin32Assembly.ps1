@@ -16,17 +16,17 @@ function Get-CSWin32Assembly {
         [string]
         $parameter_name
     )
-    
+
     begin {
         Install-Module Cobalt -Force
         # make sure we have the requirements for the source generation in .net
         winget install Microsoft.DotNet.SDK.Preview
     }
-    
+
     process {
-        
+
     }
-    
+
     end {
     }
 }

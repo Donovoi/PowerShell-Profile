@@ -2,30 +2,30 @@ function Get-CommandSource {
     <#
         .SYNOPSIS
          Gets command source code.
-          
+
         .DESCRIPTION
          The Get-CommandSource cmdlet finds the source code/implementation for a cmdlet.
-              
+
         .PARAMETER Name
          Specifies the path or name of the command to retrieve the source code. Accepts pipeline input.
- 
+
         .PARAMETER Decompiler
          Specifies which decompiler or source will be used for browsing the source code.
- 
+
         .INPUTS
          System.Management.Automation.CommandInfo
          System.String
             You can pipe command names to this cmdlet.
- 
+
         .OUTPUTS
          System.Management.Automation.PSObject
- 
+
         .EXAMPLE
          Get-CommandSource Write-Host
- 
+
         .EXAMPLE
          Get-Command Write-Host | Get-CommandSource -Decompiler ILSpy
- 
+
         .LINK
          https://github.com/aberus/ReflectCmdlet
     #>
@@ -42,10 +42,10 @@ function Get-CommandSource {
     )
 
     $commandInfo = if ($_ -is [System.Management.Automation.CommandInfo]) {
-        $_ 
+        $_
     }
     else {
-        Get-Command -Name $Name 
+        Get-Command -Name $Name
     }
 
     if ($commandInfo -is [System.Management.Automation.AliasInfo]) {
@@ -110,7 +110,7 @@ function Get-CommandSource {
             if ($result) {
                 $url = $result.items | Select-Object -ExpandProperty html_url
                 Start-Process -FilePath $url
-            }       
+            }
         }
         else {
             throw 'Unable to find decompiler in your path'

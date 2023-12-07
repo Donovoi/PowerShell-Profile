@@ -13,15 +13,24 @@ function Set-Tiny11Image {
     [OutputType([type])]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateScript({ Test-Path "$_/Sources/Install.wim" })]
+        [ValidateScript({ Test-Path "$_" })]
         [string]
-        $ISOMountedPath,
+        $UnmountedISOPath,
         [Parameter(Mandatory = $false)]
         [string]
         $Destination = 'C:\tiny11'
     )
 
     begin {
+        # Mount the ISO
+        $DriveLetter = Mount-DiskImage -ImagePath $UnmountedISOPath -PassThru | Get-Volume | Where-Object { $_.DriveLetter } | Select-Object -ExpandProperty DriveLetter
+        if (-not $DriveLetter) {
+            Write-Output 'Failed to mount the ISO. Please try again.'
+            exit
+        }
+        Write-Output "ISO mounted to $DriveLetter`:"
+
+        # Create the destination folder
         New-Item -Path 'c:\tiny11' -ItemType Directory -Force
         Write-Output 'Copying Windows image...'
 
@@ -34,49 +43,33 @@ function Set-Tiny11Image {
         # /Y - Suppresses prompting to confirm you want to overwrite an existing destination file.
         # /J - Copies using unbuffered I/O. Recommended for very large files.
         # To do the same thing in powershell you would need to use pinvoke and we will use the psreflect module to do that
-        Install-Cmdlet -Url 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Dependencies.ps1'
-        # Import the module
-        Install-Dependencies -PSModule PSReflect-Functions -ErrorAction SilentlyContinue -NoNugetPackages
-        . .\Modules\PSREFLECT-FUNCTIONS\PSReflect.ps1
-
-
-        # Define the CopyFile function from the Windows API using psreflect
-        $Module = New-InMemoryModule -ModuleName Win32
-        # Define the CopyFile function using PSReflect
-        $CopyFileDefinition = func kernel32 CopyFile ([bool]) @([string], [string], [bool])
-
-        # Add the Win32 type
-        $Types = $CopyFileDefinition | Add-Win32Type -Module $Module -Namespace 'Win32'
-        $Kernel32 = $Types['kernel32']
-
-        # Now, use the CopyFile function to copy a file
-        $source = 'C:\path\to\source\file.txt'
-        $destination = 'C:\path\to\destination\file.txt'
-        $overwrite = $false  # Set to $true to overwrite the destination file if it exists
-
-        # Copy the file
-        $Kernel32::CopyFile($source, $destination, $overwrite)
-
-
-        # Use the function to copy a file
-        $sourcePath = 'C:\path\to\source\file.txt'
-        $destinationPath = 'C:\path\to\destination\file.txt'
-        $copyResult = CopyFile $sourcePath $destinationPath $false
-
-        # Check if the copy was successful
-        if ($copyResult) {
-            Write-Host 'File copied successfully.'
+        # first we need to import the module as powershell 5.1 and give the session to pwsh 7.1 so we can use the module in pwsh 7.1
+        # First create a ps 5.1 session
+        
+        $sessionName = New-PSSession -UseWindowsPowerShell
+        # Import the module in the session
+        Invoke-Command -Session $sessionName -ScriptBlock {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+            }
+            $cmdlets = @('Install-Dependencies')
+            if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
+                Write-Verbose -Message "Importing cmdlets: $cmdlets"
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+                $Cmdletstoinvoke | Import-Module -Force
+                if (-not(Get-Module -Name 'PSReflect-Functions' -ErrorAction SilentlyContinue)) {
+                    Install-Dependencies -PSModule PSReflect-Functions -ErrorAction SilentlyContinue -NoNugetPackages
+                }
+                Import-Module -Name 'PSReflect-Functions' -Force
+            }
         }
-        else {
-            Write-Host 'Failed to copy file.'
-        }
+        # Now we can use the module in pwsh 7.1
+        Import-Module -PSSession $sessionName -Force -Name PSReflect-Functions
 
+        $kernel32::CopyFileExW($DriveLetter, $Destination, $ProgressRoutine, $Data, $Cancel, $dwFlags)
 
-        # Create an instance of the XCopy class
-        $XCopy = [PSReflect.Assembly]::CreateInstance($XCopyType)
-
-        # Copy the files
-        $XCopy.CopyDirectory($ISOMountedPath, $Destination, $true)
 
         # Unmount the image
         dism /unmount-image /mountdir:c:\scratchdir /discard >$null 2>&1
@@ -251,84 +244,3 @@ function Set-Tiny11Image {
         Remove-Item -Recurse -Force 'c:\tiny11'
     }
 }
-
-#region External Cmdlets - Install-Cmdlet
-<#
-.SYNOPSIS
-    Install-Cmdlet is a function that installs a cmdlet from a given url.
-
-.DESCRIPTION
-    The Install-Cmdlet function takes a url as input and installs a cmdlet from the content obtained from the url.
-    It creates a new PowerShell module from the content obtained from the URI.
-    'Invoke-RestMethod' is used to download the script content.
-    The script content is encapsulated in a script block and a new module is created from it.
-    'Export-ModuleMember' exports all functions and aliases from the module.
-    The function can be used to install cmdlets from a given url.
-
-.PARAMETER Url
-    The url from which the cmdlet should be installed.
-
-.PARAMETER CmdletToInstall
-    The cmdlet that should be installed from the given url.
-    If no cmdlet is specified, all cmdlets from the given url will be installed.
-
-.EXAMPLE
-    Install-Cmdlet -Url 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Write-Logg.ps1' -CmdletToInstall 'Write-Logg'
-    This example installs the Write-Logg cmdlet from the given url.
-
-#>
-
-function Install-Cmdlet {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]
-        $Url,
-        [Parameter(Mandatory = $false)]
-        [string]
-        $CmdletToInstall = '*',
-        [Parameter(Mandatory = $false)]
-        [string]
-        $ModuleName = ''
-    )
-    begin {
-        # make sure we are given a valid url
-        $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
-        $regexoptions = [System.Text.RegularExpressions.RegexOptions]('IgnoreCase, IgnorePatternWhitespace, Compiled')
-        $compiledregex = [regex]::new($searchpattern, $regexoptions)
-        if (-not($url -match $compiledregex)) {
-            throw [System.ArgumentException]::new('The given url is not valid')
-        }
-
-        # Generate a modulename if none is given
-        if ($ModuleName -eq '') {
-            # We will generate a random name for the module using terms stored in memory from powershell
-            # Make sure randomname is empty
-            $randomName = ''
-            $wordlist = 'https://raw.githubusercontent.com/sts10/generated-wordlists/main/lists/experimental/ud1.txt'
-            $wordlist = Invoke-RestMethod -Uri $wordlist
-            $wordarray = $($wordlist).ToString().Split("`n")
-            $randomNumber = (Get-Random -Minimum 0 -Maximum $wordarray.Length)
-            $randomName = $wordarray[$randomNumber]
-            $ModuleName = $randomName.Insert(0, 'Module-')
-        }
-    }
-    process {
-        try {
-            $method = Invoke-RestMethod -Uri $Url
-            $CmdletScriptBlock = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock | Import-Module -Cmdlet $CmdletToInstall
-        }
-        catch {
-            throw $_
-        }
-    }
-    end {
-    }
-}
-#endregion External Cmdlets - Install-Cmdlet
-
-
-
-
-Set-Tiny11Image -ISOMountedPath 'K:\' -Verbose -ErrorAction Break
