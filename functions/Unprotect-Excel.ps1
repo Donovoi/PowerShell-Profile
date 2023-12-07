@@ -18,8 +18,6 @@
     Includes functions for checking MAM encryption and calculating file entropy.
 
 #>
-
-
 function Unprotect-Excel {
     [CmdletBinding()]
     param (
@@ -35,13 +33,10 @@ function Unprotect-Excel {
             New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
         }
         $cmdlets = @('Test-MAMEncryption', 'Get-Entropy', 'Write-Logg', 'Install-Dependencies')
-        foreach ($cmdlet in $cmdlets) {
-            Write-Verbose -Message "Importing cmdlet: $cmdlet"
-            if (-not (Get-Command -Name $cmdlet -ErrorAction SilentlyContinue)) {
-                $cmdletmodule = Install-Cmdlet -Url "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1"
-            }
-        }
 
+        Write-Verbose -Message "Importing cmdlets: $cmdlets"
+        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+        $Cmdletstoinvoke | Import-Module -Force
 
         # Define paths for temporary and backup files
         $excelFilePath = Split-Path -Path $Excel
@@ -76,7 +71,6 @@ function Unprotect-Excel {
             throw $_
         }
 
-
         # Process each sheet in the workbook
         $sheets = Get-ChildItem -Path "$excelTempDir\xl\worksheets" -Filter *.xml
         foreach ($sheet in $sheets) {
@@ -105,9 +99,8 @@ function Unprotect-Excel {
         Write-Logg -Message 'Success: Excel sheet protection removed.' -Level info
     }
     catch {
-        # Log and rethrow any other errors
-        Write-Logg -Message "Failed: $_.Exception.Message" -Level error
-        throw $_.Exception.Message
+        Read-Host -Prompt 'Press Enter to continue'
+        exit
     }
     finally {
         # Ensure cleanup of the temporary directory in case of failure
@@ -116,4 +109,3 @@ function Unprotect-Excel {
         }
     }
 }
-
