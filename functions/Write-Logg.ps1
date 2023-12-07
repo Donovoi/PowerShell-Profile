@@ -45,11 +45,13 @@ function Write-Logg {
             New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
         }
         $cmdlets = @('Install-Dependencies')
-        Write-Verbose -Message "Importing cmdlets: $cmdlets"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
-        $Cmdletstoinvoke | Import-Module -Force
-        if (-not(Get-Module -Name 'pansies' -ErrorAction SilentlyContinue)) {
-            Install-Dependencies -PSModule 'pansies' -NoNugetPackages
+        if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
+            Write-Verbose -Message "Importing cmdlets: $cmdlets"
+            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+            $Cmdletstoinvoke | Import-Module -Force
+            if (-not(Get-Module -Name 'pansies' -ErrorAction SilentlyContinue)) {
+                Install-Dependencies -PSModule 'pansies' -NoNugetPackages
+            }
         }
         Import-Module -Name 'pansies' -Force
         # Capitalize the level for WARNING and ERROR for consistency
