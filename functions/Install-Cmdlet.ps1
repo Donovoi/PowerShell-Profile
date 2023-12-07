@@ -67,7 +67,14 @@ function Install-Cmdlet {
                 }
             }
             $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            $($modulescriptblock).Invoke() | Out-Null
+            $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
+            if ($CmdletToInstall -eq '*') {
+                Export-ModuleMember -Module $module -Function * -Alias *
+            }
+            else {
+                Export-ModuleMember -Module $module -Function $CmdletToInstall -Alias $CmdletToInstall
+            }
+            return $module
         }
         catch {
             throw $_
