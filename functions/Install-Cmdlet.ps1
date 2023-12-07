@@ -32,7 +32,7 @@ function Install-Cmdlet {
         [string[]]$CmdletToInstall = '*',
         [Parameter(Mandatory = $false)]
         [string]$ModuleName = 'InMemoryModule',
-        [Parameter(Mandatory = $true, ParameterSetName = 'cmdlet')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Donovoicmdlets')]
         [string[]]$donovoicmdlets
     )
     begin {
