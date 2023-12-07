@@ -37,18 +37,19 @@ function Install-Cmdlet {
     )
     begin {
         if ($donovoicmdlets) {
-            $sb = [System.Text.StringBuilder]::new()
+            $sburls = [System.Text.StringBuilder]::new()
             foreach ($cmdlet in $donovoicmdlets) {
                 # build the array of urls for invoke-restmethod
-                $sb.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1")
+                $sburls.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1")
             }
             # clean up and remove any empty lines
-            $urls = $sb.ToString().Split("`n").Trim() | Where-Object { $_ }
+            $urls = $sburls.ToString().Split("`n").Trim() | Where-Object { $_ }
         }
 
     }
     process {
         try {
+            $Cmdletsarraysb = [System.Text.StringBuilder]::new()
             $urls | ForEach-Object -Process {
                 $link = $_
                 # make sure we are given a valid url
@@ -60,23 +61,17 @@ function Install-Cmdlet {
                 }
 
                 try {
-                    $Cmdletsarray = @()
-                    $Cmdletsarray += Invoke-RestMethod -Uri $link
+                    $Cmdletsarraysb.AppendLine($(Invoke-RestMethod -Uri $link.ToString()))
                 }
                 catch {
                     throw $_
                 }
             }
-            $CmdletScriptBlock = [scriptblock]::Create($cmdletsarray + "`nExport-ModuleMember -Function * -Alias *")
-
+            $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
+            return . $modulescriptblock
         }
         catch {
             throw $_
         }
-    }
-    end {
-        # Create a new module from the script block
-        New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock
-        $ModuleName | Install-Module -Force -Scope AllUsers -AllowClobber | Import-Module -Global
     }
 }
