@@ -51,11 +51,11 @@ function Test-MAMEncryption {
         $isEncrypted = $lines -match $signaturePattern
 
         if ($isEncrypted) {
-            Write-Logg -Message 'It appears the file is encrypted by MDM.' -Level Error
+            Write-Logg -Message 'It appears the file is encrypted by MAM.' -Level Error
             return $true
         }
         else {
-            Write-Logg -message 'The file is not encrypted by MDM.' -level error
+            Write-Logg -message 'The file is not encrypted by MAM.' -level error
             return $false
         }
     }
