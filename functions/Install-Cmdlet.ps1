@@ -21,7 +21,6 @@
 .EXAMPLE
     Install-Cmdlet -Url 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Write-Logg.ps1' -CmdletToInstall 'Write-Logg'
     This example installs the Write-Logg cmdlet from the given url.
-
 #>
 function Install-Cmdlet {
     [CmdletBinding()]
@@ -40,10 +39,10 @@ function Install-Cmdlet {
             $sburls = [System.Text.StringBuilder]::new()
             foreach ($cmdlet in $donovoicmdlets) {
                 # build the array of urls for invoke-restmethod
-                $sburls.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1")
+                $sburls.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1") | Out-Null
             }
             # clean up and remove any empty lines
-            $urls = $sburls.ToString().Split("`n").Trim() | Where-Object { $_ }
+            $urls = $sburls.ToString().Split("`n").Trim() | Where-Object { $_ } 
         }
 
     }
@@ -61,14 +60,14 @@ function Install-Cmdlet {
                 }
 
                 try {
-                    $Cmdletsarraysb.AppendLine($(Invoke-RestMethod -Uri $link.ToString()))
+                    $Cmdletsarraysb.AppendLine($(Invoke-RestMethod -Uri $link.ToString())) | Out-Null
                 }
                 catch {
                     throw $_
                 }
             }
             $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            return . $modulescriptblock
+            $modulescriptblock | Out-Host
         }
         catch {
             throw $_
