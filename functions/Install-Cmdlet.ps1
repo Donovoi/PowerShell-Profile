@@ -67,11 +67,11 @@ function Install-Cmdlet {
                 }
             }
             $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            $script:module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
+            $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
         }
         catch {
             throw $_
         }
-        return $script:module
+        return $module
     }
 }
