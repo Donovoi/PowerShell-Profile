@@ -26,45 +26,50 @@
 function Install-Cmdlet {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$Url,
+        [Parameter(Mandatory = $true, ParameterSetName = 'Url')]
+        [string[]]$Urls,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Url')]
+        [string[]]$CmdletToInstall = '*',
         [Parameter(Mandatory = $false)]
-        [string]$CmdletToInstall = '*',
-        [Parameter(Mandatory = $false)]
-        [string]
-        $ModuleName = ''
+        [string]$ModuleName = 'InMemoryModule',
+        [Parameter(Mandatory = $true, ParameterSetName = 'cmdlet')]
+        [string[]]$donovoicmdlets
     )
-
     begin {
+        if ($donovoicmdlets) {
+            $sb = [System.Text.StringBuilder]::new()
+            foreach ($cmdlet in $donovoicmdlets) {
+                # build the array of urls for invoke-restmethod
+                $sb.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1")
+            }
+            # clean up and remove any empty lines
+            $urls = $sb.ToString().Split("`n").Trim() | Where-Object { $_ }
+        }
 
-        if ($ModuleName -eq '') {
-            # We will generate a random name for the module using terms stored in memory from powershell
-            # Make sure randomname is empty
-            $randomName = ''
-            $wordlist = 'https://raw.githubusercontent.com/sts10/generated-wordlists/main/lists/experimental/ud1.txt'
-            $wordlist = Invoke-RestMethod -Uri $wordlist
-            $wordarray = $($wordlist).ToString().Split("`n")
-            $randomNumber = (Get-Random -Minimum 0 -Maximum $wordarray.Length)
-            $randomName = $wordarray[$randomNumber]
-            $ModuleName = ('Module-' + $randomName)
-        }
-        # make sure we are given a valid url
-        $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
-        $regexoptions = [System.Text.RegularExpressions.RegexOptions]('IgnoreCase, IgnorePatternWhitespace, Compiled')
-        $compiledregex = [regex]::new($searchpattern, $regexoptions)
-        if (-not($url -match $compiledregex)) {
-            throw [System.ArgumentException]::new('The given url is not valid')
-        }
     }
     process {
         try {
-            $method = Invoke-RestMethod -Uri $Url
-            $CmdletScriptBlock = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            $module = New-Module -Name $ModuleName -ScriptBlock $CmdletScriptBlock
-            Import-Module -ModuleInfo $module -Global -Force
+            $urls | ForEach-Object -Process {
+                $link = $_
+                # make sure we are given a valid url
+                $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
+                $regexoptions = [System.Text.RegularExpressions.RegexOptions]('IgnoreCase, IgnorePatternWhitespace, Compiled')
+                $compiledregex = [regex]::new($searchpattern, $regexoptions)
+                if (-not($Link -match $compiledregex)) {
+                    throw [System.ArgumentException]::new('The given url is not valid')
+                }
 
-            # Store the names of the installed cmdlets
-            $installedCmdlets = Get-Command -Module $module.Name
+                try {
+                    $Cmdletsarray = @()
+                    $Cmdletsarray += Invoke-RestMethod -Uri $link
+                }
+                catch {
+                    throw $_
+                }
+            }
+            $CmdletScriptBlock = [scriptblock]::Create($cmdletsarray + "`nExport-ModuleMember -Function * -Alias *")
+            $ModuleName = New-Module -ScriptBlock $CmdletScriptBlock -ReturnResult
+
         }
         catch {
             throw $_
@@ -72,8 +77,6 @@ function Install-Cmdlet {
     }
     end {
         # Return the installed cmdlets
-        return $module
+        return $ModuleName
     }
 }
-
-
