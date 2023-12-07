@@ -68,7 +68,6 @@ function Install-Cmdlet {
                 }
             }
             $CmdletScriptBlock = [scriptblock]::Create($cmdletsarray + "`nExport-ModuleMember -Function * -Alias *")
-            $ModuleName = New-Module -ScriptBlock $CmdletScriptBlock -ReturnResult
 
         }
         catch {
@@ -77,6 +76,6 @@ function Install-Cmdlet {
     }
     end {
         # Return the installed cmdlets
-        return $ModuleName
+        New-Module -ScriptBlock $CmdletScriptBlock -ReturnResult
     }
 }
