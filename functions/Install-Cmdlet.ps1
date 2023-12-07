@@ -67,17 +67,11 @@ function Install-Cmdlet {
                 }
             }
             $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
-            if ($CmdletToInstall -eq '*') {
-                Export-ModuleMember -Module $module -Function * -Alias *
-            }
-            else {
-                Export-ModuleMember -Module $module -Function $CmdletToInstall -Alias $CmdletToInstall
-            }
-            return $module
+            $script:module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
         }
         catch {
             throw $_
         }
+        return $script:module
     }
 }
