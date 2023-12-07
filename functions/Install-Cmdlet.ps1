@@ -67,7 +67,7 @@ function Install-Cmdlet {
                 }
             }
             $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            $modulescriptblock | Out-Host
+            $($modulescriptblock).Invoke() | Out-Null
         }
         catch {
             throw $_
