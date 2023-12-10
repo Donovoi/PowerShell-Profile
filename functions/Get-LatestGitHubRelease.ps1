@@ -81,7 +81,7 @@ function Get-LatestGitHubRelease {
         }
 
         if ($PrivateRepo) {
-            $initialPassword = ConvertTo-SecureString -String "PrettyPassword" -AsPlainText -Force
+            # $initialPassword = ConvertTo-SecureString -String 'PrettyPassword' -AsPlainText -Force
             # Install any needed modules and import them
             # At the start of the session
             $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
@@ -93,10 +93,10 @@ function Get-LatestGitHubRelease {
 
             # Find new modules installed during this session
             $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
-            if ($newModules -notcontains "Microsoft.PowerShell.SecretManagement") {
+            if ($newModules -notcontains 'Microsoft.PowerShell.SecretManagement') {
                 try {
-                    Write-Host "You will now be asked to enter the password for the current store: " -ForegroundColor Yellow
-                    Unlock-SecretStore -Password (Read-Host -Prompt "Enter the password for the secret store" -AsSecureString)
+                    Write-Logg -Message 'You will now be asked to enter the password for the current store: ' -Level Warning
+                    Unlock-SecretStore -Password (Read-Host -Prompt 'Enter the password for the secret store' -AsSecureString)
                 }
                 catch {
                     try {
@@ -111,7 +111,7 @@ function Get-LatestGitHubRelease {
             }
             else {
                 try {
-                    Write-Host "Initializing the secret store..." -ForegroundColor Yellow                    # Initialize the secret store
+                    Write-Logg -Message 'Initializing the secret store...' -Level Warning                    # Initialize the secret store
                     Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $initialPassword
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
@@ -133,7 +133,7 @@ function Get-LatestGitHubRelease {
                 $headers['Authorization'] = "Bearer $PlainTextToken"
             }
             else {
-                $TokenValue = Read-Host -Prompt "Enter the GitHub token" -AsSecureString
+                $TokenValue = Read-Host -Prompt 'Enter the GitHub token' -AsSecureString
                 Set-StoredSecret -Secret $TokenValue -SecretName $TokenName -SecurePassword $initialPassword
                 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($TokenValue)
                 $PlainTextToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
@@ -163,7 +163,7 @@ function Get-LatestGitHubRelease {
                 $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
                 if ([string]::IsNullOrEmpty($manualDownloadurl)) {
                     Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                    Write-Logg -Message "exiting script.." -Level warning
+                    Write-Logg -Message 'exiting script..' -Level warning
                     exit
                 }
             }
@@ -198,8 +198,6 @@ function Get-LatestGitHubRelease {
                         $downloadFileParams['aria2cexe'] = $Aria2cExePath
                     }
 
-
-
                     if ($TokenName -and $PrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                         $downloadFileParams['IsPrivateRepo'] = $true
@@ -209,16 +207,26 @@ function Get-LatestGitHubRelease {
                     Get-DownloadFile @downloadFileParams
                 }
                 else {
-                    $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
+                    if ($asset.Name -like '*aria*') {
+                        # Generate a random file name without extension
+                        $randomFileName = [System.IO.Path]::GetRandomFileName()
+
+                        # Replace the generated extension with '.zip'
+                        $zipFileName = $randomFileName -replace '(\.[^.]+)$', '.zip'
+
+                        $OutFile = $ENV:TEMP + '\' + $zipFileName
+                    }
+                    else {
+                        $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
+                    }
                     Invoke-WebRequest $asset.Browser_Download_url -OutFile $outFile
-                    $outFile
                 }
             }
             else {
                 if ($UseAria2) {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {
                         Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                        Write-Logg -Message "exiting script.." -Level warning
+                        Write-Logg -Message 'exiting script..' -Level warning
                         exit
                     }
                     $null = Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
@@ -226,7 +234,7 @@ function Get-LatestGitHubRelease {
                 else {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {
                         Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                        Write-Logg -Message "exiting script.." -Level warning
+                        Write-Logg -Message 'exiting script..' -Level warning
                         exit
                     }
                     $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]
@@ -241,10 +249,20 @@ function Get-LatestGitHubRelease {
                     Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
                     return $downloadedFile
                 }
-                Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
-                $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath ($asset.Name -replace '.zip', '')
-                Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
-                return $ExtractedFiles
+                if ($asset.Name -like '*aria*') {
+                    # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
+                    $tempDir = Join-Path -Path $ENV:TEMP -ChildPath ([System.IO.Path]::GetRandomFileName())
+                    Expand-Archive -Path $downloadedFile -DestinationPath $tempDir -Force
+                    $ExtractedFiles = Join-Path -Path $tempDir -ChildPath ($asset.Name -replace '.zip', '')
+                    Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
+                    return $ExtractedFiles
+                }
+                else {
+                    Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
+                    $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath ($asset.Name -replace '.zip', '')
+                    Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
+                    return $ExtractedFiles
+                }
             }
             else {
                 Write-Logg -Message "Downloaded $downloadedFile to $DownloadPathDirectory"

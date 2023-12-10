@@ -126,6 +126,15 @@ function Install-PackageProviders {
         # Trust PSGallery repository
         Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
 
+        if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
+            # PowerShellGet version 2
+            Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
+        }
+        if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
+            # PowerShellGet version 3
+            Install-PSResource AnyPackage
+        }
+
         # Ensure Pansies module is installed for logging
         if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
             Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null

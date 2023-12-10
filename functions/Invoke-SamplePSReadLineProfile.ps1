@@ -17,9 +17,9 @@ function Invoke-SamplePSReadLineProfile {
         # [Parameter(Mandatory=$true)]
         # [string]
         # $parameter_name
-    )    
+    )
     process {
-        
+
 
 
         # This is an example profile for PSReadLine.
@@ -168,7 +168,7 @@ function Invoke-SamplePSReadLineProfile {
 
                 foreach ($token in $tokens) {
                     if ($cursor -lt $token.Extent.StartOffset) {
-                        continue 
+                        continue
                     }
                     if ($cursor -lt $token.Extent.EndOffset) {
                         $result = $token
@@ -176,7 +176,7 @@ function Invoke-SamplePSReadLineProfile {
                         if ($token) {
                             $nested = FindToken $token.NestedTokens $cursor
                             if ($nested) {
-                                $result = $nested 
+                                $result = $nested
                             }
                         }
 
@@ -220,7 +220,7 @@ function Invoke-SamplePSReadLineProfile {
 
             # If cursor is at the start of a token, enclose it in quotes.
             if ($token.Extent.StartOffset -eq $cursor) {
-                if ($token.Kind -eq [TokenKind]::Generic -or $token.Kind -eq [TokenKind]::Identifier -or 
+                if ($token.Kind -eq [TokenKind]::Generic -or $token.Kind -eq [TokenKind]::Identifier -or
                     $token.Kind -eq [TokenKind]::Variable -or $token.TokenFlags.hasFlag([TokenFlags]::Keyword)) {
                     $end = $token.Extent.EndOffset
                     $len = $end - $cursor
@@ -242,13 +242,13 @@ function Invoke-SamplePSReadLineProfile {
 
             $closeChar = switch ($key.KeyChar) {
                 <#case#> '(' {
-                    [char]')'; break 
+                    [char]')'; break
                 }
                 <#case#> '{' {
-                    [char]'}'; break 
+                    [char]'}'; break
                 }
                 <#case#> '[' {
-                    [char]']'; break 
+                    [char]']'; break
                 }
             }
 
@@ -259,7 +259,7 @@ function Invoke-SamplePSReadLineProfile {
             $line = $null
             $cursor = $null
             [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
-    
+
             if ($selectionStart -ne -1) {
                 # Text is selected, wrap it in brackets
                 [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $key.KeyChar + $line.SubString($selectionStart, $selectionLength) + $closeChar)
@@ -305,19 +305,19 @@ function Invoke-SamplePSReadLineProfile {
                 if ($cursor -lt $line.Length) {
                     switch ($line[$cursor]) {
                         <#case#> '"' {
-                            $toMatch = '"'; break 
+                            $toMatch = '"'; break
                         }
                         <#case#> "'" {
-                            $toMatch = "'"; break 
+                            $toMatch = "'"; break
                         }
                         <#case#> ')' {
-                            $toMatch = '('; break 
+                            $toMatch = '('; break
                         }
                         <#case#> ']' {
-                            $toMatch = '['; break 
+                            $toMatch = '['; break
                         }
                         <#case#> '}' {
-                            $toMatch = '{'; break 
+                            $toMatch = '{'; break
                         }
                     }
                 }
@@ -612,22 +612,22 @@ function Invoke-SamplePSReadLineProfile {
             -LongDescription 'Set current selection to next command argument in the command line. Use of digit argument selects argument by position' `
             -ScriptBlock {
             param($key, $arg)
-  
+
             $ast = $null
             $cursor = $null
             [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$ast, [ref]$null, [ref]$null, [ref]$cursor)
-  
+
             $asts = $ast.FindAll( {
                     $args[0] -is [System.Management.Automation.Language.ExpressionAst] -and
                     $args[0].Parent -is [System.Management.Automation.Language.CommandAst] -and
                     $args[0].Extent.StartOffset -ne $args[0].Parent.Extent.StartOffset
                 }, $true)
-  
+
             if ($asts.Count -eq 0) {
                 [Microsoft.PowerShell.PSConsoleReadLine]::Ding()
                 return
             }
-    
+
             $nextAst = $null
 
             if ($null -ne $arg) {
@@ -639,8 +639,8 @@ function Invoke-SamplePSReadLineProfile {
                         $nextAst = $ast
                         break
                     }
-                } 
-        
+                }
+
                 if ($null -eq $nextAst) {
                     $nextAst = $asts[0]
                 }
@@ -654,7 +654,7 @@ function Invoke-SamplePSReadLineProfile {
                 $startOffsetAdjustment = 1
                 $endOffsetAdjustment = 2
             }
-  
+
             [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($nextAst.Extent.StartOffset + $startOffsetAdjustment)
             [Microsoft.PowerShell.PSConsoleReadLine]::SetMark($null, $null)
             [Microsoft.PowerShell.PSConsoleReadLine]::SelectForwardChar($null, ($nextAst.Extent.EndOffset - $nextAst.Extent.StartOffset) - $endOffsetAdjustment)
