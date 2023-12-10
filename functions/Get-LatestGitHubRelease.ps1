@@ -46,6 +46,7 @@ function Get-LatestGitHubRelease {
         [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
         [string] $AssetName,
 
+        # I've hardcoded aria2 to download to a temp directory with a random name to avoid file lock issues
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string] $DownloadPathDirectory = $PWD,
 
@@ -220,6 +221,7 @@ function Get-LatestGitHubRelease {
                         $outFile = Join-Path -Path $DownloadPathDirectory -ChildPath $asset.Name
                     }
                     Invoke-WebRequest $asset.Browser_Download_url -OutFile $outFile
+                    $OutFile
                 }
             }
             else {

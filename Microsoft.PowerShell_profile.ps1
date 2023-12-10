@@ -47,14 +47,7 @@ $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.e
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
 
-if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
-  # PowerShellGet version 2
-  Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
-}
-if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
-  # PowerShellGet version 3
-  Install-PSResource AnyPackage
-}
+
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
 $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
