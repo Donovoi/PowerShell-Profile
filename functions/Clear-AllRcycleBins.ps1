@@ -15,7 +15,7 @@ function Clear-AllRecycleBins {
         Where-Object { $substDrives -notcontains $_.DeviceID } |
             ForEach-Object {
                 $driveLetter = ($_.DeviceID -replace ':', '')
-                Write-Host "Attempting to clear recycle bin for drive: $driveLetter"
+                Write-Logg -Message "Attempting to clear recycle bin for drive: $driveLetter" -Level Info
 
                 try {
                     Clear-RecycleBin -DriveLetter $driveLetter -Confirm:$false

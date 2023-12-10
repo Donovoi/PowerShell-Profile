@@ -65,12 +65,12 @@ function Set-StoredSecret {
     }
     else {
         try {
-            Write-Host "Initializing the secret store..." -ForegroundColor Yellow
+            Write-Logg -Message "Initializing the secret store..." -Level Warning
             Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
             Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecurePassword
         }
         catch {
-            Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
+            Write-Logg -Message "An error occurred while initializing the secret store: $_" -Level Error
             throw
         }
     }
@@ -96,7 +96,7 @@ function Set-StoredSecret {
         }
     }
     catch {
-        Write-Host "An error occurred while setting the secret: $_" -ForegroundColor Red
+        Write-Logg -Message "An error occurred while setting the secret: $_" -Level Error
         throw
     }
 

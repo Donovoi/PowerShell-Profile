@@ -212,7 +212,7 @@ function Get-GitPull {
         icacls.exe $_ /setowner "$env:UserName" /t /c /q
 
         # Check if the upstream remote is added
-        $upstream = git remote -v | Select-String "upstream"
+        $upstream = git remote -v | Select-String 'upstream'
         if ($null -ne $upstream) {
 
             # Define the root path of the repository
@@ -232,14 +232,14 @@ function Get-GitPull {
                 # Try to remove the lock file
                 try {
                     Remove-Item $lockFile.FullName -Force
-                    Write-Host "Lock file $($lockFile.FullName) removed successfully."
+                    Write-Logg -Message "Lock file $($lockFile.FullName) removed successfully." -Level Info
                 }
                 catch {
-                    Write-Host "Failed to remove lock file. Error: $_"
+                    Write-Logg -Message "Failed to remove lock file. Error: $_" -Level error
                 }
             }
             else {
-                Write-Host "Lock file not found."
+                Write-Logg -Message 'Lock file not found.' -Level Info
             }
             try {
 
@@ -250,8 +250,8 @@ function Get-GitPull {
                 git fetch upstream
 
                 # Get the name of the default branch from the upstream remote
-                $defaultBranch = git remote show upstream | Select-String "HEAD branch" | Out-String
-                $defaultBranch = ($defaultBranch -split ":")[1].Trim()
+                $defaultBranch = git remote show upstream | Select-String 'HEAD branch' | Out-String
+                $defaultBranch = ($defaultBranch -split ':')[1].Trim()
 
                 # Checkout to the default branch
                 git checkout $defaultBranch

@@ -181,13 +181,13 @@ function Get-DownloadFile {
                     }
                 }
                 else {
-                    Write-Host 'Using Invoke-WebRequest for download.'
+                    Write-Logg -Message "Using Invoke-WebRequest for download." -Level Info
                     Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
                 }
             }
         }
         catch {
-            Write-Host "An error occurred: $_" -ForegroundColor Red
+            Write-Logg -Message "An error occurred: $_" -Level Error
             throw
         }
         return $DownloadedFile

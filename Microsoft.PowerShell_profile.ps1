@@ -14,9 +14,40 @@ $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways
 # Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
+$FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
+$FunctionsFolder.ForEach{ .$_.FullName }
+
+# Check if 'write-logg' is available
+if (-not (Get-Command 'write-logg' -ErrorAction SilentlyContinue)) {
+  # Define 'write-logg' as a fallback function
+  function write-logg {
+    param(
+      [string]$message,
+      [string]$level
+    )
+    # Map 'write-logg' level to 'Write-Host' color
+    switch ($level) {
+      'error' {
+        $color = 'Red' 
+      }
+      'warning' {
+        $color = 'Yellow' 
+      }
+      'info' {
+        $color = 'Green' 
+      }
+      default {
+        $color = 'White' 
+      }
+    }
+    # Call Write-Host with the mapped color and message
+    Write-Host $message -ForegroundColor $color
+  }
+}
+
 # Check if PowerShell 7 is installed
 if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-  Write-Host 'PowerShell 7 is not installed. Installing now...' -ForegroundColor Yellow
+  Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
   # Download and install PowerShell 7 (you might want to check the URL for the latest version)
   winget install powershell
 
@@ -25,15 +56,12 @@ if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
 
 # Check and create profile folders for PowerShell 7
 if (-not (Test-Path -Path $powerShell7ProfilePath)) {
-  Write-Host 'PowerShell 7 profile folders do not exist. Creating now...' -ForegroundColor Yellow
+  Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
   New-Item -Path $PROFILE
-  Write-Host 'PowerShell 7 profile folders created successfully!' -ForegroundColor Green
+  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -ForegroundColor Green
 }
 
-if ($PSVersionTable.PSVersion.Major -eq 7) {
-  $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
-  $FunctionsFolder.ForEach{ .$_.FullName }
-}
+
 
 # install and import modules needed for oh my posh
 # I've hardcoded these into the Install-Dependencies function :(
