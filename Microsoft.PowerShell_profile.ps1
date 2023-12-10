@@ -35,17 +35,17 @@ if ($PSVersionTable.PSVersion.Major -eq 7) {
   $FunctionsFolder.ForEach{ .$_.FullName }
 }
 
+# install and import modules needed for oh my posh
+# I've hardcoded these into the Install-Dependencies function :(
+if (-not (Get-Module -ListAvailable Pansies -ErrorAction SilentlyContinue)) {
+  Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackages
+}
+
 
 # Variables for the commandline
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
-# install dependencies for write-log
-if (-not (Get-Module -ListAvailable pansies -ErrorAction SilentlyContinue)) {
-  Install-Dependencies -PSModule 'pansies' -NoNugetPackages
-}
-
-# update package providers
 
 if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
   # PowerShellGet version 2
@@ -56,10 +56,6 @@ if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
   Install-PSResource AnyPackage
 }
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
-
-# install and import modules needed for oh my posh
-# I've hardcoded these into the Install-Dependencies function :(
-Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackages
 
 $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
 $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
