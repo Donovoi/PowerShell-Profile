@@ -95,6 +95,12 @@ function Get-DownloadFile {
     )
     process {
         try {
+            if ($UseAria2) {
+                if (-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue)) {
+                    $null = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -DownloadPathDirectory 'C:\aria2' -ExtractZip
+                    $aria2cExe = $(Get-ChildItem -Recurse -Path 'C:\aria2\' -Filter 'aria2c.exe').FullName
+                }
+            }
             foreach ($download In $url) {
                 # Construct the output file path for when the url has the filename in it
                 #First we check if the url has the filename in it
@@ -154,11 +160,6 @@ function Get-DownloadFile {
                 }
 
                 if ($UseAria2) {
-                    if (-not(Test-Path -Path $aria2cExe)) {
-                        $null = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -DownloadPathDirectory 'C:\aria2' -ExtractZip
-                        $aria2cExe = $(Get-ChildItem -Recurse -Path 'C:\aria2\' -Filter 'aria2c.exe').FullName
-                    }
-
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
                         # Install any needed modules and import them
