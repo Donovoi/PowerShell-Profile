@@ -101,7 +101,7 @@ function Install-PackageProviders {
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
             }
             else {
-                Write-Logg -Message 'PackageManagement module already installed' -Level VERBOSE
+                Write-Host 'PackageManagement module already installed'
             }
         }
 
@@ -297,14 +297,13 @@ function Install-PSModules {
                                 # Install module
                                 Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck
                             }
-
-
-                            else {
-                                # Import all saved modules from local directory
-                                $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-                                Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
-                            }
                         }
+                        else {
+                            Write-Verbose "Module $_ already installed"
+                        }
+
+                        # Import all modules specified in the $ModulesToBeInstalled array
+                        Import-Module -Name $ModulesToBeInstalled -Force -Global -ErrorAction SilentlyContinue
                     }
                     catch {
                         Write-Host "An error occurred while processing module $_`: $($_.Exception)"
