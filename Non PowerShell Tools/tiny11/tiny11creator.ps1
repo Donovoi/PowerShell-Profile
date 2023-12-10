@@ -31,7 +31,7 @@ function Set-Tiny11Image {
         Write-Output "ISO mounted to $DriveLetter`:"
 
         # Create the destination folder
-        New-Item -Path 'c:\tiny11' -ItemType Directory -Force
+        New-Item -Path $Destination -ItemType Directory -Force
         Write-Output 'Copying Windows image...'
 
         # the below command is for copying the Windows 11 image to the c:\tiny11 folder, the arguments are explained below:
@@ -42,48 +42,35 @@ function Set-Tiny11Image {
         # /R - Overwrites read-only files.
         # /Y - Suppresses prompting to confirm you want to overwrite an existing destination file.
         # /J - Copies using unbuffered I/O. Recommended for very large files.
-        # To do the same thing in powershell you would need to use pinvoke and we will use the psreflect module to do that
-        # first we need to import the module as powershell 5.1 and give the session to pwsh 7.1 so we can use the module in pwsh 7.1
-        # First create a ps 5.1 session
-        
-        $sessionName = New-PSSession -UseWindowsPowerShell
-        # Import the module in the session
-        Invoke-Command -Session $sessionName -ScriptBlock {
-            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-            }
-            $cmdlets = @('Install-Dependencies')
-            if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
-                Write-Verbose -Message "Importing cmdlets: $cmdlets"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
-                $Cmdletstoinvoke | Import-Module -Force
-                if (-not(Get-Module -Name 'PSReflect-Functions' -ErrorAction SilentlyContinue)) {
-                    Install-Dependencies -PSModule PSReflect-Functions -ErrorAction SilentlyContinue -NoNugetPackages
-                }
-                Import-Module -Name 'PSReflect-Functions' -Force
-            }
-        }
-        # Now we can use the module in pwsh 7.1
-        Import-Module -PSSession $sessionName -Force -Name PSReflect-Functions
-
-        $kernel32::CopyFileExW($DriveLetter, $Destination, $ProgressRoutine, $Data, $Cancel, $dwFlags)
-
-
-        # Unmount the image
-        dism /unmount-image /mountdir:c:\scratchdir /discard >$null 2>&1
-
-        # Delete the scratch directory
+        # robocopy version is below:
+        #robocopy.exe $DriveLetter":\" c:\tiny11 /E /COPYALL /R:0 /W:0 /MT:8 /J /NP /NFL /NDL /NJH /NJS /NC /NS /NP /LOG+:c:\tiny11\robocopy.log
+        # the robocopy arguments are explained below:
+        # /E - Copies directories and subdirectories, including empty ones.
+        # /COPYALL - Copies all file information (equivalent to /COPY:DATSOU).
+        # /R:0 - Specifies the number of retries on failed copies. The default value of N is 1,000,000 (one million retries).
+        # /W:0 - Specifies the wait time between retries, in seconds. The default value of N is 30 (wait time 30 seconds).
+        # /MT:8 - Creates multi-threaded copies with N threads. N must be an integer between 1 and 128. The default value for N is 8.
+        # /J - Copies using unbuffered I/O. Recommended for very large files.
+        # /NP - Specifies that the progress of the copying operation (the number of files or directories copied so far) will not be displayed.
+        # /NFL - Specifies that file names are not to be logged.
+        # /NDL - Specifies that directory names are not to be logged.
+        # /NJH - Specifies that there is no job header.
+        # /NJS - Specifies that there is no job summary.
+        # /NC - Specifies that file classes are not to be logged.
+        # /NS - Specifies that file sizes are not to be logged.
+        # /NP - Specifies that the progress of the copying operation (the number of files or directories copied so far) will not be displayed.
+        # /LOG+:c:\tiny11\robocopy.log - Specifies that the results of the copying operation are to be logged, appending the output to the existing log file.
+        xcopy.exe /E /I /H /R /Y /J $DriveLetter":" $Destination >$null
+        # Delete the old scratch directory
         Remove-Item -Recurse -Force 'c:\scratchdir' -ErrorAction SilentlyContinue
     }
     process {
         Write-Output 'Getting image information:'
-        dism /Get-WimInfo /wimfile:c:\tiny11\sources\install.wim
+        dism /Get-WimInfo /wimfile:$Destination\sources\install.wim
         $index = Read-Host -Prompt 'Please enter the image index'
         Write-Output 'Mounting Windows image. This may take a while.'
         mkdir 'c:\scratchdir' >$null 2>&1
-        dism /mount-image /imagefile:c:\tiny11\sources\install.wim /index:$index /mountdir:c:\scratchdir
+        dism /mount-image /imagefile:$Destination\sources\install.wim /index:10 /mountdir:c:\scratchdir
         Write-Output 'Mounting complete! Performing removal of applications...'
         $appxfind = 'Clipchamp.Clipchamp', 'Microsoft.BingNews', 'Microsoft.BingWeather', 'Microsoft.GamingApp', `
             'Microsoft.GetHelp', 'Microsoft.Getstarted', 'Microsoft.MicrosoftOfficeHub', `
@@ -190,14 +177,14 @@ function Set-Tiny11Image {
         Write-Output 'Unmounting image...'
         dism /unmount-image /mountdir:c:\scratchdir /commit
         Write-Output 'Exporting image...'
-        Dism /Export-Image /SourceImageFile:c:\tiny11\sources\install.wim /SourceIndex:$index /DestinationImageFile:c:\tiny11\sources\install2.wim /compress:max
-        Remove-Item c:\tiny11\sources\install.wim
-        Rename-Item c:\tiny11\sources\install2.wim install.wim
+        Dism /Export-Image /SourceImageFile:$Destination\sources\install.wim /SourceIndex:$index /DestinationImageFile:$Destination\sources\install2.wim /compress:max
+        Remove-Item $Destination\sources\install.wim
+        Rename-Item $Destination\sources\install2.wim install.wim
         Write-Output 'Windows image completed. Continuing with boot.wim.'
         Start-Sleep -Seconds 2
 
         Write-Output 'Mounting boot image:'
-        dism /mount-image /imagefile:c:\tiny11\sources\boot.wim /index:2 /mountdir:c:\scratchdir
+        dism /mount-image /imagefile:$Destination\sources\boot.wim /index:2 /mountdir:c:\scratchdir
         Write-Output 'Loading registry...'
         reg load HKLM\zCOMPONENTS 'c:\scratchdir\Windows\System32\config\COMPONENTS' >$null
         reg load HKLM\zDEFAULT 'c:\scratchdir\Windows\System32\config\default' >$null
@@ -229,10 +216,10 @@ function Set-Tiny11Image {
 
         Write-Output 'the tiny11 image is now completed. Proceeding with the making of the ISO...'
         Write-Output 'Copying unattended file for bypassing MS account on OOBE...'
-        Copy-Item $pwd\autounattend.xml c:\tiny11\autounattend.xml
+        Copy-Item $pwd\autounattend.xml $Destination\autounattend.xml
         Write-Output ''
         Write-Output 'Creating ISO image...'
-        & $pwd\oscdimg.exe -m -o -u2 -udfver102 -bootdata:2#p0, e, bc:\tiny11\boot\etfsboot.com#pEF, e, bc:\tiny11\efi\microsoft\boot\efisys.bin c:\tiny11 $pwd\tiny11.iso
+        cmd.exe /c "oscdimg.exe -m -n -o -d 'c:\tiny11' 'C:\Users\torro\tintiny11.iso'"
         Write-Output 'Creation completed! Press any key to exit the script...'
 
     }
@@ -241,6 +228,8 @@ function Set-Tiny11Image {
 
         Write-Output 'Performing Cleanup...'
         Remove-Item -Recurse -Force 'c:\scratchdir'
-        Remove-Item -Recurse -Force 'c:\tiny11'
+        Remove-Item -Recurse -Force $Destination
     }
 }
+Push-Location '.\Non PowerShell Tools\tiny11'
+Set-Tiny11Image -UnmountedISOPath "$env:USERPROFILE\Desktop\25997.iso" -Verbose -ErrorAction continue
