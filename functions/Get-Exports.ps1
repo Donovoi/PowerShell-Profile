@@ -7,16 +7,16 @@ function Get-Exports {
     bytes into memory and then parses them (no LoadLibraryEx).
     Because of this you can parse x32/x64 DLL's regardless of
     the bitness of PowerShell.
-    
+
     .DESCRIPTION
     Author: Ruben Boonen (@FuzzySec)
     License: BSD 3-Clause
     Required Dependencies: None
     Optional Dependencies: None
-    
+
     .PARAMETER DllPath
     Absolute path to DLL.
-    
+
     .PARAMETER CustomDll
     Absolute path to output file.
 
@@ -25,7 +25,7 @@ function Get-Exports {
 
     .EXAMPLE
     C:\PS> Get-Exports -DllPath C:\Some\Path\here.dll
-    
+
     .EXAMPLE
     C:\PS> Get-Exports -DllPath C:\Some\Path\here.dll -ExportsToCpp C:\Some\Out\File.txt
 
@@ -40,13 +40,13 @@ function Get-Exports {
         [Parameter(Mandatory = $False)]
         [string]$FunctionPattern
     )
-    
+
     Add-Type -TypeDefinition @'
         using System;
         using System.Diagnostics;
         using System.Runtime.InteropServices;
         using System.Security.Principal;
-        
+
         [StructLayout(LayoutKind.Sequential)]
         public struct IMAGE_EXPORT_DIRECTORY
         {
@@ -62,7 +62,7 @@ function Get-Exports {
             public UInt32 AddressOfNames;
             public UInt32 AddressOfNameOrdinals;
         }
-        
+
         [StructLayout(LayoutKind.Sequential)]
         public struct IMAGE_SECTION_HEADER
         {
@@ -77,7 +77,7 @@ function Get-Exports {
             public UInt16 NumOfLines;
             public UInt32 Characteristics;
         }
-        
+
         public static class Kernel32
         {
             [DllImport("kernel32.dll")]
@@ -87,18 +87,18 @@ function Get-Exports {
                 UInt32 dwFlags);
         }
 '@
-    
+
     # Load the DLL into memory so we can refference it like LoadLibrary
     $FileBytes = [System.IO.File]::ReadAllBytes($DllPath)
     [IntPtr]$HModule = [System.Runtime.InteropServices.Marshal]::AllocHGlobal($FileBytes.Length)
     [System.Runtime.InteropServices.Marshal]::Copy($FileBytes, 0, $HModule, $FileBytes.Length)
-    
+
     # Some Offsets..
     $PE_Header = [Runtime.InteropServices.Marshal]::ReadInt32($HModule.ToInt64() + 0x3C)
     $Section_Count = [Runtime.InteropServices.Marshal]::ReadInt16($HModule.ToInt64() + $PE_Header + 0x6)
     $Optional_Header_Size = [Runtime.InteropServices.Marshal]::ReadInt16($HModule.ToInt64() + $PE_Header + 0x14)
     $Optional_Header = $HModule.ToInt64() + $PE_Header + 0x18
-    
+
     # We need some values from the Section table to calculate RVA's
     $Section_Table = $Optional_Header + $Optional_Header_Size
     $SectionArray = @()
@@ -110,11 +110,11 @@ function Get-Exports {
         }
         $Object = New-Object PSObject -Property $HashTable
         $SectionArray += $Object
-            
+
         # Increment $Section_Table offset by Section size
         $Section_Table = $Section_Table + 0x28
     }
-    
+
     # Helper function for dealing with on-disk PE offsets.
     # Adapted from @mattifestation:
     # https://github.com/mattifestation/PowerShellArsenal/blob/master/Parsers/Get-PE.ps1#L218
@@ -128,7 +128,7 @@ function Get-Exports {
         # Pointer did not fall in the address ranges of the section headers
         Write-Output 'Mmm, pointer did not fall in the PE range..'
     }
-    
+
     # Read Magic UShort to determin x32/x64
     if ([Runtime.InteropServices.Marshal]::ReadInt16($Optional_Header) -eq 0x010B) {
         Write-Output "`n[?] 32-bit Image!"
@@ -140,16 +140,16 @@ function Get-Exports {
         # IMAGE_DATA_DIRECTORY[0] -> Export
         $Export = $Optional_Header + 0x70
     }
-    
+
     # Convert IMAGE_EXPORT_DIRECTORY[0].VirtualAddress to file offset!
     $ExportRVA = Convert-RVAToFileOffset $([Runtime.InteropServices.Marshal]::ReadInt32($Export)) $SectionArray
-    
+
     # Cast offset as IMAGE_EXPORT_DIRECTORY
     $OffsetPtr = New-Object System.Intptr -ArgumentList $($HModule.ToInt64() + $ExportRVA)
     $IMAGE_EXPORT_DIRECTORY = New-Object IMAGE_EXPORT_DIRECTORY
     $IMAGE_EXPORT_DIRECTORY = $IMAGE_EXPORT_DIRECTORY.GetType()
     $EXPORT_DIRECTORY_FLAGS = [system.runtime.interopservices.marshal]::PtrToStructure($OffsetPtr, [type]$IMAGE_EXPORT_DIRECTORY)
-    
+
     # Print the in-memory offsets!
     Write-Output "`n[>] Time Stamp: $([timezone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($EXPORT_DIRECTORY_FLAGS.TimeDateStamp)))"
     Write-Output "[>] Function Count: $($EXPORT_DIRECTORY_FLAGS.NumberOfFunctions)"
@@ -158,19 +158,19 @@ function Get-Exports {
     Write-Output "[>] Function Array RVA: 0x$('{0:X}' -f $EXPORT_DIRECTORY_FLAGS.AddressOfFunctions)"
     Write-Output "[>] Name Array RVA: 0x$('{0:X}' -f $EXPORT_DIRECTORY_FLAGS.AddressOfNames)"
     Write-Output "[>] Ordinal Array RVA: 0x$('{0:X}' -f $EXPORT_DIRECTORY_FLAGS.AddressOfNameOrdinals)"
-    
+
     # Get equivalent file offsets!
     $ExportFunctionsRVA = Convert-RVAToFileOffset $EXPORT_DIRECTORY_FLAGS.AddressOfFunctions $SectionArray
     $ExportNamesRVA = Convert-RVAToFileOffset $EXPORT_DIRECTORY_FLAGS.AddressOfNames $SectionArray
     $ExportOrdinalsRVA = Convert-RVAToFileOffset $EXPORT_DIRECTORY_FLAGS.AddressOfNameOrdinals $SectionArray
-    
+
     # Loop exports with optional pattern filtering
     $ExportArray = @()
     for ($i = 0; $i -lt $EXPORT_DIRECTORY_FLAGS.NumberOfNames; $i++) {
         # Calculate function name RVA
         $FunctionNameRVA = Convert-RVAToFileOffset $([Runtime.InteropServices.Marshal]::ReadInt32($HModule.ToInt64() + $ExportNamesRVA + ($i * 4))) $SectionArray
         $FunctionName = [System.Runtime.InteropServices.Marshal]::PtrToStringAnsi($HModule.ToInt64() + $FunctionNameRVA)
-  
+
         # Filter based on the provided pattern
         if ([string]::IsNullOrEmpty($FunctionPattern) -or $FunctionName -like $FunctionPattern) {
             $HashTable = @{
@@ -182,17 +182,17 @@ function Get-Exports {
             $ExportArray += $Object
         }
     }
-      
+
     # Print export object
     $ExportArray | Sort-Object Ordinal
-      
+
     # Optionally write ExportToC++ wrapper output with pattern filtering
     if ($ExportsToCpp) {
         foreach ($Entry in $ExportArray | Where-Object { [string]::IsNullOrEmpty($FunctionPattern) -or $_.FunctionName -like $FunctionPattern }) {
             Add-Content $ExportsToCpp "#pragma comment (linker, '/export:$($Entry.FunctionName)=[FORWARD_DLL_HERE].$($Entry.FunctionName),@$($Entry.Ordinal)')"
         }
     }
-      
+
     # Free buffer
     [Runtime.InteropServices.Marshal]::FreeHGlobal($HModule)
 }

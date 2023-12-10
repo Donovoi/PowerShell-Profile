@@ -232,21 +232,25 @@ function Install-PSModules {
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
-                    'Microsoft.PowerShell.ConsoleGuiTools',
-                    'ImportExcel',
-                    'PSWriteColor',
-                    'JWTDetails',
                     '7zip4powershell',
-                    'PSEverything',
-                    'PSFramework',
                     'Crescendo',
-                    'Microsoft.WinGet.Client',
+                    'F7History',
+                    'ImportExcel',
+                    'JWTDetails',
+                    'Microsoft.PowerShell.ConsoleGuiTools',
                     'Microsoft.PowerShell.SecretManagement',
                     'Microsoft.PowerShell.SecretStore',
                     'Microsoft.WinGet.Client',
-                    'PSReflect-Functions'
+                    'PSEverything',
+                    'PSFramework',
+                    'PSReadLine',
+                    'PSReflect-Functions',
+                    'PSWriteColor',
+                    'PowerShellGet',
+                    'PSColors',
+                    'Terminal-Icons',
+                    'posh-git'
                 )
-                return $ModulesToBeInstalled
             }
             elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
                 $ModulesToBeInstalled = $PSModule
@@ -278,27 +282,28 @@ function Install-PSModules {
                         if (-not (Get-Module -Name $_ -ListAvailable)) {
                             Write-Host "Installing module $_"
 
-                            # Save the module locally only if LocalModulesDirectory is not null or empty
-                            if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
-                                Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                            if ($_ -like '*PSReadLine*') {
+                                # Install prerelease version of PSReadLine
+                                Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
+                                Set-PSReadLineOption -PredictionSource History
                             }
 
-                            # Install module
-                            Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck
-                        }
-                        else {
-                            Write-Host "Module $_ already installed"
-                        }
+                            # Save the module locally only if LocalModulesDirectory is not null or empty
+                            if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
+                                $localModule = Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
+                                Import-Module -Name $localModule -Force -Global -ErrorAction SilentlyContinue
+                            }
+                            else {
+                                # Install module
+                                Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck
+                            }
 
-                        # Import modules from local directory if LocalModulesDirectory is not null or empty
-                        if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
-                            # Import module by name
-                            Import-Module -Name $_ -Force -Global -ErrorAction SilentlyContinue
-                        }
-                        else {
-                            # Import all saved modules from local directory
-                            $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
-                            Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+
+                            else {
+                                # Import all saved modules from local directory
+                                $modulesToImport = Get-ChildItem -Path "$PWD/PowerShellScriptsAndResources/Modules" -Include '*.psm1', '*.psd1' -Recurse
+                                Import-Module -Name $modulesToImport -Force -Global -ErrorAction SilentlyContinue
+                            }
                         }
                     }
                     catch {
