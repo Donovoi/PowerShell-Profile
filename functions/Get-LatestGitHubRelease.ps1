@@ -118,7 +118,7 @@ function Get-LatestGitHubRelease {
                     Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
                 }
                 catch {
-                    Write-Host "An error occurred while initializing the secret store: $_" -ForegroundColor Red
+                    Write-Logg -Message "An error occurred while initializing the secret store: $($_)" -Level Error
                     throw
                 }
             }
@@ -272,7 +272,7 @@ function Get-LatestGitHubRelease {
             }
         }
         catch {
-            Write-Host "An error occurred: $_" -ForegroundColor Red
+            Write-Logg -Message "An error occurred: $_" -Level Error
             throw
         }
     }
