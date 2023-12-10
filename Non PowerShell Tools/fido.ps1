@@ -1,8 +1,8 @@
 ï»¿#
 # Fido v1.53 - Feature ISO Downloader, for retail Windows images and UEFI Shell
-# Copyright © 2019-2023 Pete Batard <pete@akeo.ie>
-# Command line support: Copyright © 2021 flx5
-# ConvertTo-ImageSource: Copyright © 2016 Chris Carter
+# Copyright ï¿½ 2019-2023 Pete Batard <pete@akeo.ie>
+# Command line support: Copyright ï¿½ 2021 flx5
+# ConvertTo-ImageSource: Copyright ï¿½ 2016 Chris Carter
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -328,7 +328,7 @@ function Send-Message([string]$PipeName, [string]$Message)
 }
 
 # From https://www.powershellgallery.com/packages/IconForGUI/1.5.2
-# Copyright © 2016 Chris Carter. All rights reserved.
+# Copyright ï¿½ 2016 Chris Carter. All rights reserved.
 # License: https://creativecommons.org/licenses/by-sa/4.0/
 function ConvertTo-ImageSource
 {
@@ -774,7 +774,7 @@ if ($Cmd) {
 	}
 	if ($winVersionId -eq $null) {
 		if ($Win -ne "List") {
-			Write-Host "Invalid Windows version provided."
+			Write-Logg -Message "Invalid Windows version provided." -Level Info
 			Write-Host "Use '-Win List' for a list of available Windows versions."
 		}
 		exit 1
@@ -799,7 +799,7 @@ if ($Cmd) {
 	}
 	if ($winReleaseId -eq $null) {
 		if ($Rel -ne "List") {
-			Write-Host "Invalid Windows release provided."
+			Write-Logg -Message "Invalid Windows release provided." -Level Info
 			Write-Host "Use '-Rel List' for a list of available $Selected releases or '-Rel Latest' for latest."
 		}
 		exit 1
@@ -824,7 +824,7 @@ if ($Cmd) {
 	}
 	if ($winEditionId -eq $null) {
 		if ($Ed -ne "List") {
-			Write-Host "Invalid Windows edition provided."
+			Write-Logg -Message "Invalid Windows edition provided." -Level Info
 			Write-Host "Use '-Ed List' for a list of available editions or remove the -Ed parameter to use default."
 		}
 		exit 1
@@ -859,7 +859,7 @@ if ($Cmd) {
 	}
 	if (!$winLanguageId -or !$winLanguageName) {
 		if ($Lang -ne "List") {
-			Write-Host "Invalid Windows language provided."
+			Write-Logg -Message "Invalid Windows language provided." -Level Info
 			Write-Host "Use '-Lang List' for a list of available languages or remove the option to use system default."
 		}
 		exit 1
@@ -889,7 +889,7 @@ if ($Cmd) {
 	}
 	if ($winLink -eq $null) {
 		if ($Arch -ne "List") {
-			Write-Host "Invalid Windows architecture provided."
+			Write-Logg -Message "Invalid Windows architecture provided." -Level Info
 			Write-Host "Use '-Arch List' for a list of available architectures or remove the option to use system default."
 		}
 		exit 1
@@ -900,7 +900,7 @@ if ($Cmd) {
 		Return $winLink.Link
 		$ExitCode = 0
 	} else {
-		Write-Host "Selected: $Selected"
+		Write-Logg -Message "Selected: $Selected" -Level Info
 		$ExitCode = Process-Download-Link $winLink.Link
 	}
 

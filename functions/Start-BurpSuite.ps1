@@ -45,7 +45,7 @@ Function Start-BurpSuite {
 
             # Start Burp Suite with elevated privileges
             Start-Process "java" -ArgumentList "-Xmx${eightyPercentRAM}k -jar '$BurpSuiteJarPath' --project-file='$projectFilePath'" -Verb RunAs
-            Write-Host "Burp Suite launched successfully with project file: $projectFilePath"
+            Write-Logg -Message "Burp Suite launched successfully with project file: $projectFilePath" -Level Info
         }
         catch {
             Write-Error "Error launching Burp Suite: $_"

@@ -21,7 +21,7 @@ function Get-RepositoryFork {
             . $myProfile
         }
         else {
-            Write-Host "No PowerShell profile found at $myProfile"
+            Write-Logg -Message "No PowerShell profile found at $myProfile" -Level Info
         }
         # if $resetCredentials is set to true then we will delete the credential files
         if ($ResetTokenCreds) {
@@ -188,10 +188,10 @@ function Get-RepositoryFork {
                 $Response = Invoke-RestMethod -Uri $URL -Headers $Headers -Method Post
 
                 if ($Response) {
-                    Write-Host "Successfully forked $Repo"
+                    Write-Logg -Message "Successfully forked $Repo" -Level Info
                 }
                 else {
-                    Write-Host "Failed to fork $Repo"
+                    Write-Logg -Message "Failed to fork $Repo" -Level Info
                 }
             }
         }
@@ -226,7 +226,7 @@ function Get-RepositoryFork {
         }
     }
     catch {
-        Write-Host "Error: $_"
+        Write-Logg -Message "Error: $_" -Level Info
     }
 }
 

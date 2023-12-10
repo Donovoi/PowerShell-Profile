@@ -101,7 +101,7 @@ function Install-PackageProviders {
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
             }
             else {
-                Write-Host 'PackageManagement module already installed'
+                Write-Logg -Message "PackageManagement module already installed" -Level Info
             }
         }
 
@@ -171,10 +171,10 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     foreach ($assembly in $assembliesToAdd) {
         try {
             Add-Type -AssemblyName $assembly -ErrorAction Stop
-            Write-Host "Successfully added assembly: $assembly"
+            Write-Logg -Message "Successfully added assembly: $assembly" -Level Info
         }
         catch {
-            Write-Host "Failed to add assembly: $assembly. Error: $_"
+            Write-Logg -Message "Failed to add assembly: $assembly. Error: $_" -Level Info
         }
     }
 }
@@ -198,19 +198,19 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
 
 
         # Log the installation process (assumes you have a custom logging function)
-        Write-Host 'Installing NuGet dependencies'
+        Write-Logg -Message "Installing NuGet dependencies" -Level Info
 
         if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
             # Install NuGet packages
             Add-NuGetDependencies -NugetPackages $deps
         }
         else {
-            Write-Host 'No NuGet packages to install'
+            Write-Logg -Message "No NuGet packages to install" -Level Info
         }
     }
     catch {
         # Log any errors that occur during the installation
-        Write-Host "An error occurred while installing NuGet packages: $_"
+        Write-Logg -Message "An error occurred while installing NuGet packages: $_" -Level Info
     }
 }
 
@@ -289,7 +289,7 @@ function Install-PSModules {
                     try {
                         # Check if the module is already installed
                         if (-not (Get-Module -Name $_ -ListAvailable)) {
-                            Write-Host "Installing module $_"
+                            Write-Logg -Message "Installing module $_" -Level Info
 
                             if ($_ -like '*PSReadLine*') {
                                 # Install prerelease version of PSReadLine
@@ -321,13 +321,13 @@ function Install-PSModules {
         }
         catch {
             if ($_.Exception.Message -match '.ps1xml') {
-                Write-Host 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.'
+                Write-Logg -Message "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module." -Level Info
                 $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
                 Remove-Item $moduleDir -Recurse -Force
                 Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
             }
             else {
-                Write-Host "An unexpected global error occurred: $_"
+                Write-Logg -Message "An unexpected global error occurred: $_" -Level Info
             }
         }
     }
