@@ -42,7 +42,7 @@ function Install-Cmdlet {
                 $sburls.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1") | Out-Null
             }
             # clean up and remove any empty lines
-            $urls = $sburls.ToString().Split("`n").Trim() | Where-Object { $_ } 
+            $urls = $sburls.ToString().Split("`n").Trim() | Where-Object { $_ }
         }
 
     }

@@ -183,7 +183,7 @@ New-Struct. :P
         }
 
         if ($ExplicitLayout) {
-            $NewField.SetOffset($Offset) 
+            $NewField.SetOffset($Offset)
         }
     }
 

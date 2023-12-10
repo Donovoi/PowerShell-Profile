@@ -181,17 +181,17 @@ are all incorporated into the same in-memory module.
             $CharsetField = $DllImport.GetField('CharSet')
             $EntryPointField = $DllImport.GetField('EntryPoint')
             if ($SetLastError) {
-                $SLEValue = $True 
+                $SLEValue = $True
             }
             else {
-                $SLEValue = $False 
+                $SLEValue = $False
             }
 
             if ($PSBoundParameters['EntryPoint']) {
-                $ExportedFuncName = $EntryPoint 
+                $ExportedFuncName = $EntryPoint
             }
             else {
-                $ExportedFuncName = $FunctionName 
+                $ExportedFuncName = $FunctionName
             }
 
             # Equivalent to C# version of [DllImport(DllName)]

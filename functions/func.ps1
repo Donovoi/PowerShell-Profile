@@ -41,19 +41,19 @@ function func {
     }
 
     if ($ParameterTypes) {
-        $Properties['ParameterTypes'] = $ParameterTypes 
+        $Properties['ParameterTypes'] = $ParameterTypes
     }
     if ($NativeCallingConvention) {
-        $Properties['NativeCallingConvention'] = $NativeCallingConvention 
+        $Properties['NativeCallingConvention'] = $NativeCallingConvention
     }
     if ($Charset) {
-        $Properties['Charset'] = $Charset 
+        $Properties['Charset'] = $Charset
     }
     if ($SetLastError) {
-        $Properties['SetLastError'] = $SetLastError 
+        $Properties['SetLastError'] = $SetLastError
     }
     if ($EntryPoint) {
-        $Properties['EntryPoint'] = $EntryPoint 
+        $Properties['EntryPoint'] = $EntryPoint
     }
 
     New-Object PSObject -Property $Properties
