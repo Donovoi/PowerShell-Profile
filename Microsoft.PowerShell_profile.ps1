@@ -76,53 +76,12 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-
   winget install JanDeDobbeleer.OhMyPosh
 }
 
-if ($PSVersionTable.PSVersion -ge [Version]'7.2') {
-  Set-PSReadLineOption -PredictionSource HistoryAndPlugin
-  Set-PSReadLineOption -PredictionViewStyle ListView
-  Set-PSReadLineOption -EditMode Windows
-}
-
+# Invoke an awesome sample of PSReadline bindings
+Invoke-SamplePSReadLineProfile
 
 # Crazy oh my posh random theme function
-function Invoke-OhMyPoshRandomTheme {
-  # Get a list of all available Oh My Posh themes
-  # check if folder exists
-  if (Test-Path "$ENV:USERPROFILE\AppData\Local\Programs\oh-my-posh\themes") {
-    $themes = Get-ChildItem "$ENV:USERPROFILE\AppData\Local\Programs\oh-my-posh\themes" -Filter '*.omp.json'
-  }
-  else {
-
-    $themes = Get-PoshThemes
-
-  }
-  # Select a random theme
-  $theme = Get-Random -InputObject $themes
-
-  # Initialize Oh My Posh with the random theme
-  oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression
-}
-
 Invoke-OhMyPoshRandomTheme
 
-# This is an example of a macro that you might use to execute a command.
-# This will add the command to history.
-Set-PSReadLineKeyHandler -Key Ctrl+Shift+b `
-  -BriefDescription BuildCurrentDirectory `
-  -LongDescription 'Build the current directory' `
-  -ScriptBlock {
-  [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-  [Microsoft.PowerShell.PSConsoleReadLine]::Insert('dotnet build')
-  [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-}
-
-Set-PSReadLineKeyHandler -Key Ctrl+Shift+t `
-  -BriefDescription BuildCurrentDirectory `
-  -LongDescription 'Build the current directory' `
-  -ScriptBlock {
-  [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-  [Microsoft.PowerShell.PSConsoleReadLine]::Insert('dotnet test')
-  [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-}
 
 # Import the Chocolatey Profile that contains the necessary code to enable
 # tab-completions to function for `choco`.
