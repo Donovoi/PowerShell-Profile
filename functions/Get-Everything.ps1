@@ -75,7 +75,7 @@ function Get-Everything {
           '-start-service',
           '-no-case',
           '-no-diacritics',
-          "-filename $SearchTerm",
+          "-filename `"$SearchTerm`"",
           '-regex',
           '-no-ignore-punctuation',
           '-no-ignore-white-space',
