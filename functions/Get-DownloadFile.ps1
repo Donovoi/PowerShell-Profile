@@ -151,7 +151,7 @@ function Get-DownloadFile {
                     else {
                         # Generate a temp filename
                         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                        $fileExtension = [System.IO.Path]::GetExtension([System.Uri]::new($downloadUrl).LocalPath)
+                        $fileExtension = [System.IO.Path]::GetExtension([System.Uri]::new($download).LocalPath)
                         $finalFileName = "TempFile-$timestamp$fileExtension"
                     }
 

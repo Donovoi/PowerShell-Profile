@@ -129,9 +129,9 @@ function Invoke-AriaDownload {
             }
             # Get all interfaces that can download the file
             $interfaces = @()
-            Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
+            Get-NetAdapter  -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                 $adapter = $_
-                Get-NetIPAddress -InterfaceIndex $adapter.ifIndex | Where-Object {
+                Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -ErrorAction SilentlyContinue | Where-Object {
                     $_.AddressFamily -eq 'IPv4' -and $_.PrefixOrigin -ne 'WellKnown' -and $_.SuffixOrigin -ne 'WellKnown'
                 } | ForEach-Object {
                     $interfaces += $_.IPAddress
