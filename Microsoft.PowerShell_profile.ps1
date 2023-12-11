@@ -28,16 +28,16 @@ if (-not (Get-Command 'write-logg' -ErrorAction SilentlyContinue)) {
     # Map 'write-logg' level to 'Write-Host' color
     switch ($level) {
       'error' {
-        $color = 'Red' 
+        $color = 'Red'
       }
       'warning' {
-        $color = 'Yellow' 
+        $color = 'Yellow'
       }
       'info' {
-        $color = 'Green' 
+        $color = 'Green'
       }
       default {
-        $color = 'White' 
+        $color = 'White'
       }
     }
     # Call Write-Host with the mapped color and message

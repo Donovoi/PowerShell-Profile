@@ -54,12 +54,12 @@ function Get-Everything {
       $EverythingCLI = Get-ChildItem -Path $EverythingDirectory -Filter 'es.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
       $EverythingPortable = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
       try {
-  
+
 
         # We will now start everything portable with the right arguments/needs to be as forensically sound as possible:
         # Get a list of all volumes
         $AllVolumesExceptScriptVolume = $Volume.Where{ $_ -ne $PWD.Drive.Name }
-        # create a string for the command line arguments 
+        # create a string for the command line arguments
         $createUSNJounal = @{}
         $maxusnjournalsizebytes = 1GB
         $AllVolumesExceptScriptVolume.ForEach{ $createUSNJounal.Add('-create-usn-journal', $_, $maxusnjournalsizebytes ) }
@@ -94,7 +94,7 @@ function Get-Everything {
         & $EverythingPortable $EverythingPortableOptions
         # start everything cli
         & $EverythingCLI '-s', $SearchTerm
-  
+
       }
       catch {
         <#Do this if a terminating exception happens#>
@@ -107,7 +107,7 @@ function Get-Everything {
     }
   }
   process {
-  
+
 
   }
 
