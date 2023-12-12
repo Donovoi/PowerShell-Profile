@@ -7,27 +7,34 @@ function Invoke-MetaInspect {
     )
 
     process {
-        Add-Type -AssemblyName dnlib
+        Add-Type -Path "F:\Projects\PowerShell-Profile\Libraries\lib\dnlib.dll"
         
 
 
         # Load the dll with dnlib
-        $MyModule = [dnlib.DotNet.ModuleDefMD]::Load("$InspectedAssemblyPath", [dnlib.DotNet.ModuleContext]::new())
+        $module = [dnlib.DotNet.ModuleDefMD]::Load("$InspectedAssemblyPath", [dnlib.DotNet.ModuleContext]::new())
 
-        # Enumerate all Types
-        $Types = $MyModule.GetTypes()
-
-        # For every type definition, inspect the properties 
-        # Filter their CustomAttributes against the attribute name we expect
-        # Finally output the property name(s)
-        $Types | ForEach-Object {
-            $Params = $_.Properties | Where-Object {
-                $_.CustomAttributes.AttributeType.FullName -eq [Parameter].FullName
+        
+        # Extract method information
+        $methodInfos = @()
+        foreach ($type in $module.GetTypes()) {
+            foreach ($method in $type.Methods) {
+                # Assuming you want to handle only public static methods for simplicity
+                if ($method.IsStatic) {
+                    $methodInfos += @{
+                        TypeName   = $type.FullName
+                        MethodName = $method.Name
+                        # parameters
+                        Parameters = $method.Parameters
+                        # return type
+                        ReturnType = $method.ReturnType
+                        # method body
+                        Body       = $method.Body
+                    }
+                }
             }
-            $Params.Name
         }
-
+        return $methodInfos
     }
 }
-
 
