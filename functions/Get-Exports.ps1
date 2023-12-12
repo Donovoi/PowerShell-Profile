@@ -38,7 +38,9 @@ function Get-Exports {
         [Parameter(Mandatory = $False)]
         [string]$ExportsToCpp,
         [Parameter(Mandatory = $False)]
-        [string]$FunctionPattern
+        [string]$FunctionPattern,
+        [Parameter(Mandatory = $False)]
+        [switch]$exportsignatures
     )
 
     Add-Type -TypeDefinition @'
@@ -192,6 +194,27 @@ function Get-Exports {
             Add-Content $ExportsToCpp "#pragma comment (linker, '/export:$($Entry.FunctionName)=[FORWARD_DLL_HERE].$($Entry.FunctionName),@$($Entry.Ordinal)')"
         }
     }
+
+    # optionally export every version of each function, detailing the arguments and return type
+    # Load the DLL
+    Add-Type -Path $DllPath
+
+    # Get all types in the DLL
+    $types = [System.AppDomain]::CurrentDomain.GetAssemblies() |
+        Where-Object { $_.Location -eq $DllPath } |
+            ForEach-Object { $_.GetTypes() }
+
+    # Loop through each type and get its methods (public and non-public)
+    foreach ($type in $types) {
+        $type.GetMethods('NonPublic,Public,Static,Instance') |
+            Where-Object { $_.DeclaringType -eq $type } |
+                ForEach-Object {
+                    # Create the function signature
+                    $signature = $_.ToString()
+                    Write-Output "$signature"
+                }
+    }
+
 
     # Free buffer
     [Runtime.InteropServices.Marshal]::FreeHGlobal($HModule)
