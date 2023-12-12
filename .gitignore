@@ -25,3 +25,23 @@ Modules/PowerForensics
 Non PowerShell Tools/mft
 Non PowerShell Tools/ntfstool
 Non PowerShell Tools/Windows10Debloater
+Libraries/lib/net462/System.Reflection.MetadataLoadContext.xml
+Libraries/lib/net6.0/System.Reflection.MetadataLoadContext.xml
+Libraries/lib/net7.0/System.Reflection.MetadataLoadContext.xml
+Libraries/lib/net8.0/System.Reflection.MetadataLoadContext.xml
+Libraries/lib/netstandard2.0/System.Reflection.MetadataLoadContext.xml
+Libraries/lib/MonoAndroid10/_._
+Libraries/lib/MonoTouch10/_._
+Libraries/lib/net45/_._
+Libraries/lib/portable-net45%2Bwin8%2Bwp80%2Bwpa81/_._
+Libraries/lib/win8/_._
+Libraries/lib/wp80/_._
+Libraries/lib/wpa81/_._
+Libraries/lib/xamarinios10/_._
+Libraries/lib/xamarinmac20/_._
+Libraries/lib/xamarintvos10/_._
+Libraries/lib/xamarinwatchos10/_._
+Non PowerShell Tools/everything sdk/.vs/everything sdk/FileContentIndex/6ee6b113-ad25-44ae-ae4b-77623bc2045a.vsidx
+Non PowerShell Tools/everything sdk/.vs/everything sdk/FileContentIndex/546632b3-8900-47a1-a50f-a8237e8455bd.vsidx
+Non PowerShell Tools/everything sdk/.vs/everything sdk/FileContentIndex/ecc335b6-6691-4c43-a8e6-7d5e4374a86b.vsidx
+Non PowerShell Tools/everything sdk/.vs/everything sdk/v17/.wsuo
