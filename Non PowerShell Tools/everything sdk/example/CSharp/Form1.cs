@@ -222,7 +222,7 @@ namespace WindowsApplication1
 			// set the search
 			Everything_SetSearchW(textBox1.Text);
 
-			// use our own custom scrollbar... 			
+			// use our own custom scrollbar...
 			// Everything_SetMax(listBox1.ClientRectangle.Height / listBox1.ItemHeight);
 			// Everything_SetOffset(VerticalScrollBarPosition...);
 
@@ -237,7 +237,7 @@ namespace WindowsApplication1
 			// sort by path
 			// Everything_SortResultsByPath();
 
-			// clear the old list of results			
+			// clear the old list of results
 			listBox1.Items.Clear();
 
 			// set the window title
@@ -252,7 +252,7 @@ namespace WindowsApplication1
 				Everything_GetResultDateModified(i, out date_modified);
 				Everything_GetResultSize(i, out size);
 
-				// add it to the list box				
+				// add it to the list box
 				listBox1.Items.Insert((int)i, "Size: " + size.ToString() + " Date Modified: " + DateTime.FromFileTime(date_modified).Year + "/" + DateTime.FromFileTime(date_modified).Month + "/" + DateTime.FromFileTime(date_modified).Day + " " + DateTime.FromFileTime(date_modified).Hour + ":" + DateTime.FromFileTime(date_modified).Minute.ToString("D2") + " Filename: " + Marshal.PtrToStringUni(Everything_GetResultFileName(i)));
 			}
 		}

@@ -164,7 +164,7 @@ Known issues:
         [Alias('Modules')]
         [Diagnostics.ProcessModule[]]
         $Module,
-        
+
         [Parameter(ParameterSetName = 'InMemory')]
         [String]
         [ValidateScript({ [IO.Directory]::Exists((Resolve-Path $_).Path) })]
@@ -220,7 +220,7 @@ Known issues:
                     return [IntPtr] ($Rva.ToInt64() - ($Section.VirtualAddress - $Section.PointerToRawData))
                 }
             }
-        
+
             # Pointer did not fall in the address ranges of the section headers
             return $Rva
         }
@@ -562,7 +562,7 @@ Known issues:
         $ImageThunkData64 = struct $Mod PE.IMAGE_THUNK_DATA64 @{
             AddressOfData = field 0 Int64
         }
-        
+
         $ImageImportByName = struct $Mod PE.IMAGE_IMPORT_BY_NAME @{
             Hint = field 0 UInt16
             Name = field 1 char
@@ -586,7 +586,7 @@ Known issues:
 
         $FullDumpPath = $null
         if ($DumpDirectory) {
-            $FullDumpPath = (Resolve-Path $DumpDirectory).Path 
+            $FullDumpPath = (Resolve-Path $DumpDirectory).Path
         }
     }
 
@@ -600,17 +600,17 @@ Known issues:
             'OnDisk' {
                 if ($FilePath.Length -gt 1) {
                     foreach ($Path in $FilePath) {
-                        Get-PE -FilePath $Path 
+                        Get-PE -FilePath $Path
                     }
                 }
-            
+
                 if (!(Test-Path $FilePath)) {
                     Write-Warning 'Invalid path or file does not exist.'
                     return
                 }
-            
+
                 $FilePath = (Resolve-Path $FilePath).Path
-            
+
                 $ModuleName = $FilePath
                 # Treat a byte array as if it were a file on disk
                 $ImageType = 'File'
@@ -623,7 +623,7 @@ Known issues:
                 $Handle = [Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
                 $PEHeaderAddr = $Handle.AddrOfPinnedObject()
                 if (!$PEHeaderAddr) {
-                    throw 'Unable to allocate local memory to store a copy of the PE header.' 
+                    throw 'Unable to allocate local memory to store a copy of the PE header.'
                 }
             }
 
@@ -639,7 +639,7 @@ Known issues:
                 $Handle = [Runtime.InteropServices.GCHandle]::Alloc($FileBytes, 'Pinned')
                 $PEHeaderAddr = $Handle.AddrOfPinnedObject()
                 if (!$PEHeaderAddr) {
-                    throw 'Unable to allocate local memory to store a copy of the PE header.' 
+                    throw 'Unable to allocate local memory to store a copy of the PE header.'
                 }
             }
 
@@ -657,7 +657,7 @@ Known issues:
                 }
 
                 if (-not $ModuleBaseAddress) {
-                    return 
+                    return
                 }
 
                 # Default to a loaded image unless determined otherwise
@@ -669,13 +669,13 @@ Known issues:
                 # Allocate space for when the PE header is read from the remote process
                 $PEHeaderAddr = [Runtime.InteropServices.Marshal]::AllocHGlobal($HeaderSize)
                 if (!$PEHeaderAddr) {
-                    throw 'Unable to allocate local memory to store a copy of the PE header.' 
+                    throw 'Unable to allocate local memory to store a copy of the PE header.'
                 }
 
                 # Get handle to the process
                 # PROCESS_VM_READ (0x00000010) | PROCESS_QUERY_INFORMATION (0x00000400)
                 $hProcess = $Kernel32::OpenProcess(0x410, $False, $ProcessID)
-        
+
                 if (-not $hProcess) {
                     throw "Unable to get a process handle for process ID: $ProcessID"
                 }
@@ -725,7 +725,7 @@ Known issues:
 
                         Write-Error $ErrorMessage
                     }
-            
+
                     $null = $Kernel32::CloseHandle($hProcess)
                     [Runtime.InteropServices.Marshal]::FreeHGlobal($PEHeaderAddr)
                     return
@@ -942,7 +942,7 @@ Known issues:
                 else {
                     Write-Error "Failed to read PE header of process ID: $ProcessID"
                 }
-            
+
                 $null = $Kernel32::CloseHandle($hProcess)
                 [Runtime.InteropServices.Marshal]::FreeHGlobal($PEBase)
 
@@ -1000,7 +1000,7 @@ Known issues:
                 $SectionMaxRVA = $SectionHeaders[$i].VirtualAddress + $SectionSize
                 $SectionRVA = $SectionHeaders[$i].VirtualAddress
             }
-                
+
             $MaxFileOffset = $SectionHeaders[$i].PointerToRawData + $SectionHeaders[$i].SizeOfRawData
 
             if ($MaxFileOffset -gt $SizeOfPEFile) {
@@ -1111,7 +1111,7 @@ Known issues:
 
         # The process read handle is no longer needed at this point.
         if ($ImageType -ne 'File') {
-            $null = $Kernel32::CloseHandle($hProcess) 
+            $null = $Kernel32::CloseHandle($hProcess)
         }
 
         Write-Verbose 'Processing debug directory...'
@@ -1134,7 +1134,7 @@ Known issues:
             }
 
             $DebugDir = $DebugDirPtr -as $ImageDebugDir
-            
+
             $DebugInfo = $DebugDir
 
             $CodeViewInfo = $null
@@ -1208,12 +1208,12 @@ Known issues:
                 $ImportDescriptor = $ImportDescriptorPtr -as $ImageImportDescriptor
 
                 if ($ImportDescriptor.OriginalFirstThunk -eq 0) {
-                    break 
+                    break
                 }
 
                 $DllNamePtr = [IntPtr] ($PEBase.ToInt64() + $ImportDescriptor.Name)
                 if ($ImageIsDatafile) {
-                    $DllNamePtr = Convert-RVAToFileOffset $DllNamePtr $SectionHeaders $PEBase 
+                    $DllNamePtr = Convert-RVAToFileOffset $DllNamePtr $SectionHeaders $PEBase
                 }
 
                 if (!(Test-Pointer $DllNamePtr 256 $PEBase $PELen)) {
@@ -1304,22 +1304,22 @@ Known issues:
                         $Result['Ordinal'] = ''
                         $Result['FunctionName'] = $FuncName
                     }
-                
+
                     $Result['RVA'] = $FuncAddr.AddressOfData
 
                     if ($FuncAddr.AddressOfData -eq 0) {
-                        break 
+                        break
                     }
                     if ($OFTPtr -eq 0) {
-                        break 
+                        break
                     }
-                
+
                     $Import = New-Object PSObject -Property $Result
                     $Import.PSObject.TypeNames.Insert(0, 'PE.Import')
                     $Imports.Add($Import)
-                
+
                     $j++
-                
+
                 }
 
                 $Fields = @{
@@ -1351,15 +1351,15 @@ Known issues:
             $ExportPointer = [IntPtr] ($PEBase.ToInt64() + $NtHeader.OptionalHeader.DataDirectory[0].VirtualAddress)
             # This range will be used to test for the existence of forwarded functions
             $ExportDirLow = $NtHeader.OptionalHeader.DataDirectory[0].VirtualAddress
-            if ($ImageIsDatafile) { 
+            if ($ImageIsDatafile) {
                 $ExportPointer = Convert-RVAToFileOffset $ExportPointer $SectionHeaders $PEBase
                 $ExportDirLow = Convert-RVAToFileOffset $ExportDirLow $SectionHeaders $PEBase
                 $ExportDirHigh = $ExportDirLow.ToInt32() + $NtHeader.OptionalHeader.DataDirectory[0].Size
             }
             else {
-                $ExportDirHigh = $ExportDirLow + $NtHeader.OptionalHeader.DataDirectory[0].Size 
+                $ExportDirHigh = $ExportDirLow + $NtHeader.OptionalHeader.DataDirectory[0].Size
             }
-            
+
             if (!(Test-Pointer $ExportPointer $ImageExportDir::GetSize() $PEBase $PELen)) {
                 Write-Verbose 'Export directory address exceeded the reported address range.'
             }
@@ -1384,7 +1384,7 @@ Known issues:
                 if ($NumFunctions -gt 0) {
                     # Create an empty hash table that will contain indices to exported functions and their RVAs
                     $FunctionHashTable = @{}
-        
+
                     foreach ($i in 0..($NumFunctions - 1)) {
                         $FuncAddr = $AddressOfFunctionsPtr.ToInt64() + ($i * 4)
 
@@ -1397,13 +1397,13 @@ Known issues:
                         # Function is exported by ordinal if $RvaFunction -ne 0.
                         # I.E. NumberOfFunction != the number of actual, exported functions.
                         if ($RvaFunction) {
-                            $FunctionHashTable[[Int]$i] = $RvaFunction 
+                            $FunctionHashTable[[Int]$i] = $RvaFunction
                         }
                     }
-            
+
                     # Create an empty hash table that will contain indices into RVA array and the function's name
                     $NameHashTable = @{}
-            
+
                     foreach ($i in 0..($NumNames - 1)) {
                         $NamePtr = $AddressOfNamePtr.ToInt64() + ($i * 4)
 
@@ -1415,7 +1415,7 @@ Known issues:
                         $RvaName = [Runtime.InteropServices.Marshal]::ReadInt32($NamePtr)
                         $FuncNameAddr = [IntPtr] ($PEBase.ToInt64() + $RvaName)
                         if ($ImageIsDatafile) {
-                            $FuncNameAddr = Convert-RVAToFileOffset $FuncNameAddr $SectionHeaders $PEBase 
+                            $FuncNameAddr = Convert-RVAToFileOffset $FuncNameAddr $SectionHeaders $PEBase
                         }
 
                         if (!(Test-Pointer $FuncNameAddr 256 $PEBase $PELen)) {
@@ -1434,17 +1434,17 @@ Known issues:
                         $NameOrdinal = [Int][Runtime.InteropServices.Marshal]::ReadInt16($OrdinalPtr)
                         $NameHashTable[$NameOrdinal] = $FuncName
                     }
-            
+
                     foreach ($Key in $FunctionHashTable.Keys) {
                         $Result = @{}
-                
+
                         if ($NameHashTable[$Key]) {
                             $Result['FunctionName'] = $NameHashTable[$Key]
                         }
                         else {
                             $Result['FunctionName'] = ''
                         }
-                
+
                         if (($FunctionHashTable[$Key] -ge $ExportDirLow) -and ($FunctionHashTable[$Key] -lt $ExportDirHigh)) {
                             $ForwardedNameAddr = [IntPtr] ($PEBase.ToInt64() + $FunctionHashTable[$Key])
 
@@ -1463,10 +1463,10 @@ Known issues:
                         else {
                             $Result['ForwardedName'] = ''
                         }
-                
+
                         $Result['Ordinal'] = $Key + $Base
                         $Result['RVA'] = $FunctionHashTable[$Key]
-                
+
                         $Export = New-Object PSObject -Property $Result
                         $Export.PSObject.TypeNames.Insert(0, 'PE.Export')
                         $Exports.Add($Export)
@@ -1610,10 +1610,10 @@ Known issues:
             }
 
             if ($Is64Bit) {
-                $Format = 'X16' 
+                $Format = 'X16'
             }
             else {
-                $Format = 'X8' 
+                $Format = 'X8'
             }
 
             if ($ModuleName) {
@@ -1689,7 +1689,7 @@ Known issues:
                     catch {
                         throw "Unable to download the original file from $Request"
                     }
-                
+
                     $FileWithoutExt = $FileName.Substring(0, $FileName.LastIndexOf('.'))
                     $CabPath = Join-Path $OriginalPEDirectory "$FileWithoutExt.cab"
                     [IO.File]::WriteAllBytes($CabPath, $CabBytes)
@@ -1736,7 +1736,7 @@ Known issues:
 
             $PE
         }
-        
+
         if ($ImageType -eq 'File') {
             $Handle.Free()
         }
@@ -1821,10 +1821,10 @@ but obviously, this is extremely easy to evade.
             $Bytes = [Runtime.InteropServices.Marshal]::ReadInt16($Ptr).ToString('X4')
 
             if ($PSBoundParameters['Verbose']) {
-                $Verbose = $True 
+                $Verbose = $True
             }
             else {
-                $Verbose = $False 
+                $Verbose = $False
             }
 
             $Params = @{
