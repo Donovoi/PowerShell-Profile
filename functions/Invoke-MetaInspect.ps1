@@ -8,13 +8,13 @@ function Invoke-MetaInspect {
 
     process {
         Add-Type -Path "F:\Projects\PowerShell-Profile\Libraries\lib\dnlib.dll"
-        
+
 
 
         # Load the dll with dnlib
         $module = [dnlib.DotNet.ModuleDefMD]::Load("$InspectedAssemblyPath", [dnlib.DotNet.ModuleContext]::new())
 
-        
+
         # Extract method information
         $methodInfos = @()
         foreach ($type in $module.GetTypes()) {

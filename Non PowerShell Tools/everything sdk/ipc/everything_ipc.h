@@ -32,7 +32,7 @@ extern "C" {
 // HWND everything_taskbar_notification_hwnd = FindWindow(EVERYTHING_IPC_WNDCLASS,0);
 // SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_*,lParam)
 
-// version format: major.minor.revision.build 
+// version format: major.minor.revision.build
 // example: 1.4.1.877
 #define EVERYTHING_IPC_GET_MAJOR_VERSION								0 // int major_version = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_MAJOR_VERSION,0);
 #define EVERYTHING_IPC_GET_MINOR_VERSION								1 // int minor_version = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_MINOR_VERSION,0);
@@ -70,7 +70,7 @@ extern "C" {
 #define EVERYTHING_IPC_IS_NTFS_DRIVE_INDEXED							400 // int is_indexed = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_NTFS_DRIVE_INDEXED,drive_index); drive_index: 0-25 = 0=A:, 1=B:, 2=C:...
 
 // requires Everything 1.4:
-#define EVERYTHING_IPC_IS_DB_LOADED										401 // int is_db_loaded = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_DB_LOADED,0); 
+#define EVERYTHING_IPC_IS_DB_LOADED										401 // int is_db_loaded = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_DB_LOADED,0);
 #define EVERYTHING_IPC_IS_DB_BUSY										402 // int is_db_busy = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_DB_BUSY,0); // db is busy, issueing another action will cancel the current one (if possible).
 #define EVERYTHING_IPC_IS_ADMIN											403 // int is_admin = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_ADMIN,0);
 #define EVERYTHING_IPC_IS_APPDATA										404 // int is_appdata = (int)SendMessage(everything_taskbar_notification_hwnd,EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_APPDATA,0);
@@ -87,27 +87,27 @@ extern "C" {
 
 // send the following to an existing Everything search window (requires Everything 1.4.1)
 // SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_*,0);
-#define EVERYTHING_IPC_IS_MATCH_CASE									500 // int is_match_case = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_CASE,0); 
-#define EVERYTHING_IPC_IS_MATCH_WHOLE_WORD								501 // int is_match_whole_words = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_WHOLE_WORD,0); 
-#define EVERYTHING_IPC_IS_MATCH_PATH									502 // int is_match_path = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_PATH,0); 
-#define EVERYTHING_IPC_IS_MATCH_DIACRITICS								503 // int is_match_diacritics = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_DIACRITICS,0); 
-#define EVERYTHING_IPC_IS_REGEX											504 // int is_regex = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_REGEX,0); 
-#define EVERYTHING_IPC_IS_FILTERS										505 // int is_filters = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_FILTERS,0); 
-#define EVERYTHING_IPC_IS_PREVIEW										506 // int is_preview = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_PREVIEW,0); 
-#define EVERYTHING_IPC_IS_STATUS_BAR									507 // int is_status_bar = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_STATUS_BAR,0); 
-#define EVERYTHING_IPC_IS_DETAILS										508 // int is_details = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_DETAILS,0); 
+#define EVERYTHING_IPC_IS_MATCH_CASE									500 // int is_match_case = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_CASE,0);
+#define EVERYTHING_IPC_IS_MATCH_WHOLE_WORD								501 // int is_match_whole_words = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_WHOLE_WORD,0);
+#define EVERYTHING_IPC_IS_MATCH_PATH									502 // int is_match_path = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_PATH,0);
+#define EVERYTHING_IPC_IS_MATCH_DIACRITICS								503 // int is_match_diacritics = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_DIACRITICS,0);
+#define EVERYTHING_IPC_IS_REGEX											504 // int is_regex = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_REGEX,0);
+#define EVERYTHING_IPC_IS_FILTERS										505 // int is_filters = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_FILTERS,0);
+#define EVERYTHING_IPC_IS_PREVIEW										506 // int is_preview = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_PREVIEW,0);
+#define EVERYTHING_IPC_IS_STATUS_BAR									507 // int is_status_bar = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_STATUS_BAR,0);
+#define EVERYTHING_IPC_IS_DETAILS										508 // int is_details = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_DETAILS,0);
 #define EVERYTHING_IPC_GET_THUMBNAIL_SIZE								509 // int thumbnail_size = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_GET_THUMBNAIL_SIZE,0); 0 = details
 #define EVERYTHING_IPC_GET_SORT											510 // int sort = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_GET_SORT,0); sort can be one of EVERYTHING_IPC_SORT_* types.
 #define EVERYTHING_IPC_GET_ON_TOP										511 // int on_top = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_ON_TOP,0); 0=never, 1=always, 2=while searching.
 #define EVERYTHING_IPC_GET_FILTER										512 // int filter = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_FILTER,0); filter can be one of EVERYTHING_IPC_FILTER_* types.
-#define EVERYTHING_IPC_GET_FILTER_INDEX									513 // int filter_index = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_FILTER_INDEX,0); 
+#define EVERYTHING_IPC_GET_FILTER_INDEX									513 // int filter_index = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_GET_FILTER_INDEX,0);
 
 // Everything 1.5
-#define EVERYTHING_IPC_IS_MATCH_PREFIX									514	// int is_match_prefix = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_PREFIX,0); 
-#define EVERYTHING_IPC_IS_MATCH_SUFFIX									515	// int is_match_suffix = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_SUFFIX,0); 
-#define EVERYTHING_IPC_IS_IGNORE_PUNCTUATION							516	// int is_ignore_punctuation = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_IGNORE_PUNCTUATION,0); 
-#define EVERYTHING_IPC_IS_IGNORE_WHITESPACE								517	// int is_ignore_whitespace = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_IGNORE_WHITESPACE,0); 
-#define EVERYTHING_IPC_IS_SEARCH_AS_YOU_TYPE							518 // int is_search_as_you_type = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_SEARCH_AS_YOU_TYPE,0); 
+#define EVERYTHING_IPC_IS_MATCH_PREFIX									514	// int is_match_prefix = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_PREFIX,0);
+#define EVERYTHING_IPC_IS_MATCH_SUFFIX									515	// int is_match_suffix = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_MATCH_SUFFIX,0);
+#define EVERYTHING_IPC_IS_IGNORE_PUNCTUATION							516	// int is_ignore_punctuation = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_IGNORE_PUNCTUATION,0);
+#define EVERYTHING_IPC_IS_IGNORE_WHITESPACE								517	// int is_ignore_whitespace = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_IGNORE_WHITESPACE,0);
+#define EVERYTHING_IPC_IS_SEARCH_AS_YOU_TYPE							518 // int is_search_as_you_type = (int)SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),EVERYTHING_WM_IPC,EVERYTHING_IPC_IS_SEARCH_AS_YOU_TYPE,0);
 
 // command IDs to send to an Everything search window.
 // SendMessage(FindWindow(EVERYTHING_IPC_SEARCH_CLIENT_WNDCLASS,0),WM_COMMAND,MAKEWPARAM(EVERYTHING_IPC_ID_*,0),0);
@@ -134,7 +134,7 @@ extern "C" {
 #define EVERYTHING_IPC_ID_VIEW_ONTOP_MENU								10025
 #define EVERYTHING_IPC_ID_PREVIEW										10026
 
-// TRAY 
+// TRAY
 #define EVERYTHING_IPC_ID_TRAY_NEW_SEARCH_WINDOW						40001
 #define EVERYTHING_IPC_ID_TRAY_CONNECT_TO_ETP_SERVER					40004
 #define EVERYTHING_IPC_ID_TRAY_OPTIONS									40005
@@ -143,15 +143,15 @@ extern "C" {
 #define EVERYTHING_IPC_ID_TRAY_TOGGLE_SEARCH_WINDOW						40008
 
 // FILE
-#define EVERYTHING_IPC_ID_FILE_NEW_WINDOW								40010 
-#define EVERYTHING_IPC_ID_FILE_CLOSE									40011 
-#define EVERYTHING_IPC_ID_FILE_EXPORT									40012 
+#define EVERYTHING_IPC_ID_FILE_NEW_WINDOW								40010
+#define EVERYTHING_IPC_ID_FILE_CLOSE									40011
+#define EVERYTHING_IPC_ID_FILE_EXPORT									40012
 #define EVERYTHING_IPC_ID_FILE_EXIT										40013
 #define EVERYTHING_IPC_ID_FILE_OPEN_FILELIST							40014
 #define EVERYTHING_IPC_ID_FILE_CLOSE_FILELIST							40015
 
 // EDIT
-#define EVERYTHING_IPC_ID_EDIT_CUT										40020 
+#define EVERYTHING_IPC_ID_EDIT_CUT										40020
 #define EVERYTHING_IPC_ID_EDIT_COPY										40021
 #define EVERYTHING_IPC_ID_EDIT_PASTE									40022
 #define EVERYTHING_IPC_ID_EDIT_SELECT_ALL								40023
@@ -435,14 +435,14 @@ extern "C" {
 #define EVERYTHING_IPC_FOLDER											0x00000001	// The item is a folder. (it's a file if not set)
 #define EVERYTHING_IPC_DRIVE											0x00000002	// the file or folder is a drive/root.
 #define EVERYTHING_IPC_ROOT												0x00000002	// the file or folder is a root.
-																					
+
 typedef struct EVERYTHING_IPC_COMMAND_LINE
 {
 	DWORD show_command; // MUST be one of the SW_* ShowWindow() commands
-	
+
 	// null terminated variable sized command line text in UTF-8.
 	BYTE command_line_text[1];
-	
+
 }EVERYTHING_IPC_COMMAND_LINE;
 
 // the WM_COPYDATA message for a query.
@@ -466,24 +466,24 @@ typedef struct EVERYTHING_IPC_COMMAND_LINE
 //
 // Varible sized query struct sent to everything.
 //
-// sent in the form of a WM_COPYDATA message with EVERYTHING_IPC_COPYDATAQUERY as the 
+// sent in the form of a WM_COPYDATA message with EVERYTHING_IPC_COPYDATAQUERY as the
 // dwData member in the COPYDATASTRUCT struct.
 // set the lpData member of the COPYDATASTRUCT struct to point to your EVERYTHING_IPC_QUERY struct.
-// set the cbData member of the COPYDATASTRUCT struct to the size of the 
-// EVERYTHING_IPC_QUERY struct minus the size of a TCHAR plus the length of the search string in bytes plus 
+// set the cbData member of the COPYDATASTRUCT struct to the size of the
+// EVERYTHING_IPC_QUERY struct minus the size of a TCHAR plus the length of the search string in bytes plus
 // one TCHAR for the null terminator.
 //
-// NOTE: to determine the size of this structure use 
+// NOTE: to determine the size of this structure use
 // ASCII: sizeof(EVERYTHING_IPC_QUERYA) - sizeof(CHAR) + strlen(search_string)*sizeof(CHAR) + sizeof(CHAR)
 // UNICODE: sizeof(EVERYTHING_IPC_QUERYW) - sizeof(WCHAR) + wcslen(search_string)*sizeof(WCHAR) + sizeof(WCHAR)
 //
 // NOTE: Everything will only do one query per window.
-// Sending another query when a query has not completed 
-// will cancel the old query and start the new one. 
+// Sending another query when a query has not completed
+// will cancel the old query and start the new one.
 //
-// Everything will send the results to the reply_hwnd in the form of a 
+// Everything will send the results to the reply_hwnd in the form of a
 // WM_COPYDATA message with the dwData value you specify.
-// 
+//
 // Everything will return TRUE if successful.
 // returns FALSE if not supported.
 //
@@ -495,26 +495,26 @@ typedef struct EVERYTHING_IPC_QUERYW
 	// the window that will receive the new results.
 	// only 32bits are required to store a window handle. (even on x64)
 	DWORD reply_hwnd;
-	
-	// the value to set the dwData member in the COPYDATASTRUCT struct 
+
+	// the value to set the dwData member in the COPYDATASTRUCT struct
 	// sent by Everything when the query is complete.
 	DWORD reply_copydata_message;
-	
+
 	// search flags (see EVERYTHING_IPC_MATCHCASE | EVERYTHING_IPC_MATCHWHOLEWORD | EVERYTHING_IPC_MATCHPATH)
-	DWORD search_flags; 
-	
+	DWORD search_flags;
+
 	// only return results after 'offset' results (0 to return from the first result)
 	// useful for scrollable lists
-	DWORD offset; 
-	
-	// the number of results to return 
+	DWORD offset;
+
+	// the number of results to return
 	// zero to return no results
 	// EVERYTHING_IPC_ALLRESULTS to return ALL results
 	DWORD max_results;
 
 	// null terminated string. variable lengthed search string buffer.
 	WCHAR search_string[1];
-	
+
 }EVERYTHING_IPC_QUERYW;
 
 // ASCII version
@@ -523,36 +523,36 @@ typedef struct EVERYTHING_IPC_QUERYA
 	// the window that will receive the new results.
 	// only 32bits are required to store a window handle. (even on x64)
 	DWORD reply_hwnd;
-	
-	// the value to set the dwData member in the COPYDATASTRUCT struct 
+
+	// the value to set the dwData member in the COPYDATASTRUCT struct
 	// sent by Everything when the query is complete.
 	DWORD reply_copydata_message;
-	
+
 	// search flags (see EVERYTHING_IPC_MATCHCASE | EVERYTHING_IPC_MATCHWHOLEWORD | EVERYTHING_IPC_MATCHPATH)
-	DWORD search_flags; 
-	
+	DWORD search_flags;
+
 	// only return results after 'offset' results (0 to return from the first result)
 	// useful for scrollable lists
-	DWORD offset; 
-	
-	// the number of results to return 
+	DWORD offset;
+
+	// the number of results to return
 	// zero to return no results
 	// EVERYTHING_IPC_ALLRESULTS to return ALL results
 	DWORD max_results;
 
 	// null terminated string. variable lengthed search string buffer.
 	CHAR search_string[1];
-	
+
 }EVERYTHING_IPC_QUERYA;
 
 //
 // Varible sized result list struct received from Everything.
 //
-// Sent in the form of a WM_COPYDATA message to the hwnd specifed in the 
+// Sent in the form of a WM_COPYDATA message to the hwnd specifed in the
 // EVERYTHING_IPC_QUERY struct.
 // the dwData member of the COPYDATASTRUCT struct will match the sent
 // reply_copydata_message member in the EVERYTHING_IPC_QUERY struct.
-// 
+//
 // make a copy of the data before returning.
 //
 // return TRUE if you processed the WM_COPYDATA message.
@@ -570,7 +570,7 @@ typedef struct EVERYTHING_IPC_ITEMW
 	// The offset of the filename from the beginning of the list structure.
 	// (wchar_t *)((char *)everything_list + everythinglist->path_offset)
 	DWORD path_offset;
-	
+
 }EVERYTHING_IPC_ITEMW;
 
 typedef struct EVERYTHING_IPC_ITEMA
@@ -585,65 +585,65 @@ typedef struct EVERYTHING_IPC_ITEMA
 	// The offset of the filename from the beginning of the list structure.
 	// (char *)((char *)everything_list + everythinglist->path_offset)
 	DWORD path_offset;
-	
+
 }EVERYTHING_IPC_ITEMA;
 
 typedef struct EVERYTHING_IPC_LISTW
 {
 	// the total number of folders found.
 	DWORD totfolders;
-	
+
 	// the total number of files found.
 	DWORD totfiles;
-	
+
 	// totfolders + totfiles
 	DWORD totitems;
-	
+
 	// the number of folders available.
 	DWORD numfolders;
-	
+
 	// the number of files available.
 	DWORD numfiles;
-	
+
 	// the number of items available.
 	DWORD numitems;
 
 	// index offset of the first result in the item list.
 	DWORD offset;
-	
-	// variable lengthed item list. 
+
+	// variable lengthed item list.
 	// use numitems to determine the actual number of items available.
 	EVERYTHING_IPC_ITEMW items[1];
-	
+
 }EVERYTHING_IPC_LISTW;
 
 typedef struct EVERYTHING_IPC_LISTA
 {
 	// the total number of folders found.
 	DWORD totfolders;
-	
+
 	// the total number of files found.
 	DWORD totfiles;
-	
+
 	// totfolders + totfiles
 	DWORD totitems;
-	
+
 	// the number of folders available.
 	DWORD numfolders;
-	
+
 	// the number of files available.
 	DWORD numfiles;
-	
+
 	// the number of items available.
 	DWORD numitems;
 
 	// index offset of the first result in the item list.
 	DWORD offset;
-	
-	// variable lengthed item list. 
+
+	// variable lengthed item list.
 	// use numitems to determine the actual number of items available.
 	EVERYTHING_IPC_ITEMA items[1];
-	
+
 }EVERYTHING_IPC_LISTA;
 
 #pragma pack (pop)
@@ -731,20 +731,20 @@ typedef struct EVERYTHING_IPC_LISTA
 //
 // Varible sized query struct sent to everything.
 //
-// sent in the form of a WM_COPYDATA message with EVERYTHING_IPC_COPYDATA_QUERY2 as the 
+// sent in the form of a WM_COPYDATA message with EVERYTHING_IPC_COPYDATA_QUERY2 as the
 // dwData member in the COPYDATASTRUCT struct.
 // set the lpData member of the COPYDATASTRUCT struct to point to your EVERYTHING_IPC_QUERY struct.
-// set the cbData member of the COPYDATASTRUCT struct to the size of the 
-// EVERYTHING_IPC_QUERY struct minus the size of a TCHAR plus the length of the search string in bytes plus 
+// set the cbData member of the COPYDATASTRUCT struct to the size of the
+// EVERYTHING_IPC_QUERY struct minus the size of a TCHAR plus the length of the search string in bytes plus
 // one TCHAR for the null terminator.
 //
 // NOTE: Everything will only do one query per window.
-// Sending another query when a query has not completed 
-// will cancel the old query and start the new one. 
+// Sending another query when a query has not completed
+// will cancel the old query and start the new one.
 //
-// Everything will send the results to the reply_hwnd in the form of a 
+// Everything will send the results to the reply_hwnd in the form of a
 // WM_COPYDATA message with the dwData value you specify.
-// 
+//
 // Everything will return TRUE if successful.
 // returns FALSE if not supported.
 //
@@ -757,23 +757,23 @@ typedef struct EVERYTHING_IPC_QUERY2
 	// the window that will receive the new results.
 	// only 32bits are required to store a window handle. (even on x64)
 	DWORD reply_hwnd;
-	
-	// the value to set the dwData member in the COPYDATASTRUCT struct 
+
+	// the value to set the dwData member in the COPYDATASTRUCT struct
 	// sent by Everything when the query is complete.
 	DWORD reply_copydata_message;
-	
+
 	// search flags (see EVERYTHING_IPC_MATCHCASE | EVERYTHING_IPC_MATCHWHOLEWORD | EVERYTHING_IPC_MATCHPATH)
-	DWORD search_flags; 
-	
+	DWORD search_flags;
+
 	// only return results after 'offset' results (0 to return from the first result)
 	// useful for scrollable lists
-	DWORD offset; 
-	
-	// the number of results to return 
+	DWORD offset;
+
+	// the number of results to return
 	// zero to return no results
 	// EVERYTHING_IPC_ALLRESULTS to return ALL results
 	DWORD max_results;
-	
+
 	// request types.
 	// one or more of EVERYTHING_IPC_QUERY2_REQUEST_* types.
 	DWORD request_flags;
@@ -785,14 +785,14 @@ typedef struct EVERYTHING_IPC_QUERY2
 
 	// followed by null terminated search.
 	// TCHAR search_string[1];
-		
+
 }EVERYTHING_IPC_QUERY2;
 
 typedef struct EVERYTHING_IPC_ITEM2
 {
 	// item flags one of (EVERYTHING_IPC_FOLDER|EVERYTHING_IPC_DRIVE|EVERYTHING_IPC_ROOT)
 	DWORD flags;
-	
+
 	// offset from the start of the EVERYTHING_IPC_LIST2 struct to the data content
 	DWORD data_offset;
 
@@ -814,33 +814,33 @@ typedef struct EVERYTHING_IPC_ITEM2
 	// if EVERYTHING_IPC_QUERY2_REQUEST_HIGHLIGHTED_NAME was set in request_flags, DWORD name_length in characters (excluding the null terminator); followed by null terminated text; ** = *, *text* = highlighted text
 	// if EVERYTHING_IPC_QUERY2_REQUEST_HIGHLIGHTED_PATH was set in request_flags, DWORD name_length in characters (excluding the null terminator); followed by null terminated text; ** = *, *text* = highlighted text
 	// if EVERYTHING_IPC_QUERY2_REQUEST_HIGHLIGHTED_FULL_PATH_AND_NAME was set in request_flags, DWORD name_length in characters (excluding the null terminator); followed by null terminated text; ** = *, *text* = highlighted text
-	
+
 }EVERYTHING_IPC_ITEM2;
 
 typedef struct EVERYTHING_IPC_LIST2
 {
 	// number of items found.
 	DWORD totitems;
-	
+
 	// the number of items available.
 	DWORD numitems;
 
 	// index offset of the first result in the item list.
 	DWORD offset;
-	
+
 	// valid request types.
 	DWORD request_flags;
-	
+
 	// this sort type.
 	// one of EVERYTHING_IPC_SORT_* types.
 	// maybe different to requested sort type.
 	DWORD sort_type;
-	
+
 	// items follow.
 	// EVERYTHING_IPC_ITEM2 items[numitems]
-	
+
 	// item data follows.
-	
+
 }EVERYTHING_IPC_LIST2;
 
 #pragma pack (pop)
@@ -860,10 +860,10 @@ typedef struct EVERYTHING_IPC_LIST2
 typedef struct EVERYTHING_IPC_RUN_HISTORY
 {
 	DWORD run_count;
-	
+
 	// null terminated ansi/wchar filename follows.
 	// TCHAR filename[];
-	
+
 }EVERYTHING_IPC_RUN_HISTORY;
 
 #pragma pack (pop)

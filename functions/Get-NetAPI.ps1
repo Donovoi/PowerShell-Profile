@@ -47,7 +47,7 @@ function Expose-NetAPI {
 	# Search all loaded assemblies for "MessageBox".
 	# The result is an object that can be piped.
 	C:\PS> Expose-NetAPI -Search MessageBox |fl
-	
+
 	Assembly   : System.dll
 	TypeName   : Microsoft.Win32.SafeNativeMethods
 	Name       : MessageBox
@@ -82,7 +82,7 @@ function Expose-NetAPI {
 	# definitions. Take care when selecting the desired
 	# API.
 	C:\PS> Expose-NetAPI -Search drawbutton |Select Assembly,TypeName,Name |ft
-	
+
 	Assembly                  TypeName                                           Name
 	--------                  --------                                           ----
 	System.Windows.Forms.dll  System.Windows.Forms.ButtonRenderer                DrawButton
@@ -159,7 +159,7 @@ function Expose-NetAPI {
 						TypeName = $_.TypeName
 						Name = $_.Name
 						Definition = $_.Definition
-					}		
+					}
 					$Object = New-Object PSObject -Property $HashTable
 					$ObjectArray += $Object
 				}

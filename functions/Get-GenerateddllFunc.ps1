@@ -16,7 +16,7 @@ function Get-GenerateddllFunc {
         [string]
         $dlltoinspect
     )
-    
+
     process {
         # get all files in the current directory except this file and import it as a script
         $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
@@ -27,7 +27,7 @@ function Get-GenerateddllFunc {
         }
 
         # add and install any dependencies
-        Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies 'F:\Projects\PowerShell-Profile\Libraries\lib\dnlib.dll' -WarningAction SilentlyContinue -WarningVariable $null
+        Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\lib\dnlib.dll"
         # verify, normalize and escape the path using dotnet methods
         $dlltoinspect = [System.IO.Path]::GetFullPath($dlltoinspect).Replace('\', '\\').Trim()
         # Extract function metadata (names, parameters, return types) using dnlib
@@ -35,7 +35,7 @@ function Get-GenerateddllFunc {
 
         $csharpCode = 'using System; using System.Runtime.InteropServices;' + "`n"
         $csharpCode += 'public static class NativeMethods {' + "`n"
-        
+
         foreach ($function in $functionsMetadata) {
             # Construct the parameter string
             $parameterString = ''
@@ -44,19 +44,19 @@ function Get-GenerateddllFunc {
                 $parameterString += $param.Type + ' ' + $param.Name + ', '
             }
             $parameterString = $parameterString.TrimEnd(', ')
-        
+
             # Construct the method declaration
             $methodCode = '[DllImport("' + $dlltoinspect + '", EntryPoint = "' + $function.MethodName + '", CharSet = CharSet.Auto)]' + "`n"
             $methodCode += 'public static extern ' + $function.ReturnType + ' ' + $function.MethodName + '(' + $parameterString + ');' + "`n"
-        
+
             $csharpCode += $methodCode
-        
+
             # Optional: Log each method being processed
             Write-Host "Adding function to class: $($function.MethodName)"
         }
-        
+
         $csharpCode += '}' # Close the class declaration
-        
+
         # Compile the class with all methods
         try {
             Add-Type -TypeDefinition $csharpCode -IgnoreWarnings
@@ -66,9 +66,9 @@ function Get-GenerateddllFunc {
             Write-Host 'Error compiling functions.'
             Write-Host $_.Exception.Message -ForegroundColor Red
         }
-        
-        
-        
+
+
+
     }
 }
 
@@ -99,9 +99,5 @@ function ExtractFunctionMetadataUsingDnlib($dlltoinspect) {
 }
 
 # # Example usage
-# $pseverythingdll = Get-GenerateddllFunc -dlltoinspect 'F:\Projects\PowerShell-Profile\Non PowerShell Tools\everything sdk\PSEverything\PSEverything\obj\Debug\net8.0\PSEverything.dll'
+# $pseverythingdll = Get-GenerateddllFunc -dlltoinspect "$PWD\Libraries\Microsoft.Windows.CsWin32.dll"
 # $pseverythingdll | Get-Member
-
-# $testsearch = [nativeMethods]::Everything_SetSearchW('test')
-
-# Write-Host $testsearch

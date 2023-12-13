@@ -101,7 +101,7 @@ function Install-PackageProviders {
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue
             }
             else {
-                Write-Logg -Message "PackageManagement module already installed" -Level Info
+                Write-Logg -Message 'PackageManagement module already installed' -Level Info
             }
         }
 
@@ -198,14 +198,14 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
 
 
         # Log the installation process (assumes you have a custom logging function)
-        Write-Logg -Message "Installing NuGet dependencies" -Level Info
+        Write-Logg -Message 'Installing NuGet dependencies' -Level Info
 
         if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
             # Install NuGet packages
             Add-NuGetDependencies -NugetPackages $deps
         }
         else {
-            Write-Logg -Message "No NuGet packages to install" -Level Info
+            Write-Logg -Message 'No NuGet packages to install' -Level Info
         }
     }
     catch {
@@ -299,12 +299,12 @@ function Install-PSModules {
 
                             # Save the module locally only if LocalModulesDirectory is not null or empty
                             if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
-                                $localModule = Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue
-                                Import-Module -Name $localModule -Force -Global -ErrorAction SilentlyContinue
+                                $localModule = Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                                Import-Module -Name $localModule -Force -Global -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                             }
                             else {
                                 # Install module
-                                Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck
+                                Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                             }
                         }
                         else {
@@ -312,7 +312,7 @@ function Install-PSModules {
                         }
 
                         # Import all modules specified in the $ModulesToBeInstalled array
-                        Import-Module -Name $ModulesToBeInstalled -Force -Global -ErrorAction SilentlyContinue
+                        Import-Module -Name $ModulesToBeInstalled -Force -Global -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                     }
                     catch {
                         Write-Host "An error occurred while processing module $_`: $($_.Exception)"
@@ -321,7 +321,7 @@ function Install-PSModules {
         }
         catch {
             if ($_.Exception.Message -match '.ps1xml') {
-                Write-Logg -Message "Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module." -Level Info
+                Write-Logg -Message 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.' -Level Info
                 $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
                 Remove-Item $moduleDir -Recurse -Force
                 Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
