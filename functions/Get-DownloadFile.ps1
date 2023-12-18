@@ -106,7 +106,7 @@ function Get-DownloadFile {
                 #First we check if the url has the filename in it
                 $UriParts = [System.Uri]::new($download)
                 if ($UriParts.IsFile) {
-                    $OutFile = [System.IO.Path]::GetFileName($UriParts.LocalPath)
+                    $OutFile = [System.IO.Path]::GetFileName($UriParts)
                     if ($OutFile) {
                         $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
                     }
