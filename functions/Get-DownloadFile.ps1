@@ -105,7 +105,7 @@ function Get-DownloadFile {
                 # Construct the output file path for when the url has the filename in it
                 #First we check if the url has the filename in it
                 $UriParts = [System.Uri]::new($download)
-                if ($UriParts.IsFile) {
+                if ($UriParts.IsFile -or ($download.Split('/')[-1] -match '\.')) {
                     $OutFile = [System.IO.Path]::GetFileName($UriParts)
                     if ($OutFile) {
                         $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
@@ -145,7 +145,7 @@ function Get-DownloadFile {
 
                     # Determine the final filename
                     $finalFileName = $null
-                    if ($potentialFileNames.Count -eq 1) {
+                    if ($potentialFileNames.Count -gt 0) {
                         $finalFileName = $potentialFileNames[0]
                     }
                     else {
@@ -181,7 +181,7 @@ function Get-DownloadFile {
                     }
                 }
                 else {
-                    Write-Logg -Message "Using Invoke-WebRequest for download." -Level Info
+                    Write-Logg -Message 'Using Invoke-WebRequest for download.' -Level Info
                     Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
                 }
             }
