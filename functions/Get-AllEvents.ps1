@@ -50,12 +50,12 @@ function Get-AllEvents {
     }
 
     function Initialize-EventLogGui {
-      $window = Convert-XAMLtoWindow -NamedElements 'Retrieve', 'Begin', 'DateBegin', 'DateEnd', 'Time1', 'Time2', 'Begin1', 'End'
-      return $window
+      Convert-XAMLtoWindow -NamedElements 'Retrieve', 'Begin', 'DateBegin', 'DateEnd', 'Time1', 'Time2', 'Begin1', 'End'
     }
 
     function Get-SelectedDateTimeFromGui {
       [CmdletBinding()]
+      [OutputType([System.Collections.Hashtable])]
       param (
         [object]$Window
       )
@@ -63,7 +63,6 @@ function Get-AllEvents {
       # Helper function to combine date and time
       function Join-DateAndTime {
         [CmdletBinding()]
-        [OutputType([hashtable])]
         param (
           [DateTime]$date,
           [string]$timeString
@@ -116,7 +115,7 @@ function Get-AllEvents {
       <Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Topmost="True" SizeToContent="Height" Title="Retrieve Events from all Event Logs" Width="525" Height="450">
+        Topmost="false" SizeToContent="Height" Title="Retrieve Events from all Event Logs" Width="525" Height="450">
         <Grid Margin="0,0,9,4">
           <Grid.Background>
             <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
@@ -254,7 +253,9 @@ function Get-AllEvents {
       )
 
       if ((Test-Path $TimelineExplorerPath) -and (Test-Path $CsvFilePath)) {
-        Start-Process -FilePath $TimelineExplorerPath -ArgumentList $CsvFilePath
+        Start-Process -FilePath $TimelineExplorerPath -ArgumentList $(Resolve-Path $CsvFilePath).Path
+        # end script
+        return
       }
       elseif (-not (Test-Path $TimelineExplorerPath)) {
         Write-Logg -Message "Timeline Explorer not found at $TimelineExplorerPath" -Level Warning
