@@ -2,7 +2,7 @@ function Update-USBTools {
   [cmdletbinding()]
   param(
   )
-  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "chocolatey upgrade all"'
+  Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "chocolatey upgrade all --ignore-dependencies"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VcRedist"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements"'
   Start-Process -FilePath pwsh.exe -ArgumentList '-noexit -command "Update-VisualStudio"'
