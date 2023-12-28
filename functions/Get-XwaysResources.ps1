@@ -14,7 +14,7 @@
 .EXAMPLE
     Get-XwaysResources -GetTemplates -XWaysRoot F:\xwfportable -ResetCredentials
 .NOTES
-Now depends on Invoke-AriaDownload and Get-DownloadFile
+Now depends on Invoke-AriaDownload and Get-FileDownload
 #>
 function Get-XwaysResources {
   [CmdletBinding()]
@@ -206,7 +206,7 @@ function Get-XwaysResources {
     }
 
     # Get functions from my github profile
-    $functions = @("Get-DownloadFile")
+    $functions = @("Get-FileDownload")
     $functions.ForEach{
       $function = $_
       Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
@@ -216,7 +216,7 @@ function Get-XwaysResources {
     Out-Host -InputObject "Downloading Excire.zip and Conditional Coloring.cfg"
     $urls = "https://x-ways.net/res/Excire.zip", "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg"
 
-    Get-DownloadFile -URL $urls -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
+    Get-FileDownload -URL $urls -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
     # Extract zip to destination folder in the Excire folder
     Out-Host -InputObject "Extracting Excire.zip to $XWaysRoot\Excire"

@@ -27,7 +27,7 @@ function Get-GenerateddllFunc {
         }
 
         # add and install any dependencies
-        Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\lib\dnlib.dll"
+        Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
         # verify, normalize and escape the path using dotnet methods
         $dlltoinspect = [System.IO.Path]::GetFullPath($dlltoinspect).Replace('\', '\\').Trim()
         # Extract function metadata (names, parameters, return types) using dnlib
@@ -72,8 +72,23 @@ function Get-GenerateddllFunc {
     }
 }
 
-function ExtractFunctionMetadataUsingDnlib($dlltoinspect) {
+function ExtractFunctionMetadataUsingDnlib() {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $dlltoinspect
+    )
+    # get all files in the current directory except this file and import it as a script
+    $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
+    $ScriptParentPath = Split-Path -Path $(Resolve-Path -Path $($ActualScriptName.foreach{ $_ }) ) -Parent
+    $scriptstonotimport = @("$($($ActualScriptName.foreach{$_}).split('\')[-1])", 'Get-KapeAndTools.ps1', '*RustandFriends*', '*zimmerman*', '*memorycapture*' )
+    Get-ChildItem -Path $ScriptParentPath -Exclude $scriptstonotimport | ForEach-Object {
+        . $_.FullName
+    }
     # Load the dll with dnlib
+    # add and install any dependencies
+    Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
     $module = [dnlib.DotNet.ModuleDefMD]::Load("$dlltoinspect", [dnlib.DotNet.ModuleContext]::new())
 
     # Extract method information
@@ -98,6 +113,28 @@ function ExtractFunctionMetadataUsingDnlib($dlltoinspect) {
     return $methodInfos
 }
 
+# Load the assembly
+# $assemblyPath = "$PWD\Libraries\Microsoft.Windows.CsWin32.dll"
+# $assembly = [System.Reflection.Assembly]::LoadFile($assemblyPath)
+
+# # Get the type
+# $type = $assembly.GetType("Namespace.TypeName")
+
+# # Create an instance if necessary
+# $instance = [Activator]::CreateInstance($type)
+
+# # Call an instance method
+# $result = $instance.InstanceMethod()
+
+# # Call a static method
+# $staticResult = [Namespace.TypeName]::StaticMethod()
+
+# # Handle the results
+# Write-Host "Instance method result: $result"
+# Write-Host "Static method result: $staticResult"
+
 # # Example usage
-# $pseverythingdll = Get-GenerateddllFunc -dlltoinspect "$PWD\Libraries\Microsoft.Windows.CsWin32.dll"
+# $pseverythingdll = ExtractFunctionMetadataUsingDnlib "$PWD\Libraries\Microsoft.Windows.CsWin32.dll"
 # $pseverythingdll | Get-Member
+
+# $sourceGenerator = New-Object Microsoft.Windows.CsWin32.SourceGenerator

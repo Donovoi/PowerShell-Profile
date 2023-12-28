@@ -123,7 +123,7 @@ function Get-KapeBinaries {
         if (Test-Path -Path $DownloadedBinaries) {
           Remove-Item -Path $DownloadedBinaries -Force -ErrorAction SilentlyContinue
         }
-        Get-DownloadFile -Url $_ -OutFile $DownloadedBinaries -UseAria2
+        Get-FileDownload -Url $_ -OutFile $DownloadedBinaries -UseAria2
       }
 
     }
