@@ -28,7 +28,7 @@
 
   .EXAMPLE
   $URL = "http://example.com/file1.zip", "http://example.com/file2.zip"
-  Get-DownloadFile -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
+  Get-FileDownload -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
 
   This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
 
@@ -37,7 +37,7 @@
   When downloading from a private repository, ensure the secret containing the GitHub token is properly configured.
   #>
 
-function Get-DownloadFile {
+function Get-FileDownload {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([string])]
     param (

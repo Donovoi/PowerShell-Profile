@@ -205,7 +205,7 @@ function Get-LatestGitHubRelease {
                     }
 
                     # Splat the parameters onto the function call
-                    Get-DownloadFile @downloadFileParams
+                    Get-FileDownload @downloadFileParams
                 }
                 else {
                     if ($asset.Name -like '*aria*') {
@@ -231,7 +231,7 @@ function Get-LatestGitHubRelease {
                         Write-Logg -Message 'exiting script..' -Level warning
                         exit
                     }
-                    $null = Get-DownloadFile -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
+                    $null = Get-FileDownload -URL $manualDownloadurl -OutFile (Join-Path -Path $DownloadPathDirectory -ChildPath ($manualDownloadurl -split '\/')[-1]) -UseAria2 -SecretName $TokenName
                 }
                 else {
                     if ([string]::IsNullOrEmpty($manualDownloadurl)) {

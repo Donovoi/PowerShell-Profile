@@ -262,7 +262,7 @@ function Get-AllEvents {
         Write-Logg -Message 'Downloading now from https://ericzimmerman.github.io/#!index.md' -Level Info
         $downloadUrl = 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/TimelineExplorer.zip'
         $downloadPath = "$env:TEMP"
-        Get-DownloadFile -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
+        Get-FileDownload -Url $downloadUrl -OutFileDirectory $downloadPath -UseAria2
         $downloadzip = "$env:TEMP\TimelineExplorer.zip"
         Write-Logg -Message "Extracting $downloadfile to $env:TEMP" -Level Info
         $extracteddownloadfolder = Expand-Archive -Path $downloadzip -DestinationPath $env:TEMP -Force
