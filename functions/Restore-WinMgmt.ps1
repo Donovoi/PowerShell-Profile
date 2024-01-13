@@ -256,8 +256,29 @@ https://16colo.rs/pack/mist0721/tn/BLIPPYPIXEL-OUT_WITH_THE_OLD_IN_THE_THE_UNAFF
       [System.Reflection.Assembly]::LoadWithPartialName('System.Drawing') | Out-Null
       $escape = [Char]0x1B
     }
-  
+
     process {
+      function GetTerminalSize() {
+        return [PSCustomObject]@{
+          Width  = [Console]::WindowWidth
+          Height = [Console]::WindowHeight
+        }
+      }
+
+      function ResizeImage([System.Drawing.Image]$Image) {
+        $terminalSize = GetTerminalSize
+        $maxHeight = [Math]::Round($terminalSize.Height * 0.7) * 2 # Multiply by 2 because each console line is two pixels tall in image terms
+        $ratio = [Math]::Min($maxHeight / $Image.Height, 1)
+        $newWidth = [Math]::Round($Image.Width * $ratio)
+        $newHeight = [Math]::Round($Image.Height * $ratio)
+
+        $resized = New-Object System.Drawing.Bitmap($newWidth, $newHeight)
+        $graphics = [System.Drawing.Graphics]::FromImage($resized)
+        $graphics.DrawImage($Image, 0, 0, $newWidth, $newHeight)
+        $graphics.Dispose()
+
+        return $resized
+      }
       function LoadImageFromPath($Path) {
         $imageStream = [System.IO.File]::OpenRead($Path)
         try {
@@ -307,12 +328,14 @@ https://16colo.rs/pack/mist0721/tn/BLIPPYPIXEL-OUT_WITH_THE_OLD_IN_THE_THE_UNAFF
         }
         $img = LoadImageFromPath $Path
       }
-  
+
       try {
-        RenderImage -Image $img
+        $resizedImg = ResizeImage -Image $img
+        RenderImage -Image $resizedImg
       }
       finally {
         $img.Dispose()
+        $resizedImg.Dispose()
       }
     }
   }
