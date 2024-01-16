@@ -6,9 +6,7 @@ function Update-PSProfile {
   Start-AsAdmin
   Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)" -Level INFO
   if (-not (Test-Path $PROFILE -ErrorAction SilentlyContinue)) {
-    New-Item $PROFILE -Force
-    $sourcefolder = $XWAYSUSB + '\Projects\Powershell-Profile\*'
-    Copy-Item -Path $sourcefolder -Recurse -Container -Destination $parentpathprofile -Force
+   IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)
   }
   try {
     Set-Location -Path $parentpathprofile
