@@ -109,7 +109,7 @@ function Install-Profile {
             # Attempt to remove the file
             $Path | ForEach-Object {
                 if (Test-IsRemovable -Path $_) {
-                    Remove-Item $_ -ErrorAction Stop
+                    Remove-Item $_ -ErrorAction Stop -Recurse -Force
                 }
                 else {
                     Write-Error "Failed to remove the file: $_"
