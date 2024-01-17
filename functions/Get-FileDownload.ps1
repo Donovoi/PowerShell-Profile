@@ -106,7 +106,18 @@ function Get-FileDownload {
                 #First we check if the url has the filename in it
                 $UriParts = [System.Uri]::new($download)
                 if ($UriParts.IsFile -or ($download.Split('/')[-1] -match '\.')) {
-                    $OutFile = [System.IO.Path]::GetFileName($UriParts)
+                    $originalFileName = [System.IO.Path]::GetFileName($UriParts)
+
+                    # Get the base file name without the query string
+                    $fileNameWithoutQueryString = $originalFileName -split '\?' | Select-Object -First 1
+
+                    # Sanitize the file name by removing invalid characters
+                    $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+                    $validChars = $fileNameWithoutQueryString.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
+
+                    # Join the valid characters into a single string
+                    [string]$Outfile = -join $validChars
+
                     if ($OutFile) {
                         $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
                     }
