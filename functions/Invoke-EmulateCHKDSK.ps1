@@ -1,5 +1,14 @@
+function Invoke-emulatechkdsk() {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $True, Position = 0)]
+        [string]$driveletter
+    )
+    $drive = Invoke-CimMethod -Namespace root/Microsoft/Windows/Storage -ClassName MSFT_Volume -MethodName SetOffline -Arguments @{DriveLetter = $driveletter } -ErrorAction Stop
+    $drive | Format-List
+}
 # Add-Type to compile C# code
-Add-Type -TypeDefinition @"
+Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 
@@ -32,10 +41,10 @@ public class DiskUtils
     public const uint OPEN_EXISTING = 3;
 }
 
-"@ -Language CSharp
+'@ -Language CSharp
 
 try {
-    $driveLetter = "J:" # Change this to the letter of the drive you want to check
+    $driveLetter = 'J:' # Change this to the letter of the drive you want to check
 
     # Open the volume
     $handle = [DiskUtils]::CreateFile(
@@ -48,7 +57,7 @@ try {
         [IntPtr]::Zero)
 
     if ($handle -eq [IntPtr]::MinusOne) {
-        throw "Failed to access drive. Error code: " + [Marshal]::GetLastWin32Error()
+        throw 'Failed to access drive. Error code: ' + [Marshal]::GetLastWin32Error()
     }
 
     # Get volume information
@@ -65,13 +74,13 @@ try {
         256)
 
     if ($result -eq $false) {
-        throw "Failed to get volume information. Error code: " + [Marshal]::GetLastWin32Error()
+        throw 'Failed to get volume information. Error code: ' + [Marshal]::GetLastWin32Error()
     }
 
     # Output the information
-    "Volume Name: " + $sbVolumeName.ToString()
-    "File System: " + $sbFileSystemName.ToString()
-    "File System Flags: " + $fileSystemFlags
+    'Volume Name: ' + $sbVolumeName.ToString()
+    'File System: ' + $sbFileSystemName.ToString()
+    'File System Flags: ' + $fileSystemFlags
 }
 catch {
     Write-Error $_.Exception.Message
@@ -81,4 +90,5 @@ finally {
     if ($handle -ne [IntPtr]::Zero -and $handle -ne [IntPtr]::MinusOne) {
         [DiskUtils]::CloseHandle($handle)
     }
+}
 }
