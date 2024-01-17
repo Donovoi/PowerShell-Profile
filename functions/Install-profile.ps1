@@ -127,7 +127,7 @@ function Install-Profile {
         )
     
         try {
-            Remove-Item $Path -WhatIf -ErrorAction Stop
+            Remove-Item $Path -WhatIf -ErrorAction Stop -Force -Recurse
             return $true
         }
         catch {
