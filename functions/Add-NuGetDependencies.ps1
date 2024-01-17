@@ -27,7 +27,7 @@ function Add-NuGetDependencies {
 
         $CurrentFileName = Split-Path $PWD -Leaf
         $memstream = [IO.MemoryStream]::new([byte[]][char[]]$CurrentFileName)
-        $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA1).Hash
+        $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
             $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'nugetpackages'

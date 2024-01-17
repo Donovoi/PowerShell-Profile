@@ -101,7 +101,7 @@ function Install-PackageProviders {
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
             }
             else {
-                Write-Logg -Message 'PackageManagement module already installed' -Level Info
+                Write-Host 'PackageManagement module already installed' -ForegroundColor Green
             }
         }
 
@@ -210,7 +210,7 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
     }
     catch {
         # Log any errors that occur during the installation
-        Write-Logg -Message "An error occurred while installing NuGet packages: $_" -Level Info
+        Write-Error "An error occurred while installing NuGet packages: $_"
     }
 }
 
