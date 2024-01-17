@@ -6,9 +6,8 @@ function Invoke-emulatechkdsk() {
     )
     $drive = Invoke-CimMethod -Namespace root/Microsoft/Windows/Storage -ClassName MSFT_Volume -MethodName SetOffline -Arguments @{DriveLetter = $driveletter } -ErrorAction Stop
     $drive | Format-List
-}
-# Add-Type to compile C# code
-Add-Type -TypeDefinition @'
+    # Add-Type to compile C# code
+    Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 
@@ -43,52 +42,52 @@ public class DiskUtils
 
 '@ -Language CSharp
 
-try {
-    $driveLetter = 'J:' # Change this to the letter of the drive you want to check
+    try {
+        $driveLetter = 'J:' # Change this to the letter of the drive you want to check
 
-    # Open the volume
-    $handle = [DiskUtils]::CreateFile(
-        "\\.\$driveLetter",
-        [DiskUtils]::GENERIC_READ,
-        [DiskUtils]::FILE_SHARE_READ,
-        [IntPtr]::Zero,
-        [DiskUtils]::OPEN_EXISTING,
-        0,
-        [IntPtr]::Zero)
+        # Open the volume
+        $handle = [DiskUtils]::CreateFile(
+            "\\.\$driveLetter",
+            [DiskUtils]::GENERIC_READ,
+            [DiskUtils]::FILE_SHARE_READ,
+            [IntPtr]::Zero,
+            [DiskUtils]::OPEN_EXISTING,
+            0,
+            [IntPtr]::Zero)
 
-    if ($handle -eq [IntPtr]::MinusOne) {
-        throw 'Failed to access drive. Error code: ' + [Marshal]::GetLastWin32Error()
+        if ($handle -eq [IntPtr]::MinusOne) {
+            throw 'Failed to access drive. Error code: ' + [Marshal]::GetLastWin32Error()
+        }
+
+        # Get volume information
+        $sbVolumeName = New-Object System.Text.StringBuilder 256
+        $sbFileSystemName = New-Object System.Text.StringBuilder 256
+        $result = [DiskUtils]::GetVolumeInformation(
+            $driveLetter + '\',
+            $sbVolumeName,
+            256,
+            [ref] $serialNumber,
+            [ref] $maxComponentLength,
+            [ref] $fileSystemFlags,
+            $sbFileSystemName,
+            256)
+
+        if ($result -eq $false) {
+            throw 'Failed to get volume information. Error code: ' + [Marshal]::GetLastWin32Error()
+        }
+
+        # Output the information
+        'Volume Name: ' + $sbVolumeName.ToString()
+        'File System: ' + $sbFileSystemName.ToString()
+        'File System Flags: ' + $fileSystemFlags
     }
-
-    # Get volume information
-    $sbVolumeName = New-Object System.Text.StringBuilder 256
-    $sbFileSystemName = New-Object System.Text.StringBuilder 256
-    $result = [DiskUtils]::GetVolumeInformation(
-        $driveLetter + '\',
-        $sbVolumeName,
-        256,
-        [ref] $serialNumber,
-        [ref] $maxComponentLength,
-        [ref] $fileSystemFlags,
-        $sbFileSystemName,
-        256)
-
-    if ($result -eq $false) {
-        throw 'Failed to get volume information. Error code: ' + [Marshal]::GetLastWin32Error()
+    catch {
+        Write-Error $_.Exception.Message
     }
-
-    # Output the information
-    'Volume Name: ' + $sbVolumeName.ToString()
-    'File System: ' + $sbFileSystemName.ToString()
-    'File System Flags: ' + $fileSystemFlags
-}
-catch {
-    Write-Error $_.Exception.Message
-}
-finally {
-    # Close handle if it's open
-    if ($handle -ne [IntPtr]::Zero -and $handle -ne [IntPtr]::MinusOne) {
-        [DiskUtils]::CloseHandle($handle)
+    finally {
+        # Close handle if it's open
+        if ($handle -ne [IntPtr]::Zero -and $handle -ne [IntPtr]::MinusOne) {
+            [DiskUtils]::CloseHandle($handle)
+        }
     }
-}
 }
