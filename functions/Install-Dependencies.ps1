@@ -241,6 +241,7 @@ function Install-PSModules {
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
+                    'PANSIES',
                     '7zip4powershell',
                     'Crescendo',
                     'F7History',
