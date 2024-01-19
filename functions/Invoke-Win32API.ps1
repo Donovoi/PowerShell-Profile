@@ -6,55 +6,55 @@ Function Invoke-Win32Api {
     <#
     .SYNOPSIS
     Call a native Win32 API or a function exported in a DLL.
- 
+
     .DESCRIPTION
     This method allows you to call a native Win32 API or DLL function
     without compiling C# code using Add-Type. The advantages of this over
     using Add-Type is that this is all generated in memory and no temporary
     files are created.
- 
+
     The code has been created with great help from various sources. The main
     sources I used were;
     # http://www.leeholmes.com/blog/2007/10/02/managing-ini-files-with-powershell/
     # https://blogs.technet.microsoft.com/heyscriptingguy/2013/06/27/use-powershell-to-interact-with-the-windows-api-part-3/
- 
+
     .PARAMETER DllName
     [String] The DLL to import the method from.
- 
+
     .PARAMETER MethodName
     [String] The name of the method.
- 
+
     .PARAMETER ReturnType
     [Type] The type of the return object returned by the method.
- 
+
     .PARAMETER ParameterTypes
     [Type[]] Array of types that define the parameter types required by the
     method. The type index should match the index of the value in the
     Parameters parameter.
- 
+
     If the parameter is a reference or an out parameter, use [Ref] as the type
     for that parameter.
- 
+
     .PARAMETER Parameters
     [Object[]] Array of objects to supply for the parameter values required by
     the method. The value index should match the index of the value in the
     ParameterTypes parameter.
- 
+
     If the parameter is a reference or an out parameter, the object should be a
     [Ref] of the parameter.
- 
+
     .PARAMETER SetLastError
     [Bool] Whether to apply the SetLastError Dll attribute on the method,
     default is $false
- 
+
     .PARAMETER CharSet
     [Runtime.InteropServices.CharSet] The charset to apply to the CharSet Dll
     attribute on the method, default is [Runtime.InteropServices.CharSet]::Auto
- 
+
     .OUTPUTS
     [Object] The return result from the method, the type of this value is based
     on the ReturnType parameter.
- 
+
     .EXAMPLE
     # Use the Win32 APIs to open a file handle
     $handle = Invoke-Win32Api -DllName kernel32.dll `
@@ -76,18 +76,18 @@ Function Invoke-Win32Api {
         throw [System.ComponentModel.Win32Exception]$last_err
     }
     $handle.Close()
- 
+
     # Lookup the account name from a SID
     $sid_string = "S-1-5-18"
     $sid = New-Object -TypeName System.Security.Principal.SecurityIdentifier -ArgumentList $sid_string
     $sid_bytes = New-Object -TypeName byte[] -ArgumentList $sid.BinaryLength
     $sid.GetBinaryForm($sid_bytes, 0)
- 
+
     $name = New-Object -TypeName System.Text.StringBuilder
     $name_length = 0
     $domain_name = New-Object -TypeName System.Text.StringBuilder
     $domain_name_length = 0
- 
+
     $invoke_args = @{
         DllName = "Advapi32.dll"
         MethodName = "LookupAccountSidW"
@@ -105,7 +105,7 @@ Function Invoke-Win32Api {
         SetLastError = $true
         CharSet = "Unicode"
     }
- 
+
     $res = Invoke-Win32Api @invoke_args
     $name.EnsureCapacity($name_length)
     $domain_name.EnsureCapacity($domain_name_length)
@@ -115,7 +115,7 @@ Function Invoke-Win32Api {
         throw [System.ComponentModel.Win32Exception]$last_err
     }
     Write-Output "SID: $sid_string, Domain: $($domain_name.ToString()), Name: $($name.ToString())"
- 
+
     .NOTES
     The parameters to use for a method dynamically based on the method that is
     called. There is no cut and fast way to automatically convert the interface

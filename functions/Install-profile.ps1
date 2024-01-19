@@ -79,14 +79,14 @@ function Install-Profile {
         }
     }
 
-    function Clone-Repo {
+    function Get-Repo {
         [CmdletBinding()]
         param (
             [Parameter(Mandatory = $true)]
             [string]$Path
         )
         if (Test-Path -Path $path) {
-            Set-Location -Path $path
+            Push-Location -Path $path
             $repoPath = Join-Path -Path $path -ChildPath 'powershellprofile'
             if (Test-Path -Path $repoPath) {
                 Remove-Item -Path $repoPath -Recurse -Force
@@ -108,11 +108,26 @@ function Install-Profile {
         )
 
         begin {
+            $script:isRemovable = $false
             # Check if the file is removable and if not, try to make it removable
             $Path | ForEach-Object {
-                if (-not (Test-IsRemovable -Path $_)) {
-                    Set-Removable -Path $_
+                try {
+
+                    if (Test-IsRemovable -Path $_) {
+                        $isRemovable = $true
+
+                    }
+                    else {
+                        Write-Warning "File: $_ is not removable."
+                        Write-Host 'Attempting to make it removable...' -ForegroundColor Yellow
+                        Set-Removable -Path $_
+                        $isRemovable = $true
+                    }
                 }
+                catch {
+                    $isRemovable = $false
+                }
+                return $isRemovable
             }
         }
 
@@ -161,55 +176,55 @@ function Install-Profile {
         <#
         .SYNOPSIS
         Call a native Win32 API or a function exported in a DLL.
-     
+
         .DESCRIPTION
         This method allows you to call a native Win32 API or DLL function
         without compiling C# code using Add-Type. The advantages of this over
         using Add-Type is that this is all generated in memory and no temporary
         files are created.
-     
+
         The code has been created with great help from various sources. The main
         sources I used were;
         # http://www.leeholmes.com/blog/2007/10/02/managing-ini-files-with-powershell/
         # https://blogs.technet.microsoft.com/heyscriptingguy/2013/06/27/use-powershell-to-interact-with-the-windows-api-part-3/
-     
+
         .PARAMETER DllName
         [String] The DLL to import the method from.
-     
+
         .PARAMETER MethodName
         [String] The name of the method.
-     
+
         .PARAMETER ReturnType
         [Type] The type of the return object returned by the method.
-     
+
         .PARAMETER ParameterTypes
         [Type[]] Array of types that define the parameter types required by the
         method. The type index should match the index of the value in the
         Parameters parameter.
-     
+
         If the parameter is a reference or an out parameter, use [Ref] as the type
         for that parameter.
-     
+
         .PARAMETER Parameters
         [Object[]] Array of objects to supply for the parameter values required by
         the method. The value index should match the index of the value in the
         ParameterTypes parameter.
-     
+
         If the parameter is a reference or an out parameter, the object should be a
         [Ref] of the parameter.
-     
+
         .PARAMETER SetLastError
         [Bool] Whether to apply the SetLastError Dll attribute on the method,
         default is $false
-     
+
         .PARAMETER CharSet
         [Runtime.InteropServices.CharSet] The charset to apply to the CharSet Dll
         attribute on the method, default is [Runtime.InteropServices.CharSet]::Auto
-     
+
         .OUTPUTS
         [Object] The return result from the method, the type of this value is based
         on the ReturnType parameter.
-     
+
         .EXAMPLE
         # Use the Win32 APIs to open a file handle
         $handle = Invoke-Win32Api -DllName kernel32.dll `
@@ -231,18 +246,18 @@ function Install-Profile {
             throw [System.ComponentModel.Win32Exception]$last_err
         }
         $handle.Close()
-     
+
         # Lookup the account name from a SID
         $sid_string = "S-1-5-18"
         $sid = New-Object -TypeName System.Security.Principal.SecurityIdentifier -ArgumentList $sid_string
         $sid_bytes = New-Object -TypeName byte[] -ArgumentList $sid.BinaryLength
         $sid.GetBinaryForm($sid_bytes, 0)
-     
+
         $name = New-Object -TypeName System.Text.StringBuilder
         $name_length = 0
         $domain_name = New-Object -TypeName System.Text.StringBuilder
         $domain_name_length = 0
-     
+
         $invoke_args = @{
             DllName = "Advapi32.dll"
             MethodName = "LookupAccountSidW"
@@ -260,7 +275,7 @@ function Install-Profile {
             SetLastError = $true
             CharSet = "Unicode"
         }
-     
+
         $res = Invoke-Win32Api @invoke_args
         $name.EnsureCapacity($name_length)
         $domain_name.EnsureCapacity($domain_name_length)
@@ -270,7 +285,7 @@ function Install-Profile {
             throw [System.ComponentModel.Win32Exception]$last_err
         }
         Write-Output "SID: $sid_string, Domain: $($domain_name.ToString()), Name: $($name.ToString())"
-     
+
         .NOTES
         The parameters to use for a method dynamically based on the method that is
         called. There is no cut and fast way to automatically convert the interface
@@ -291,18 +306,18 @@ function Install-Profile {
         if ($ParameterTypes.Length -ne $Parameters.Length) {
             throw [System.ArgumentException]"ParameterType Count $($ParameterTypes.Length) not equal to Parameter Count $($Parameters.Length)"
         }
-    
+
         # First step is to define the dynamic assembly in the current AppDomain
         $assembly = New-Object -TypeName System.Reflection.AssemblyName -ArgumentList 'Win32ApiAssembly'
         $AssemblyBuilder = [System.Reflection.Assembly].Assembly.GetTypes() | Where-Object { $_.Name -eq 'AssemblyBuilder' }
         $dynamic_assembly = $AssemblyBuilder::DefineDynamicAssembly($assembly, [Reflection.Emit.AssemblyBuilderAccess]::Run)
-    
-    
+
+
         # Second step is to create the dynamic module and type/class that contains
         # the P/Invoke definition
         $dynamic_module = $dynamic_assembly.DefineDynamicModule('Win32Module', $false)
         $dynamic_type = $dynamic_module.DefineType('Win32Type', [Reflection.TypeAttributes]'Public, Class')
-    
+
         # Need to manually get the reference type if the ParameterType is [Ref], we
         # define this based on the Parameter type at the same index
         $parameter_types = $ParameterTypes.Clone()
@@ -311,7 +326,7 @@ function Install-Profile {
                 $parameter_types[$i] = $Parameters[$i].Value.GetType().MakeByRefType()
             }
         }
-    
+
         # Next, the method is created where we specify the name, parameters and
         # return type that is expected
         $dynamic_method = $dynamic_type.DefineMethod(
@@ -320,7 +335,7 @@ function Install-Profile {
             $ReturnType,
             $parameter_types
         )
-    
+
         # Build the attributes (DllImport) part of the method where the DLL
         # SetLastError and CharSet are applied
         $constructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
@@ -336,10 +351,10 @@ function Install-Profile {
             $method_fields_values
         )
         $dynamic_method.SetCustomAttribute($custom_attributes)
-    
+
         # Create the custom type/class based on what was configured above
         $win32_type = $dynamic_type.CreateType()
-    
+
         # Invoke the method with the parameters supplied and return the result
         $result = $win32_type::$MethodName.Invoke($Parameters)
         return $result
@@ -349,10 +364,10 @@ function Install-Profile {
         <#
         .SYNOPSIS
         Updates file permissions to make it removable by the current user.
-    
+
         .DESCRIPTION
         The function takes a file path as input and attempts to change its permissions to make it removable by the current user. It uses Win32 API calls to modify file permissions and ownership.
-    
+
         .PARAMETER Path
         The file path for which permissions need to be updated.
         #>
@@ -361,7 +376,7 @@ function Install-Profile {
             [Parameter(Mandatory = $true)]
             [string]$Path
         )
-    
+
         if ($PSCmdlet.ShouldProcess($Path, 'Take ownership and grant full control')) {
             try {
                 # Update file ownership and permissions using Win32 API calls
@@ -528,17 +543,13 @@ Set-InvalidHandle -Path "C:\Path\To\File.txt"
     }
 
     Install-PowerShell7
-
     New-ProfileFolder -Path $powerShell7ProfilePath
-    Import-Functions -Path $powerShell7ProfilePath
-
     Install-Git
-
     $folderarray = $powerShell7ProfilePath
     $folderarray | ForEach-Object -Process {
-        Clone-Repo -Path $_
+        Get-Repo -Path $_
         Import-Functions -Path $_
     }
 }
 
-Install-Profile
+#Install-Profile
