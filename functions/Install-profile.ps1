@@ -16,23 +16,14 @@ function Install-Profile {
         [string]
         $profileURL = 'https://github.com/Donovoi/PowerShell-Profile.git'
     )
+    # First we will check if we are already running as the only instance of pwsh or powershell and with no profile
+    $processes = Get-Process | Where-Object { $_.ProcessName -eq 'powershell' -or $_.ProcessName -eq 'pwsh' }
+    if ($processes.Count -gt 1) {
+        $processes | Where-Object { $_.ProcessName -eq 'powershell' -or $_.ProcessName -eq 'pwsh' -and $_.Id -ne $PID } | Stop-Process -Force
+    }
 
     $myDocuments = [System.Environment]::GetFolderPath('MyDocuments')
     $powerShell7ProfilePath = Join-Path -Path $myDocuments -ChildPath 'PowerShell'
-
-    function Install-PowerShell7 {
-        if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-            if (Get-Command -Name winget -ErrorAction SilentlyContinue) {
-                Write-Host 'PowerShell 7 is not installed. Installing now...' -ForegroundColor Yellow
-                winget install --id=Microsoft.PowerShell
-                Write-Host 'PowerShell 7 installed successfully!' -ForegroundColor Green
-            }
-            else {
-                Write-Host 'winget is not available. Please install winget first.' -ForegroundColor Red
-                exit
-            }
-        }
-    }
 
     function New-ProfileFolder {
         [CmdletBinding()]
@@ -542,7 +533,6 @@ Set-InvalidHandle -Path "C:\Path\To\File.txt"
         } while ((Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%$escapedFileNameWithExtension%'").Count -gt 0)
     }
 
-    Install-PowerShell7
     New-ProfileFolder -Path $powerShell7ProfilePath
     Install-Git
     $folderarray = $powerShell7ProfilePath
@@ -552,4 +542,3 @@ Set-InvalidHandle -Path "C:\Path\To\File.txt"
     }
 }
 
-#Install-Profile
