@@ -17,11 +17,13 @@ function Install-Profile {
         $profileURL = 'https://github.com/Donovoi/PowerShell-Profile.git'
     )
     # First we will check if we are already running as the only instance of pwsh or powershell and with no profile
+    if ( $(Get-Process -Id $PID).CommandLine -notcontains 'NoProfile') {
+        Start-Process -FilePath pwsh -ArgumentList "-NoProfile -Command `"IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)`""
+        exit
+    }
     $processes = Get-Process | Where-Object { $_.ProcessName -eq 'powershell' -or $_.ProcessName -eq 'pwsh' }
     if ($processes.Count -gt 1) {
         $processes | Where-Object { $_.ProcessName -eq 'powershell' -or $_.ProcessName -eq 'pwsh' -and $_.Id -ne $PID } | Stop-Process -Force
-        Start-Process -FilePath pwsh -ArgumentList "-NoProfile -Command `"IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)`"" -Wait
-        exit
     }
     else {
 
