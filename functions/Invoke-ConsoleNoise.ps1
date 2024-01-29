@@ -60,6 +60,9 @@ function Invoke-ConsoleNoise {
         [string]$ColorGradient = 'Rainbow',
 
         [Parameter()]
+        [switch]$rgbColor,
+
+        [Parameter()]
         [ValidateSet('Random', 'Specific')]
         [string]$UnicodeCharMode = 'Specific',
 
@@ -96,10 +99,10 @@ function Invoke-ConsoleNoise {
         param (
             [Parameter(Mandatory)]
             [int]$Red,
-    
+
             [Parameter(Mandatory)]
             [int]$Green,
-    
+
             [Parameter(Mandatory)]
             [int]$Blue
         )
@@ -117,22 +120,111 @@ function Invoke-ConsoleNoise {
         }
     }
     $consoleWidth = $Host.UI.RawUI.WindowSize.Width
-    for ($r = 0; $r -le 255; $r++) {
-        for ($g = 0; $g -le 255; $g++) {
-            for ($b = 0; $b -le 255; $b++) {
-                $color = Invoke-ColorGradient -Red $r -Green $g -Blue $b
-                # Define your specific character or get a random Unicode character based on the mode
-                $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                    Get-RandomUnicodeCharacter # Assuming this is a function that returns a single character
+    $displaySettings = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
+    [int]$refreshRate = $displaySettings.CurrentRefreshRate[1]
+    # Calculate the sleep time in milliseconds
+    $sleepTimeMs = 1000 / $refreshRate
+    if ($rgbColor) {
+        for ($r = 0; $r -le 255; $r++) {
+            for ($g = 0; $g -le 255; $g++) {
+                for ($b = 0; $b -le 255; $b++) {
+                    $color = Invoke-ColorGradient -Red $r -Green $g -Blue $b
+                    # Define your specific character or get a random Unicode character based on the mode
+                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                        Get-RandomUnicodeCharacter # Assuming this is a function that returns a single character
+                    }
+                    else {
+                        [string]$SpecificChar
+                    }
+                    # Create a string that repeats the character to fill the entire width of the console
+                    $lineToDisplay = $charToDisplay * $consoleWidth
+                    # Write the line to the console
+
+                    Write-Host $lineToDisplay -ForegroundColor $color
+                    Start-Sleep -Milliseconds $sleepTimeMs
+
                 }
-                else {
-                    [string]$SpecificChar
-                }
-                # Create a string that repeats the character to fill the entire width of the console
-                $lineToDisplay = $charToDisplay * $consoleWidth
-                # Write the line to the console
-                Write-Host $lineToDisplay -ForegroundColor $color
             }
         }
     }
+    else {
+        # Function to convert HSL to RGB
+        function Convert-HslToRgb {
+            param (
+                [float]$h,
+                [float]$s,
+                [float]$l
+            )
+
+            if ($s -eq 0) {
+                $r = $l
+                $g = $l
+                $b = $l
+            }
+            else {
+                $hue2rgb = {
+                    param($p, $q, $t)
+                    if ($t -lt 0) {
+                        $t += 1
+                    }
+                    if ($t -gt 1) {
+                        $t -= 1
+                    }
+                    if ($t -lt 1 / 6) {
+                        return $p + ($q - $p) * 6 * $t
+                    }
+                    if ($t -lt 1 / 2) {
+                        return $q
+                    }
+                    if ($t -lt 2 / 3) {
+                        return $p + ($q - $p) * (2 / 3 - $t) * 6
+                    }
+                    return $p
+                }
+
+                $q = if ($l -lt 0.5) {
+                    $l * (1 + $s)
+                }
+                else {
+                    $l + $s - $l * $s
+                }
+                $p = 2 * $l - $q
+                $r = &$hue2rgb $p $q ($h + 1 / 3)
+                $g = &$hue2rgb $p $q $h
+                $b = &$hue2rgb $p $q ($h - 1 / 3)
+            }
+
+            $r = [math]::Round($r * 255)
+            $g = [math]::Round($g * 255)
+            $b = [math]::Round($b * 255)
+
+            return [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
+        }
+
+        $consoleWidth = $Host.UI.RawUI.WindowSize.Width
+        $displaySettings = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
+        [int]$refreshRate = $displaySettings.CurrentRefreshRate[1]
+        $sleepTimeMs = 1000 / $refreshRate
+
+        for ($h = 0.01; $h -lt 360; $h += 0.001) {
+            $l += 0.001
+            $s += 0.001
+            # Adjust hue increment for smoother or faster transition
+            $color = Convert-HslToRgb -H $h -S $s -L $l
+            $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                Get-RandomUnicodeCharacter
+            }
+            else {
+                [string]$SpecificChar
+            }
+            # Create a string that repeats the character to fill the entire width of the console
+            $lineToDisplay = $charToDisplay * $consoleWidth
+            # Write the line to the console
+
+            Write-Host $lineToDisplay -ForegroundColor $color
+            Start-Sleep -Milliseconds $sleepTimeMs
+
+        }
+    }
 }
+
