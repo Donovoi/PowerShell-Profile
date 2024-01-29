@@ -10,7 +10,7 @@ function Copy-NewImage {
     $rootImageNames = (Get-ChildItem -Path $sourceDir -File -Include '*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.webp').Name
 
     # Get all images from subdirectories
-    $images = Get-ChildItem -Path $sourceDir -Recurse -File -Include '*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.webp' | 
+    $images = Get-ChildItem -Path $sourceDir -Recurse -File -Include '*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp', '*.webp' |
         Where-Object { $_.DirectoryName -ne $sourceDir -and $rootImageNames -notcontains $_.Name }
 
     foreach ($image in $images) {
