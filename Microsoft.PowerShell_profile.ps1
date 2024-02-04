@@ -95,6 +95,8 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-
 
 # Invoke an awesome sample of PSReadline bindings
 Invoke-SamplePSReadLineProfile
+# turn brace completion off for now
+Set-PSReadLineOption -BraceCompletion @(False)
 
 # Crazy oh my posh random theme function
 Invoke-OhMyPoshRandomTheme
