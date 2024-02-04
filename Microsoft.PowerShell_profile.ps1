@@ -11,18 +11,6 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-# Check if PSReadLine is the current input handler
-if ($host.UI.RawUI.ReadKey -is [Microsoft.PowerShell.PSConsoleReadLine]) {
-    try {
-        # Disable BraceCompletion in PSReadLine
-        Set-PSReadLineOption -BraceCompletion @(False)
-    }
-    catch {
-        Write-Warning "Unable to set BraceCompletion for PSReadLine. Ensure you have the latest version of PSReadLine."
-    }
-}
-
-
 # Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
