@@ -1,4 +1,3 @@
-# help comment block below very detailed
 <#
 .SYNOPSIS
     Install-Cmdlet is a function that installs a cmdlet from a given url.
