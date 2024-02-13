@@ -87,7 +87,7 @@ function Get-LatestGitHubRelease {
             # At the start of the session
             $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
             if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                Install-Dependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
+                Install-Dependencies -PSModule 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -InstallDefaultPSModules -InstallDefaultNugetPackages
             }
             # Later in the session
             $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
