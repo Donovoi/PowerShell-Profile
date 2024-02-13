@@ -58,7 +58,7 @@ function Get-LatestGitHubRelease {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = $(Resolve-Path -Path "$ENV:SystemDrive/aria*/*/aria2c.exe").Path,
+        $Aria2cExePath = 'C:\aria2\aria2c.exe',
 
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
@@ -183,12 +183,13 @@ function Get-LatestGitHubRelease {
                 New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
             }
 
-            # Download asset
+            # Download asset but make sure the variable is empty each time
+            $DownloadedFile = ''
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
-                    if (-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue)) {
+                    if (-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) {
                         $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
-                        $aria2cExe = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
+                        $Aria2cExePath = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
                     }
                     # Initialize an empty hashtable
                     $downloadFileParams = @{}
