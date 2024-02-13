@@ -130,9 +130,11 @@ function Install-PackageProviders {
             # PowerShellGet version 2
             Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
         }
-        if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
-            # PowerShellGet version 3
-            Install-PSResource AnyPackage
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
+                # PowerShellGet version 3
+                Install-PSResource AnyPackage
+            }
         }
 
         # Ensure Pansies module is installed for logging
