@@ -186,6 +186,10 @@ function Get-LatestGitHubRelease {
             # Download asset
             $downloadedFile = if ($asset.Browser_Download_url) {
                 if ($UseAria2) {
+                    if (-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue)) {
+                        $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
+                        $aria2cExe = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
+                    }
                     # Initialize an empty hashtable
                     $downloadFileParams = @{}
 
