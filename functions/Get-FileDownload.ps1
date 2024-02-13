@@ -38,7 +38,7 @@
   #>
 
 function Get-FileDownload {
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding()]
     [OutputType([string])]
     param (
         [Parameter(
@@ -57,14 +57,14 @@ function Get-FileDownload {
         [string]$OutFileDirectory,
 
         [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'UseAria2'
+            Mandatory = $false
+            
         )]
         [switch]$UseAria2,
 
         [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'UseAria2'
+            Mandatory = $false
+           
         )]
         [ValidateScript({
                 if (-not (Test-Path $_ -PathType Leaf)) {
@@ -75,8 +75,8 @@ function Get-FileDownload {
         [string]$aria2cExe = $(Resolve-Path 'c:\aria2*\*\aria2c.exe' -ErrorAction SilentlyContinue).Path,
 
         [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'Auth'
+            Mandatory = $false
+            
         )]
         [ValidateNotNullOrEmpty()]
         [string]$SecretName = 'ReadOnlyGitHubToken',
@@ -88,8 +88,8 @@ function Get-FileDownload {
         [System.Collections.IDictionary]$Headers,
 
         [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'Auth'
+            Mandatory = $false
+            
         )]
         [switch]$IsPrivateRepo
     )
