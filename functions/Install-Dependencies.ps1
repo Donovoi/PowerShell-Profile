@@ -1,13 +1,17 @@
+# the dependencies of this function are:
+#   - functions/Write-Logg.ps1
+
+
 function Install-Dependencies {
     [CmdletBinding()]
     param(
         [switch]$RemoveAllModules,
         [string[]]$PSModule,
-        [string[]]$NugetPackages,
+        [string[]]$NugetPackage,
         [switch]$NoPSModules,
-        [switch]$NoNugetPackages,
+        [switch]$NoNugetPackage,
         [switch]$InstallDefaultPSModules,
-        [switch]$InstallDefaultNugetPackages,
+        [switch]$InstallDefaultNugetPackage,
         [switch]$AddDefaultAssemblies,
         [string[]]$AddCustomAssemblies,
         [string]$LocalModulesDirectory
@@ -20,8 +24,8 @@ function Install-Dependencies {
     Install-PackageProviders
 
     # Install NuGet dependencies
-    if (-not $NoNugetPackages ) {
-        InstallNugetDeps $InstallDefaultNugetPackages $NugetPackages
+    if (-not $NoNugetPackage ) {
+        InstallNugetDeps $InstallDefaultNugetPackage $NugetPackage
     }
 
     # Install PowerShell modules
@@ -182,7 +186,7 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 }
 
 
-function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
+function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
     try {
         # Determine which NuGet packages are needed based on the InstallDefault flag
         $deps = if ($InstallDefault) {
@@ -195,16 +199,16 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackages) {
         }
         else {
 
-            $deps = $NugetPackages
+            $deps = $NugetPackage
         }
 
 
         # Log the installation process (assumes you have a custom logging function)
         Write-Logg -Message 'Installing NuGet dependencies' -Level Info
 
-        if ((-not[string]::IsNullOrEmpty($NugetPackages)) -or $InstallDefault) {
+        if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
-            Add-NuGetDependencies -NugetPackages $deps
+            Add-NuGetDependencies -NugetPackage $deps
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Info
@@ -474,7 +478,7 @@ Adds NuGet dependencies to the project.
 .DESCRIPTION
 This function adds NuGet dependencies to the project by installing the specified packages and saving them locally.
 
-.PARAMETER NugetPackages
+.PARAMETER NugetPackage
 The NuGet packages to load. This should be a hashtable with the package names as keys and the package versions as values.
 
 .PARAMETER SaveLocally
@@ -484,7 +488,7 @@ function Add-NuGetDependencies {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, HelpMessage = 'The NuGet packages to load.')]
-        [hashtable]$NugetPackages,
+        [hashtable]$NugetPackage,
 
         [Parameter(Mandatory = $false, HelpMessage = 'Specify if the packages should be saved locally.')]
         [switch]$SaveLocally
@@ -499,7 +503,7 @@ function Add-NuGetDependencies {
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'nugetpackages'
+            $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'NugetPackage'
             Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
@@ -512,8 +516,8 @@ function Add-NuGetDependencies {
             New-Item -Path "$TempWorkDir" -ItemType Directory | Out-Null
         }
 
-        foreach ($dep in $NugetPackages.Keys) {
-            $version = $NugetPackages[$dep]
+        foreach ($dep in $NugetPackage.Keys) {
+            $version = $NugetPackage[$dep]
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -and (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
