@@ -3,7 +3,7 @@ function Update-DotNetSDK {
     param(
         [Parameter(Mandatory = $false)]
         [string[]]
-        $DotNetVersions = @('3_1', '5', '6', '7', 'Preview')
+        $DotNetVersions = @('3_1', '5', '6', '7', '8', 'Preview')
     )
 
     foreach ($DotNetVersion in $DotNetVersions) {
