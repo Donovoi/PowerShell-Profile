@@ -39,17 +39,17 @@ function Write-Logg {
 
     try {
         # make sure we have pansies to override write-host
-        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-            $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-        }
         $cmdlets = @('Install-Dependencies')
         if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+            }
             Write-Verbose -Message "Importing cmdlets: $cmdlets"
             $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
             $Cmdletstoinvoke | Import-Module -Force
-            if (-not(Get-Module -Name 'pansies' -ErrorAction SilentlyContinue)) {
+            if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Install-Dependencies -PSModule 'pansies' -NoNugetPackages
             }
         }
