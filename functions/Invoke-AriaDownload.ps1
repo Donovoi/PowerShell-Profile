@@ -82,7 +82,7 @@ function Invoke-AriaDownload {
         [string]$Aria2cExePath,
 
         [Parameter(Mandatory = $false)]
-        [string]$SecretName,
+        [string]$Token,
 
         [Parameter(Mandatory = $false)]
         [System.Collections.IDictionary]$Headers,
@@ -106,17 +106,13 @@ function Invoke-AriaDownload {
             }
 
             # Construct the authorization header if a valid secret name is provided and the url is from github
-            $authHeader = ''
+            $authHeader = @()
             if ($URL -like '*github.com*') {
-                if (-not [string]::IsNullOrEmpty($SecretName)) {
+                if (-not [string]::IsNullOrEmpty($Token)) {
                     # Install any needed modules and import them
-                    if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                        Install-Dependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore'
-                    }
-                    $secret = Get-Secret -Name $SecretName -AsPlainText
-                    if ($null -ne $secret) {
-                        $authHeader = "--header=`"Authorization: token $secret`""
-                    }
+                    $authHeader += "--header=`"Authorization: token $Token`""
+                    $authHeader += "--header=`"Accept: application/octet-stream`""
+                    $authHeader += "--header=`"User-Agent: aria2c`""
                 }
             }
 
@@ -178,7 +174,7 @@ function Invoke-AriaDownload {
                 '--allow-overwrite=true',
                 $outfileargument,
                 $headerArgs.GetEnumerator(), # Include custom headers if provided
-                $authHeader, # Include the authorization header if it was constructed
+                $authHeader.GetEnumerator(), # Include the authorization header if it was constructed
                 $URL  # Use the URL if provided, otherwise use the URLFile
             ).ForEach({ $asciiEncoding.GetString($asciiEncoding.GetBytes($_)) })
 

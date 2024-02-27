@@ -67,79 +67,123 @@ function Get-LatestGitHubRelease {
         [switch] $VersionOnly,
 
         [Parameter(Mandatory = $false)]
-        [string] $TokenName = 'ReadOnlyGitHubToken',
+        [string] $Token,
 
         [Parameter(Mandatory = $false)]
         [switch] $PrivateRepo
     )
 
     begin {
-
-        # Prepare API headers without Authorization
-        $headers = @{
-            'Accept'               = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
-        }
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
         if ($PrivateRepo) {
-            # $initialPassword = ConvertTo-SecureString -String 'PrettyPassword' -AsPlainText -Force
-            # Install any needed modules and import them
-            # At the start of the session
-            $modulesAtStart = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
-            if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                Install-Dependencies -PSModule 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore', 'PANSIES' -InstallDefaultNugetPackages
+            # We will first make sure we can access the repo with the token
+            $headers = @{
+                'Authorization' = "token $token"
+                'User-Agent'    = 'PowerShell'
             }
-            # Later in the session
-            $modulesNow = Get-Module -ListAvailable | Select-Object -ExpandProperty Name
+    
+            $apiUrl = "https://api.github.com/repos/$Repository/releases"
+            $httpClient = New-Object System.Net.Http.HttpClient            
+            $httpClient.DefaultRequestHeaders.Clear()
+    
+            foreach ($key in $headers.Keys) {
+                $httpClient.DefaultRequestHeaders.Add($key, $headers[$key])
+            }
+    
+            
+            $response = $httpClient.GetAsync($apiUrl).Result
+            if (-not $response.IsSuccessStatusCode) {
+                Write-Error "Failed to get releases from GitHub API with status code $($response.StatusCode)."
+                return
+            }
+            $releases = ConvertFrom-Json $response.Content.ReadAsStringAsync().Result
+            $preRelease = $releases | Where-Object { $_.prerelease -eq $true } | Select-Object -First 1
+            if ($null -eq $preRelease) {
+                Write-Error 'No pre-release found.'
+                return
+            }
+    
+            $asset = $preRelease.assets | Select-Object -First 1
+            if ($null -eq $asset) {
+                Write-Error 'No assets found in the pre-release.'
+                return
+            }
+            $assetUrl = $asset.url
 
-            # Find new modules installed during this session
-            $newModules = $modulesNow | Where-Object { $_ -notin $modulesAtStart }
-            if ($newModules -notcontains 'Microsoft.PowerShell.SecretManagement') {
-                try {
-                    Write-Logg -Message 'You will now be asked to enter the password for the current store: ' -Level Warning
-                    Unlock-SecretStore -Password (Read-Host -Prompt 'Enter the password for the secret store' -AsSecureString)
+            if ($UseAria2) {
+                if (-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) {
+                    $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
+                    $Aria2cExePath = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
                 }
-                catch {
-                    try {
-                        Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
-                    }
-                    catch {
-                        # Reset store if above fails (means we forgot the password to the original store)
-                        Reset-SecretStore -Authentication None -Scope CurrentUser -Confirm:$false
-                    }
+                # Initialize an empty hashtable
+                $downloadFileParams = @{}
 
+                # Mandatory parameters
+                $downloadFileParams['URL'] = $assetUrl
+                $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
+
+                # Conditionally add parameters
+                $downloadFileParams['UseAria2'] = $true
+                if ((Test-Path -Path $Aria2cExePath -ErrorAction silentlycontinue)) {
+                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                }
+
+                if ( (-not [string]::IsNullOrEmpty($Token)) -and $PrivateRepo) {
+                    $downloadFileParams['SecretName'] = $TokenName
+                    $downloadFileParams['IsPrivateRepo'] = $true
+                }
+
+                # Splat the parameters onto the function call
+                Get-FileDownload @downloadFileParams
+            }
+
+            # add headers for the binary download
+            $httpClient.DefaultRequestHeaders.Accept.Add((New-Object System.Net.Http.Headers.MediaTypeWithQualityHeaderValue('application/octet-stream')))
+
+            $response = $httpClient.GetAsync($assetUrl, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
+            if (-not $response.IsSuccessStatusCode) {
+                Write-Error "Failed to download pre-release asset from GitHub API with status code $($response.StatusCode)."
+                return
+            }
+        
+            $totalBytes = $response.Content.Headers.ContentLength
+            $stream = $response.Content.ReadAsStreamAsync().Result
+            $outputFilePath = Join-Path -Path $(Get-Location).ToString() -ChildPath $( $($Repository -replace '/', '_').tostring() + '_' + $($preRelease.tag_name).toString() + '.zip')
+            $fileStream = [System.IO.File]::Create($outputFilePath)
+        
+            $bufferSize = 20MB
+            $buffer = New-Object byte[] $bufferSize
+            $bytesRead = 0
+            $progress = 0
+            # if powershell 5.1 do not show progress to speed up the download
+            if ($PSVersionTable.PSVersion.Major -eq 5) {
+                Write-Host "Downloading zip: $assetUrl"
+                while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    $fileStream.Write($buffer, 0, $read)
+                    $bytesRead += $read
                 }
             }
             else {
-                try {
-                    Write-Logg -Message 'Initializing the secret store...' -Level Warning                    # Initialize the secret store
-                    Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication none -Interaction None -Confirm:$false -Password $initialPassword
-                    Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -Interaction None -Confirm:$false -Password $initialPassword
+                Write-Progress -Activity 'Downloading' -Status 'Downloading zip' -PercentComplete 0        
+                while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    $fileStream.Write($buffer, 0, $read)
+                    $bytesRead += $read
+                    $newProgress = [math]::Round(($bytesRead / $totalBytes) * 100)
+                    if ($newProgress -gt $progress) {
+                        $progress = $newProgress
+                        Write-Progress -PercentComplete $progress -Status 'Downloading' -Activity "Downloading zip: $assetUrl"
+                    }
                 }
-                catch {
-                    Write-Logg -Message "An error occurred while initializing the secret store: $($_)" -Level Error
-                    throw
-                }
             }
+            Write-Progress -Completed -Status 'Download Completed' -Activity "Downloading zip: $assetUrl"
+        }
+        else {
 
-            # Retrieve GitHub token
-            $currentstoreconfig = Get-SecretStoreConfiguration
-            if ($currentstoreconfig.Authentication -eq 'Password') {
-                Unlock-SecretStore -Password $initialPassword
-            }
-
-            $PlainTextToken = Get-Secret -Name $TokenName -ErrorAction SilentlyContinue -AsPlainText
-            if (-not ([string]::IsNullOrEmpty($PlainTextToken))) {
-                $headers['Authorization'] = "Bearer $PlainTextToken"
-            }
-            else {
-                $TokenValue = Read-Host -Prompt 'Enter the GitHub token' -AsSecureString
-                Set-StoredSecret -Secret $TokenValue -SecretName $TokenName -SecurePassword $initialPassword
-                $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($TokenValue)
-                $PlainTextToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-                $headers['Authorization'] = "Bearer $PlainTextToken"
-                [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+            # Prepare API headers without Authorization
+            $headers = @{
+                'Accept'               = 'application/vnd.github+json'
+                'X-GitHub-Api-Version' = '2022-11-28'
             }
         }
     }
@@ -204,7 +248,7 @@ function Get-LatestGitHubRelease {
                         $downloadFileParams['aria2cexe'] = $Aria2cExePath
                     }
 
-                    if ($TokenName -and $PrivateRepo) {
+                    if ( (-not [string]::IsNullOrEmpty($Token)) -and $PrivateRepo) {
                         $downloadFileParams['SecretName'] = $TokenName
                         $downloadFileParams['IsPrivateRepo'] = $true
                     }
