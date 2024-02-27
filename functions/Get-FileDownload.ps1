@@ -196,7 +196,8 @@ function Get-FileDownload {
                 }
                 else {
                     Write-Warning -Message 'Using bits for download.'
-                    Start-BitsTransfer -Asynchronous -Dynamic -Source $download -Destination $OutFile
+                    Start-BitsTransfer -Source $download -Destination $OutFile
+                    Write-Host -Object "Downloaded file to $OutFile" -ForegroundColor Green
                 }
             }
         }
