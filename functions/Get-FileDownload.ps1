@@ -167,6 +167,9 @@ function Get-FileDownload {
                     }
 
                     # Combine with the output directory
+                    if (-not(Test-Path -Path $OutFileDirectory -ErrorAction SilentlyContinue)) {
+                        New-Item -Path $OutFileDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue
+                    }
                     $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $finalFileName
                 }
 
@@ -192,8 +195,8 @@ function Get-FileDownload {
                     }
                 }
                 else {
-                    Write-Warning -Message 'Using Invoke-WebRequest for download.'
-                    Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
+                    Write-Warning -Message 'Using bits for download.'
+                    Start-BitsTransfer -Asynchronous -Dynamic -Source $download -Destination $OutFile
                 }
             }
         }
