@@ -180,7 +180,7 @@ function Get-FileDownload {
                         if ($null -ne $SecretName) {
                             # Validate the secret exists and is valid
                             if (-not (Get-SecretInfo -Name $SecretName)) {
-                                Write-Logg -Message "The secret '$SecretName' does not exist or is not valid." -Level ERROR
+                                Write-Error -Message "The secret '$SecretName' does not exist or is not valid."
                                 throw
                             }
 
@@ -192,13 +192,13 @@ function Get-FileDownload {
                     }
                 }
                 else {
-                    Write-Logg -Message 'Using Invoke-WebRequest for download.' -Level Info
+                    Write-Warning -Message 'Using Invoke-WebRequest for download.'
                     Invoke-WebRequest -Uri $download -OutFile $OutFile -Headers $Headers
                 }
             }
         }
         catch {
-            Write-Logg -Message "An error occurred: $_" -Level Error
+            Write-Error -Message "An error occurred: $_"
             throw
         }
         return $DownloadedFile
