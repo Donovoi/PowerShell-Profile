@@ -79,7 +79,7 @@ function Get-FileDownload {
             
         )]
         [ValidateNotNullOrEmpty()]
-        [string]$SecretName = 'ReadOnlyGitHubToken',
+        [string]$Token,
 
         [Parameter(
             Mandatory = $false
@@ -176,18 +176,8 @@ function Get-FileDownload {
                 if ($UseAria2) {
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
-                        # Install any needed modules and import them
-                        if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement) -or (-not (Get-Module -Name Microsoft.PowerShell.SecretStore))) {
-                            Install-Dependencies -PSModules 'Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore' -NoNugetPackages -RemoveAllModules
-                        }
-                        if ($null -ne $SecretName) {
-                            # Validate the secret exists and is valid
-                            if (-not (Get-SecretInfo -Name $SecretName)) {
-                                Write-Error -Message "The secret '$SecretName' does not exist or is not valid."
-                                throw
-                            }
-
-                            Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -SecretName $SecretName -Headers:$Headers
+                        if ($null -ne $Token) {
+                            Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token -Headers:$Headers
                         }
                     }
                     else {
