@@ -146,7 +146,7 @@ function Get-LatestGitHubRelease {
                 Write-Error 'No assets found in the release.'
                 return
             }
-
+            $Release = $asset.Browser_Download_url
         }
         else {
 
@@ -171,7 +171,7 @@ function Get-LatestGitHubRelease {
                 else {
                     $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
                     $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
-                    $release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
+                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
                 }
 
                 # Handle 'Not Found' response
