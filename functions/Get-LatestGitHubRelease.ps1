@@ -73,7 +73,7 @@ function Get-LatestGitHubRelease {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = 'C:\aria2\aria2c.exe',
+        $Aria2cExePath,
 
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
@@ -165,14 +165,14 @@ function Get-LatestGitHubRelease {
 
                 # Retrieve release information
                 $Release = $null
-                $Release = if ($PreRelease) {
+                if ($PreRelease) {
                     $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
-                    $releases | Sort-Object -Property created_at | Select-Object -Last 1
+                    $Release = $releases | Sort-Object -Property created_at | Select-Object -Last 1
                 }
                 else {
                     $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
                     $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
-                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
+                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" }
                 }
 
                 # Handle 'Not Found' response
@@ -214,14 +214,21 @@ function Get-LatestGitHubRelease {
                 if ($Release) {
                     $downloadFileParams['URL'] = $Release
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-                    $downloadFileParams['UseAria2'] = $UseAria2
-                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+
+                    if ($UseAria2) {
+                        $downloadFileParams['UseAria2'] = $UseAria2
+                        $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                    }
+
                 }
                 elseif ($manualDownloadurl) {
                     $downloadFileParams['URL'] = $manualDownloadurl
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-                    $downloadFileParams['UseAria2'] = $UseAria2
-                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+
+                    if ($UseAria2) {
+                        $downloadFileParams['UseAria2'] = $UseAria2
+                        $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                    }
                 }
                 # Splat the parameters onto the function call
                 $DownloadedFile = Get-FileDownload @downloadFileParams
