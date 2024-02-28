@@ -198,13 +198,15 @@ function Get-LatestGitHubRelease {
                 }
             }
 
-            # Download asset but make sure the variable is empty each time
-            $DownloadedFile = ''
             if ($Release -or $manualDownloadurl) {
                 if ((-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) -and $UseAria2) {
                     $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
                     $Aria2cExePath = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
                 }
+
+                # Download asset but make sure the variable is empty each time
+                $DownloadedFile = ''
+
                 # take the 3 variables as a array and download all of them that are not empty
                 $downloadFileParams = @{}
                 if ($PrivateRepo) {
@@ -221,7 +223,7 @@ function Get-LatestGitHubRelease {
                     }
 
                 }
-                elseif ($manualDownloadurl) {
+                else {
                     $downloadFileParams['URL'] = $manualDownloadurl
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
 
@@ -267,3 +269,4 @@ function Get-LatestGitHubRelease {
 
     }
 }
+Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -ErrorAction Break -Verbose
