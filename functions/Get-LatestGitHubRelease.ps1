@@ -164,6 +164,7 @@ function Get-LatestGitHubRelease {
                 $apiurl = "https://api.github.com/repos/$OwnerRepository/releases"
 
                 # Retrieve release information
+                $Release = $null
                 $Release = if ($PreRelease) {
                     $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
                     $releases | Sort-Object -Property created_at | Select-Object -Last 1
@@ -259,6 +260,4 @@ function Get-LatestGitHubRelease {
 
     }
 }
-
-
 
