@@ -240,7 +240,7 @@ function Get-LatestGitHubRelease {
                     Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
                     return $downloadedFile
                 }
-                if ($asset.Name -like '*aria*') {
+                if ($DownloadedFile -like '*aria*') {
                     # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
                     $tempDir = Join-Path -Path $ENV:TEMP -ChildPath ([System.IO.Path]::GetRandomFileName())
                     Extract-ZipFile -zipFilePath $downloadedFile -outputFolderPath $tempDir
@@ -267,4 +267,3 @@ function Get-LatestGitHubRelease {
 
     }
 }
-
