@@ -164,15 +164,14 @@ function Get-LatestGitHubRelease {
                 $apiurl = "https://api.github.com/repos/$OwnerRepository/releases"
 
                 # Retrieve release information
-                $Release = if ($PreRelease -and $(-not $PrivateRepo)) {
+                $Release = if ($PreRelease) {
                     $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
                     $releases | Sort-Object -Property created_at | Select-Object -Last 1
                 }
-                elseif (-not $PrivateRepo) {
-                    $Release = Invoke-RestMethod -Uri ($apiurl + '/latest') -Headers $headers
-                }
                 else {
-                    $Release = $asset.url
+                    $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
+                    $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
+                    $release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
                 }
 
                 # Handle 'Not Found' response
@@ -192,10 +191,6 @@ function Get-LatestGitHubRelease {
                     $Version = $Release.name.Split(' ')[0]
                     return $Version
                 }
-                else {
-                    $asset = $Release.assets | Where-Object { $_ -like "*$AssetName*" } | Select-Object -First 1
-                }
-
                 # Prepare for download
                 if (-not (Test-Path $DownloadPathDirectory)) {
                     New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
@@ -204,7 +199,7 @@ function Get-LatestGitHubRelease {
 
             # Download asset but make sure the variable is empty each time
             $DownloadedFile = ''
-            $downloadedFile = if ($asset.Browser_Download_url -or $manualDownloadurl -or $asset.url) {
+            $downloadedFile = if ($Release -or $manualDownloadurl) {
                 if ((-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) -and $UseAria2) {
                     $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
                     $Aria2cExePath = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
@@ -215,20 +210,14 @@ function Get-LatestGitHubRelease {
                     $downloadFileParams['Token'] = $Token
                     $downloadFileParams['IsPrivateRepo'] = $true
                 }
-                if ($asset.Browser_Download_url) {
-                    $downloadFileParams['URL'] = $asset.Browser_Download_url
+                if ($Release) {
+                    $downloadFileParams['URL'] = $Release
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
                     $downloadFileParams['UseAria2'] = $UseAria2
                     $downloadFileParams['aria2cexe'] = $Aria2cExePath
                 }
                 elseif ($manualDownloadurl) {
                     $downloadFileParams['URL'] = $manualDownloadurl
-                    $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-                    $downloadFileParams['UseAria2'] = $UseAria2
-                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
-                }
-                elseif ($asset.url -and (-not $asset.Browser_Download_url)) {
-                    $downloadFileParams['URL'] = $asset.url
                     $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
                     $downloadFileParams['UseAria2'] = $UseAria2
                     $downloadFileParams['aria2cexe'] = $Aria2cExePath
@@ -270,7 +259,6 @@ function Get-LatestGitHubRelease {
 
     }
 }
-
 
 
 
