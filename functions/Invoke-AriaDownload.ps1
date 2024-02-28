@@ -89,7 +89,7 @@ function Invoke-AriaDownload {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'info'
+        [string]$AriaConsoleLogLevel = 'error'
     )
     begin {
         # Ensure aria2c is in the PATH
@@ -112,7 +112,6 @@ function Invoke-AriaDownload {
                     # Install any needed modules and import them
                     $authHeader += "--header=`"Authorization: token $Token`""
                     $authHeader += "--header=`"Accept: application/octet-stream`""
-                    $authHeader += "--header=`"User-Agent: aria2c`""
                 }
             }
 
@@ -194,5 +193,3 @@ function Invoke-AriaDownload {
         }
     }
 }
-
-
