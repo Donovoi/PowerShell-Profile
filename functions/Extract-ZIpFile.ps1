@@ -6,7 +6,7 @@ Extracts the contents of a zip file to a specified output folder.
 The Extract-ZipFile function extracts the contents of a zip file to a specified output folder. It uses the System.IO.Compression.ZipFile class to open and read the zip file, and then iterates through each entry in the zip archive. For each entry, it creates the corresponding target path in the output folder, creates any necessary directories, and copies the entry's contents to the target file.
 
 .PARAMETER zipFilePath
-The path to the zip file that needs to be extracted.
+The path to the zip file that needs to be extracted..
 
 .PARAMETER outputFolderPath
 The path to the folder where the contents of the zip file should be extracted.
