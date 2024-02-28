@@ -94,7 +94,7 @@ function Get-LatestGitHubRelease {
             $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
             New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
         }
-        $cmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+        $cmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Extract-ZipFile')
         Write-Verbose -Message "Importing cmdlets: $cmdlets"
         $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
         $Cmdletstoinvoke | Import-Module -Force
