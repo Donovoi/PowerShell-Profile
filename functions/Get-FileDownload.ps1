@@ -160,7 +160,7 @@ function Get-FileDownload {
                     $parsedresponse = $jsonresponse.Content | ConvertFrom-Json
                     if ($parsedresponse.Name) {
                         $fileName = $parsedresponse.Name
-                        $potentialFileNames += $fileName                        
+                        $potentialFileNames += $fileName
                     }
                     else {
                         $contentDisposition = $jsonresponse.Headers['Content-Disposition']
@@ -184,7 +184,7 @@ function Get-FileDownload {
                             }
                         }
                     }
-                
+
                     # Determine the final filename
                     $finalFileName = $null
                     if ($potentialFileNames.Count -gt 0) {
