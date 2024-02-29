@@ -217,13 +217,15 @@ function Get-FileDownload {
             }
             else {
                 Write-Warning -Message 'Using bits for download.'
+                # Create a BITS job to download the file
                 $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
- 
+
                 # Wait for the BITS job to complete
-                while ($null -eq $bitsJob.JobState -or ([string]::IsNullOrEmpty($bits.JobState))) {
+                while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState))) {
                     Start-Sleep -Seconds 5
-                    Write-Information -MessageData 'Waiting for BITS job to complete...'
+                    Write-Output 'Waiting for BITS job to complete...'
                 }
+
 
                 # If the job completed successfully, print the path of the downloaded file
                 if ($bitsJob.JobState -eq 'Transferred') {
