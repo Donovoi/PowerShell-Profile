@@ -208,25 +208,26 @@ function Get-FileDownload {
                 # If it's a private repo, handle the secret
                 if ($IsPrivateRepo) {
                     if ($null -ne $Token) {
-                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
                     }
                 }
                 else {
-                    $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe
+                    $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe
                 }
             }
             else {
                 Write-Warning -Message 'Using bits for download.'
                 $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
-
+ 
                 # Wait for the BITS job to complete
-                while (($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
-                    Start-Sleep -Seconds 1
+                while ($null -eq $bitsJob.JobState -or ([string]::IsNullOrEmpty($bits.JobState))) {
+                    Start-Sleep -Seconds 5
+                    Write-Information -MessageData 'Waiting for BITS job to complete...'
                 }
 
                 # If the job completed successfully, print the path of the downloaded file
                 if ($bitsJob.JobState -eq 'Transferred') {
-                    $DownloadedFile = $null
+                    $Script:DownloadedFile = $null
                     $bitsJob | Complete-BitsTransfer
                     $bitsJob.Files | ForEach-Object {
                         Write-Output "File downloaded to: $($_.LocalName)"
