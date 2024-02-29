@@ -269,3 +269,4 @@ function Get-LatestGitHubRelease {
 
     }
 }
+
