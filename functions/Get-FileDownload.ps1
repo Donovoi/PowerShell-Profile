@@ -147,7 +147,7 @@ function Get-FileDownload {
                         $headers['Authorization'] = "token $token"
                     }
 
-                    $response = Invoke-WebRequest -Uri $download -Method Get -Headers $headers
+                    $jsonresponse = Invoke-WebRequest -Uri $download -Method Get -Headers $headers
 
                     $potentialFileNames = @()
 
