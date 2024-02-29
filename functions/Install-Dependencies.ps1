@@ -143,9 +143,10 @@ function Install-PackageProviders {
 
         # Ensure Pansies module is installed for logging
         if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber | Out-Null
+            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber
+            Import-Module -Name 'Pansies' -Force -Global
         }
-        Import-Module -Name 'Pansies' -Force -Global -ErrorAction SilentlyContinue | Out-Null
+
     }
     catch {
         Write-Error 'An error occurred while setting up package providers:'
