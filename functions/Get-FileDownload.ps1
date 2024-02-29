@@ -216,14 +216,17 @@ function Get-FileDownload {
                 }
             }
             else {
-                Write-Warning -Message 'Using bits for download.'
+                Write-Warning -Message 'Downloading Using Bitstransfer.'
                 # Create a BITS job to download the file
                 $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
 
                 # Wait for the BITS job to complete we will check if the state is like error or an empty string
                 while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
                     Start-Sleep -Seconds 5
-                    Write-host 'Waiting for BITS job to complete...'
+                    # every five seconds with will change the foreground of the text to something different as long as it is not the same color as the background
+                    $randomcolor = Get-Random -Minimum 1 -Maximum 15
+                    $newcolor = $randomcolor -ne $host.ui.rawui.BackgroundColor
+                    Write-Host -ForegroundColor $newcolor -Object "Waiting for download to complete. Current state: $($bitsJob.JobState)"
                 }
 
                 # If the job completed successfully, print the path of the downloaded file
