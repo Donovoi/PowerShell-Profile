@@ -269,4 +269,3 @@ function Get-LatestGitHubRelease {
 
     }
 }
-Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -ErrorAction Break -Verbose
