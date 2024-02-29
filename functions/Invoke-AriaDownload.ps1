@@ -89,7 +89,7 @@ function Invoke-AriaDownload {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'error'
+        [string]$AriaConsoleLogLevel = 'debug'
     )
     begin {
         # Ensure aria2c is in the PATH
@@ -187,6 +187,8 @@ function Invoke-AriaDownload {
 
             # Add the URL to $ariaarguments
             $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($URL))
+
+            Write-Host "$Aria2cExePath `n $ariaarguments"
 
             Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
 
