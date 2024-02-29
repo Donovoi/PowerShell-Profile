@@ -224,8 +224,14 @@ function Get-FileDownload {
                 while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
                     Start-Sleep -Seconds 5
                     # every five seconds with will change the foreground of the text to something different as long as it is not the same color as the background
-                    $randomcolor = Get-Random -Minimum 1 -Maximum 15
-                    $newcolor = $randomcolor -ne $host.ui.rawui.BackgroundColor
+
+                    # convert the random number to a color
+                    $colors = [Enum]::GetValues([ConsoleColor])
+                    $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
+                    # make sure foreground and background are not the same
+                    while ($newcolor -eq $Host.UI.RawUI.BackgroundColor) {
+                        $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
+                    }
                     Write-Host -ForegroundColor $newcolor -Object "Waiting for download to complete. Current state: $($bitsJob.JobState)"
                 }
 
