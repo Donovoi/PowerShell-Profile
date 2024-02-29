@@ -124,7 +124,7 @@ function Invoke-AriaDownload {
             }
             # Get all interfaces that can download the file
             $interfaces = @()
-            Get-NetAdapter  -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
+            Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                 $adapter = $_
                 Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -ErrorAction SilentlyContinue | Where-Object {
                     $_.AddressFamily -eq 'IPv4' -and $_.PrefixOrigin -ne 'WellKnown' -and $_.SuffixOrigin -ne 'WellKnown'
@@ -155,6 +155,7 @@ function Invoke-AriaDownload {
                 $urlfileargument = "--input-file=$URLFile"
             }
             # Start the download process using aria2c
+            # Start the download process using aria2c
             $asciiEncoding = [System.Text.Encoding]::ASCII
             $ariaarguments = @(
                 "--console-log-level=$AriaConsoleLogLevel"
@@ -171,11 +172,21 @@ function Invoke-AriaDownload {
                 '--max-tries=0',
                 "--multiple-interface=$interfaceString",
                 '--allow-overwrite=true',
-                $outfileargument,
-                $headerArgs.GetEnumerator(), # Include custom headers if provided
-                $authHeader.GetEnumerator(), # Include the authorization header if it was constructed
-                $URL  # Use the URL if provided, otherwise use the URLFile
-            ).ForEach({ $asciiEncoding.GetString($asciiEncoding.GetBytes($_)) })
+                $outfileargument
+            )
+
+            # Add each item from $headerArgs to $ariaarguments
+            $headerArgs.GetEnumerator() | ForEach-Object {
+                $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($_))
+            }
+
+            # Add each item from $authHeader to $ariaarguments
+            $authHeader.GetEnumerator() | ForEach-Object {
+                $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($_))
+            }
+
+            # Add the URL to $ariaarguments
+            $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($URL))
 
             Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
 
