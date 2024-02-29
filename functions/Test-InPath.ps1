@@ -10,13 +10,13 @@
     Specifies the name of the executable file to check.
 
 .EXAMPLE
-    Test-ExeInPath -ExeName "your_executable.exe"
+    Test-InPath -ExeName "your_executable.exe"
 
     Checks if "your_executable.exe" is in the PATH.
 
     # Example usage
     $exeName = "your_executable.exe"
-    if (Test-ExeInPath -ExeName $exeName) {
+    if (Test-InPath -ExeName $exeName) {
         Write-Host "$exeName is in the PATH."
     } else {
         Write-Host "$exeName is not in the PATH."
@@ -24,7 +24,7 @@
 
 
 .INPUTS
-    None. You cannot pipe objects to Test-ExeInPath.
+    None. You cannot pipe objects to Test-InPath.
 
 .OUTPUTS
     [bool] True if the executable is found in the PATH, False otherwise.
@@ -35,7 +35,7 @@
     Date: [Date?]
 
 #>
-function Test-ExeInPath {
+function Test-InPath {
     [OutputType([bool])]
     [CmdletBinding()]
     param(
@@ -46,12 +46,15 @@ function Test-ExeInPath {
     # Error handling
     try {
         # Get directories from PATH environment variable
-        $pathDirs = $env:Path -split ';'
+        $pathDirs = $ENV:PATH -split ';'
 
         # Check if the executable exists in any of the directories
         foreach ($dir in $pathDirs) {
+            if ([string]::IsNullOrEmpty($dir)) {
+                continue
+            }
             $exePath = Join-Path -Path $dir -ChildPath $ExeName
-            if (Test-Path -Path $exePath -PathType Leaf) {
+            if (Test-Path -Path $exePath -ErrorAction SilentlyContinue) {
                 return $true
             }
         }
@@ -63,4 +66,3 @@ function Test-ExeInPath {
         return $false
     }
 }
-
