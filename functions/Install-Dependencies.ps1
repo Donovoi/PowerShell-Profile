@@ -143,8 +143,7 @@ function Install-PackageProviders {
 
         # Ensure Pansies module is installed for logging
         if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber
-            Import-Module -Name 'Pansies' -Force -Global
+            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber -ErrorAction SilentlyContinue
         }
 
     }
@@ -308,7 +307,7 @@ function Install-PSModules {
                             # Save the module locally only if LocalModulesDirectory is not null or empty
                             if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
                                 $localModule = Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-                                Import-Module -Name $localModule -Force -Global -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                                Import-Module -Name $localModule -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                             }
                             else {
                                 # Install module
@@ -320,7 +319,7 @@ function Install-PSModules {
                         }
 
                         # Import all modules specified in the $ModulesToBeInstalled array
-                        Import-Module -Name $ModulesToBeInstalled -Force -Global -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                        Import-Module -Name $ModulesToBeInstalled -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                     }
                     catch {
                         Write-Host "An error occurred while processing module $_`: $($_.Exception)"
