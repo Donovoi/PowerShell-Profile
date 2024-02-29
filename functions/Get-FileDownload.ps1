@@ -223,13 +223,13 @@ function Get-FileDownload {
                 # Wait for the BITS job to complete we will check if the state is like error or an empty string
                 while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
                     Start-Sleep -Seconds 5
-                    Write-Output 'Waiting for BITS job to complete...'
+                    Write-host 'Waiting for BITS job to complete...'
                 }
 
                 # If the job completed successfully, print the path of the downloaded file
                 if ($bitsJob.JobState -eq 'Transferred') {
                     $bitsJob.FileList | ForEach-Object {
-                        Write-Output "File downloaded to: $($_.LocalName)"
+                        Write-Host "File downloaded to: $($_.LocalName)"
                         $Script:DownloadedFile += $_.LocalName
                     }
                     $bitsJob | Complete-BitsTransfer
