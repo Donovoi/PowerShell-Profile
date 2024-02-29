@@ -217,8 +217,25 @@ function Get-FileDownload {
             }
             else {
                 Write-Warning -Message 'Using bits for download.'
-                $DownloadedFile = Start-BitsTransfer -Dynamic -Source $download -Destination $OutFile
-                Write-Host -Object "Downloaded file to $OutFile" -ForegroundColor Magenta
+                $bitsJob = Start-BitsTransfer -Source $sourceUrl -Destination $destinationPath -Asynchronous -Dynamic
+
+                # Wait for the BITS job to complete
+                while (($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
+                    Start-Sleep -Seconds 1
+                }
+
+                # If the job completed successfully, print the path of the downloaded file
+                if ($bitsJob.JobState -eq 'Transferred') {
+                    $DownloadedFile = $null
+                    $bitsJob | Complete-BitsTransfer
+                    $bitsJob.Files | ForEach-Object {
+                        Write-Output "File downloaded to: $($_.LocalName)"
+                        $Script:DownloadedFile = $_.LocalName
+                    }
+                }
+                else {
+                    Write-Error "BITS job did not complete successfully. State: $($bitsJob.JobState)"
+                }
             }
         }
     }
@@ -226,5 +243,5 @@ function Get-FileDownload {
         Write-Error -Message "An error occurred: $_"
         throw
     }
-    return $DownloadedFile
+    return $Script:DownloadedFile
 }
