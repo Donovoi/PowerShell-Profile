@@ -88,8 +88,8 @@ function Invoke-AriaDownload {
         [System.Collections.IDictionary]$Headers,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('DEBUG', 'INFO', 'NOTICE', 'WARN', 'ERROR')]
-        [string]$AriaConsoleLogLevel = 'ERROR'
+        [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
+        [string]$AriaConsoleLogLevel = 'error'
     )
     begin {
         $neededcmdlets = @('Test-InPath')
