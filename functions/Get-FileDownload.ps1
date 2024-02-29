@@ -217,7 +217,7 @@ function Get-FileDownload {
             }
             else {
                 Write-Warning -Message 'Using bits for download.'
-                $bitsJob = Start-BitsTransfer -Source $sourceUrl -Destination $destinationPath -Asynchronous -Dynamic
+                $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
 
                 # Wait for the BITS job to complete
                 while (($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
