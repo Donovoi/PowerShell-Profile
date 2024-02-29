@@ -88,13 +88,33 @@ function Invoke-AriaDownload {
         [System.Collections.IDictionary]$Headers,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'debug'
+        [ValidateSet('DEBUG', 'INFO', 'NOTICE', 'WARN', 'ERROR')]
+        [string]$AriaConsoleLogLevel = 'ERROR'
     )
     begin {
+        $neededcmdlets = @('Test-InPath')
+        $neededcmdlets | ForEach-Object {
+            if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+                }
+                Write-Verbose -Message "Importing cmdlet: $_"
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+                $Cmdletstoinvoke | Import-Module -Force
+            }
+        }
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
-            throw "aria2c was not found. Make sure you have the right path for $Aria2cExePath"
+            $IsInPATH = Test-InPath -ExeName 'aria2c.exe'
+            if (-not $IsInPATH) {
+                throw "aria2c was not found. Make sure you have the right path for `$Aria2cExePath: $Aria2cExePath"
+            }
+            else {
+                Write-Verbose -Message 'aria2c was found in the PATH.'
+                $Aria2cExePath = 'aria2c.exe'
+            }
         }
     }
 
@@ -155,7 +175,6 @@ function Invoke-AriaDownload {
                 $urlfileargument = "--input-file=$URLFile"
             }
             # Start the download process using aria2c
-            # Start the download process using aria2c
             $asciiEncoding = [System.Text.Encoding]::ASCII
             $ariaarguments = @(
                 "--console-log-level=$AriaConsoleLogLevel"
@@ -187,8 +206,6 @@ function Invoke-AriaDownload {
 
             # Add the URL to $ariaarguments
             $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($URL))
-
-            Write-Host "$Aria2cExePath `n $ariaarguments"
 
             Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
 
