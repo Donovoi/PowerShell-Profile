@@ -146,7 +146,7 @@ function Get-LatestGitHubRelease {
                 Write-Error 'No assets found in the release.'
                 return
             }
-            $Release = $asset.Browser_Download_url
+            $Release = $asset.url
         }
         else {
 
@@ -245,14 +245,14 @@ function Get-LatestGitHubRelease {
                 if ($DownloadedFile -like '*aria*') {
                     # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
                     $tempDir = Join-Path -Path $ENV:TEMP -ChildPath ([System.IO.Path]::GetRandomFileName())
-                    Extract-ZipFile -zipFilePath $downloadedFile -outputFolderPath $tempDir
-                    $ExtractedFiles = Join-Path -Path $tempDir -ChildPath ($asset.Name -replace '.zip', '')
+                    Expand-Archive -Path $downloadedFile -DestinationPath $tempDir -Force
+                    $ExtractedFiles = Join-Path -Path $tempDir -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
                     Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
                     return $ExtractedFiles
                 }
                 else {
-                    Extract-ZipFile -zipFilePath $downloadedFile -outputFolderPath $DownloadPathDirectory
-                    $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath ($asset.Name -replace '.zip', '')
+                    Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
+                    $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
                     Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
                     return $ExtractedFiles
                 }
