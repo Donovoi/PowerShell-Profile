@@ -62,6 +62,8 @@ function Install-Cmdlet {
                     $Cmdletsarraysb.AppendLine($(Invoke-RestMethod -Uri $link.ToString())) | Out-Null
                 }
                 catch {
+                    Write-Error -Message "Make sure the casing is correctFailed to download the cmdlet from $link"
+                    Write-Error -Message "Make sure the casing is correct"
                     throw $_
                 }
             }
