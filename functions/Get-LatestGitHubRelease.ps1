@@ -170,8 +170,9 @@ function Get-LatestGitHubRelease {
                 # Retrieve release information
                 $Release = $null
                 if ($PreRelease) {
-                    $releases = Invoke-RestMethod -Uri $apiurl -Headers $headers
-                    $Release = $releases | Sort-Object -Property created_at | Where-Object -FilterScript { $_.prerelease -eq $true } | Select-Object -Last 1
+                    $releases = Invoke-WebRequest -Uri $apiurl -Headers $headers
+                    $Releaseparsedjson = ConvertFrom-Json -InputObject $releases.Content
+                    $Release = $Releaseparsedjson | Where-Object -FilterScript { ($_ -like "*$AssetName*") -and ($_.prerelease -eq $true) } | Sort-Object -Property published_at | Select-Object -Property url -Last 1 | ForEach-Object -Process { $_.url }
                 }
                 else {
                     $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
@@ -273,4 +274,3 @@ function Get-LatestGitHubRelease {
 
     }
 }
-
