@@ -177,7 +177,7 @@ function Get-LatestGitHubRelease {
                 else {
                     $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
                     $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
-                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" }
+                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
                 }
 
                 # Handle 'Not Found' response
@@ -194,7 +194,7 @@ function Get-LatestGitHubRelease {
 
                 # Handle 'VersionOnly' parameter
                 if ($PSBoundParameters.ContainsKey('VersionOnly')) {
-                    $Version = $Release.name.Split(' ')[0]
+                    $Version = $release.Split('/')[-2]
                     return $Version
                 }
                 # Prepare for download
