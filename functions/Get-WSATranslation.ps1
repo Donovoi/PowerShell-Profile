@@ -70,7 +70,7 @@ function Get-WSASetup {
     }
     Write-Logg -Message "Cloning the MagiskOnWSALocal repository to $InstallFolder" -Level Info
     git clone 'https://github.com/LSPosed/MagiskOnWSALocal.git' --depth 1 $InstallFolder
-    
+
     <#
     Next steps:
     Run cd MagiskOnWSALocal.
