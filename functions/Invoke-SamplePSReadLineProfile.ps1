@@ -128,7 +128,7 @@ function Invoke-SamplePSReadLineProfile {
         Set-PSReadLineKeyHandler -Key Alt+B -Function SelectShellBackwardWord
         Set-PSReadLineKeyHandler -Key Alt+F -Function SelectShellForwardWord
 
-        
+
 
         # Sometimes you enter a command but realize you forgot to do something else first.
         # This binding will let you save that command in the history so you can recall it,
