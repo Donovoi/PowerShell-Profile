@@ -1,53 +1,56 @@
 <#
 .SYNOPSIS
-    Retrieves the latest release from a GitHub repository and optionally downloads an asset.
+    Retrieves the latest release from a GitHub repository and downloads a specified asset.
 
 .DESCRIPTION
-    The Get-LatestGitHubRelease function retrieves the latest release from a specified GitHub repository. It can also download a specific asset from the release if specified.
+    The Get-LatestGitHubRelease function retrieves the latest release from a GitHub repository and downloads a specified asset. It supports both public and private repositories. If the repository is private, it requires a token for authentication.
 
 .PARAMETER OwnerRepository
     Specifies the owner and repository name in the format "owner/repository". This parameter is mandatory.
 
 .PARAMETER AssetName
-    Specifies the name of the asset to download. This parameter is mandatory when the 'Download' parameter set is used.
+    Specifies the name of the asset to download. This parameter is mandatory.
 
 .PARAMETER DownloadPathDirectory
     Specifies the directory where the asset will be downloaded. If not specified, the current working directory is used.
 
 .PARAMETER ExtractZip
-    Indicates whether to extract the downloaded asset if it is a zip file. By default, extraction is not performed.
+    Specifies whether to extract the downloaded asset if it is a zip file. By default, it is set to false.
 
 .PARAMETER UseAria2
-    Indicates whether to use the aria2 download utility for faster downloads. By default, aria2 is not used.
+    Specifies whether to use the aria2 tool for downloading the asset. By default, it is set to false.
 
 .PARAMETER Aria2cExePath
-    Specifies the path to the aria2c.exe executable. This parameter is only used when 'UseAria2' is set to true.
+    Specifies the path to the aria2c.exe executable if UseAria2 is set to true. If not specified, the function will attempt to locate the executable automatically.
 
 .PARAMETER PreRelease
-    Indicates whether to include pre-release versions in the search for the latest release. By default, pre-release versions are excluded.
+    Specifies whether to include pre-release versions in the search for the latest release. By default, it is set to false.
 
 .PARAMETER VersionOnly
-    Indicates whether to return only the version number of the latest release. If specified, no asset is downloaded.
+    Specifies whether to return only the version of the latest release without downloading the asset. By default, it is set to false.
 
 .PARAMETER Token
-    Specifies a personal access token to access a private repository. This parameter is only used when 'PrivateRepo' is set to true.
+    Specifies the token to use for authentication when accessing a private repository. This parameter is required if the PrivateRepo parameter is set to true.
 
 .PARAMETER PrivateRepo
-    Indicates whether the repository is private. If set to true, a personal access token must be provided.
+    Specifies whether the repository is private. If set to true, the function will use the Token parameter for authentication. By default, it is set to false.
 
 .OUTPUTS
-    Returns the version number of the latest release if the 'VersionOnly' parameter is used. Otherwise, returns the path to the downloaded asset or the extracted files.
+    System.String
+    The function returns the path of the downloaded asset if successful. If the VersionOnly parameter is set to true, it returns the version of the latest release.
 
 .EXAMPLE
-    Get-LatestGitHubRelease -OwnerRepository 'Microsoft/PowerShell' -AssetName 'PowerShell-7.2.0-win-x64.msi' -DownloadPathDirectory 'C:\Downloads'
+    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -DownloadPathDirectory "C:\Downloads" -ExtractZip
 
-    Retrieves the latest release from the 'Microsoft/PowerShell' repository and downloads the 'PowerShell-7.2.0-win-x64.msi' asset to the 'C:\Downloads' directory.
+    Retrieves the latest release from the specified GitHub repository and downloads the asset with the name "asset.zip" to the "C:\Downloads" directory. If the asset is a zip file, it will be extracted.
 
 .EXAMPLE
-    Get-LatestGitHubRelease -OwnerRepository 'Microsoft/PowerShell' -VersionOnly
+    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -VersionOnly
 
-    Retrieves the latest release from the 'Microsoft/PowerShell' repository and returns only the version number of the release.
+    Retrieves the latest release from the specified GitHub repository and returns the version of the latest release without downloading the asset.
 
+.NOTES
+    This function requires an internet connection to access the GitHub API.
 #>
 
 
@@ -271,6 +274,5 @@ function Get-LatestGitHubRelease {
             Write-Logg -Message "An error occurred: $_" -Level Error
             throw
         }
-
     }
 }
