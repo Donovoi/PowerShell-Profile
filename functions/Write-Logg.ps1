@@ -53,7 +53,7 @@ function Write-Logg {
                 Install-Dependencies -PSModule 'pansies' -NoNugetPackages
             }
         }
-        Import-Module -Name 'pansies' -Force
+        Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
         # Capitalize the level for WARNING and ERROR for consistency
         if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
             $Level = $Level.ToUpper()
