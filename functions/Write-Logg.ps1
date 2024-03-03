@@ -1,3 +1,45 @@
+<#
+.SYNOPSIS
+Writes log messages with various options.
+
+.DESCRIPTION
+The Write-Logg function is used to write log messages with different options such as log level, log file, console output, WPF pop-up message, and Terminal.Gui pop-up message.
+
+.PARAMETER Message
+The log message to be written.
+
+.PARAMETER Level
+The log level of the message. Valid values are 'INFO', 'WARNING', 'ERROR', and 'VERBOSE'. The default value is 'INFO'.
+
+.PARAMETER LogFile
+The path to the log file. The default value is "$PWD\log.log".
+
+.PARAMETER NoConsoleOutput
+Specifies whether to suppress console output. If this switch is used, the log message will not be displayed in the console.
+
+.PARAMETER WPFPopUpMessage
+Specifies whether to show a WPF pop-up message with the log message.
+
+.PARAMETER TUIPopUpMessage
+Specifies whether to show a Terminal.Gui pop-up message with the log message.
+
+.PARAMETER TUIPopUpTitle
+The title of the Terminal.Gui pop-up message. The default value is 'Confirmation'.
+
+.PARAMETER LogToFile
+Specifies whether to log the message to the specified log file.
+
+.EXAMPLE
+Write-Logg -Message "This is an informational message" -Level "INFO"
+
+This example writes an informational message to the log file and displays it in the console with green color.
+
+.EXAMPLE
+Write-Logg -Message "This is a warning message" -Level "WARNING" -LogFile "C:\Logs\log.log" -NoConsoleOutput
+
+This example writes a warning message to the specified log file but does not display it in the console.
+
+#>
 function Write-Logg {
     [CmdletBinding()]
     param(
