@@ -92,7 +92,7 @@ function Write-Logg {
             $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
             $Cmdletstoinvoke | Import-Module -Force
             if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Dependencies -PSModule 'pansies' -NoNugetPackages
+                Install-Dependencies -PSModule 'pansies' -NoNugetPackage
             }
         }
         Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
