@@ -11,11 +11,18 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
+
+
 # Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
 $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
 $FunctionsFolder.ForEach{ .$_.FullName }
+
+if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
+  New-Item -Path 'C:\temp\' -ItemType Directory -Force
+  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
+}
 
 # Check if 'write-logg' is available
 if (-not (Get-Command 'write-logg' -ErrorAction SilentlyContinue)) {
