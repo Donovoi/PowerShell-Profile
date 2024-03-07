@@ -91,7 +91,12 @@ function Get-FileDownload {
             Mandatory = $false
 
         )]
-        [switch]$IsPrivateRepo
+        [switch]$IsPrivateRepo,
+
+        [Parameter()]
+        [switch]
+        $GitHub
+
     )
     process {
         try {
@@ -138,10 +143,13 @@ function Get-FileDownload {
                 else {
                     # If the url does not have the filename in it, we get the filename from the headers
                     # Make a HEAD request to get headers
-                    $headers = @{
-                        'User-Agent' = 'PowerShell'
-                        'Accept'     = 'application/vnd.github.v3+json'
+                    if ($GitHub) {
+                        $headers = @{
+                            'User-Agent' = 'PowerShell'
+                            'Accept'     = 'application/vnd.github.v3+json'
+                        }
                     }
+
 
                     if (-not [string]::IsNullOrEmpty($token)) {
                         $headers['Authorization'] = "token $token"
