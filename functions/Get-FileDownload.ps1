@@ -217,7 +217,7 @@ function Get-FileDownload {
                         }
                     }
                     else {
-                        $Script:DownloadedFile += Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe
+                        $Script:DownloadedFile += Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers
                     }
                 }
                 else {
