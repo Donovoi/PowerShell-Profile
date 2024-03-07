@@ -61,7 +61,7 @@ function Get-LatestGitHubRelease {
         [Parameter(Mandatory = $true)]
         [string] $OwnerRepository,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'Download')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string] $AssetName,
 
         # I've hardcoded aria2 to download to a temp directory with a random name to avoid file lock issues
@@ -194,16 +194,16 @@ function Get-LatestGitHubRelease {
                         exit
                     }
                 }
+            }
 
-                # Handle 'VersionOnly' parameter
-                if ($PSBoundParameters.ContainsKey('VersionOnly')) {
-                    $Version = $release.Split('/')[-2]
-                    return $Version
-                }
-                # Prepare for download
-                if (-not (Test-Path $DownloadPathDirectory)) {
-                    New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
-                }
+            # Handle 'VersionOnly' parameter
+            if ($PSBoundParameters.ContainsKey('VersionOnly')) {
+                $Version = $release.Split('/')[-2]
+                return $Version
+            }
+            # Prepare for download
+            if (-not (Test-Path $DownloadPathDirectory)) {
+                New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
             }
 
             if ($Release -or $manualDownloadurl) {
