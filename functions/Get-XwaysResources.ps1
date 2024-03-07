@@ -36,6 +36,22 @@ function Get-XwaysResources {
   try {
     # For faster downloads
     $ProgressPreference = 'SilentlyContinue'
+
+    # Import the required cmdlets
+    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+    $neededcmdlets | ForEach-Object {
+      if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+          $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+          $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+          New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        }
+        Write-Verbose -Message "Importing cmdlet: $_"
+        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+        $Cmdletstoinvoke | Import-Module -Force
+      }
+    }
+
     # if $resetCredentials is set to true then we will delete the credential files
     if ($ResetCredentials) {
       Remove-Item -Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES" -Recurse -Force -ErrorAction SilentlyContinue
@@ -44,7 +60,7 @@ function Get-XwaysResources {
     # Check if we have $XWAYSUSB set as a variable if $XWaysRoot is set to $XWAYSUSB\xwfportable
     if (-not (Resolve-Path -Path $XWaysRoot) -or (-not ({ [System.IO.Path]::IsPathRooted($XWaysRoot) }))) {
       Write-Warning "$XWAYSUSB `$XWaysRoot is empty or not an absolute path."
-      $XWaysRoot = Out-Host -InputObject "Please enter the Folder that is the root of your chosen X-Ways Installation"
+      $XWaysRoot = Out-Host -InputObject 'Please enter the Folder that is the root of your chosen X-Ways Installation'
       Out-Host -InputObject "Your Chosen Folder is $($XWaysRoot)"
     }
 
@@ -64,14 +80,14 @@ function Get-XwaysResources {
       $AESKeyFileDir = $rootFolder
       $AESKeyFilePath = "$AESKeyFileDir\$scriptName-AES.key"
 
-      $title = "Prepare Credentials Encryption Method"
-      $message = "Which mode do you wish to use?"
+      $title = 'Prepare Credentials Encryption Method'
+      $message = 'Which mode do you wish to use?'
 
-      $DPAPI = New-Object System.Management.Automation.Host.ChoiceDescription "&DPAPI", `
-        "Use Windows Data Protection API.  This uses your current user context and machine to create the encryption key."
+      $DPAPI = New-Object System.Management.Automation.Host.ChoiceDescription '&DPAPI', `
+        'Use Windows Data Protection API.  This uses your current user context and machine to create the encryption key.'
 
-      $AES = New-Object System.Management.Automation.Host.ChoiceDescription "&AES", `
-        "Use a randomly generated SecureKey for AES.  This will generate an AES.key file that you need to protect as it contains the encryption key."
+      $AES = New-Object System.Management.Automation.Host.ChoiceDescription '&AES', `
+        'Use a randomly generated SecureKey for AES.  This will generate an AES.key file that you need to protect as it contains the encryption key.'
 
       $options = [System.Management.Automation.Host.ChoiceDescription[]]($DPAPI, $AES)
 
@@ -79,27 +95,27 @@ function Get-XwaysResources {
 
       switch ($choice) {
         0 {
-          $encryptMode = "DPAPI"
+          $encryptMode = 'DPAPI'
         }
         1 {
-          $encryptMode = "AES"
+          $encryptMode = 'AES'
         }
       }
       Out-Host -InputObject "Encryption mode $encryptMode was selected to prepare the credentials."
 
-      Out-Host -InputObject "Collecting XWAYS Credentials to create a secure credential file..."
+      Out-Host -InputObject 'Collecting XWAYS Credentials to create a secure credential file...'
       # Collect the credentials to be used.
-      Out-Host -InputObject "Please enter your X-Ways Credentials"
+      Out-Host -InputObject 'Please enter your X-Ways Credentials'
       $creds = Get-Credential
 
       # Store the details in a hashed format
       $userName = $creds.UserName
       $passwordSecureString = $creds.Password
 
-      if ($encryptMode -eq "DPAPI") {
+      if ($encryptMode -eq 'DPAPI') {
         $password = $passwordSecureString | ConvertFrom-SecureString
       }
-      elseif ($encryptMode -eq "AES") {
+      elseif ($encryptMode -eq 'AES') {
         # Generate a random AES Encryption Key.
         $AESKey = New-Object Byte[] 32
         [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($AESKey)
@@ -130,10 +146,10 @@ function Get-XwaysResources {
       Set-Content $credentialFilePath $userName # Any existing credential file will be overwritten
       Add-Content $credentialFilePath $password
 
-      if ($encryptMode -eq "AES") {
-        Write-Logg -Message "IMPORTANT! Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure."
+      if ($encryptMode -eq 'AES') {
+        Write-Logg -Message 'IMPORTANT! Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure.'
       }
-      Write-Logg -Message "Credentials collected and stored."
+      Write-Logg -Message 'Credentials collected and stored.'
     }
     else {
       # Root Folder
@@ -151,8 +167,8 @@ function Get-XwaysResources {
     # Check to see if we have an AES Key file.  If so, then we will use it to decrypt the secure credential file
     if (Test-Path $AESKeyFilePath) {
       try {
-        Out-Host -InputObject "Found an AES Key File.  Using this to decrypt the secure credential file."
-        $decryptMode = "AES"
+        Out-Host -InputObject 'Found an AES Key File.  Using this to decrypt the secure credential file.'
+        $decryptMode = 'AES'
         $AESKey = Get-Content $AESKeyFilePath
       }
       catch {
@@ -162,25 +178,25 @@ function Get-XwaysResources {
       }
     }
     else {
-      Out-Host -InputObject "No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file."
-      $decryptMode = "DPAPI"
+      Out-Host -InputObject 'No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file.'
+      $decryptMode = 'DPAPI'
     }
 
     try {
       Out-Host -InputObject "Reading secure credential file at $credentialFilePath."
       $credFiles = Get-Content $credentialFilePath
       $userName = $credFiles[0]
-      if ($decryptMode -eq "DPAPI") {
+      if ($decryptMode -eq 'DPAPI') {
         $password = $credFiles[1] | ConvertTo-SecureString
       }
-      elseif ($decryptMode -eq "AES") {
+      elseif ($decryptMode -eq 'AES') {
         $password = $credFiles[1] | ConvertTo-SecureString -Key $AESKey
       }
       else {
         # Placeholder in case there are other decrypt modes
       }
 
-      Out-Host -InputObject "Creating credential object..."
+      Out-Host -InputObject 'Creating credential object...'
       $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $password
       $passwordClearText = $credObject.GetNetworkCredential().Password
       Out-Host -InputObject "Credential store read.  UserName is $userName and Password is $passwordClearText"
@@ -189,32 +205,24 @@ function Get-XwaysResources {
     catch {
       $errText = $error[0]
       Out-Host -InputObject "Failed to Prepare Credentials.  Error Message was: $errText" -Type ERROR
-      Write-Logg -Message "Failed to Prepare Credentials.  Please check Log File."
+      Write-Logg -Message 'Failed to Prepare Credentials.  Please check Log File.'
       exit -1
     }
     #endregion Credentials
 
     #  Then we need to convert the username and password to base64 for basic http authentication
     $AuthenticationPair = "$($userName)`:$($PasswordClearText)"
-    $Bytes = [System.Text.Encoding]::UTF8.GetBytes($authenticationPair)
-    $Base64AuthString = [System.Convert]::ToBase64String($bytes)
+    $Bytes = [System.Text.Encoding]::ASCII.GetBytes($AuthenticationPair)
+    $Base64AuthString = [System.Convert]::ToBase64String($Bytes)
 
     $headers = @{
-      "Authorization" = "Basic $Base64AuthString"
-      "User-Agent"    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36"
-      "Referer"       = "https://x-ways.net/res/"
+      'Authorization' = "Basic $Base64AuthString"
+      'User-Agent'    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36'
+      'Referer'       = 'https://x-ways.net/res/'
     }
 
-    # Get functions from my github profile
-    $functions = @("Get-FileDownload")
-    $functions.ForEach{
-      $function = $_
-      Out-Host -InputObject "Getting $function from https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-      $Webfunction = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$function.ps1"
-      $Webfunction | Invoke-Expression
-    }
-    Out-Host -InputObject "Downloading Excire.zip and Conditional Coloring.cfg"
-    $urls = "https://x-ways.net/res/Excire.zip", "https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg"
+    Out-Host -InputObject 'Downloading Excire.zip and Conditional Coloring.cfg'
+    $urls = 'https://x-ways.net/res/Excire.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg'
 
     Get-FileDownload -URL $urls -OutFileDirectory "$XWaysRoot" -Headers $headers -UseAria2
 
@@ -233,20 +241,20 @@ function Get-XwaysResources {
       }
 
       # Now we copy all TPL files from x-ways.net/winhex/templates two other sites to the XWScriptsAndTemplates folder on $XWAYSUSB
-      $UrlsToDownloadTemplates = @("https://res.jens-training.com/templates/", "https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip", "https://x-ways.net/winhex/templates/")
+      $UrlsToDownloadTemplates = @('https://res.jens-training.com/templates/', 'https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip', 'https://x-ways.net/winhex/templates/')
 
       $UrlsToDownloadTemplates.ForEach{
         $url = $_
         switch -WildCard ($url) {
-          "*.zip" {
+          '*.zip' {
             $ProgressPreference = 'SilentlyContinue'
             Out-Host -InputObject "Downloading kacos2000's Templates as a zip"
             Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])"
             break
           }
           default {
-            Out-Host -InputObject "Parsing Templates from Jens and then from X-Ways"
-            $XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like "*.tpl") -or ($_.href -like "*.zip") })
+            Out-Host -InputObject 'Parsing Templates from Jens and then from X-Ways'
+            $XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like '*.tpl') -or ($_.href -like '*.zip') })
 
             # provide a count of how many templates were found
             Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available from $url"
@@ -266,7 +274,7 @@ function Get-XwaysResources {
       }
 
       # Finally we will expand and remove any remaing zip files
-      $zipfiles = Get-ChildItem -Path "$XWScriptsAndTemplatesFolder" -Filter "*.zip"
+      $zipfiles = Get-ChildItem -Path "$XWScriptsAndTemplatesFolder" -Filter '*.zip'
       $zipfiles.ForEach{
         Expand-Archive -Path $_ -DestinationPath "$XWScriptsAndTemplatesFolder" -Force
         Remove-Item -Path $_ -Force
@@ -280,5 +288,5 @@ function Get-XwaysResources {
     Write-Warning "If you are getting 'Unauthorized' try using the -ResetCredentials switch and rerun the script`n Exiting"
     Exit-PSHostProcess
   }
-  Out-Host -InputObject "All Done!"
+  Out-Host -InputObject 'All Done!'
 }
