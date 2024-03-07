@@ -81,8 +81,8 @@ function Get-LatestGitHubRelease {
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'VersionOnly')]
-        [switch] $VersionOnly,
+        [Parameter(Mandatory = $false, ParameterSetName = 'NoDownload')]
+        [switch] $NoDownload,
 
         [Parameter(Mandatory = $false)]
         [string] $Token,
@@ -110,6 +110,7 @@ function Get-LatestGitHubRelease {
         if ($PSVersionTable.PSVersion.Major -eq 5) {
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
         }
+        $VersionOnly = $null
 
         # if it is a private repo we will use the token to access the release and download the asset
         if ($PrivateRepo) {
@@ -153,6 +154,7 @@ function Get-LatestGitHubRelease {
                 Write-Error 'No assets found in the release.'
                 return
             }
+            $VersionOnly = $Latestrelease.tag_name
             $Release = $asset.url
         }
         else {
@@ -176,11 +178,13 @@ function Get-LatestGitHubRelease {
                     $releases = Invoke-WebRequest -Uri $apiurl -Headers $headers
                     $Releaseparsedjson = ConvertFrom-Json -InputObject $releases.Content | Where-Object -FilterScript { $_.prerelease -eq $true }
                     $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
+                    $VersionOnly = $Releaseparsedjson.tag_name
                 }
                 else {
                     $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
                     $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
                     $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
+                    $VersionOnly = $Releaseparsedjson.tag_name
                 }
 
                 # Handle 'Not Found' response
@@ -196,10 +200,9 @@ function Get-LatestGitHubRelease {
                 }
             }
 
-            # Handle 'VersionOnly' parameter
-            if ($PSBoundParameters.ContainsKey('VersionOnly')) {
-                $Version = $release.Split('/')[-2]
-                return $Version
+            # Handle 'NoDownload' parameter
+            if ($PSBoundParameters.ContainsKey('NoDownload')) {
+                return $VersionOnly
             }
             # Prepare for download
             if (-not (Test-Path $DownloadPathDirectory)) {
