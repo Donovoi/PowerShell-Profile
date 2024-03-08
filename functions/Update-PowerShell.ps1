@@ -85,7 +85,7 @@ function Update-PowerShell {
       $UpdateStable = $false
       # First check the latest version of powershell
       if ($_ -eq 'Preview') {
-        $LatestVersionPreview = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly -PreRelease
+        $LatestVersionPreview = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -NoDownload -PreRelease
         # compare the versions
         if ($LatestVersionPreview -gt $CurrentVersionPreview) {
           $script:UpdatePreview = $true
@@ -93,7 +93,7 @@ function Update-PowerShell {
 
       }
       elseif ($_ -eq 'Stable') {
-        $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -VersionOnly
+        $LatestVersionStable = Get-LatestGitHubRelease -OwnerRepository 'PowerShell/PowerShell' -NoDownload
         if ($LatestVersionStable -gt $CurrentVersionStable) {
           $script:UpdateStable = $true
         }
