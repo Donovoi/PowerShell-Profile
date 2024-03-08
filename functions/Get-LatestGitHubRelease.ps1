@@ -45,7 +45,7 @@
     Retrieves the latest release from the specified GitHub repository and downloads the asset with the name "asset.zip" to the "C:\Downloads" directory. If the asset is a zip file, it will be extracted.
 
 .EXAMPLE
-    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -VersionOnly
+    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -NoDownload
 
     Retrieves the latest release from the specified GitHub repository and returns the version of the latest release without downloading the asset.
 
