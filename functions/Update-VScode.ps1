@@ -31,6 +31,19 @@ function Update-VSCode {
         $DoNotAddDataFolder
     )
     begin {
+        $cmdlets = @('Get-FileDownload', 'Write-Logg')
+        $cmdlets.foreach{
+            if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+                }
+            }
+        }
+        Write-Verbose -Message "Importing cmdlets: $cmdlets"
+        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+        $Cmdletstoinvoke | Import-Module -Force
 
         # Print the name of the running script
         Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)"

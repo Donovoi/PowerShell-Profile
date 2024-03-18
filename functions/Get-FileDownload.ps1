@@ -155,20 +155,23 @@ function Get-FileDownload {
                         $headers['Authorization'] = "token $token"
                     }
 
-                    $jsonresponse = Invoke-WebRequest -Uri $download -Method Get -Headers $headers
+                    $httpresponse = Invoke-WebRequest -Uri $download -Method Head -Headers $headers
+                    $headersHashTable = @{}
+                    $httpresponse.Headers.GetEnumerator() | ForEach-Object {
+                        $headersHashTable[$_.Key] = $_.Value
+                    }
 
                     $potentialFileNames = @()
 
                     # Check Content-Disposition first
                     $filenamematch = $false
-                    # We will do the easiest first, check if there is a filename in the header returned from github
-                    $parsedresponse = $jsonresponse.Content | ConvertFrom-Json
-                    if ($parsedresponse.Name) {
-                        $fileName = $parsedresponse.Name
+                    
+                    if ($headersHashTable) {
+                        $fileName = $($headersHashTable['Content-Disposition'] -split 'filename')[1].TrimStart('=').Trim('"').split(';')[0]
                         $potentialFileNames += $fileName
                     }
                     else {
-                        $contentDisposition = $jsonresponse.Headers['Content-Disposition']
+                        $contentDisposition = $httpresponse.Headers['Content-Disposition']
                         $filenamematch = $([regex]::Match($contentDisposition, '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})'))
                         if ($filenamematch.Success) {
                             $fileName = $filenamematch.Value
