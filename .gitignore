@@ -46,3 +46,4 @@ Non PowerShell Tools/everything sdk/.vs/everything sdk/FileContentIndex/546632b3
 Non PowerShell Tools/everything sdk/.vs/everything sdk/FileContentIndex/ecc335b6-6691-4c43-a8e6-7d5e4374a86b.vsidx
 Non PowerShell Tools/everything sdk/.vs/everything sdk/v17/.wsuo
 *.tmp
+.vscode/launch.json

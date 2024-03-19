@@ -165,7 +165,7 @@ function Get-FileDownload {
 
                     # Check Content-Disposition first
                     $filenamematch = $false
-                    
+
                     if ($headersHashTable) {
                         $fileName = $($headersHashTable['Content-Disposition'] -split 'filename')[1].TrimStart('=').Trim('"').split(';')[0]
                         $potentialFileNames += $fileName

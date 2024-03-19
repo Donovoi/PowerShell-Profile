@@ -1,4 +1,4 @@
-function Get-Fido {
+function Get-FidoDownload {
   [CmdletBinding()]
   param()
 

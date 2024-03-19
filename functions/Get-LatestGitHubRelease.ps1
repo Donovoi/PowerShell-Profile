@@ -1,43 +1,42 @@
 <#
 .SYNOPSIS
-    Retrieves the latest release from a GitHub repository and downloads a specified asset.
+    Retrieves the latest release from a GitHub repository and optionally downloads an asset.
 
 .DESCRIPTION
-    The Get-LatestGitHubRelease function retrieves the latest release from a GitHub repository and downloads a specified asset. It supports both public and private repositories. If the repository is private, it requires a token for authentication.
+    The Get-LatestGitHubRelease function retrieves the latest release from a GitHub repository. It can be used to get information about the release, such as the version number, and optionally download a specific asset from the release.
 
 .PARAMETER OwnerRepository
     Specifies the owner and repository name in the format "owner/repository". This parameter is mandatory.
 
 .PARAMETER AssetName
-    Specifies the name of the asset to download. This parameter is mandatory.
+    Specifies the name of the asset to download. This parameter is optional.
 
 .PARAMETER DownloadPathDirectory
-    Specifies the directory where the asset will be downloaded. If not specified, the current working directory is used.
+    Specifies the directory where the asset should be downloaded. If not specified, the current working directory is used.
 
 .PARAMETER ExtractZip
-    Specifies whether to extract the downloaded asset if it is a zip file. By default, it is set to false.
+    Specifies whether to extract the downloaded asset if it is a zip file. This parameter is optional.
 
 .PARAMETER UseAria2
-    Specifies whether to use the aria2 tool for downloading the asset. By default, it is set to false.
+    Specifies whether to use the aria2 download manager to download the asset. This parameter is optional.
 
 .PARAMETER Aria2cExePath
-    Specifies the path to the aria2c.exe executable if UseAria2 is set to true. If not specified, the function will attempt to locate the executable automatically.
+    Specifies the path to the aria2c.exe executable. This parameter is optional and only used if UseAria2 is set to true.
 
 .PARAMETER PreRelease
-    Specifies whether to include pre-release versions in the search for the latest release. By default, it is set to false.
+    Specifies whether to include pre-release versions in the search for the latest release. This parameter is optional.
 
-.PARAMETER VersionOnly
-    Specifies whether to return only the version of the latest release without downloading the asset. By default, it is set to false.
+.PARAMETER NoDownload
+    Specifies whether to skip the download and only return the version number of the latest release. This parameter is optional.
 
 .PARAMETER Token
-    Specifies the token to use for authentication when accessing a private repository. This parameter is required if the PrivateRepo parameter is set to true.
+    Specifies the GitHub personal access token to use for accessing private repositories. This parameter is optional.
 
 .PARAMETER PrivateRepo
-    Specifies whether the repository is private. If set to true, the function will use the Token parameter for authentication. By default, it is set to false.
+    Specifies whether the repository is private. If set to true, the function will use the Token parameter to access the release and download the asset. This parameter is optional.
 
 .OUTPUTS
-    System.String
-    The function returns the path of the downloaded asset if successful. If the VersionOnly parameter is set to true, it returns the version of the latest release.
+    The function outputs a string representing the version number of the latest release. If the NoDownload parameter is specified, the function only returns the version number and does not download the asset.
 
 .EXAMPLE
     Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -DownloadPathDirectory "C:\Downloads" -ExtractZip
@@ -45,12 +44,10 @@
     Retrieves the latest release from the specified GitHub repository and downloads the asset with the name "asset.zip" to the "C:\Downloads" directory. If the asset is a zip file, it will be extracted.
 
 .EXAMPLE
-    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -AssetName "asset.zip" -NoDownload
+    Get-LatestGitHubRelease -OwnerRepository "owner/repository" -NoDownload
 
-    Retrieves the latest release from the specified GitHub repository and returns the version of the latest release without downloading the asset.
+    Retrieves the latest release from the specified GitHub repository and returns the version number of the release without downloading any assets.
 
-.NOTES
-    This function requires an internet connection to access the GitHub API.
 #>
 
 
@@ -181,21 +178,22 @@ function Get-LatestGitHubRelease {
                     $VersionOnly = $Releaseparsedjson.tag_name
                 }
                 else {
-                    $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers
-                    $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
-                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
-                    $VersionOnly = $Releaseparsedjson.tag_name
-                }
-
-                # Handle 'Not Found' response
-                if ($Release -like '*Not Found*') {
-                    Write-Logg -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
-                    $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
-                    $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
-                    if ([string]::IsNullOrEmpty($manualDownloadurl)) {
-                        Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                        Write-Logg -Message 'exiting script..' -Level warning
-                        exit
+                    $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers -SkipHttpErrorCheck
+                    if (-not($Releaseinfo.StatusCode -like '40*')) {
+                        $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
+                        $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
+                        $VersionOnly = $Releaseparsedjson.tag_name
+                    }
+                    else {
+                        Write-Logg -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
+                        # Handle the case where the repo doesn't have a latest tag
+                        $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
+                        $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
+                        if ([string]::IsNullOrEmpty($manualDownloadurl)) {
+                            Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
+                            Write-Logg -Message 'exiting script..' -Level warning
+                            exit
+                        }
                     }
                 }
             }
