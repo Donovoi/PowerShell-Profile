@@ -89,7 +89,7 @@ function Invoke-AriaDownload {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'error'
+        [string]$AriaConsoleLogLevel = 'debug'
     )
     begin {
         $neededcmdlets = @('Test-InPath')
