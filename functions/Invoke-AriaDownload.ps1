@@ -191,7 +191,7 @@ function Invoke-AriaDownload {
                 '--max-tries=0',
                 "--multiple-interface=$interfaceString",
                 '--allow-overwrite=true',
-                '--min-tls-version=TLSv1.3',
+                '--min-tls-version=TLSv1.2',
                 $outfileargument
             )
 
