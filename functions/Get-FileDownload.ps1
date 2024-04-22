@@ -211,16 +211,16 @@ function Get-FileDownload {
                     }
                     $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $finalFileName
                 }
-                $Script:DownloadedFile = @()
+                $Script:DownloadedFile = ''
                 if ($UseAria2) {
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
                         if ($null -ne $Token) {
-                            $Script:DownloadedFile += Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
+                            $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
                         }
                     }
                     else {
-                        $Script:DownloadedFile += Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
                     }
                 }
                 else {
@@ -232,7 +232,6 @@ function Get-FileDownload {
                     while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
                         Start-Sleep -Seconds 5
                         # every five seconds with will change the foreground of the text to something different as long as it is not the same color as the background
-
                         # convert the random number to a color
                         $colors = [Enum]::GetValues([ConsoleColor])
                         $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
