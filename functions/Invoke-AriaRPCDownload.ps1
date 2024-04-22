@@ -107,16 +107,22 @@ function Invoke-AriaRPCDownload {
     }
     # Ensure Aria RPC server is running
     if ($RPCMode) {
-        $portnumber = Get-NextAvailablePort
-        Write-Verbose -Message "Making sure aria2c is in RPC mode on port $portnumber"
-        $Aria2cRPCArgs = @(
-            '--enable-rpc=true',
-            '--rpc-listen-all=true',
-            '--rpc-allow-origin-all=true',
-            "--rpc-listen-port=$portnumber",
-            '--rpc-secret=secret'
-        )
-        Start-Process -FilePath $Aria2cExePath -ArgumentList $Aria2cRPCArgs
+        if (-not (Get-Process -Name 'aria2c' -ErrorAction SilentlyContinue)) {
+            Write-Verbose -Message 'Starting aria2c in RPC mode.'
+            $portnumber = Get-NextAvailablePort
+            Write-Verbose -Message "Making sure aria2c is in RPC mode on port $portnumber"
+            $Aria2cRPCArgs = @(
+                '--enable-rpc=true',
+                '--rpc-listen-all=true',
+                '--rpc-allow-origin-all=true',
+                "--rpc-listen-port=$portnumber"
+            )
+            Start-Process -FilePath $Aria2cExePath -ArgumentList $Aria2cRPCArgs
+        }
+        else {
+            $portnumber = $(Get-Process -Name 'aria2c').CommandLine | Select-String -Pattern '\d{4,5}' -AllMatches | ForEach-Object { $_.Matches.Value }
+            Write-Verbose -Message "aria2c is already running in RPC mode. on $portnumber"
+        }
     }
 
 
