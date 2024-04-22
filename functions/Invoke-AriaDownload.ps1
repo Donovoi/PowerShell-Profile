@@ -219,19 +219,22 @@ function Invoke-AriaDownload {
 
             if (-not $RPCMode) {
                 Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
+                # Return the output file path
+                Pop-Location
+                if ($PSBoundParameters['OutFile']) {
+                    return $OutFile
+                }
+                else {
+                    return $DownloadDirectory
+                }
             }
             else {
-                $OutFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
+                $DownloadedFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
+                Pop-Location
+                return $DownloadedFile
             }
 
-            # Return the output file path
-            Pop-Location
-            if ($PSBoundParameters['OutFile']) {
-                return $OutFile
-            }
-            else {
-                return $DownloadDirectory
-            }
+
         }
         catch {
             Write-Error $_
