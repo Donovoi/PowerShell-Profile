@@ -163,12 +163,14 @@ function Invoke-AriaDownload {
             $interfaceString = $interfaces -join ','
 
             # while downloading we need to be in the same directory as the output file (because spaces in the path)
-            if ($OutFile) {
-                $Outdir = $(Split-Path -Path $OutFile -Parent)
-                Push-Location -Path $Outdir
-            }
-            else {
-                Push-Location -Path $DownloadDirectory
+            if (-not $RPCMode) {
+                if ($OutFile) {
+                    $Outdir = $(Split-Path -Path $OutFile -Parent)
+                    Push-Location -Path $Outdir
+                }
+                else {
+                    Push-Location -Path $DownloadDirectory
+                }
             }
 
             if ($URL) {
@@ -229,9 +231,8 @@ function Invoke-AriaDownload {
                 }
             }
             else {
-                $DownloadedFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
-                Pop-Location
-                return $DownloadedFile
+                Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
+                return $OutFile
             }
 
 
