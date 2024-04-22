@@ -221,7 +221,7 @@ function Invoke-AriaDownload {
                 Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
             }
             else {
-                Invoke-AriaRPCDownload -url $URL -OutFile $outfileargument -Token:$Token -LogToFile
+                Invoke-AriaRPCDownload -url $URL -OutFile $outfileargument -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath
             }
 
             # Return the output file path
