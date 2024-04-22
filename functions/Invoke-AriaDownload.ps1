@@ -98,7 +98,7 @@ function Invoke-AriaDownload {
         [switch]$RPCMode
     )
     begin {
-        $neededcmdlets = @('Test-InPath')
+        $neededcmdlets = @('Test-InPath', 'Invoke-AriaRPCDownload')
         $neededcmdlets | ForEach-Object {
             if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -221,7 +221,7 @@ function Invoke-AriaDownload {
                 Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
             }
             else {
-            $OutFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
+                $OutFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
             }
 
             # Return the output file path
