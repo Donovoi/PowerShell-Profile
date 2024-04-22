@@ -81,7 +81,7 @@ function Invoke-AriaRPCDownload {
         [switch]$LogToFile
     )
 
-    $neededcmdlets = @('Test-InPath')
+    $neededcmdlets = @('Test-InPath', 'Get-NextAvailablePort')
     $neededcmdlets | ForEach-Object {
         if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -105,25 +105,24 @@ function Invoke-AriaRPCDownload {
             $Aria2cExePath = 'aria2c.exe'
         }
     }
-    # Ensure Aria RPC server is running
-    if ($RPCMode) {
-        if (-not (Get-Process -Name 'aria2c' -ErrorAction SilentlyContinue)) {
-            Write-Verbose -Message 'Starting aria2c in RPC mode.'
-            $portnumber = Get-NextAvailablePort
-            Write-Verbose -Message "Making sure aria2c is in RPC mode on port $portnumber"
-            $Aria2cRPCArgs = @(
-                '--enable-rpc=true',
-                '--rpc-listen-all=true',
-                '--rpc-allow-origin-all=true',
-                "--rpc-listen-port=$portnumber"
-            )
-            Start-Process -FilePath $Aria2cExePath -ArgumentList $Aria2cRPCArgs
-        }
-        else {
-            $portnumber = $(Get-Process -Name 'aria2c').CommandLine | Select-String -Pattern '\d{4,5}' -AllMatches | ForEach-Object { $_.Matches.Value }
-            Write-Verbose -Message "aria2c is already running in RPC mode. on $portnumber"
-        }
+    # Ensure Aria RPC server is running   
+    if (-not (Get-Process -Name 'aria2c' -ErrorAction SilentlyContinue)) {
+        Write-Verbose -Message 'Starting aria2c in RPC mode.'
+        $portnumber = Get-NextAvailablePort
+        Write-Verbose -Message "Making sure aria2c is in RPC mode on port $portnumber"
+        $Aria2cRPCArgs = @(
+            '--enable-rpc=true',
+            '--rpc-listen-all=true',
+            '--rpc-allow-origin-all=true',
+            "--rpc-listen-port=$portnumber"
+        )
+        Start-Process -FilePath $Aria2cExePath -ArgumentList $Aria2cRPCArgs
     }
+    else {
+        $portnumber = $(Get-Process -Name 'aria2c').CommandLine | Select-String -Pattern '\d{4,5}' -AllMatches | ForEach-Object { $_.Matches.Value }
+        Write-Verbose -Message "aria2c is already running in RPC mode. on $portnumber"
+    }
+
 
 
     try {
@@ -194,7 +193,28 @@ function Invoke-AriaRPCDownload {
             )
         } | ConvertTo-Json -Depth 5
 
-        Invoke-RestMethod -Uri "http://localhost:$portnumber/jsonrpc" -Method Post -Body $RPCDownloadJSON
+        $requestinfo = Invoke-RestMethod -Uri "http://localhost:$portnumber/jsonrpc" -Method Post -Body $RPCDownloadJSON
+        $requestgid = $requestinfo.result
+
+        # Get the status of the download and wait for it to finish
+        $downloadstatus = ''
+        while (($downloadstatus.status -notlike 'complete')) {
+            $downloadstatus = Invoke-RestMethod -Uri "http://localhost:$portnumber/jsonrpc" -Method Post -Body @"
+        {
+            "jsonrpc": "2.0",
+            "id": "2",
+            "method": "aria2.tellStatus",
+            "params": ["$requestgid"]
+        }
+"@ | Select-Object -ExpandProperty result
+            Write-Verbose -Message "Still Downlaoding $(Split-Path -Leaf $OutFile). Download status: $($downloadstatus.status)"
+            Start-Sleep -Seconds 1
+            # if download status is an error throw an error
+            if ($downloadstatus.status -eq 'error') {
+                throw "Download failed with error: $($downloadstatus.errorMessage)"
+            }
+        }
+        Write-Verbose -Message "Download complete. Status: $($downloadstatus.status)"
     }
     catch {
         Write-Error $_
