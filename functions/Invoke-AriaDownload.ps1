@@ -92,7 +92,10 @@ function Invoke-AriaDownload {
         [string]$AriaConsoleLogLevel = 'info',
 
         [Parameter(Mandatory = $false)]
-        [switch]$LogToFile
+        [switch]$LogToFile,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RPCMode
     )
     begin {
         $neededcmdlets = @('Test-InPath')
@@ -178,7 +181,7 @@ function Invoke-AriaDownload {
                 $urlfileargument = "--input-file=$URLFile"
             }
             if ($LogToFile) {
-               $LogOutputToFile = '--log=aria2c.log'
+                $LogOutputToFile = '--log=aria2c.log'
             }
             # Start the download process using aria2c
             $asciiEncoding = [System.Text.Encoding]::ASCII
@@ -214,7 +217,12 @@ function Invoke-AriaDownload {
             # Add the URL to $ariaarguments
             $ariaarguments += $asciiEncoding.GetString($asciiEncoding.GetBytes($URL))
 
-            Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
+            if (-not $RPCMode) {
+                Start-Process -FilePath $Aria2cExePath -ArgumentList $ariaarguments -NoNewWindow -Wait
+            }
+            else {
+                Invoke-AriaRPCDownload -url $URL -OutFile $outfileargument -Token:$Token -LogToFile
+            }
 
             # Return the output file path
             Pop-Location
