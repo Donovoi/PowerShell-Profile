@@ -89,7 +89,10 @@ function Invoke-AriaDownload {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'info'
+        [string]$AriaConsoleLogLevel = 'info',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$LogToFile
     )
     begin {
         $neededcmdlets = @('Test-InPath')
@@ -174,6 +177,9 @@ function Invoke-AriaDownload {
                 $outfileargument = ''
                 $urlfileargument = "--input-file=$URLFile"
             }
+            if ($LogToFile) {
+               $LogOutputToFile = '--log=aria2c.log'
+            }
             # Start the download process using aria2c
             $asciiEncoding = [System.Text.Encoding]::ASCII
             $ariaarguments = @(
@@ -182,7 +188,7 @@ function Invoke-AriaDownload {
                 $urlfileargument,
                 '--max-connection-per-server=16',
                 '--max-concurrent-downloads=16',
-                '--log=aria2c.log',
+                $LogOutputToFile,
                 '--disable-ipv6',
                 '--split=16',
                 '--min-split-size=1M',
