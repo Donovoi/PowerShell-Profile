@@ -44,28 +44,10 @@ function Invoke-AriaRPCDownload {
     [OutputType([string])]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if (-not $_ -and -not $PSBoundParameters['URLFile']) {
-                    throw 'Either URL or URLFile must be specified.'
-                }
-                elseif ($_ -and $PSBoundParameters['URLFile']) {
-                    throw 'Only one of URL or URLFile can be specified.'
-                }
-                return $true
-            })]
         [string]$URL,
 
         # Here we do the same thing as the two parameters above, but we do it in the ValidateScript block
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if (-not $_ -and -not $PSBoundParameters['DownloadDirectory']) {
-                    throw 'Either URL or DownloadDirectory must be specified.'
-                }
-                elseif ($_ -and $PSBoundParameters['DownloadDirectory']) {
-                    throw 'Only one of URL or DownloadDirectory can be specified.'
-                }
-                return $true
-            })]
         [string]$OutFile,
 
         [Parameter(Mandatory = $true)]
@@ -215,6 +197,7 @@ function Invoke-AriaRPCDownload {
             }
         }
         Write-Verbose -Message "Download complete. Status: $($downloadstatus.status)"
+        return $OutFile
     }
     catch {
         Write-Error $_
