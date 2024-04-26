@@ -85,7 +85,10 @@ function Get-LatestGitHubRelease {
         [string] $Token,
 
         [Parameter(Mandatory = $false)]
-        [switch] $PrivateRepo
+        [switch] $PrivateRepo,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoRPCMode
     )
     process {
         # Import the required cmdlets
@@ -228,6 +231,7 @@ function Get-LatestGitHubRelease {
                     if ($UseAria2) {
                         $downloadFileParams['UseAria2'] = $UseAria2
                         $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                        $downloadFileParams['NoRPCMode'] = $NoRPCMode
                     }
 
                 }
@@ -238,6 +242,7 @@ function Get-LatestGitHubRelease {
                     if ($UseAria2) {
                         $downloadFileParams['UseAria2'] = $UseAria2
                         $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                        $downloadFileParams['NoRPCMode'] = $NoRPCMode
                     }
                 }
                 # Splat the parameters onto the function call
