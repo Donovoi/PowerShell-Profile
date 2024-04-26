@@ -73,7 +73,7 @@ function Get-LatestGitHubRelease {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath,
+        $Aria2cExePath = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse | Select-Object -First 1 -ExpandProperty FullName),
 
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
@@ -209,8 +209,7 @@ function Get-LatestGitHubRelease {
 
             if ($Release -or $manualDownloadurl) {
                 if ((-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) -and $UseAria2) {
-                    $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
-                    $Aria2cExePath = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
+                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
                 }
 
                 # Download asset but make sure the variable is empty each time
