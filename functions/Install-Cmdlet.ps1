@@ -94,7 +94,7 @@ function Install-Cmdlet {
                 }
             }
         }
-        if (-not $(Get-Variable -Name 'Urls' -ErrorAction SilentlyContinue)) {
+        if (-not $(Get-Variable -Name 'Urls' -ErrorAction SilentlyContinue) -or ([string]::IsNullOrEmpty($Urls))) {
             $Urls = @()
         }
         if ($donovoicmdlets -and ( (-not $PreferLocal) -or ($cmdletsToDownload.Count -gt 0) )) {
@@ -109,7 +109,7 @@ function Install-Cmdlet {
             # validate the urls especially if the user has provided a custom url, and then process the urls
             $Cmdletsarraysb = [System.Text.StringBuilder]::new()
             # $urls should not be empty
-            if ([string]::IsNullOrEmpty($url)) {
+            if ([string]::IsNullOrEmpty($urls)) {
                 throw [System.ArgumentException]::new('Nothing To Download, Exiting...')
             }
             else {
@@ -164,4 +164,3 @@ function Install-Cmdlet {
         throw $_
     }
 }
-
