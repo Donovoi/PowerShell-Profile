@@ -224,7 +224,7 @@ function Get-LatestGitHubRelease {
                 }
                 if ($Release) {
                     $downloadFileParams['URL'] = $Release
-                    $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
+                    $downloadFileParams['DestinationDirectory'] = Get-LongName -ShortName $DownloadPathDirectory
 
                     if ($UseAria2) {
                         $downloadFileParams['UseAria2'] = $UseAria2
@@ -234,7 +234,7 @@ function Get-LatestGitHubRelease {
                 }
                 else {
                     $downloadFileParams['URL'] = $manualDownloadurl
-                    $downloadFileParams['OutFiledirectory'] = Get-LongName -ShortName $DownloadPathDirectory
+                    $downloadFileParams['DestinationDirectory'] = Get-LongName -ShortName $DownloadPathDirectory
 
                     if ($UseAria2) {
                         $downloadFileParams['UseAria2'] = $UseAria2
