@@ -25,7 +25,7 @@ function Get-KapeAndTools {
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
   Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
 
-  Get-FileDownload -URL 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -OutFileDirectory "$XWAYSUSB" -UseAria2
+  Get-FileDownload -URL 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -DestinationDirectory "$XWAYSUSB" -UseAria2
   Expand-Archive -Path $("$XWAYSUSB" + 'All_6.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
   # We now have a a folder with many zip files in it. We need to extract each one to the same folder "$ENV:TEMP\extracted" .
   Get-ChildItem -Path $("$XWAYSUSB" + '\ZimmermanTools') -Filter *.zip -File | ForEach-Object -Process {
