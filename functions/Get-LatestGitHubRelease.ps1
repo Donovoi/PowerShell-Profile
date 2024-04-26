@@ -255,8 +255,9 @@ function Get-LatestGitHubRelease {
                     # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
                     $aria2cexeDirectory = 'C:\aria2c'
                     Expand-Archive -Path $downloadedFile -DestinationPath $aria2cexeDirectory -Force
+                    $ExtractedFile = $(Get-ChildItem $aria2directory -Recurse -Filter 'aria2c.exe').FullName
                     Write-Logg -Message 'Extracted aria2c to C:\aria2c'
-                    return $ExtractedFiles
+                    return $ExtractedFile
                 }
                 else {
                     Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
