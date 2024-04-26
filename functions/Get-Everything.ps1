@@ -47,8 +47,8 @@
 
 
 #       # Download Everything
-#       $everythingclizip = Get-FileDownload -URL 'https://www.voidtools.com/ES-1.1.0.26.zip' -OutFileDirectory $EverythingDirectory -UseAria2
-#       $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1361a.x64.zip' -OutFileDirectory $EverythingDirectory -UseAria2
+#       $everythingclizip = Get-FileDownload -URL 'https://www.voidtools.com/ES-1.1.0.26.zip' -DestinationDirectory $EverythingDirectory -UseAria2
+#       $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1361a.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2
 #       $Zipstoexpand = @($everythingclizip, $everythingPortablezip)
 #       $Zipstoexpand.ForEach{ Expand-Archive -Path $_ -DestinationPath $EverythingDirectory -Force }
 #       $EverythingCLI = Get-ChildItem -Path $EverythingDirectory -Filter 'es.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName

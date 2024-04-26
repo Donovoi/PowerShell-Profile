@@ -82,7 +82,7 @@ function Update-VSCode {
                             New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
                         }
 
-                        $OutFile = Get-FileDownload -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2
+                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.OutFileDirectory -UseAria2
                         if ( Resolve-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $OutFile
@@ -99,7 +99,7 @@ function Update-VSCode {
                         if (-not( Test-Path -Path $url.OutFileDirectory -ErrorAction SilentlyContinue)) {
                             New-Item -Path $url.OutFileDirectory -ItemType Directory -Force
                         }
-                        $OutFile = Get-FileDownload -URL $url.URL -OutFileDirectory $url.OutFileDirectory -UseAria2
+                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.OutFileDirectory -UseAria2
                         if ( Test-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $OutFile
