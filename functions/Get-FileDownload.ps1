@@ -8,7 +8,7 @@
   .PARAMETER URLs
   An array of URLs of the files to be downloaded.
 
-  .PARAMETER OutFileDirectory
+  .PARAMETER DestinationDirectory
   The directory where the downloaded files will be saved.
 
   .PARAMETER UseAria2
@@ -28,7 +28,7 @@
 
   .EXAMPLE
   $URL = "http://example.com/file1.zip", "http://example.com/file2.zip"
-  Get-FileDownload -URLs $URL -OutFileDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
+  Get-FileDownload -URLs $URL -DestinationDirectory "C:\Downloads" -UseAria2 -MaxConcurrentDownloads 10
 
   This example demonstrates how to use the function to download files from a list of URLs using aria2c, with a maximum of 10 concurrent downloads.
 
@@ -54,7 +54,7 @@ function Get-FileDownload {
             Position = 1
         )]
         [Alias('OutputDir')]
-        [string]$OutFileDirectory,
+        [string]$DestinationDirectory,
 
         [Parameter(
             Mandatory = $false
@@ -137,7 +137,7 @@ function Get-FileDownload {
                     [string]$Outfile = -join $validChars
 
                     if ($OutFile) {
-                        $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $OutFile
+                        $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $OutFile
                     }
                 }
                 else {
@@ -206,10 +206,10 @@ function Get-FileDownload {
                     }
 
                     # Combine with the output directory
-                    if (-not(Test-Path -Path $OutFileDirectory -ErrorAction SilentlyContinue)) {
-                        New-Item -Path $OutFileDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue
+                    if (-not(Test-Path -Path $DestinationDirectory -ErrorAction SilentlyContinue)) {
+                        New-Item -Path $DestinationDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue
                     }
-                    $OutFile = Join-Path -Path $OutFileDirectory -ChildPath $finalFileName
+                    $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
                 }
                 $Script:DownloadedFile = ''
                 if ($UseAria2) {
