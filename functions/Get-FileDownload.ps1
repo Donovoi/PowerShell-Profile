@@ -89,7 +89,7 @@ function Get-FileDownload {
         $GitHub,
 
         [Parameter()]
-        [switch]$NoRPC
+        [switch]$NoRPCMode
 
     )
     process {
@@ -212,7 +212,7 @@ function Get-FileDownload {
                             $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
                         }
                     }
-                    elseif ($NoRPC) {
+                    elseif ($NoRPCMode) {
                         $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -Verbose:$VerbosePreference
                     }
                     else {
