@@ -231,8 +231,8 @@ function Invoke-AriaDownload {
                 }
             }
             else {
-                Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
-                return $OutFile
+                $outputFile = Invoke-AriaRPCDownload -url $URL -OutFile $OutFile -Token:$Token -LogToFile -Aria2cExePath $Aria2cExePath -Verbose:$VerbosePreference
+                return $outputFile
             }
 
 
