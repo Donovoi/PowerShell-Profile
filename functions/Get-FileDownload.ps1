@@ -212,9 +212,10 @@ function Get-FileDownload {
                             $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
                         }
                     }
-                    elseif($NoRPC) {
+                    elseif ($NoRPC) {
                         $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -Verbose:$VerbosePreference
-                    } else {
+                    }
+                    else {
                         $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
                     }
                 }
@@ -258,22 +259,3 @@ function Get-FileDownload {
         return $Script:DownloadedFile
     }
 }
-
-# Get the drive with label like 'X-Ways'
-$XWAYSUSB = Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'"
-if (-not $XWAYSUSB) {
-    # If the drive is not found, throw an error and return
-    throw 'X-Ways USB drive not found.'
-}
-
-# Define the URLs for downloading stable and insider versions of VSCode
-$url = @(
-    @{
-        Version           = 'stable'
-        URL               = 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive'
-        DownloadDirectory = "$ENV:USERPROFILE\downloads\vscodestable"
-        DestinationPath   = "$($XWAYSUSB.DriveLetter)\vscode\"
-    }
-)
-
-$OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.DownloadDirectory -UseAria2
