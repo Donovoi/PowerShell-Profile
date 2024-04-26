@@ -64,15 +64,8 @@ function Get-FileDownload {
 
         [Parameter(
             Mandatory = $false
-
         )]
-        [ValidateScript({
-                if (-not (Test-Path $_ -PathType Leaf)) {
-                    throw "The aria2 executable at '$_' does not exist."
-                }
-                $true
-            })]
-        [string]$aria2cExe = $(Resolve-Path 'c:\aria2*\*\aria2c.exe' -ErrorAction SilentlyContinue).Path,
+        [string]$aria2cExe,
 
         [Parameter(
             Mandatory = $false
