@@ -87,7 +87,7 @@ function Invoke-AriaRPCDownload {
             $Aria2cExePath = 'aria2c.exe'
         }
     }
-    # Ensure Aria RPC server is running   
+    # Ensure Aria RPC server is running
     if (-not (Get-Process -Name 'aria2c' -ErrorAction SilentlyContinue)) {
         Write-Verbose -Message 'Starting aria2c in RPC mode.'
         $portnumber = Get-NextAvailablePort
