@@ -54,20 +54,22 @@ function Install-Cmdlet {
         [Parameter(Mandatory = $false)]
         [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\"
     )
-    if ($donovoicmdlets -and $PreferLocal) {
-        $cmdletsToDownload = @()
-        # make sure local modules folder exists
-        if (-not (Test-Path -Path $LocalModuleFolder)) {
-            New-Item -Path $LocalModuleFolder -ItemType Directory -Force
-        }
+    try {
 
-        # create local module file that imports the cmdlet by glob search file path so we add all at once
-        $modulefile = [System.IO.Path]::Combine($LocalModuleFolder, 'cmdletCollection.psm1')
-        # if the module file does not exist, create it, otherwise overwrite the first line with "Import-module -Name .\*.ps1 -Force"
-        if (-not (Test-Path -Path $modulefile)) {
-            New-Item -Path $modulefile -ItemType File -Force
-        }
-        $modulecontent = @'
+        $cmdletsToDownload = @()
+        if ($donovoicmdlets -and $PreferLocal) {
+            # make sure local modules folder exists
+            if (-not (Test-Path -Path $LocalModuleFolder)) {
+                New-Item -Path $LocalModuleFolder -ItemType Directory -Force
+            }
+
+            # create local module file that imports the cmdlet by glob search file path so we add all at once
+            $modulefile = [System.IO.Path]::Combine($LocalModuleFolder, 'cmdletCollection.psm1')
+            # if the module file does not exist, create it, otherwise overwrite the first line with "Import-module -Name .\*.ps1 -Force"
+            if (-not (Test-Path -Path $modulefile)) {
+                New-Item -Path $modulefile -ItemType File -Force
+            }
+            $modulecontent = @'
             $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
             $ScriptParentPath = Split-Path -Path $(Resolve-Path -Path $($ActualScriptName.foreach{ $_ }) ) -Parent
             Get-ChildItem -Path $ScriptParentPath | ForEach-Object {
@@ -75,24 +77,27 @@ function Install-Cmdlet {
             }
             Export-ModuleMember -Function * -Alias *
 '@
-        Set-Content -Path $modulefile -Value $modulecontent -Force
-
-        foreach ($cmdlet in $donovoicmdlets) {
-            if (-not (Test-Path -Path "$LocalModuleFolder\$cmdlet.ps1")) {
-                Write-Warning -Message "The cmdlet $cmdlet was not found locally"
-                Write-Information -MessageData "Downloading $cmdlet now..."
-                Write-Information -MessageData "All cmdlets will be downloaded to $PSScriptRoot/Modules/"
-                $cmdletsToDownload += $cmdlet
-                continue
-            }
-            else {
-                # import existing local module
-                Import-Module -Name "$LocalModuleFolder\$cmdlet.ps1" -Force
-                Write-Information -MessageData "The cmdlet $cmdlet was found locally and imported"
+            Set-Content -Path $modulefile -Value $modulecontent -Force
+    
+            foreach ($cmdlet in $donovoicmdlets) {
+                if (-not (Test-Path -Path "$LocalModuleFolder\$cmdlet.ps1")) {
+                    Write-Warning -Message "The cmdlet $cmdlet was not found locally"
+                    Write-Information -MessageData "Downloading $cmdlet now..."
+                    Write-Information -MessageData "All cmdlets will be downloaded to $PSScriptRoot/Modules/"
+                    $cmdletsToDownload += $cmdlet
+                    continue
+                }
+                else {
+                    # import existing local module
+                    Import-Module -Name "$LocalModuleFolder\$cmdlet.ps1" -Force
+                    Write-Information -MessageData "The cmdlet $cmdlet was found locally and imported"
+                }
             }
         }
-        $urls = @()
-        if ($donovoicmdlets -and ( (-not $PreferLocal) -or ($cmdletsToDownload.Length -gt 0) )) {
+        if (-not $(Get-Variable -Name 'Urls' -ErrorAction SilentlyContinue)) {
+            $Urls = @()
+        }
+        if ($donovoicmdlets -and ( (-not $PreferLocal) -or ($cmdletsToDownload.Count -gt 0) )) {
             $sburls = [System.Text.StringBuilder]::new()
             foreach ($cmdlet in $donovoicmdlets) {
                 # build the array of urls for invoke-restmethod
@@ -102,8 +107,12 @@ function Install-Cmdlet {
             $urls += $sburls.ToString().Split("`n").Trim() | Where-Object { $_ }
 
             # validate the urls especially if the user has provided a custom url, and then process the urls
-            try {
-                $Cmdletsarraysb = [System.Text.StringBuilder]::new()
+            $Cmdletsarraysb = [System.Text.StringBuilder]::new()
+            # $urls should not be empty
+            if ([string]::IsNullOrEmpty($url)) {
+                throw [System.ArgumentException]::new('Nothing To Download, Exiting...')
+            }
+            else {
                 $urls | ForEach-Object -Process {
                     $link = $_
                     # make sure we are given a valid url
@@ -115,7 +124,7 @@ function Install-Cmdlet {
                     }
 
                     try {
-                        #    if preferlocal and cmdletstodownload is set then download the cmdlet as per the path
+                        # if preferlocal and cmdletstodownload is set then download the cmdlet as per the path
                         # no need to keep it in memory as one script block, we will create and import all local cmdlets individually
                         if ($PreferLocal -and $cmdletsToDownload -gt 0) {
                             $cmdlet = $link.Split('/')[-1].Split('.')[0]
@@ -135,22 +144,24 @@ function Install-Cmdlet {
                         throw $_
                     }
                 }
-                if (-not $PreferLocal) {
-                    #  do the rest of the needed in memory stuff
-                    $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-                    $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
-                }
-                else {
-                    # import all local cmdlets
-                    Import-Module -Name $moduleFile -Force
-                    Write-Information -MessageData "The cmdlets $donovoicmdlets were imported"
-                }
-
-            }
-            catch {
-                throw $_
             }
         }
+        if (-not $PreferLocal) {
+            #  do the rest of the needed in memory stuff
+            $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
+            $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
+        }
+        else {
+            # import all local cmdlets
+            Import-Module -Name $moduleFile -Force
+            Write-Information -MessageData "The cmdlets $donovoicmdlets were imported"
+        }
         return $module ? $module : $modulefile
+
+    }
+    catch {
+        Write-Error -Message 'Failed to install the cmdlets'
+        throw $_
     }
 }
+
