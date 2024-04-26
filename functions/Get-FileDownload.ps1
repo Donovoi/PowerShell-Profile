@@ -63,7 +63,7 @@ function Get-FileDownload {
         [switch]$UseAria2,
 
         [Parameter( Mandatory = $false )]
-        [string]$aria2cExe = 'c:\aria2c\*\aria2c.exe',
+        [string]$aria2cExe = $(Get-Childitem -Path 'c:\aria2c\*\' -Filter 'aria2c.exe' -Recurse | Select-Object -First 1 -ExpandProperty FullName),
 
         [Parameter(
             Mandatory = $false
@@ -106,151 +106,149 @@ function Get-FileDownload {
             }
             if ($UseAria2) {
                 if ((-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue) -or (-not (Get-Process -Name '*aria2c*')))) {
-                    $aria2directory = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
-                    $aria2cExe = $(Get-ChildItem -Recurse -Path $aria2directory -Filter 'aria2c.exe').FullName
+                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
                 }
-            }
-            foreach ($download In $url) {
-                # Construct the output file path for when the url has the filename in it
-                #First we check if the url has the filename in it
-                $UriParts = [System.Uri]::new($download)
-                if ($UriParts.IsFile -or ($download.Split('/')[-1] -match '\.')) {
-                    $originalFileName = [System.IO.Path]::GetFileName($UriParts)
+                foreach ($download In $url) {
+                    # Construct the output file path for when the url has the filename in it
+                    #First we check if the url has the filename in it
+                    $UriParts = [System.Uri]::new($download)
+                    if ($UriParts.IsFile -or ($download.Split('/')[-1] -match '\.')) {
+                        $originalFileName = [System.IO.Path]::GetFileName($UriParts)
 
-                    # Get the base file name without the query string
-                    $fileNameWithoutQueryString = $originalFileName -split '\?' | Select-Object -First 1
+                        # Get the base file name without the query string
+                        $fileNameWithoutQueryString = $originalFileName -split '\?' | Select-Object -First 1
 
-                    # Sanitize the file name by removing invalid characters
-                    $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
-                    $validChars = $fileNameWithoutQueryString.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
+                        # Sanitize the file name by removing invalid characters
+                        $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+                        $validChars = $fileNameWithoutQueryString.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
 
-                    # Join the valid characters into a single string
-                    [string]$Outfile = -join $validChars
+                        # Join the valid characters into a single string
+                        [string]$Outfile = -join $validChars
 
-                    if ($OutFile) {
-                        $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $OutFile
-                    }
-                }
-                else {
-                    # If the url does not have the filename in it, we get the filename from the headers
-                    # Make a HEAD request to get headers
-                    if ($GitHub) {
-                        $headers = @{
-                            'User-Agent' = 'PowerShell'
-                            'Accept'     = 'application/vnd.github.v3+json'
+                        if ($OutFile) {
+                            $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $OutFile
                         }
-                    }
-
-
-                    if (-not [string]::IsNullOrEmpty($token)) {
-                        $headers['Authorization'] = "token $token"
-                    }
-
-                    $httpresponse = Invoke-WebRequest -Uri $download -Method Head -Headers $headers
-                    $headersHashTable = @{}
-                    $httpresponse.Headers.GetEnumerator() | ForEach-Object {
-                        $headersHashTable[$_.Key] = $_.Value
-                    }
-
-                    $potentialFileNames = @()
-
-                    # Check Content-Disposition first
-                    $filenamematch = $false
-
-                    if ($headersHashTable) {
-                        $fileName = $($headersHashTable['Content-Disposition'] -split 'filename')[1].TrimStart('=').Trim('"').split(';')[0]
-                        $potentialFileNames += $fileName
                     }
                     else {
-                        $contentDisposition = $httpresponse.Headers['Content-Disposition']
-                        $filenamematch = $([regex]::Match($contentDisposition, '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})'))
-                        if ($filenamematch.Success) {
-                            $fileName = $filenamematch.Value
-                            if ($fileName -match "^UTF-8''(.+)$") {
-                                $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                        # If the url does not have the filename in it, we get the filename from the headers
+                        # Make a HEAD request to get headers
+                        if ($GitHub) {
+                            $headers = @{
+                                'User-Agent' = 'PowerShell'
+                                'Accept'     = 'application/vnd.github.v3+json'
                             }
-                            else {
-                                $fileName = $fileName.Trim('"')
-                            }
+                        }
+
+
+                        if (-not [string]::IsNullOrEmpty($token)) {
+                            $headers['Authorization'] = "token $token"
+                        }
+
+                        $httpresponse = Invoke-WebRequest -Uri $download -Method Head -Headers $headers
+                        $headersHashTable = @{}
+                        $httpresponse.Headers.GetEnumerator() | ForEach-Object {
+                            $headersHashTable[$_.Key] = $_.Value
+                        }
+
+                        $potentialFileNames = @()
+
+                        # Check Content-Disposition first
+                        $filenamematch = $false
+
+                        if ($headersHashTable) {
+                            $fileName = $($headersHashTable['Content-Disposition'] -split 'filename')[1].TrimStart('=').Trim('"').split(';')[0]
                             $potentialFileNames += $fileName
                         }
-                        if (-not ($filenamematch)) {
-                            # Regex search across all headers for additional filenames
-                            foreach ($header in $response.Headers.GetEnumerator()) {
-                                if ($header.Value -match '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})') {
-                                    $potentialFileNames += $matches[1]
+                        else {
+                            $contentDisposition = $httpresponse.Headers['Content-Disposition']
+                            $filenamematch = $([regex]::Match($contentDisposition, '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})'))
+                            if ($filenamematch.Success) {
+                                $fileName = $filenamematch.Value
+                                if ($fileName -match "^UTF-8''(.+)$") {
+                                    $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                                }
+                                else {
+                                    $fileName = $fileName.Trim('"')
+                                }
+                                $potentialFileNames += $fileName
+                            }
+                            if (-not ($filenamematch)) {
+                                # Regex search across all headers for additional filenames
+                                foreach ($header in $response.Headers.GetEnumerator()) {
+                                    if ($header.Value -match '([a-zA-Z0-9-.]{3,}\.[a-zA-Z0-9-.]{3,6})') {
+                                        $potentialFileNames += $matches[1]
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    # Determine the final filename
-                    $finalFileName = $null
-                    if ($potentialFileNames.Count -gt 0) {
-                        $finalFileName = $potentialFileNames[0]
-                    }
-                    else {
-                        # Generate a temp filename
-                        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                        $fileExtension = [System.IO.Path]::GetExtension([System.Uri]::new($download).LocalPath)
-                        $finalFileName = "TempFile-$timestamp$fileExtension"
-                    }
+                        # Determine the final filename
+                        $finalFileName = $null
+                        if ($potentialFileNames.Count -gt 0) {
+                            $finalFileName = $potentialFileNames[0]
+                        }
+                        else {
+                            # Generate a temp filename
+                            $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                            $fileExtension = [System.IO.Path]::GetExtension([System.Uri]::new($download).LocalPath)
+                            $finalFileName = "TempFile-$timestamp$fileExtension"
+                        }
 
-                    # Combine with the output directory
-                    if (-not(Test-Path -Path $DestinationDirectory -ErrorAction SilentlyContinue)) {
-                        New-Item -Path $DestinationDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue
+                        # Combine with the output directory
+                        if (-not(Test-Path -Path $DestinationDirectory -ErrorAction SilentlyContinue)) {
+                            New-Item -Path $DestinationDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue
+                        }
+                        $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
                     }
-                    $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
-                }
-                $Script:DownloadedFile = ''
-                if ($UseAria2) {
-                    # If it's a private repo, handle the secret
-                    if ($IsPrivateRepo) {
-                        if ($null -ne $Token) {
-                            $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
+                    $Script:DownloadedFile = ''
+                    if ($UseAria2) {
+                        # If it's a private repo, handle the secret
+                        if ($IsPrivateRepo) {
+                            if ($null -ne $Token) {
+                                $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
+                            }
+                        }
+                        else {
+                            $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
                         }
                     }
                     else {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
-                    }
-                }
-                else {
-                    Write-Warning -Message "Downloading $Download Using Bitstransfer."
-                    # Create a BITS job to download the file
-                    $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
+                        Write-Warning -Message "Downloading $Download Using Bitstransfer."
+                        # Create a BITS job to download the file
+                        $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
 
-                    # Wait for the BITS job to complete we will check if the state is like error or an empty string
-                    while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
-                        Start-Sleep -Seconds 5
-                        # every five seconds with will change the foreground of the text to something different as long as it is not the same color as the background
-                        # convert the random number to a color
-                        $colors = [Enum]::GetValues([ConsoleColor])
-                        $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
-                        # make sure foreground and background are not the same
-                        while ($newcolor -eq $Host.UI.RawUI.BackgroundColor) {
+                        # Wait for the BITS job to complete we will check if the state is like error or an empty string
+                        while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
+                            Start-Sleep -Seconds 5
+                            # every five seconds with will change the foreground of the text to something different as long as it is not the same color as the background
+                            # convert the random number to a color
+                            $colors = [Enum]::GetValues([ConsoleColor])
                             $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
+                            # make sure foreground and background are not the same
+                            while ($newcolor -eq $Host.UI.RawUI.BackgroundColor) {
+                                $newcolor = $colors[(Get-Random -Minimum 0 -Maximum $colors.Length)]
+                            }
+                            Write-Host -ForegroundColor $newcolor -Object "Waiting for download to complete. Current state: $($bitsJob.JobState)"
                         }
-                        Write-Host -ForegroundColor $newcolor -Object "Waiting for download to complete. Current state: $($bitsJob.JobState)"
-                    }
 
-                    # If the job completed successfully, print the path of the downloaded file
-                    if ($bitsJob.JobState -eq 'Transferred') {
-                        $bitsJob.FileList | ForEach-Object {
-                            Write-Host "File downloaded to: $($_.LocalName)"
-                            $Script:DownloadedFile += $_.LocalName
+                        # If the job completed successfully, print the path of the downloaded file
+                        if ($bitsJob.JobState -eq 'Transferred') {
+                            $bitsJob.FileList | ForEach-Object {
+                                Write-Host "File downloaded to: $($_.LocalName)"
+                                $Script:DownloadedFile += $_.LocalName
+                            }
+                            $bitsJob | Complete-BitsTransfer
                         }
-                        $bitsJob | Complete-BitsTransfer
-                    }
-                    else {
-                        Write-Error "BITS job did not complete successfully. State: $($bitsJob.JobState)"
+                        else {
+                            Write-Error "BITS job did not complete successfully. State: $($bitsJob.JobState)"
+                        }
                     }
                 }
             }
+            catch {
+                Write-Error -Message "An error occurred: $_"
+                throw
+            }
+            return $Script:DownloadedFile
         }
-        catch {
-            Write-Error -Message "An error occurred: $_"
-            throw
-        }
-        return $Script:DownloadedFile
     }
-}
