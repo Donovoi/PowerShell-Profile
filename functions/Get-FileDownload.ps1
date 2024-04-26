@@ -65,7 +65,7 @@ function Get-FileDownload {
         [Parameter(
             Mandatory = $false
         )]
-        [string]$aria2cExe,
+        [string]$aria2cExe = "c:\aria2c\aria2c.exe",
 
         [Parameter(
             Mandatory = $false

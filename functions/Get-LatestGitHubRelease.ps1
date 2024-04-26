@@ -253,10 +253,9 @@ function Get-LatestGitHubRelease {
                 }
                 if ($DownloadedFile -like '*aria*') {
                     # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
-                    $tempDir = Join-Path -Path $ENV:TEMP -ChildPath ([System.IO.Path]::GetRandomFileName())
-                    Expand-Archive -Path $downloadedFile -DestinationPath $tempDir -Force
-                    $ExtractedFiles = Join-Path -Path $tempDir -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
-                    Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
+                    $aria2cexeDirectory = 'C:\aria2c'
+                    Expand-Archive -Path $downloadedFile -DestinationPath $aria2cexeDirectory -Force
+                    Write-Logg -Message 'Extracted aria2c to C:\aria2c'
                     return $ExtractedFiles
                 }
                 else {
