@@ -141,7 +141,8 @@ function Invoke-AriaRPCDownload {
             'multiple-interface'        = $interfaceString
             'allow-overwrite'           = 'true'
             'min-tls-version'           = 'TLSv1.2'
-            'out'                       = $OutFile
+            'out'                       = $(Split-Path -Path $OutFile -Leaf)
+            'dir'                       = $(Split-Path -Path $OutFile -Parent)
         }
 
         # If the LogToFile switch is used, we need to add the log parameter to the JSON
