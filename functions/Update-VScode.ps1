@@ -60,16 +60,16 @@ function Update-VSCode {
             # Define the URLs for downloading stable and insider versions of VSCode
             $urls = @(
                 @{
-                    Version          = 'stable'
-                    URL              = 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive'
-                    DestinationDirectory = "$ENV:USERPROFILE\downloads\vscodestable"
-                    DestinationPath  = "$($XWAYSUSB.DriveLetter)\vscode\"
+                    Version           = 'stable'
+                    URL               = 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive'
+                    DownloadDirectory = "$ENV:USERPROFILE\downloads\vscodestable"
+                    DestinationPath   = "$($XWAYSUSB.DriveLetter)\vscode\"
                 },
                 @{
-                    Version          = 'insider'
-                    URL              = 'https://code.visualstudio.com/sha/download?build=insider&os=win32-x64-archive'
-                    DestinationDirectory = "$ENV:USERPROFILE\downloads\vscodeinsiders"
-                    DestinationPath  = "$($XWAYSUSB.DriveLetter)\vscode-insider\"
+                    Version           = 'insider'
+                    URL               = 'https://code.visualstudio.com/sha/download?build=insider&os=win32-x64-archive'
+                    DownloadDirectory = "$ENV:USERPROFILE\downloads\vscodeinsiders"
+                    DestinationPath   = "$($XWAYSUSB.DriveLetter)\vscode-insider\"
                 }
             )
 
@@ -78,11 +78,11 @@ function Update-VSCode {
                 'both' {
                     # If 'both' is specified, download and expand both versions
                     foreach ($url in $urls) {
-                        if (-not( Test-Path -Path $url.DestinationDirectory -ErrorAction SilentlyContinue)) {
-                            New-Item -Path $url.DestinationDirectory -ItemType Directory -Force
+                        if (-not( Test-Path -Path $url.DownloadDirectory -ErrorAction SilentlyContinue)) {
+                            New-Item -Path $url.DownloadDirectory -ItemType Directory -Force
                         }
 
-                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.DestinationDirectory -UseAria2
+                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.DownloadDirectory -UseAria2 -NoRPC
                         if ( Resolve-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $OutFile
@@ -96,10 +96,10 @@ function Update-VSCode {
                     # If 'stable' or 'insider' is specified, download and expand the corresponding version
                     $url = $urls | Where-Object { $_.Version -eq $Version }
                     if ($url) {
-                        if (-not( Test-Path -Path $url.DestinationDirectory -ErrorAction SilentlyContinue)) {
-                            New-Item -Path $url.DestinationDirectory -ItemType Directory -Force
+                        if (-not( Test-Path -Path $url.DownloadDirectory -ErrorAction SilentlyContinue)) {
+                            New-Item -Path $url.DownloadDirectory -ItemType Directory -Force
                         }
-                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.DestinationDirectory -UseAria2
+                        $OutFile = Get-FileDownload -URL $url.URL -DestinationDirectory $url.DownloadDirectory -UseAria2 -NoRPC
                         if ( Test-Path -Path $OutFile -ErrorAction SilentlyContinue) {
                             Expand-Archive -Path $OutFile -DestinationPath $url.DestinationPath -Force
                             Remove-Item $OutFile
