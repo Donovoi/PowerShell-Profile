@@ -190,7 +190,7 @@ function Invoke-AriaRPCDownload {
             "params": ["$requestgid"]
         }
 "@ | Select-Object -ExpandProperty result
-            Write-Verbose -Message "Still Downlaoding $(Split-Path -Leaf $OutFile). Download status: $($downloadstatus.status)"
+            Write-Verbose -Message "Still Downloading $(Split-Path -Leaf $OutFile). Download status: $($downloadstatus.status)"
             Start-Sleep -Seconds 1
             # if download status is an error throw an error
             if ($downloadstatus.status -eq 'error') {
