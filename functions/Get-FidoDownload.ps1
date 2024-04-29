@@ -8,7 +8,7 @@ Lang: Specify Windows language (e.g. "Arabic"). Abbreviated or part of a languag
 Arch: Specify Windows architecture (e.g. "x64"). If this option isn't specified, the script attempts to use the same architecture as the one from the current system.
 GetUrl: By default, the script attempts to automatically launch the download. But when using the -GetUrl switch, the script only displays the download URL, which can then be piped into another command or into a file.
 #>  
-<#
+  <#
 .SYNOPSIS
 Downloads a Windows ISO using the Fido script.
 
@@ -57,6 +57,8 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
     [string]$Language = 'English'
   )
   try {
+
+
     $FidoURL = 'https://raw.githubusercontent.com/pbatard/Fido/master/Fido.ps1'
     $FidoResponse = Invoke-WebRequest -Uri $FidoURL -UseBasicParsing -Verbose
     # convert script content to ascii
@@ -79,9 +81,19 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
 
     # Add the necessary arguments for powershell.exe
     $ArgumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $file) + $ArgumentList
-
-    $Process = Start-Process -FilePath 'powershell.exe' -ArgumentList $ArgumentList -Wait
-
+   
+    # Start the process and capture the output
+    $ProcessStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $ProcessStartInfo.FileName = 'powershell.exe'
+    $ProcessStartInfo.Arguments = $ArgumentList -join ' '
+    $ProcessStartInfo.RedirectStandardOutput = $true
+    $ProcessStartInfo.UseShellExecute = $false
+    $Process = New-Object System.Diagnostics.Process
+    $Process.StartInfo = $ProcessStartInfo
+    $Process.Start() | Out-Null
+    $Process.WaitForExit()
+   
+    # Return the output of the process
     return $Process.StandardOutput.ReadToEnd()
   }
   catch {
