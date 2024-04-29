@@ -57,8 +57,6 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
     [string]$Language = 'English'
   )
   try {
-
-
     $FidoURL = 'https://raw.githubusercontent.com/pbatard/Fido/master/Fido.ps1'
     $FidoResponse = Invoke-WebRequest -Uri $FidoURL -UseBasicParsing -Verbose
     # convert script content to ascii
@@ -81,7 +79,7 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
 
     # Add the necessary arguments for powershell.exe
     $ArgumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $file) + $ArgumentList
-   
+
     # Start the process and capture the output
     $ProcessStartInfo = New-Object System.Diagnostics.ProcessStartInfo
     $ProcessStartInfo.FileName = 'powershell.exe'
@@ -92,7 +90,7 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
     $Process.StartInfo = $ProcessStartInfo
     $Process.Start() | Out-Null
     $Process.WaitForExit()
-   
+
     # Return the output of the process
     return $Process.StandardOutput.ReadToEnd()
   }
