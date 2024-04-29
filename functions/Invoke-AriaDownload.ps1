@@ -89,7 +89,7 @@ function Invoke-AriaDownload {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
-        [string]$AriaConsoleLogLevel = 'info',
+        [string]$AriaConsoleLogLevel = 'error',
 
         [Parameter(Mandatory = $false)]
         [switch]$LogToFile,
