@@ -73,7 +73,7 @@ function Get-LatestGitHubRelease {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse | Select-Object -First 1 -ExpandProperty FullName),
+        $Aria2cExePath = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
 
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
