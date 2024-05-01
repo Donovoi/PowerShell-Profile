@@ -183,6 +183,21 @@ Known issues:
     )
 
     BEGIN {
+        $neededcmdlets = @('Install-Dependencies', 'New-InMemoryModule', 'psenum', 'Add-Win32Type', 'Get-Properties')
+        $neededcmdlets | ForEach-Object {
+            if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+                }
+                Write-Verbose -Message "Importing cmdlet: $_"
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+                $Cmdletstoinvoke | Import-Module -Force
+            }
+        }
+
+        Install-Dependencies -PSModule 'PSReflect-Functions' -NoNugetPackage -Verbose
         function local:Test-Pointer {
             <#
         .SYNOPSIS
