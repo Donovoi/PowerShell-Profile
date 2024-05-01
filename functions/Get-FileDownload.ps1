@@ -63,7 +63,7 @@ function Get-FileDownload {
         [switch]$UseAria2,
 
         [Parameter( Mandatory = $false )]
-        [string]$aria2cExe = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse | Select-Object -First 1 -ExpandProperty FullName),
+        [string]$aria2cExe = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
 
         [Parameter(
             Mandatory = $false
