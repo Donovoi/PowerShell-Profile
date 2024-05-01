@@ -7,7 +7,7 @@ Ed: Specify Windows edition (e.g. "Pro/Home"). Abbreviated editions should work 
 Lang: Specify Windows language (e.g. "Arabic"). Abbreviated or part of a language (e.g. -Lang Int for English International) should work as long as it's unique enough. If this option isn't specified, the script attempts to select the same language as the system locale. You can obtain a list of supported languages by specifying -Lang List.
 Arch: Specify Windows architecture (e.g. "x64"). If this option isn't specified, the script attempts to use the same architecture as the one from the current system.
 GetUrl: By default, the script attempts to automatically launch the download. But when using the -GetUrl switch, the script only displays the download URL, which can then be piped into another command or into a file.
-#>  
+#>
   <#
 .SYNOPSIS
 Downloads a Windows ISO using the Fido script.

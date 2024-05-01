@@ -4,10 +4,10 @@
     Invokes a download using the Aria2 RPC.
 
 .DESCRIPTION
-    Takes a URL and an output file as parameters. Checks if the necessary 
-    cmdlets are available and if the Aria2 executable is in the PATH. Ensures 
-    the Aria2 RPC server is running, removes any existing output file, and 
-    constructs a JSON object for the RPC call. Invokes the download and handles 
+    Takes a URL and an output file as parameters. Checks if the necessary
+    cmdlets are available and if the Aria2 executable is in the PATH. Ensures
+    the Aria2 RPC server is running, removes any existing output file, and
+    constructs a JSON object for the RPC call. Invokes the download and handles
     any errors.
 
 .PARAMETER URL
@@ -29,11 +29,11 @@
     An optional switch to log the download to a file.
 
 .EXAMPLE
-    Invoke-AriaRPCDownload -URL "http://example.com/file.zip" 
-    -OutFile "C:\Downloads\file.zip" 
+    Invoke-AriaRPCDownload -URL "http://example.com/file.zip"
+    -OutFile "C:\Downloads\file.zip"
     -Aria2cExePath "C:\Program Files\aria2\aria2c.exe"
 
-    Downloads a file from example.com and saves it to the Downloads folder. 
+    Downloads a file from example.com and saves it to the Downloads folder.
     The path to the Aria2 executable is specified.
 
 .NOTES
