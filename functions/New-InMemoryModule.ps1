@@ -1,5 +1,6 @@
-function New-InMemoryModule {
-    <#
+function New-InMemoryModule
+{
+<#
 .SYNOPSIS
 
 Creates an in-memory assembly and module
@@ -8,7 +9,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-
+ 
 .DESCRIPTION
 
 When defining custom enums, structs, and unmanaged functions, it is
@@ -33,27 +34,20 @@ $Module = New-InMemoryModule -ModuleName Win32
         [String]
         $ModuleName = [Guid]::NewGuid().ToString()
     )
-    # do all of this in powershell 5.1 and export it as a pssession so powershell 7 can import it
-    $PS5Session = New-PSSession -UseWindowsPowerShell -Name 'PS5Session'
-    $moduleBuilder = Invoke-Command -ScriptBlock {
 
+    $AppDomain = [Reflection.Assembly].Assembly.GetType('System.AppDomain').GetProperty('CurrentDomain').GetValue($null, @())
+    $LoadedAssemblies = $AppDomain.GetAssemblies()
 
-
-        $AppDomain = [Reflection.Assembly].Assembly.GetType('System.AppDomain').GetProperty('CurrentDomain').GetValue($null, @())
-        $LoadedAssemblies = $AppDomain.GetAssemblies()
-
-        foreach ($Assembly in $LoadedAssemblies) {
-            if ($Assembly.FullName -and ($Assembly.FullName.Split(',')[0] -eq $using:ModuleName)) {
-                return $Assembly
-            }
+    foreach ($Assembly in $LoadedAssemblies) {
+        if ($Assembly.FullName -and ($Assembly.FullName.Split(',')[0] -eq $ModuleName)) {
+            return $Assembly
         }
+    }
 
-        $DynAssembly = New-Object Reflection.AssemblyName($Using:ModuleName)
-        $Domain = $AppDomain
-        $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, 'Run')
-        $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule($Using:ModuleName, $False)
+    $DynAssembly = New-Object Reflection.AssemblyName($ModuleName)
+    $Domain = $AppDomain
+    $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, 'Run')
+    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule($ModuleName, $False)
 
-        return $ModuleBuilder
-    } -ArgumentList $ModuleName -Session $PS5Session
     return $ModuleBuilder
 }
