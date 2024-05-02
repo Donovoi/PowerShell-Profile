@@ -68,7 +68,7 @@ New-Enum. :P
     Param
     (
         [Parameter(Position = 0, Mandatory = $True)]
-        [ValidateScript({ ($_ -is [Reflection.Emit.ModuleBuilder]) -or ($_ -is [Reflection.Assembly]) })]
+        # [ValidateScript({ ($_ -is [Reflection.Emit.ModuleBuilder]) -or ($_ -is [Reflection.Assembly]) })]
         $Module,
 
         [Parameter(Position = 1, Mandatory = $True)]
