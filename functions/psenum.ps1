@@ -8,7 +8,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
- 
+
 .DESCRIPTION
 
 The 'psenum' function facilitates the creation of enums entirely in

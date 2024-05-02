@@ -9,7 +9,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
- 
+
 .DESCRIPTION
 
 When defining custom enums, structs, and unmanaged functions, it is

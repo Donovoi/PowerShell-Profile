@@ -11,7 +11,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
- 
+
 .DESCRIPTION
 
 When defining custom enums, structs, and unmanaged functions, it is
@@ -117,7 +117,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: func
- 
+
 .DESCRIPTION
 
 Add-Win32Type enables you to easily interact with unmanaged (i.e.
@@ -333,7 +333,7 @@ are all incorporated into the same in-memory module.
         foreach ($Key in $TypeHash.Keys)
         {
             $Type = $TypeHash[$Key].CreateType()
-            
+
             $ReturnTypes[$Key] = $Type
         }
 
@@ -352,7 +352,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
- 
+
 .DESCRIPTION
 
 The 'psenum' function facilitates the creation of enums entirely in
@@ -467,15 +467,15 @@ function field
         [Parameter(Position = 0, Mandatory = $True)]
         [UInt16]
         $Position,
-        
+
         [Parameter(Position = 1, Mandatory = $True)]
         [Type]
         $Type,
-        
+
         [Parameter(Position = 2)]
         [UInt16]
         $Offset,
-        
+
         [Object[]]
         $MarshalAs
     )
@@ -499,7 +499,7 @@ Author: Matthew Graeber (@mattifestation)
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: field
- 
+
 .DESCRIPTION
 
 The 'struct' function facilitates the creation of structs entirely in
@@ -672,7 +672,7 @@ New-Struct. :P
             {
                 $AttribBuilder = New-Object Reflection.Emit.CustomAttributeBuilder($ConstructorInfo, [Object[]] @($UnmanagedType))
             }
-            
+
             $NewField.SetCustomAttribute($AttribBuilder)
         }
 
