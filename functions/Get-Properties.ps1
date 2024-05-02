@@ -16,31 +16,31 @@ function Get-Properties {
         param(
             [Parameter(Mandatory = $true)]
             [PSObject]$NestedObject,
-    
+
             [Parameter(Mandatory = $false)]
             [Int64]$CurrentDepth = 0,
-    
+
             [Parameter(Mandatory = $false)]
             [System.Collections.ArrayList]$PropertyList = [System.Collections.ArrayList]::new()
         )
-    
+
         # Check if the object has already been visited
         if ($visited.Add($NestedObject)) {
             foreach ($property in $NestedObject.PSObject.Properties) {
                 $name = $property.Name
                 $type = if ($null -ne $property.Value) {
-                    $property.Value.GetType().FullName 
+                    $property.Value.GetType().FullName
                 }
                 else {
-                    '[NULL]' 
+                    '[NULL]'
                 }
                 $value = if ($null -ne $property.Value) {
-                    $property.Value 
+                    $property.Value
                 }
                 else {
-                    '[NULL VALUE]' 
+                    '[NULL VALUE]'
                 }
-    
+
                 $propertyObject = [PSCustomObject]@{
                     Name  = $name
                     Type  = $type
@@ -48,7 +48,7 @@ function Get-Properties {
                     Depth = $CurrentDepth
                 }
                 $PropertyList.Add($propertyObject) | Out-Null
-    
+
                 if ($null -ne $property.Value -and $property.Value -is [System.Collections.IEnumerable] -and $property.Value -isnot [String] -and $CurrentDepth -lt $LevelsToEnumerate) {
                     if ($property.Value -is [System.Collections.IDictionary]) {
                         foreach ($key in $property.Value.Keys) {
@@ -66,12 +66,12 @@ function Get-Properties {
                 }
             }
         }
-    
+
         # At the top level, output the results to Out-GridView
         if ($CurrentDepth -eq 0) {
             $PropertyList | Out-GridView
         }
     }
-    
+
     Get-NestedProperties -NestedObject $Object
 }
