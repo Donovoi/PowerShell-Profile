@@ -183,7 +183,7 @@ Known issues:
     )
 
     BEGIN {
-        $neededcmdlets = @('Install-Dependencies', 'New-InMemoryModule', 'psenum', 'Add-Win32Type', 'Get-Properties')
+        $neededcmdlets = @('Install-Dependencies', 'New-InMemoryModule', 'psenum', 'Add-Win32Type', 'Get-Properties', 'Write-Logg')
         $neededcmdlets | ForEach-Object {
             if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -1857,3 +1857,6 @@ but obviously, this is extremely easy to evade.
     [Runtime.InteropServices.Marshal]::FreeHGlobal($Ptr)
     $null = $Kernel32::CloseHandle($hProcess)
 }
+
+
+Get-PE -FilePath 'G:\xwfportable\xwforensics64.exe' -Verbose -ErrorAction Break
