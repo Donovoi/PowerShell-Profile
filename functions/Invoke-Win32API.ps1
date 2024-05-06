@@ -1,7 +1,3 @@
-
-# Copyright: (c) 2018, Jordan Borean (@jborean93) <jborean93@gmail.com>
-# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
-
 Function Invoke-Win32Api {
     <#
     .SYNOPSIS
@@ -125,11 +121,11 @@ Function Invoke-Win32Api {
     [CmdletBinding()]
     [OutputType([Object])]
     param(
-        [Parameter(Position = 0, Mandatory = $true)] [String]$DllName,
-        [Parameter(Position = 1, Mandatory = $true)] [String]$MethodName,
-        [Parameter(Position = 2, Mandatory = $true)] [Type]$ReturnType,
-        [Parameter(Position = 3)] [Type[]]$ParameterTypes = [Type[]]@(),
-        [Parameter(Position = 4)] [Object[]]$Parameters = [Object[]]@(),
+        [Parameter(Position=0, Mandatory=$true)] [String]$DllName,
+        [Parameter(Position=1, Mandatory=$true)] [String]$MethodName,
+        [Parameter(Position=2, Mandatory=$true)] [Type]$ReturnType,
+        [Parameter(Position=3)] [Type[]]$ParameterTypes = [Type[]]@(),
+        [Parameter(Position=4)] [Object[]]$Parameters = [Object[]]@(),
         [Parameter()] [Bool]$SetLastError = $false,
         [Parameter()] [Runtime.InteropServices.CharSet]$CharSet = [Runtime.InteropServices.CharSet]::Auto
     )
@@ -138,22 +134,20 @@ Function Invoke-Win32Api {
     }
 
     # First step is to define the dynamic assembly in the current AppDomain
-    $assembly = New-Object -TypeName System.Reflection.AssemblyName -ArgumentList 'Win32ApiAssembly'
-    $AssemblyBuilder = [System.Reflection.Assembly].Assembly.GetTypes() | Where-Object { $_.Name -eq 'AssemblyBuilder' }
-    $dynamic_assembly = $AssemblyBuilder::DefineDynamicAssembly($assembly, [Reflection.Emit.AssemblyBuilderAccess]::Run)
-
+    $assembly = New-Object -TypeName System.Reflection.AssemblyName -ArgumentList "Win32ApiAssembly"
+    $dynamic_assembly = [AppDomain]::CurrentDomain.DefineDynamicAssembly($assembly, [Reflection.Emit.AssemblyBuilderAccess]::Run)
 
     # Second step is to create the dynamic module and type/class that contains
     # the P/Invoke definition
-    $dynamic_module = $dynamic_assembly.DefineDynamicModule('Win32Module', $false)
-    $dynamic_type = $dynamic_module.DefineType('Win32Type', [Reflection.TypeAttributes]'Public, Class')
+    $dynamic_module = $dynamic_assembly.DefineDynamicModule("Win32Module", $false)
+    $dynamic_type = $dynamic_module.DefineType("Win32Type", [Reflection.TypeAttributes]"Public, Class")
 
     # Need to manually get the reference type if the ParameterType is [Ref], we
     # define this based on the Parameter type at the same index
     $parameter_types = $ParameterTypes.Clone()
     for ($i = 0; $i -lt $ParameterTypes.Length; $i++) {
         if ($ParameterTypes[$i] -eq [Ref]) {
-            $parameter_types[$i] = $Parameters[$i].Value.GetType().MakeByRefType()
+            $parameter_types[$i]  = $Parameters[$i].Value.GetType().MakeByRefType()
         }
     }
 
@@ -161,7 +155,7 @@ Function Invoke-Win32Api {
     # return type that is expected
     $dynamic_method = $dynamic_type.DefineMethod(
         $MethodName,
-        [Reflection.MethodAttributes]'Public, Static',
+        [Reflection.MethodAttributes]"Public, Static",
         $ReturnType,
         $parameter_types
     )
@@ -170,8 +164,8 @@ Function Invoke-Win32Api {
     # SetLastError and CharSet are applied
     $constructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
     $method_fields = [Reflection.FieldInfo[]]@(
-        [Runtime.InteropServices.DllImportAttribute].GetField('SetLastError'),
-        [Runtime.InteropServices.DllImportAttribute].GetField('CharSet')
+        [Runtime.InteropServices.DllImportAttribute].GetField("SetLastError"),
+        [Runtime.InteropServices.DllImportAttribute].GetField("CharSet")
     )
     $method_fields_values = [Object[]]@($SetLastError, $CharSet)
     $custom_attributes = New-Object -TypeName Reflection.Emit.CustomAttributeBuilder -ArgumentList @(

@@ -15,32 +15,24 @@ function Get-Exports {
     Optional Dependencies: None
 
     .PARAMETER DllPath
+
     Absolute path to DLL.
 
     .PARAMETER CustomDll
-    Absolute path to output file.
 
-    .PARAMETER FunctionPattern
-    Glob pattern to filter function names.
+    Absolute path to output file.
 
     .EXAMPLE
     C:\PS> Get-Exports -DllPath C:\Some\Path\here.dll
 
     .EXAMPLE
     C:\PS> Get-Exports -DllPath C:\Some\Path\here.dll -ExportsToCpp C:\Some\Out\File.txt
-
-    .EXAMPLE
-    C:\PS> Get-Exports -DllPath C:\Some\Path\here.dll -FunctionPattern "*Create*"
     #>
     param (
         [Parameter(Mandatory = $True)]
         [string]$DllPath,
         [Parameter(Mandatory = $False)]
-        [string]$ExportsToCpp,
-        [Parameter(Mandatory = $False)]
-        [string]$FunctionPattern,
-        [Parameter(Mandatory = $False)]
-        [switch]$exportsignatures
+        [string]$ExportsToCpp
     )
 
     Add-Type -TypeDefinition @'
@@ -166,55 +158,29 @@ function Get-Exports {
     $ExportNamesRVA = Convert-RVAToFileOffset $EXPORT_DIRECTORY_FLAGS.AddressOfNames $SectionArray
     $ExportOrdinalsRVA = Convert-RVAToFileOffset $EXPORT_DIRECTORY_FLAGS.AddressOfNameOrdinals $SectionArray
 
-    # Loop exports with optional pattern filtering
+    # Loop exports
     $ExportArray = @()
     for ($i = 0; $i -lt $EXPORT_DIRECTORY_FLAGS.NumberOfNames; $i++) {
         # Calculate function name RVA
         $FunctionNameRVA = Convert-RVAToFileOffset $([Runtime.InteropServices.Marshal]::ReadInt32($HModule.ToInt64() + $ExportNamesRVA + ($i * 4))) $SectionArray
-        $FunctionName = [System.Runtime.InteropServices.Marshal]::PtrToStringAnsi($HModule.ToInt64() + $FunctionNameRVA)
-
-        # Filter based on the provided pattern
-        if ([string]::IsNullOrEmpty($FunctionPattern) -or $FunctionName -like $FunctionPattern) {
-            $HashTable = @{
-                FunctionName = $FunctionName
-                ImageRVA     = Write-Output "0x$('{0:X8}' -f $([Runtime.InteropServices.Marshal]::ReadInt32($HModule.ToInt64() + $ExportFunctionsRVA + ($i*4))))"
-                Ordinal      = [Runtime.InteropServices.Marshal]::ReadInt16($HModule.ToInt64() + $ExportOrdinalsRVA + ($i * 2)) + $EXPORT_DIRECTORY_FLAGS.Base
-            }
-            $Object = New-Object PSObject -Property $HashTable
-            $ExportArray += $Object
+        $HashTable = @{
+            FunctionName = [System.Runtime.InteropServices.Marshal]::PtrToStringAnsi($HModule.ToInt64() + $FunctionNameRVA)
+            ImageRVA     = Write-Output "0x$('{0:X8}' -f $([Runtime.InteropServices.Marshal]::ReadInt32($HModule.ToInt64() + $ExportFunctionsRVA + ($i*4))))"
+            Ordinal      = [Runtime.InteropServices.Marshal]::ReadInt16($HModule.ToInt64() + $ExportOrdinalsRVA + ($i * 2)) + $EXPORT_DIRECTORY_FLAGS.Base
         }
+        $Object = New-Object PSObject -Property $HashTable
+        $ExportArray += $Object
     }
 
     # Print export object
     $ExportArray | Sort-Object Ordinal
 
-    # Optionally write ExportToC++ wrapper output with pattern filtering
+    # Optionally write ExportToC++ wrapper output
     if ($ExportsToCpp) {
-        foreach ($Entry in $ExportArray | Where-Object { [string]::IsNullOrEmpty($FunctionPattern) -or $_.FunctionName -like $FunctionPattern }) {
+        foreach ($Entry in $ExportArray) {
             Add-Content $ExportsToCpp "#pragma comment (linker, '/export:$($Entry.FunctionName)=[FORWARD_DLL_HERE].$($Entry.FunctionName),@$($Entry.Ordinal)')"
         }
     }
-
-    # optionally export every version of each function, detailing the arguments and return type
-    # Load the DLL
-    Add-Type -Path $DllPath
-
-    # Get all types in the DLL
-    $types = [System.AppDomain]::CurrentDomain.GetAssemblies() |
-        Where-Object { $_.Location -eq $DllPath } |
-            ForEach-Object { $_.GetTypes() }
-
-    # Loop through each type and get its methods (public and non-public)
-    foreach ($type in $types) {
-        $type.GetMethods('NonPublic,Public,Static,Instance') |
-            Where-Object { $_.DeclaringType -eq $type } |
-                ForEach-Object {
-                    # Create the function signature
-                    $signature = $_.ToString()
-                    Write-Output "$signature"
-                }
-    }
-
 
     # Free buffer
     [Runtime.InteropServices.Marshal]::FreeHGlobal($HModule)

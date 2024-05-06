@@ -1,5 +1,6 @@
-function New-InMemoryModule {
-    <#
+function New-InMemoryModule
+{
+<#
 .SYNOPSIS
 
 Creates an in-memory assembly and module
