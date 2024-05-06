@@ -78,7 +78,7 @@ function Install-Cmdlet {
             Export-ModuleMember -Function * -Alias *
 '@
             Set-Content -Path $modulefile -Value $modulecontent -Force
-    
+
             foreach ($cmdlet in $donovoicmdlets) {
                 if (-not (Test-Path -Path "$LocalModuleFolder\$cmdlet.ps1")) {
                     Write-Warning -Message "The cmdlet $cmdlet was not found locally"

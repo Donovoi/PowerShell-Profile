@@ -1,65 +1,77 @@
 function Get-Properties {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [PSObject]
-        $Object,
+        [PSObject]$Object,
+
         [Parameter(Mandatory = $false)]
-        [Int64]$levels = 99
+        [Int64]$LevelsToEnumerate = 99
     )
-    process {
-        # Initialize a HashSet to keep track of visited objects and prevent infinite recursion
-        $visited = New-Object 'System.Collections.Generic.HashSet[System.Object]'
 
-        # Helper function for recursion
+    # Initialize a HashSet to keep track of visited objects and prevent infinite recursion
+    $visited = New-Object 'System.Collections.Generic.HashSet[System.Object]'
 
-        function Get-NestedProperties {
-            param(
-                [Parameter(Mandatory = $true)]
-                [PSObject]
-                $NestedObject,
-                [int64]
-                $Depth = 0,
-                [int64]
-                $levels = 99
-            )
+    function Get-NestedProperties {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory = $true)]
+            [PSObject]$NestedObject,
 
-            while ($Depth -lt $levels) {
-                # Prefix for indentation
-                $prefix = '-' * $Depth
+            [Parameter(Mandatory = $false)]
+            [Int64]$CurrentDepth = 0,
 
+            [Parameter(Mandatory = $false)]
+            [System.Collections.ArrayList]$PropertyList = [System.Collections.ArrayList]::new()
+        )
 
-                if ($visited.Add($NestedObject)) {
-                    if ($NestedObject -is [System.Collections.Specialized.OrderedDictionary]) {
-                        foreach ($key in $NestedObject.Keys) {
-                            Write-Host "${prefix}Name: $key"
-                            Write-Host "${prefix}Type: $($NestedObject[$key].GetType().FullName)"
-                            Write-Host "${prefix}Value: $($NestedObject[$key])"
-                            Get-NestedProperties -NestedObject $NestedObject[$key] -Depth ($Depth + 1)
+        # Check if the object has already been visited
+        if ($visited.Add($NestedObject)) {
+            foreach ($property in $NestedObject.PSObject.Properties) {
+                $name = $property.Name
+                $type = if ($null -ne $property.Value) {
+                    $property.Value.GetType().FullName
+                }
+                else {
+                    '[NULL]'
+                }
+                $value = if ($null -ne $property.Value) {
+                    $property.Value
+                }
+                else {
+                    '[NULL VALUE]'
+                }
+
+                $propertyObject = [PSCustomObject]@{
+                    Name  = $name
+                    Type  = $type
+                    Value = $value
+                    Depth = $CurrentDepth
+                }
+                $PropertyList.Add($propertyObject) | Out-Null
+
+                if ($null -ne $property.Value -and $property.Value -is [System.Collections.IEnumerable] -and $property.Value -isnot [String] -and $CurrentDepth -lt $LevelsToEnumerate) {
+                    if ($property.Value -is [System.Collections.IDictionary]) {
+                        foreach ($key in $property.Value.Keys) {
+                            Get-NestedProperties -NestedObject $property.Value[$key] -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
                         }
                     }
-                    elseif ($NestedObject -is [System.Collections.ICollection] -and $NestedObject -is [System.Array]) {
-                        # Handle arrays
-                        $NestedObject | ForEach-Object {
-                            Get-NestedProperties -NestedObject $_ -Depth ($Depth + 1)
+                    elseif ($property.Value -is [System.Collections.ICollection]) {
+                        foreach ($item in $property.Value) {
+                            Get-NestedProperties -NestedObject $item -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
                         }
                     }
                     else {
-                        $NestedObject.PSObject.Properties | ForEach-Object {
-                            Write-Host "${prefix}Name: $($_.Name)"
-                            Write-Host "${prefix}Type: $($_.TypeNameOfValue)"
-                            Write-Host "${prefix}Value: $($_.Value)"
-                            if ($null -ne $_.Value) {
-                                Get-NestedProperties -NestedObject $_.Value -Depth ($Depth + 1)
-                            }
-                        }
+                        Get-NestedProperties -NestedObject $property.Value -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
                     }
                 }
-
-
             }
         }
-        Get-NestedProperties -NestedObject $Object -Depth $levels
+
+        # At the top level, output the results to Out-GridView
+        if ($CurrentDepth -eq 0) {
+            $PropertyList | Out-GridView
+        }
     }
 
-
+    Get-NestedProperties -NestedObject $Object
 }
