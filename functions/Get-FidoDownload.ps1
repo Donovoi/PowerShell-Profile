@@ -54,7 +54,7 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
     [string]$Arch = 'x64',
     [switch]$GetUrl,
     [string]$LOCALE = 'en-US',
-    [string]$Language = 'English'
+    [string]$Language = 'English (United States)'
   )
   try {
     $FidoURL = 'https://raw.githubusercontent.com/pbatard/Fido/master/Fido.ps1'
