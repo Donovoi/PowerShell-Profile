@@ -26,7 +26,7 @@ function Invoke-DockerSnapshot {
             Write-Host "Container $ContainerName committed as image $imageName"
 
             # Backup the volume
-            docker run --rm --volume $VolumeName:/volume --volume $BackupDirectory:/backup ubuntu tar cvf /backup/$backupPath /volume
+            docker run --rm --volume $VolumeName`:/volume --volume $BackupDirectory`:/backup ubuntu tar cvf /backup/$backupPath /volume
             Write-Host "Volume $VolumeName backed up to $backupPath"
 
             # Cleanup previous backups and images if the current backup is successful
