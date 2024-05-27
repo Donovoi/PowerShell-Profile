@@ -52,7 +52,9 @@ function Install-Cmdlet {
         [Parameter(Mandatory = $false, ParameterSetName = 'Donovoicmdlets')]
         [switch]$PreferLocal,
         [Parameter(Mandatory = $false)]
-        [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\"
+        [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\",
+        [Parameter(Mandatory=$false)]
+        [switch]$ContainsClass
     )
     try {
 
@@ -148,7 +150,7 @@ function Install-Cmdlet {
         }
         if (-not $PreferLocal) {
             #  do the rest of the needed in memory stuff
-            $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
+            $modulescriptblock = [scriptblock]::Create("Using module $ModuleName" + $Cmdletsarraysb.ToString())
             $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
         }
         else {
