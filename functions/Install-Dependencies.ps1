@@ -7,7 +7,7 @@ function Install-Dependencies {
     param(
         [switch]$RemoveAllModules,
         [string[]]$PSModule,
-        [string[]]$NugetPackage,
+        [hashtable]$NugetPackage,
         [switch]$NoPSModules,
         [switch]$NoNugetPackage,
         [switch]$InstallDefaultPSModules,
@@ -183,7 +183,7 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 }
 
 
-function Install-NugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
+function Install-NugetDeps ([bool]$InstallDefault, [hashtable]$NugetPackage) {
     try {
         # Determine which NuGet packages are needed based on the InstallDefault flag
         $deps = if ($InstallDefault) {
@@ -196,7 +196,7 @@ function Install-NugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
         }
         else {
 
-            $deps += $NugetPackage
+            $deps = $NugetPackage
         }
 
 
