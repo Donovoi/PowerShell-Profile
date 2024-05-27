@@ -25,7 +25,7 @@ function Install-Dependencies {
 
     # Install NuGet dependencies
     if (-not $NoNugetPackage ) {
-        InstallNugetDeps $InstallDefaultNugetPackage $NugetPackage
+        Install-NugetDeps -InstallDefault:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage
     }
 
     # Install PowerShell modules
@@ -183,7 +183,7 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 }
 
 
-function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
+function Install-NugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
     try {
         # Determine which NuGet packages are needed based on the InstallDefault flag
         $deps = if ($InstallDefault) {
@@ -196,11 +196,11 @@ function InstallNugetDeps ([bool]$InstallDefault, [string[]]$NugetPackage) {
         }
         else {
 
-            $deps = $NugetPackage
+            $deps += $NugetPackage
         }
 
 
-        # Log the installation process (assumes you have a custom logging function)
+        # Log the installation process
         Write-Logg -Message 'Installing NuGet dependencies' -Level Info
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
