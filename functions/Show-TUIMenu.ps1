@@ -1,4 +1,39 @@
 <#
+.SYNOPSIS
+    Represents a menu item with a display name and an associated action.
+
+.DESCRIPTION
+    The MenuItem class is used to create menu items for the terminal GUI. Each menu item has a name that is displayed in the GUI and an action that is a script block, which gets executed when the menu item is selected.
+
+.PARAMETER Name
+    The display name of the menu item.
+
+.PARAMETER Action
+    The script block that contains the action to be executed when this menu item is selected.
+
+.EXAMPLE
+    $menuItem = [MenuItem]::new('Option 1', { Write-Host 'You selected option 1' })
+
+    This creates a new menu item with the display name 'Option 1' and an action that writes a message to the host when invoked.
+
+.NOTES
+    This class is intended to be used with the Show-TUIMenu function which handles the GUI representation and interaction.
+#>
+
+class MenuItem {
+    [string]$Name
+    [scriptblock]$Action
+
+    MenuItem([string]$Name, [scriptblock]$Action) {
+        $this.Name = $Name
+        $this.Action = $Action
+    }
+
+    [void]Invoke() {
+        & $this.Action
+    }
+}
+<#
   .SYNOPSIS
       Displays a GUI menu with the provided menu items and handles user selection.
 
@@ -39,42 +74,6 @@ function Show-TUIMenu {
         [Parameter(Mandatory)]
         [MenuItem[]]$MenuItems
     )
-
-    <#
-.SYNOPSIS
-    Represents a menu item with a display name and an associated action.
-
-.DESCRIPTION
-    The MenuItem class is used to create menu items for the terminal GUI. Each menu item has a name that is displayed in the GUI and an action that is a script block, which gets executed when the menu item is selected.
-
-.PARAMETER Name
-    The display name of the menu item.
-
-.PARAMETER Action
-    The script block that contains the action to be executed when this menu item is selected.
-
-.EXAMPLE
-    $menuItem = [MenuItem]::new('Option 1', { Write-Host 'You selected option 1' })
-
-    This creates a new menu item with the display name 'Option 1' and an action that writes a message to the host when invoked.
-
-.NOTES
-    This class is intended to be used with the Show-TUIMenu function which handles the GUI representation and interaction.
-#>
-
-    class MenuItem {
-        [string]$Name
-        [scriptblock]$Action
-
-        MenuItem([string]$Name, [scriptblock]$Action) {
-            $this.Name = $Name
-            $this.Action = $Action
-        }
-
-        [void]Invoke() {
-            & $this.Action
-        }
-    }
 
     # Initialize Terminal.Gui
     $module = (Get-Module Microsoft.PowerShell.ConsoleGuiTools -List).ModuleBase
