@@ -300,7 +300,7 @@ function Install-PSModules {
 
                             if ($_ -like '*PSReadLine*') {
                                 # Install prerelease version of PSReadLine
-                                Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck
+                                Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck -ErrorAction SilentlyContinue
                                 Set-PSReadLineOption -PredictionSource History
                             }
 
