@@ -150,7 +150,7 @@ function Install-Cmdlet {
         }
         if (-not $PreferLocal) {
             #  do the rest of the needed in memory stuff
-            $modulescriptblock = [scriptblock]::Create("Using module $ModuleName" + $Cmdletsarraysb.ToString())
+            $modulescriptblock = [scriptblock]::Create("Using module $ModuleName `n" + $Cmdletsarraysb.ToString())
             $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
         }
         else {
