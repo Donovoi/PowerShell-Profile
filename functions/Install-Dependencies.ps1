@@ -20,6 +20,21 @@ function Install-Dependencies {
     # Run as admin
     RunAsAdmin
 
+    # Import the required cmdlets
+    $neededcmdlets = @('Get-FileDownload', 'Add-FileToAppDomain', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+    $neededcmdlets | ForEach-Object {
+        if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+            }
+            Write-Verbose -Message "Importing cmdlet: $_"
+            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+            $Cmdletstoinvoke | Import-Module -Force
+        }
+    }
+
     # Setup package providers
     Install-PackageProviders
 
@@ -184,22 +199,38 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 
 
 function Install-NugetDeps ([bool]$InstallDefault, [hashtable]$NugetPackage) {
+    $deps = @{}  # Initialize an empty hashtable
     try {
-        # Determine which NuGet packages are needed based on the InstallDefault flag
-        $deps = if ($InstallDefault) {
-            @{
-                'Interop.UIAutomationClient' = '10.19041.0'
-                'FlaUI.Core'                 = '4.0.0'
-                'FlaUI.UIA3'                 = '4.0.0'
-                'HtmlAgilityPack'            = '1.11.50'
+        # Define default NuGet packages
+        $defaultPackages = @{
+            'Interop.UIAutomationClient' = '10.19041.0'
+            'FlaUI.Core'                 = '4.0.0'
+            'FlaUI.UIA3'                 = '4.0.0'
+            'HtmlAgilityPack'            = '1.11.50'
+        }
+
+        # If InstallDefault is true, start with default packages
+        if ($InstallDefault) {
+            foreach ($package in $defaultPackages.GetEnumerator()) {
+                $deps[$package.Key] = @{
+                    Name    = $package.Key
+                    Version = $package.Value
+                }
             }
         }
-        else {
 
-            $deps = $NugetPackage
+        # Add packages from the $NugetPackage hashtable
+        foreach ($package in $NugetPackage.GetEnumerator()) {
+            $deps[$package.Key] = @{
+                Name    = $package.Key
+                Version = $package.Value
+            }
         }
 
-
+        # Output the final hashtable for verification
+        $deps.GetEnumerator() | ForEach-Object {
+            Write-Output "Package: $($_.Key), Version: $($_.Value.Version)"
+        }
         # Log the installation process
         Write-Logg -Message 'Installing NuGet dependencies' -Level Info
 
@@ -216,6 +247,10 @@ function Install-NugetDeps ([bool]$InstallDefault, [hashtable]$NugetPackage) {
         Write-Error "An error occurred while installing NuGet packages: $_"
     }
 }
+
+
+
+
 
 
 function Install-PSModules {
@@ -513,8 +548,9 @@ function Add-NuGetDependencies {
             New-Item -Path "$TempWorkDir" -ItemType Directory | Out-Null
         }
 
-        foreach ($dep in $NugetPackage.Keys) {
-            $version = $NugetPackage[$dep]
+        foreach ($package in $NugetPackage.GetEnumerator()) {
+            $version = $package.Value.Version
+            $dep = $package.Value.Name
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -and (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
@@ -525,14 +561,32 @@ function Add-NuGetDependencies {
                 $InstalledDependencies[$dep] = $version
             }
 
-            # Prioritise version 4.8 over 4.5
-            $BasePath = Join-Path (Join-Path "$destinationPath" 'lib') 'net48'
-            if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
-                $BasePath = Join-Path (Join-Path "$destinationPath" 'lib') 'net45'
+            # Define the base path
+            $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
+
+            # Get all directories in the base path
+            $dotnetfolders = Get-ChildItem -Path $BasePath -Directory
+
+            # Extract and process version numbers from folder names
+            $versionFolders = $dotnetfolders | ForEach-Object {
+                if ($_.Name -match '(\d+(\.\d+)+)') {
+                    [PSCustomObject]@{
+                        Name     = $_.Name
+                        Version  = [version]$matches[0]
+                        FullName = $_.FullName
+                    }
+                }
             }
 
-            Write-Logg -Message "Adding file ${dep}.dll to application domain" -Level VERBOSE
-            Add-FileToAppDomain -BasePath $BasePath -File "${dep}.dll"
+            # Sort folders by their version numbers in descending order
+            $sortedFolders = $versionFolders | Sort-Object -Property Version -Descending
+
+            # Output the sorted folder names
+            $BasePath = $($sortedFolders | Select-Object -First 1 -Property FullName).FullName
+            $DLLPath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
+            $DLLSplit = Split-Path -Path $DLLPath -Leaf
+            Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
+            Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
         }
     }
     catch {
