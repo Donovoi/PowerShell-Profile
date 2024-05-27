@@ -104,9 +104,6 @@ function Install-PackageProviders {
                 Write-Host 'Panises module not installed, installing now'
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
             }
-            else {
-                Write-Host 'PackageManagement module already installed' -ForegroundColor Green
-            }
         }
 
 
