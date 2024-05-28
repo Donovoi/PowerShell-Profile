@@ -1,7 +1,7 @@
 function Update-USBTools {
   [CmdletBinding()]
   param (
-    
+
   )
 
   $neededcmdlets = @('Write-Logg', 'Get-Properties', 'Show-TUIMenu', 'Update-DotNetSDK', 'Update-VisualStudio', 'Get-KapeAndTools', 'Get-GitPull', 'Update-PowerShell', 'Get-LatestSIV', 'Update-VScode', 'Update-VcRedist')

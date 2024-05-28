@@ -8,7 +8,7 @@ function Update-VcRedist {
   param(
 
   )
-    
+
   # Import the required cmdlets
   $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Get-LatestGitHubRelease')
   $neededcmdlets | ForEach-Object {
