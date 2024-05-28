@@ -62,19 +62,20 @@ function Show-TUIMenu {
     This class is intended to be used with the Show-TUIMenu function which handles the GUI representation and interaction.
 #>
 
-    class MenuItem {
-        [string]$Name
-        [scriptblock]$Action
+    # class MenuItem {
+    #     [string]$Name
+    #     [scriptblock]$Action
 
-        MenuItem([string]$Name, [scriptblock]$Action) {
-            $this.Name = $Name
-            $this.Action = $Action
-        }
+    #     MenuItem([string]$Name, [scriptblock]$Action) {
+    #         $this.Name = $Name
+    #         $this.Action = $Action
+    #     }
 
-        [void]Invoke() {
-            & $this.Action
-        }
-    }
+    #     [void]Invoke() {
+    #         & $this.Action
+    #     }
+    # }
+    
     # Initialize Terminal.Gui
     $module = (Get-Module Microsoft.PowerShell.ConsoleGuiTools -List).ModuleBase
     Add-Type -Path (Join-Path $module 'Terminal.Gui.dll')
@@ -106,7 +107,7 @@ function Show-TUIMenu {
 
     # Create window
     $window = [Terminal.Gui.Window]::new()
-    $window.Title = 'rclone Menu'
+    $window.Title = 'Menu'
 
     # Use the centered messages for the ListView
     $listview = [Terminal.Gui.ListView]::new($centeredMessages)
