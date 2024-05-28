@@ -53,7 +53,7 @@ function Install-Cmdlet {
         [switch]$PreferLocal,
         [Parameter(Mandatory = $false)]
         [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\",
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [switch]$ContainsClass
     )
     try {
@@ -150,7 +150,7 @@ function Install-Cmdlet {
         }
         if (-not $PreferLocal) {
             #  do the rest of the needed in memory stuff
-            $modulescriptblock = [scriptblock]::Create("Using module $ModuleName `n" + $Cmdletsarraysb.ToString())
+            $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
             $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
         }
         else {
