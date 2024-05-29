@@ -77,6 +77,10 @@ function Show-TUIMenu {
     # }
 
     # Initialize Terminal.Gui
+    Install-module Microsoft.PowerShell.ConsoleGuiTools -force
+    if(-not (Get-Module Microsoft.PowerShell.ConsoleGuiTools -List)){
+    Install-module Microsoft.PowerShell.ConsoleGuiTools -force
+    }
     $module = (Get-Module Microsoft.PowerShell.ConsoleGuiTools -List).ModuleBase
     Add-Type -Path (Join-Path $module 'Terminal.Gui.dll')
     [Terminal.Gui.Application]::Init()
