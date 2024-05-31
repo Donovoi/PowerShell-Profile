@@ -89,7 +89,14 @@ function Get-FileDownload {
         $GitHub,
 
         [Parameter()]
-        [switch]$NoRPCMode
+        [switch]$NoRPCMode,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
+        [string]$AriaConsoleLogLevel = 'error',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$LogToFile
 
     )
     process {
@@ -213,10 +220,10 @@ function Get-FileDownload {
                         }
                     }
                     elseif ($NoRPCMode) {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -Verbose:$VerbosePreference
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -Verbose:$VerbosePreference
                     }
                     else {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -Verbose:$VerbosePreference
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -Verbose:$VerbosePreference
                     }
                 }
                 else {
