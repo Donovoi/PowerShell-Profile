@@ -208,7 +208,7 @@ function Invoke-AriaDownload {
                 "--multiple-interface=$interfaceString",
                 '--allow-overwrite=true',
                 '--min-tls-version=TLSv1.2',
-                "--user-agent=$UserAgent",
+                "--user-agent=`"$UserAgent`"",
                 $outfileargument
             )
 
