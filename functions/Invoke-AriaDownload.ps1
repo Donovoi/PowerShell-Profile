@@ -95,7 +95,12 @@ function Invoke-AriaDownload {
         [switch]$LogToFile,
 
         [Parameter(Mandatory = $false)]
-        [switch]$RPCMode
+        [switch]$RPCMode,
+
+        # useragent string
+        [Parameter(Mandatory = $false)]
+        [string]
+        $UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
     )
     begin {
         $neededcmdlets = @('Test-InPath', 'Invoke-AriaRPCDownload')
@@ -203,6 +208,7 @@ function Invoke-AriaDownload {
                 "--multiple-interface=$interfaceString",
                 '--allow-overwrite=true',
                 '--min-tls-version=TLSv1.2',
+                "--user-agent=$UserAgent",
                 $outfileargument
             )
 
