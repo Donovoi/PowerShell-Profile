@@ -72,5 +72,5 @@ function Update-USBTools {
   $menuItem12 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem13 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
-  Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14) -ErrorAction break
+  Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14) -ErrorAction SilentlyContinue
 }
