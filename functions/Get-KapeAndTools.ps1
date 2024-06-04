@@ -6,7 +6,7 @@ function Get-KapeAndTools {
 
   )
   # Import the required cmdlets
-  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Get-LatestGitHubRelease')
   $neededcmdlets | ForEach-Object {
     if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
       if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
