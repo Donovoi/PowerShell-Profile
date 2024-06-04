@@ -1,37 +1,46 @@
 <#
 .SYNOPSIS
-    This script will discover and download all available EXE, ZIP, and PS1 files referenced in KAPE Module files and download them to $Dest
-    or optionally can be fed a txt file containing URLs to download.
+Automates the downloading of binaries used by KAPE module files.
+
 .DESCRIPTION
-    This script will discover and download all available EXE, ZIP, and PS1 files referenced in KAPE Module files and download them to $Dest
-    or optionally can be fed a txt file containing URLs to download.
-    A file will also be created in $Dest that tracks the SHA-1 of each file, so rerunning the script will only download new versions.
-    To redownload, remove lines from or delete the CSV file created under $Dest and rerun. Note this only works for Eric Zimmerman's tools. All others will be downloaded each time.
+The `Get-KapeBinaries` function automates the process of downloading binaries used by KAPE module files. It provides options to specify the destination directory for the downloaded binaries, the path to the KAPE Modules directory, and various switches to control the behavior of the script.
+
 .PARAMETER Dest
-    The path you want to save the programs to. Typically this will be the Bin folder in your KAPE\Modules directory
+Specifies the destination directory where the binaries will be downloaded. The default value is "$ENV:USERPROFILE\kapeDownloadedBinaries".
+
 .PARAMETER ModulePath
-    The path containing KAPE module files.
+Specifies the path to the KAPE Modules directory. The default value is "$XWAYSUSB\Triage\Kape\Modules".
+
 .PARAMETER CreateBinaryList
-    Optional switch which scans mkape file and dumps binary urls found to console.
+An optional switch that, when used, scans the mkape files and dumps the binary URLs found to the console.
+
+.PARAMETER DownloadBinaries
+An optional switch that, when used, enables the downloading of binaries after the list is created.
+
 .PARAMETER UseBinaryList
-    Optional switch to enable use of txt file to specify which binaries to download.
+An optional switch that, when used, enables the use of a text file to specify which binaries to download.
+
 .PARAMETER BinaryListPath
-    The path of txt file containing Binary URLs.
+Specifies the path of the text file containing the binary URLs. This parameter is required if the UseBinaryList switch is used.
+
 .EXAMPLE
-    PS C:\Tools> .\Get-KapeModuleBinaries.ps1 -Dest "C:\Forensic Program Files\Zimmerman\Kape\Modules\Bin" -ModulePath "C:\Forensic Program Files\Zimmerman\Kape\Modules"
-    Downloads/extracts and saves binaries and binary details to "C:\Forensic Program Files\Zimmerman\Kape\Modules\Bin" directory.
+Get-KapeBinaries -Dest "C:\Downloads" -ModulePath "C:\Kape\Modules" -CreateBinaryList
+
+This example downloads the binaries used by KAPE module files to the "C:\Downloads" directory, using the KAPE Modules directory located at "C:\Kape\Modules". It also scans the mkape files and dumps the binary URLs found to the console.
+
 .EXAMPLE
-    PS C:\Tools> .\Get-KapeModuleBinaries.ps1 -ModulePath "C:\Forensic Program Files\Zimmerman\Kape\Modules" -CreateBinaryList
-    Scans modules directory for mkape files, extracts URLs and dumps to console. This can be used to create a text file for use
-    with the -UseBinaryList and -BinaryList path parameters or just to verify which tools will be downloaded prior to running
-    .\Get-KapeModuleBinaries.ps1 -Dest <desired tool path> -ModulePath "<Kape Modules Path>"
-.EXAMPLE
-    PS C:\Tools> .\Get-KapeModuleBinaries.ps1 -Dest "C:\Forensic Program Files\Zimmerman\Kape\Modules\Bin" -UseBinaryList -BinaryListPath C:\tools\binarylist.txt
-    Downloads/extracts and saves binaries and binary details for files specified in C:\tools\binarylist.txt to c:\tools directory.
+Get-KapeBinaries -Dest "C:\Downloads" -ModulePath "C:\Kape\Modules" -UseBinaryList -BinaryListPath "C:\BinaryList.txt"
+
+This example downloads the binaries specified in the "C:\BinaryList.txt" file to the "C:\Downloads" directory, using the KAPE Modules directory located at "C:\Kape\Modules".
+
 .NOTES
-    Author: Mike Cary
-    This script is a fork of Eric Zimmerman's Get-ZimmermanTools script which has been modified to parse mkape files or other txt files for urls to download
+This script requires the Write-Logg and Get-FileDownload functions to be available.
+
+.LINK
+Write-Logg: https://example.com/Write-Logg
+Get-FileDownload: https://example.com/Get-FileDownload
 #>
+
 
 function Get-KapeBinaries {
   [CmdletBinding()]
@@ -41,7 +50,7 @@ function Get-KapeBinaries {
     [string]$Dest = "$ENV:USERPROFILE\kapeDownloadedBinaries", # Where to download binaries
 
     [Parameter()]
-    [string]$ModulePath = "$XWAYSUSB\Triage\Kape\Modules", # Path to Kape Modules directory
+    [string]$ModulePath = '', # Path to Kape Modules directory
 
     [Parameter()]
     [switch]$CreateBinaryList, #Optional switch which scans mkape file and dumps binary urls found to console
@@ -54,7 +63,25 @@ function Get-KapeBinaries {
     [string]$BinaryListPath # Path of txt file containing Binary URLs
   )
 
+  # Import the required cmdlets
+  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+  $neededcmdlets | ForEach-Object {
+    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+      if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+      }
+      Write-Verbose -Message "Importing cmdlet: $_"
+      $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+      $Cmdletstoinvoke | Import-Module -Force
+    }
+  }
 
+  $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+  if ([string]::IsNullOrWhiteSpace($ModulePath)) {
+    $ModulePath = $(Resolve-Path -Path "$XWAYSUSB\Triage\Kape\Modules").Path
+  }
   Write-Logg -Message "This script will automate the downloading of binaries used by KAPE module files to $Dest"
 
   $newInstall = $false
@@ -68,7 +95,7 @@ function Get-KapeBinaries {
 
   $WebKeyCollection = @()
 
-  $localDetailsFile = Join-Path $Dest -ChildPath "!!!RemoteFileDetails.csv"
+  $localDetailsFile = Join-Path $Dest -ChildPath '!!!RemoteFileDetails.csv'
 
   if (Test-Path -Path $localDetailsFile) {
     Write-Logg -Message "Loading local details from '$Dest'..."
@@ -93,13 +120,13 @@ function Get-KapeBinaries {
 
   #If $CreateBinaryList switch is used dump list of Binary URLs to console
   elseif ($CreateBinaryList) {
-    Write-Logg -Message "Dumping list of Binary URLs to console"
+    Write-Logg -Message 'Dumping list of Binary URLs to console'
     try {
       $mkapeFiles = Get-ChildItem -Recurse -Force -Path $modulePath\*.mkape -ErrorAction Stop
       $mkapeContent = $mkapeFiles | Get-Content
     }
     catch {
-      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory"
+      Write-Logg -Message 'Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory'
     }
 
     # $UniqueURLs = @{}
@@ -123,7 +150,7 @@ function Get-KapeBinaries {
         if (Test-Path -Path $DownloadedBinaries) {
           Remove-Item -Path $DownloadedBinaries -Force -ErrorAction SilentlyContinue
         }
-        Get-FileDownload -Url $_ -OutFile $DownloadedBinaries -UseAria2
+        Get-FileDownload -Url "$_" -DestinationDirectory $(Split-Path $DownloadedBinaries -Parent) -UseAria2
       }
 
     }
@@ -136,7 +163,7 @@ function Get-KapeBinaries {
       $mkapeContent = Get-Content $modulePath\*.mkape -ErrorAction Stop
     }
     catch {
-      Write-Logg -Message "Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory"
+      Write-Logg -Message 'Unable to import list of Binary URLs. Verify path to modules folder is correct or that you have access to this directory'
     }
 
     $progressPreference = 'Continue'
@@ -147,7 +174,7 @@ function Get-KapeBinaries {
 
   }
 
-  Write-Logg -Message "Getting available programs..."
+  Write-Logg -Message 'Getting available programs...'
   $progressPreference = 'silentlyContinue'
   while ($matchdetails.Success) {
     try {
@@ -160,17 +187,17 @@ function Get-KapeBinaries {
     }
     catch {
       $headers = @{}
-      $headers. "x-bz-content-sha1" = "n/a"
-      $headers. 'Content-Length' = "n/a"
-      $headers. "x-bz-file-name" = $matchdetails.Value | Split-Path -Leaf
+      $headers. 'x-bz-content-sha1' = 'n/a'
+      $headers. 'Content-Length' = 'n/a'
+      $headers. 'x-bz-file-name' = $matchdetails.Value | Split-Path -Leaf
     }
 
     # Eric's tools have the hash available in the header so we can check these to see if we have the current version already
     if ($matchdetails.Value -like '*EricZimmermanTools*') {
       $getUrl = $matchdetails.Value
-      $sha = $headers["x-bz-content-sha1"]
-      $name = $headers["x-bz-file-name"]
-      $size = $headers["Content-Length"]
+      $sha = $headers['x-bz-content-sha1']
+      $name = $headers['x-bz-file-name']
+      $size = $headers['Content-Length']
 
       $details = @{
         Name = $name
@@ -182,9 +209,9 @@ function Get-KapeBinaries {
     # Downloading
     else {
       $getUrl = $matchdetails.Value
-      $sha = "N/A"
+      $sha = 'N/A'
       $name = $matchdetails.Value | Split-Path -Leaf
-      $size = $headers["Content-Length"]
+      $size = $headers['Content-Length']
 
 
       $details = @{
@@ -210,14 +237,14 @@ function Get-KapeBinaries {
 
     $localFile = $LocalKeyCollection | Where-Object { $_.Name -eq $webKey.Name }
 
-    if ($null -eq $localFile -or $localFile.SHA1 -ne $webKey.SHA1 -or $localFile.SHA1 -eq "N/A") {
+    if ($null -eq $localFile -or $localFile.SHA1 -ne $webKey.SHA1 -or $localFile.SHA1 -eq 'N/A') {
       #Needs to be downloaded since file doesn't exist, SHA is different, or SHA is not in header to compare
       $toDownload += $webKey
     }
   }
 
   if ($toDownload.Count -eq 0) {
-    Write-Logg -Message "All files current. Exiting."
+    Write-Logg -Message 'All files current. Exiting.'
     return
   }
 
@@ -250,7 +277,7 @@ function Get-KapeBinaries {
 
       $downloadedOK += $td
 
-      if ($name.endswith("zip")) {
+      if ($name.endswith('zip')) {
         # Test for Archiving cmdlets and if installed, use instead of 7zip
         if (!(Get-Command Expand-Archive -ErrorAction SilentlyContinue)) {
 
@@ -282,7 +309,7 @@ function Get-KapeBinaries {
     finally {
       $progressPreference = 'Continue'
       if ($null -ne $name) {
-        if ($name.endswith("zip")) {
+        if ($name.endswith('zip')) {
           try {
             Remove-Item -Path $destFile -ErrorAction SilentlyContinue
           }
