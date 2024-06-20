@@ -194,7 +194,7 @@ function Invoke-AriaDownload {
             $asciiEncoding = [System.Text.Encoding]::ASCII
             $ariaarguments = @(
                 "--console-log-level=$AriaConsoleLogLevel"
-                '--continue=false',
+                '--continue=true',
                 $urlfileargument,
                 '--max-connection-per-server=16',
                 '--max-concurrent-downloads=16',
