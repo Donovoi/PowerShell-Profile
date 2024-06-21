@@ -73,7 +73,7 @@ function Get-LatestGitHubRelease {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Download')]
         [string]
-        $Aria2cExePath = $(Get-ChildItem -Path 'c:\aria2c\' -Filter 'aria2c.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
+        $Aria2cExePath,
 
         [Parameter(Mandatory = $false)]
         [switch] $PreRelease,
@@ -212,7 +212,8 @@ function Get-LatestGitHubRelease {
 
             if ($Release -or $manualDownloadurl) {
                 if ((-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) -and $UseAria2) {
-                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
+                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -DownloadPathDirectory $PWD
+                    $Aria2cExePath = Get-ChildItem -Path $PWD -Recurse -Filter 'aria2c.exe' | Select-Object -First 1
                 }
 
                 # Download asset but make sure the variable is empty each time
@@ -255,20 +256,12 @@ function Get-LatestGitHubRelease {
                     Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
                     return $downloadedFile
                 }
-                if ($DownloadedFile -like '*aria*') {
-                    # to make sure there are no locks on the file, we will expand it to a temp directory with a random name
-                    $aria2cexeDirectory = 'C:\aria2c'
-                    Expand-Archive -Path $downloadedFile -DestinationPath $aria2cexeDirectory -Force
-                    $ExtractedFile = $(Get-ChildItem $aria2directory -Recurse -Filter 'aria2c.exe').FullName
-                    Write-Logg -Message 'Extracted aria2c to C:\aria2c'
-                    return $ExtractedFile
-                }
-                else {
-                    Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
-                    $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
-                    Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
-                    return $ExtractedFiles
-                }
+
+                Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
+                $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
+                Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
+                return $ExtractedFiles
+
             }
             else {
                 Write-Logg -Message "Downloaded $downloadedFile to $DownloadPathDirectory"
