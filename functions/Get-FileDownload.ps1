@@ -116,7 +116,8 @@ function Get-FileDownload {
             }
             if ($UseAria2) {
                 if ((-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue))) {
-                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip
+                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -DownloadPathDirectory $DestinationDirectory
+                    $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' | Select-Object -ExpandProperty FullName -First 1
                 }
             }
             foreach ($download In $url) {
