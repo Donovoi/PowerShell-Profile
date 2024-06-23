@@ -113,8 +113,8 @@ function Get-KapeBinaries {
       Write-Logg -Message "Unable to import list of Binary URLs. Verify file exists in $BinaryListPath or that you have access to this file"
     }
 
-    
-    $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
+    $regex = [regex]'(?<=\?url=)|https?:\/\/[\w.@:\/\-?=&]+\.(zip|txt|ps1|exe)'
+    # $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
     $matchdetails = $regex.Match($BinaryContent)
   }
 
@@ -130,9 +130,11 @@ function Get-KapeBinaries {
     }
 
     # $UniqueURLs = @{}
-    
+
     $mkapeContent.ForEach{
-      $regex = [regex]'(?i)\b(http.):\/\/[-A-Z0-9+&@#\/%?=~_|$!:,.;]*[A-Z0-9+&@#\/%=~_|$]\.(zip|txt|ps1|exe)'
+      # $regex = [regex]'(?i)\b(http.):\/\/[-A-Z0-9+&@#\/%?=~_|$!:,.;]*[A-Z0-9+&@#\/%=~_|$]\.(zip|txt|ps1|exe)'
+      $regex = [regex]'(?<=\?url=)|https?:\/\/[\w.@:\/\-?=&]+\.(zip|txt|ps1|exe)'
+
       if ($regex.IsMatch($_)) {
         $matchdetails = $regex.Match($_)
         $UniqueURLs += [System.Collections.Generic.HashSet[string]]::new([string[]]($_), [System.StringComparer]::Ordinal)
@@ -158,14 +160,16 @@ function Get-KapeBinaries {
   }
   # If $UseBinaryList switch wasn't used, scan mkape files for binary URLs and download
   else {
-    
+
     try {
       $matchdetails = [System.Collections.Generic.List[string]]::new()
       $kapefiles = Get-ChildItem -Recurse -Force -Path "$modulePath" -Include '*.mkape'
-    
+
       $kapefiles | ForEach-Object {
         $mkapeContent = Get-Content -Path $_ -ReadCount 0
-        $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
+        # $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
+        $regex = [regex]'(?<=\?url=)|https?:\/\/[\w.@:\/\-?=&]+\.(zip|txt|ps1|exe)'
+
         $matchdetails += $regex.Match($mkapeContent).Value
       }
     }
@@ -178,10 +182,15 @@ function Get-KapeBinaries {
   # clean up matchdetails by removing duplicates and removing any empty entries
   $matchdetails = $matchdetails | Where-Object { $_ -ne '' } | Sort-Object -Unique
   if ($matchdetails.Length -gt 0) {
-    
-    $matchdetails | ForEach-Object {
-      $headers = Invoke-WebRequest -Uri $_ -UseBasicParsing -Method Head -ErrorAction SilentlyContinue -SkipHttpErrorCheck
 
+    $matchdetails.ForEach{
+      try {
+        $headers = Invoke-WebRequest -Uri $_ -UseBasicParsing -Method Head -ErrorAction SilentlyContinue -SkipHttpErrorCheck
+      }
+      catch {
+        Write-Logg -Message "Error getting headers for $_" -level Warning
+        return
+      }
       # Checking to verify data was returned before updating $headers variable
       if ($null -ne $headers) {
         $headers = $headers.headers
@@ -310,7 +319,7 @@ function Get-KapeBinaries {
         Write-Logg -Message "Error downloading $name : ($ErrorMessage). Verify Binary URL is correct and try again"
       }
       finally {
-      
+
         if ($null -ne $name) {
           if ($name.endswith('zip')) {
             try {
@@ -415,3 +424,5 @@ function Get-KapeBinaries {
     $downloadedOK | Export-Csv -Path $localDetailsFile
   }
 }
+
+Get-KapeBinaries -DownloadBinaries -Verbose
