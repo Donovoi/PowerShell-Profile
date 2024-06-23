@@ -113,8 +113,8 @@ function Get-KapeBinaries {
       Write-Logg -Message "Unable to import list of Binary URLs. Verify file exists in $BinaryListPath or that you have access to this file"
     }
 
-    $regex = [regex]'(?<=\?url=)|https?:\/\/[\w.@:\/\-?=&]+\.(zip|txt|ps1|exe)'
-    # $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
+
+    $regex = [regex]'(?i)\b(http.)://[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$].(zip|txt|ps1|exe)'
     $matchdetails = $regex.Match($BinaryContent)
   }
 
@@ -164,6 +164,7 @@ function Get-KapeBinaries {
     try {
       $matchdetails = [System.Collections.Generic.List[string]]::new()
       $kapefiles = Get-ChildItem -Recurse -Force -Path "$modulePath" -Include '*.mkape'
+
 
       $kapefiles | ForEach-Object {
         $mkapeContent = Get-Content -Path $_ -ReadCount 0
