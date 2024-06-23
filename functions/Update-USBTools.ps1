@@ -68,7 +68,7 @@ function Update-USBTools {
   $menuItem8 = [MenuItem]::new('GetLatestSIV', { Get-LatestSIV })
   $menuItem9 = [MenuItem]::new('ResetWingetSource', { winget source reset --disable-interactivity --force })
   $menuItem10 = [MenuItem]::new('UpdateWingetSource', { winget source update --disable-interactivity })
-  $menuItem11 = [MenuItem]::new('UpgradeWinget', { winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements })
+  $menuItem11 = [MenuItem]::new('UpgradeWinget', {winget pin add --id dell.DisplayManager --blocking; winget upgrade --all --accept-source-agreements --accept-package-agreements })
   $menuItem12 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem13 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
