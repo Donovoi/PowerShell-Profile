@@ -116,7 +116,7 @@ function Install-PackageProviders {
         }
         else {
             if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Write-Host 'Panises module not installed, installing now'
+                Write-Verbose 'Panises module not installed, installing now'
                 Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
             }
         }

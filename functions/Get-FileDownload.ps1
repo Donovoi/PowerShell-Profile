@@ -228,7 +228,7 @@ function Get-FileDownload {
                     }
                 }
                 else {
-                    Write-Warning -Message "Downloading $Download Using Bitstransfer."
+                    Write-Verbose -Message "Downloading $Download Using Bitstransfer."
                     # Create a BITS job to download the file
                     $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
 
