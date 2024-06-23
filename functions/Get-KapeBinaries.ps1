@@ -425,5 +425,3 @@ function Get-KapeBinaries {
     $downloadedOK | Export-Csv -Path $localDetailsFile
   }
 }
-
-Get-KapeBinaries -DownloadBinaries -Verbose
