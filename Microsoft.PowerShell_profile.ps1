@@ -78,6 +78,7 @@ if ($host.Name -eq 'ConsoleHost') {
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   winget install JanDeDobbeleer.OhMyPosh
 }
+refreshenv.cmd
 
 # Invoke an awesome sample of PSReadline bindings
 Invoke-SamplePSReadLineProfile
