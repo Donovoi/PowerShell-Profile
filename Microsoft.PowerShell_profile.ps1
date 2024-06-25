@@ -24,48 +24,20 @@ if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
   Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
 }
 
-# Check if 'write-logg' is available
-if (-not (Get-Command 'write-logg' -ErrorAction SilentlyContinue)) {
-  # Define 'write-logg' as a fallback function
-  function write-logg {
-    param(
-      [string]$message,
-      [string]$level
-    )
-    # Map 'write-logg' level to 'Write-Host' color
-    switch ($level) {
-      'error' {
-        $color = 'Red'
-      }
-      'warning' {
-        $color = 'Yellow'
-      }
-      'info' {
-        $color = 'Green'
-      }
-      default {
-        $color = 'White'
-      }
-    }
-    # Call Write-Host with the mapped color and message
-    Write-Host $message -ForegroundColor $color
-  }
-}
-
 # Check if PowerShell 7 is installed
 if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
   Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
   # Download and install PowerShell 7 (you might want to check the URL for the latest version)
   winget install powershell
 
-  Write-Host 'PowerShell 7 installed successfully!' -ForegroundColor Green
+  Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
 }
 
 # Check and create profile folders for PowerShell 7
 if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
   New-Item -Path $PROFILE
-  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -ForegroundColor Green
+  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
 
 
@@ -85,15 +57,22 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
-$env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
-$env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
+if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
+  $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
+  $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
+}
+else {
+  $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
+  if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
+    Write-Warning -Message 'Chocolatey is not installed. Installing now...' -level Warning
+    Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+  }
+  $env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
+
+}
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
-}
-
-if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-  Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-  Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
 
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
