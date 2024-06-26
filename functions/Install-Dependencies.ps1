@@ -40,7 +40,7 @@ function Install-Dependencies {
 
     # Install NuGet dependencies
     if (-not $NoNugetPackage ) {
-        Install-NugetDeps -InstallDefault:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage
+        Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage
     }
 
     # Install PowerShell modules
