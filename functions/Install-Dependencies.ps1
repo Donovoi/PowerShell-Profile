@@ -244,7 +244,7 @@ function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$Nuget
     }
     catch {
         # Log any errors that occur during the installation
-        Write-Error "An error occurred while installing NuGet packages: $_"
+        Write-Log "An error occurred while installing NuGet packages: $_" -level Error
     }
 }
 
