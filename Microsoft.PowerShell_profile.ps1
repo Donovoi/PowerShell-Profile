@@ -45,7 +45,7 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
 # install and import modules needed for oh my posh
 # I've hardcoded these into the Install-Dependencies function :(
 if (-not (Get-Module -ListAvailable Pansies -ErrorAction SilentlyContinue)) {
-  Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackage
+  Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
 }
 
 
