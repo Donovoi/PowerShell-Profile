@@ -198,7 +198,7 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 }
 
 
-function Install-NugetDeps ([bool]$InstallDefault, [hashtable]$NugetPackage) {
+function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$NugetPackage) {
     $deps = @{}  # Initialize an empty hashtable
     try {
         # Define default NuGet packages
