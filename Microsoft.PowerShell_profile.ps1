@@ -64,7 +64,7 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
   if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
-    Write-Warning -Message 'Chocolatey is not installed. Installing now...' -level Warning
+    Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
     Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))  
   }
