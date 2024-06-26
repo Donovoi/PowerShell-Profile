@@ -316,7 +316,7 @@ function Install-PSModules {
                             Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
                         }
                         else {
-                            Write-Host "InstalledLocation is empty for module $($_.Name). Skipping removal."
+                            Write-Log -Message "InstalledLocation is empty for module $($_.Name). Skipping removal." -level Warning
                         }
 
                     }
@@ -328,7 +328,7 @@ function Install-PSModules {
                     try {
                         # Check if the module is already installed
                         if (-not (Get-Module -Name $_ -ListAvailable)) {
-                            Write-Logg -Message "Installing module $_" -Level Info
+                            Write-Logg -Message "Installing module $_" -Level Verbose
 
                             if ($_ -like '*PSReadLine*') {
                                 # Install prerelease version of PSReadLine
