@@ -53,7 +53,7 @@ function Update-USBTools {
     [void]Invoke() {
       # foreach action seperated by ; we will execute it in a new window
       $this.Action -split ';' | ForEach-Object {
-        Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command $_"
+        Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command $_" -Verb RunAs
       }
     }
   }
@@ -73,4 +73,4 @@ function Update-USBTools {
   $menuItem13 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
   Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14) -ErrorAction SilentlyContinue
-}
+} 
