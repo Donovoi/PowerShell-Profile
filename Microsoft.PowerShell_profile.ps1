@@ -72,7 +72,7 @@ Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Ge
 
 if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
   $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin\'
-  $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;$ENV:USERPROFILE\.cargo\bin;"
+  $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;"
 }
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
@@ -93,12 +93,13 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-
 }
 
 #if $Env:ChocolateyInstall is on the c drive do the following
-if ($env:ChocolateyInstall -like 'C:\*') {
-  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
-}
-else {
-  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-}
+  if(Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
+    Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+  }
+  else {
+    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+  }
+
 
 Update-SessionEnvironment
 
