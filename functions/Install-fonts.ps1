@@ -30,7 +30,7 @@
       .NOTES
            Additional information about the function.
  #>
-function Install-Fonts {
+function Install-Font {
   [CmdletBinding()]
   param
   (
@@ -40,7 +40,7 @@ function Install-Fonts {
 
 
   $FontItems = Get-ChildItem -Path $Path -Recurse | Where-Object { ($_.Name -like '*.ttf') -or ($_.Name -like '*.OTF') }
-  $FontItems | ForEach-Object -Process {
+  $FontItems | ForEach-Object -Parallel {
     #   Force garbage collection
     [System.GC]::Collect()
     $FontFile = $_
@@ -115,8 +115,5 @@ function Install-Fonts {
       }
       Write-Warning $_.exception.message
     }
-  }
+  } -ThrottleLimit 1000
 }
-
-#Install-Fonts -Path 'I:\nerd-fonts-master (1)\'
-
