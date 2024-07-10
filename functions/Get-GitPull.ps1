@@ -21,18 +21,23 @@ function Get-GitPull {
     )
 
     $ErrorActionPreference = 'Continue'
-    # run my profile to import the functions
-    $myDocuments = [Environment]::GetFolderPath('MyDocuments')
-    $myProfile = Join-Path -Path $myDocuments -ChildPath 'PowerShell\Microsoft.PowerShell_profile.ps1'
-    if (Test-Path -Path $myProfile) {
-        . $myProfile
+
+    # Import the required cmdlets
+    $neededcmdlets = @('Write-Logg')
+    $neededcmdlets | ForEach-Object {
+        if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+            }
+            Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+            $Cmdletstoinvoke | Import-Module -Force
+        }
     }
-    else {
-        Write-Logg -NoConsoleOutput -Message "No PowerShell profile found at $myProfile"
-    }
-    # $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
-    Write-Logg -NoConsoleOutput -Message "Searching for repositories in $Path, this can take a while..."
+    Write-Logg -Message "Searching for repositories in $Path, this can take a while..." -Level Verbose
 
     $rustPgm = @'
   extern crate jwalk;
@@ -169,7 +174,7 @@ function Get-GitPull {
         $target = Add-Type -TypeDefinition $definition -PassThru
     }
     else {
-        Write-Logg -NoConsoleOutput -Message "$typeName already exists. Please exit PowerShell and try again." -Level ERROR
+        Write-Logg -Message "$typeName already exists. Please exit PowerShell and try again." -Level ERROR
         Read-Host -Prompt 'Press Enter to exit'
         Exit-PSHostProcess
     }
@@ -191,11 +196,11 @@ function Get-GitPull {
     }
 
     # Show the elapsed time
-    Write-Logg -NoConsoleOutput -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run"
+    Write-Logg -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run" -Level Verbose
 
 
     #Let the user know what we are doing and how many repositories we are working with
-    Write-Logg -NoConsoleOutput -Message "Found $($repositories.Count) repositories to pull from."
+    Write-Logg -Message "Found $($repositories.Count) repositories to pull from." -Level Verbose
 
     if ($repositories.Count -gt 1) {
         $multiplerepos = $repositories.GetEnumerator()
@@ -205,7 +210,7 @@ function Get-GitPull {
     }
     #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
     $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
-        Write-Logg -NoConsoleOutput -Message "Pulling from $($_)"
+        Write-Logg -Message "Pulling from $($_)" -Level Verbose
         $location = $(Resolve-Path -Path $_).Path
         Set-Location -Path $location
         # Set ownership to current user and grant full control to current user recursively
@@ -222,8 +227,8 @@ function Get-GitPull {
                 $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
             }
             catch {
-                Write-Warning "Unable to get lock file for $($_)"
-                Write-Warning "Error is: $_.Exception.Message"
+                Write-Warning "Unable to get lock file for $($_)" -Level Verbose
+                Write-Warning "Error is: $_.Exception.Message" -Level Verbose
             }
 
 
@@ -285,12 +290,11 @@ function Get-GitPull {
                 git pull
             }
             catch {
-                Write-Warning "Unable to pull from $($_)"
+                Write-Warning "Unable to pull from $($_)" -Level Verbose
             }
         }
-        Write-Logg -NoConsoleOutput -Message "git pull complete for $($_)" -Level INFO
-        #  Show progress
-        #Write-Progress -Activity "Pulling from $($_)" -Status "Pulling from $($_)" -PercentComplete (($repositories.IndexOf($_) + 1) / $repositories.Count * 100)
+        Write-Logg -Message "git pull complete for $($_)" -Level INFO
+        [GC]::Collect()
     }
     # clean up if we need to
     Remove-Variable -Name repositories -Force
