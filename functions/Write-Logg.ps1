@@ -113,7 +113,7 @@ function Write-Logg {
         }
 
         # Output to console if not suppressed
-        if (-not ($NoConsoleOutput)) {
+        if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE')) {
             switch ($Level) {
                 'INFO' {
                     Write-Host -Object $logMessage -ForegroundColor Green
