@@ -71,7 +71,7 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
 if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
-  $env:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '\chocolatey apps\chocolatey\bin'
+  $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
   $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;"
 }
 else {
