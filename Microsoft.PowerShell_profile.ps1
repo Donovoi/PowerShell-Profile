@@ -13,16 +13,16 @@ $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways
 
 $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
 $neededcmdlets | ForEach-Object {
-    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-            $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-        }
-        Write-Verbose -Message "Importing cmdlet: $_"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-        $Cmdletstoinvoke | Import-Module -Force
+  if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+      $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+      $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+      New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
     }
+    Write-Verbose -Message "Importing cmdlet: $_"
+    $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+    $Cmdletstoinvoke | Import-Module -Force
+  }
 }
 
 
@@ -91,7 +91,15 @@ if ($host.Name -eq 'ConsoleHost') {
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   winget install JanDeDobbeleer.OhMyPosh
 }
-Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+
+#if $Env:ChocolateyInstall is on the c drive do the following
+if ($env:ChocolateyInstall -like 'C:\*') {
+  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+}
+else {
+  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+}
+
 Update-SessionEnvironment
 
 # Invoke an awesome sample of PSReadline bindings
