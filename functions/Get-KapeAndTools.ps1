@@ -27,7 +27,11 @@ function Get-KapeAndTools {
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ErrorAction silentlycontinue
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1') -ea silentlycontinue
 
-  Set-Location -Path "$XWAYSUSB\Triage\KAPE\"
+  $kapeinstalllocation = "$XWAYSUSB\Triage\KAPE\"
+  if (-not (Resolve-Path $kapeinstalllocation)) {
+    $kapeinstalllocation = "$XWAYSUSB\*\Triage\KAPE\"
+  }
+  Set-Location -Path $kapeinstalllocation
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
   $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
