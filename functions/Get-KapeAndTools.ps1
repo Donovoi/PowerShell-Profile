@@ -28,7 +28,7 @@ function Get-KapeAndTools {
   Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1') -ea silentlycontinue
 
   $kapeinstalllocation = "$XWAYSUSB\Triage\KAPE\"
-  if (-not (Resolve-Path $kapeinstalllocation)) {
+  if (-not (Resolve-Path $kapeinstalllocation -ErrorAction SilentlyContinue)) {
     $kapeinstalllocation = "$XWAYSUSB\*\Triage\KAPE\"
   }
   Set-Location -Path $kapeinstalllocation
