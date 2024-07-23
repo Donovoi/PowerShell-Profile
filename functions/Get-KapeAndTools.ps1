@@ -23,37 +23,36 @@ function Get-KapeAndTools {
   $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
   $ENV:ChocolateyInstall = $(Join-Path -Path "$XWAYSUSB" -ChildPath '\chocolatey apps\chocolatey\bin')
 
+  # We need to resolve $xwaysusb so we can tell if the root is $xwaysus\root or $xwaysusb\*\root
+  $XWAYSUSBtriagefolder = ''
 
-  Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ErrorAction silentlycontinue
-  Remove-Item $(Join-Path -Path "$XWAYSUSB" -ChildPath '\Triage\KAPE\Modules\bin\Get-ZimmermanTools.ps1') -ea silentlycontinue
+  if (-not (Resolve-Path -Path $XWAYSUSB\Triage -ErrorAction SilentlyContinue)) {
+    $XWAYSUSBtriagefolder = Resolve-Path -Path $XWAYSUSB\*\Triage
+  }
+  else {
+    $XWAYSUSBtriagefolder = Join-Path -Path $XWAYSUSB -ChildPath Triage
+  }
+
+
+  Remove-Item $(Join-Path -Path "$XWAYSUSBtriagefolder" -ChildPath '\KAPE\Modules\bin\ZimmermanTools\') -Recurse -Force -ErrorAction silentlycontinue
+  Remove-Item $(Join-Path -Path "$XWAYSUSBtriagefolder" -ChildPath '\KAPE\Modules\bin\Get-ZimmermanTools.ps1') -ea silentlycontinue
 
   $kapeinstalllocation = "$XWAYSUSB\Triage\KAPE\"
   if (-not (Resolve-Path $kapeinstalllocation -ErrorAction SilentlyContinue)) {
     $kapeinstalllocation = "$XWAYSUSB\*\Triage\KAPE\"
   }
-  Set-Location -Path $kapeinstalllocation
+  Push-Location -Path $kapeinstalllocation
   # Get latest version of KAPE-ANCILLARYUpdater.ps1
   $params = @{
     OwnerRepository       = 'AndrewRathbun/KAPE-EZToolsAncillaryUpdater'
     AssetName             = 'KAPE-EZToolsAncillaryUpdater.ps1'
-    DownloadPathDirectory = "$XWAYSUSB\triage\kape"
+    DownloadPathDirectory = "$XWAYSUSBtriagefolder\kape"
     UseAria2              = $true
     NoRPCMode             = $true
 
   }
 
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
-  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$($KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
+  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater[1])", '-silent' -Wait -NoNewWindow
 
-  Get-FileDownload -URL 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/All_6.zip' -DestinationDirectory "$XWAYSUSB" -UseAria2 -NoRPCMode
-  Expand-Archive -Path $("$XWAYSUSB" + 'All_6.zip') -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools') -Force
-  # We now have a a folder with many zip files in it. We need to extract each one to the same folder "$ENV:TEMP\extracted" .
-  Get-ChildItem -Path $("$XWAYSUSB" + '\ZimmermanTools') -Filter *.zip -File | ForEach-Object -Process {
-    Expand-Archive -Path $_.FullName -DestinationPath $("$XWAYSUSB" + '\ZimmermanTools\extracted') -Force
-  }
-  # Now we have a folder with all the zimmerman tools in it. We need to copy them to the $ENV:ChocolateyInstall folder, but just the binaries and their dependencies.
-  Get-ChildItem -Path $("$XWAYSUSB" + '\ZimmermanTools\extracted') -Recurse | ForEach-Object -Process {
-    Copy-Item -Path $_.FullName -Destination $ENV:ChocolateyInstall -Force
-  }
 }
-
