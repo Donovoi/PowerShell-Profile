@@ -122,25 +122,25 @@ function Install-PackageProviders {
         }
 
 
-        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
+        Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue
 
-        Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue -RequiredVersion 2.8.5.208 | Out-Null
-        Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
-        Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+        Install-PackageProvider -Name NuGet -Force -Confirm:$false -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue
+        Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue
+        Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue
 
 
         # Ensure PowerShellGet package provider is installed
         if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
 
         # Trust all package sources
         Get-PackageSource | ForEach-Object {
-            Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
+            Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue
         }
 
         # Trust PSGallery repository
-        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
 
         if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
             # PowerShellGet version 2
@@ -544,17 +544,19 @@ function Add-NuGetDependencies {
             Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE
         }
 
-        if (-not (Test-Path -Path "$TempWorkDir" -PathType Container)) {
-            New-Item -Path "$TempWorkDir" -ItemType Directory | Out-Null
+        if (Test-Path -Path "$TempWorkDir" -PathType Container) {
+            # empty the directory
+            Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
         }
+        New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue
 
         foreach ($package in $NugetPackage.GetEnumerator()) {
             $version = $package.Value.Version
             $dep = $package.Value.Name
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
-            if (-not (Test-Path -Path "$destinationPath" -PathType Container) -and (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
+            if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -SkipDependencies -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue | Out-Null
+                Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -SkipDependencies -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 # Update the installed dependencies hashtable
@@ -564,22 +566,72 @@ function Add-NuGetDependencies {
             # Define the base path
             $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
 
+            # if lib folder does not exist, they will need to use the nuget.exe to extract the dlls
+            if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
+                Write-Logg -Message "The lib folder does not exist in $BasePath. Downloading using Nuget.exe" -Level VERBOSE
+                function Download-NuGetPackage {
+                    param (
+                        [Parameter(Mandatory = $true)]
+                        [string]$PackageName,
+                    
+                        [Parameter(Mandatory = $true)]
+                        [string]$Version,
+                    
+                        [Parameter(Mandatory = $true)]
+                        [string]$DestinationPath
+                    )
+            
+                    $nugetExe = 'nuget.exe'
+                    if (-not (Test-Path -Path $nugetExe)) {
+                        Write-Output 'Downloading NuGet.exe...'
+                        Invoke-WebRequest -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nugetExe
+                    }
+            
+                    $packageFile = "$PackageName.$Version.nupkg"
+                    if (-not (Test-Path -Path $packageFile)) {
+                        Write-Output "Downloading $PackageName $Version..."
+                        #& $nugetExe install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion
+                        #change the above line to the start-process instead
+                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -Wait
+                    }
+            
+                    $packageDir = Join-Path -Path '.' -ChildPath $PackageName
+                    $libDir = Join-Path -Path $packageDir -ChildPath 'lib/netstandard2.0'
+            
+                    if (Test-Path -Path $libDir) {
+                        Write-Output "Extracting $PackageName $Version..."
+                        Copy-Item -Path "$libDir\*" -Destination $DestinationPath -Recurse -Force
+                    }
+                    else {
+                        throw 'Failed to find the lib directory in the NuGet package.'
+                    }
+                }
+                Download-NuGetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
+                continue
+            }
+
             # Get all directories in the base path
-            $dotnetfolders = Get-ChildItem -Path $BasePath -Directory
+            $dotnetfolders = Get-ChildItem -Path "$destinationPath\lib" -Directory
 
             # Extract and process version numbers from folder names
             $versionFolders = $dotnetfolders | ForEach-Object {
-                if ($_.Name -match '(\d+(\.\d+)+)') {
+                if ($_.Name -match 'net(.+|\d+)\.\d+') {
                     [PSCustomObject]@{
                         Name     = $_.Name
-                        Version  = [version]$matches[0]
+                        Version  = [version]$($matches[0] -split 'net|coreapp|standard' | Select-Object -Last 1)
                         FullName = $_.FullName
                     }
                 }
             }
 
             # Sort folders by their version numbers in descending order
-            $sortedFolders = $versionFolders | Sort-Object -Property Version -Descending
+            if ($versionFolders) {
+                $sortedFolders = $versionFolders | Sort-Object -Property Version -Descending
+            }
+            else {
+                Write-Logg -Message "No version folders found for $dep" -Level Error
+                throw
+            }
 
             # Output the sorted folder names
             $BasePath = $($sortedFolders | Select-Object -First 1 -Property FullName).FullName
