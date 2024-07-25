@@ -556,7 +556,7 @@ function Add-NuGetDependencies {
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -SkipDependencies -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
+                Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 # Update the installed dependencies hashtable
@@ -573,20 +573,20 @@ function Add-NuGetDependencies {
                     param (
                         [Parameter(Mandatory = $true)]
                         [string]$PackageName,
-                    
+
                         [Parameter(Mandatory = $true)]
                         [string]$Version,
-                    
+
                         [Parameter(Mandatory = $true)]
                         [string]$DestinationPath
                     )
-            
+
                     $nugetExe = 'nuget.exe'
                     if (-not (Test-Path -Path $nugetExe)) {
                         Write-Output 'Downloading NuGet.exe...'
                         Invoke-WebRequest -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nugetExe
                     }
-            
+
                     $packageFile = "$PackageName.$Version.nupkg"
                     if (-not (Test-Path -Path $packageFile)) {
                         Write-Output "Downloading $PackageName $Version..."
@@ -594,16 +594,29 @@ function Add-NuGetDependencies {
                         #change the above line to the start-process instead
                         Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -Wait
                     }
-            
+
                     $packageDir = Join-Path -Path '.' -ChildPath $PackageName
                     $libDir = Join-Path -Path $packageDir -ChildPath 'lib/netstandard2.0'
-            
+
                     if (Test-Path -Path $libDir) {
                         Write-Output "Extracting $PackageName $Version..."
                         Copy-Item -Path "$libDir\*" -Destination $DestinationPath -Recurse -Force
                     }
                     else {
-                        throw 'Failed to find the lib directory in the NuGet package.'
+
+                        Write-Logg -Message "Failed to find the lib directory in the NuGet package $PackageName $Version" -level Warning
+                        try {
+                            Write-logg -Message 'Trying a manual install of the package' -level Warning
+                            Install-Package -Name $PackageName -RequiredVersion $Version -Destination $DestinationPath -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
+                        }
+                        catch {
+                            Write-Logg -Message "Failed to install the package $PackageName $Version" -level Error
+                            continue
+
+                        }
+
+
+
                     }
                 }
                 Download-NuGetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
@@ -615,7 +628,7 @@ function Add-NuGetDependencies {
 
             # Extract and process version numbers from folder names
             $versionFolders = $dotnetfolders | ForEach-Object {
-                if ($_.Name -match 'net(.+|\d+)\.\d+') {
+                if (($_.Name -match 'net(.+|\d+)\.\d+') -and ($_.Name -notmatch 'android|mac|linux|ios') ) {
                     [PSCustomObject]@{
                         Name     = $_.Name
                         Version  = [version]$($matches[0] -split 'net|coreapp|standard' | Select-Object -Last 1)
