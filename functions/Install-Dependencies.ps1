@@ -592,7 +592,7 @@ function Add-NuGetDependencies {
                         Write-Output "Downloading $PackageName $Version..."
                         #& $nugetExe install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion
                         #change the above line to the start-process instead
-                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -Wait
+                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -NoNewWindow -Wait
                     }
 
                     $packageDir = Join-Path -Path '.' -ChildPath $PackageName
