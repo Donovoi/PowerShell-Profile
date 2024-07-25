@@ -172,7 +172,7 @@ public class ScreenCapture
         duplicatedOutput.ReleaseFrame();
     }
 }
-'@
+'@ -ReferencedAssemblies 'Silk.NET.Core.dll', 'Silk.NET.Direct3D11.dll', 'Silk.NET.Maths.dll', 'Silk.NET.Windowing.dll'
 
     # Function to capture screen using GDI
     function Invoke-ScreenCaptureGDI {
