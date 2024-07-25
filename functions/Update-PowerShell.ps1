@@ -122,9 +122,9 @@ function Update-PowerShell {
 
       $resolvedPath = Resolve-Path -Path $DownloadPath
       # Install the latest version silently
-      Start-Process -FilePath msiexec.exe -ArgumentList "/i $resolvedPath /quiet /norestart" -Wait
+      Start-Process -FilePath msiexec.exe -ArgumentList "/i `"$resolvedPath[1]`" /quiet /norestart" -Wait
       # Remove the installer
-      Remove-Item $DownloadPath
+      Remove-Item $DownloadPath -Recurse -Force -ErrorAction SilentlyContinue
     }
     Write-Logg -Message "Powershell $_ is up to date" -level info
 
