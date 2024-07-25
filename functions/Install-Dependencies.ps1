@@ -606,8 +606,39 @@ function Add-NuGetDependencies {
 
                         Write-Logg -Message "Failed to find the lib directory in the NuGet package $PackageName $Version" -level Warning
                         try {
-                            Write-logg -Message 'Trying a manual install of the package' -level Warning
-                            Install-Package -Name $PackageName -RequiredVersion $Version -Destination $DestinationPath -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
+                            Write-logg -Message 'Trying a manual install of the package by creating a temporary dotnet project' -level Warning
+                            # Define temporary directory for the project
+                            $tempDir = New-Item -Force -Type Directory ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$PackageName" + 'Temp'))
+                            Push-Location $tempDir.FullName
+
+                            try {
+                                # Create a new .NET Standard class library project
+                                dotnet new classlib --framework netstandard2.0 -n $("$PackageName" + 'Temp' + 'Project') --force
+
+                                # Navigate into the project directory
+                                Set-Location (Join-Path $tempDir.FullName $("$PackageName" + 'Temp' + 'Project'))
+
+                                # Add the Silk.NET.Windowing package
+                                dotnet add package $PackageName
+
+                                # Publish the project to generate the DLLs
+                                dotnet publish -c Release
+
+                                # Load the generated DLLs into PowerShell
+                                $publishDir = Join-Path (Get-Location).Path 'bin\Release\netstandard2.0\publish'
+                                $assemblies = Get-ChildItem -Path $publishDir -Filter *.dll
+                                foreach ($assembly in $assemblies) {
+                                    Add-Type -Path $assembly.FullName -IgnoreWarnings -ErrorAction SilentlyContinue
+                                }
+
+                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -level Info
+                            }
+                            finally {
+                                # Clean up: Remove the temporary directory
+                                Pop-Location
+                                Remove-Item -LiteralPath $tempDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                            }
+                            continue
                         }
                         catch {
                             Write-Logg -Message "Failed to install the package $PackageName $Version" -level Error
