@@ -316,7 +316,7 @@ function Install-PSModules {
                             Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
                         }
                         else {
-                            Write-Log -Message "InstalledLocation is empty for module $($_.Name). Skipping removal." -level Warning
+                            Write-Logg -Message "InstalledLocation is empty for module $($_.Name). Skipping removal." -level Warning
                         }
 
                     }
