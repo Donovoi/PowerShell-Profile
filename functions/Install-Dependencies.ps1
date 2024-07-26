@@ -554,7 +554,23 @@ function Add-NuGetDependencies {
         foreach ($package in $NugetPackage.GetEnumerator()) {
             $version = $package.Value.Version
             $dep = $package.Value.Name
+            #  first if $localModulesDirectory is not null or empty
+            if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                $TempWorkDir = $LocalModulesDirectory
+            }
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
+
+            # check if module is already downloaded locally
+            if (Test-Path -Path "$destinationPath" -PathType Container) {
+                # Add all the DLLs to the application domain
+                $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
+                $DLLPath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
+                $DLLSplit = Split-Path -Path $DLLPath -Leaf
+                Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
+                Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
+                continue
+            }
+
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
                 Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
@@ -634,8 +650,11 @@ function Add-NuGetDependencies {
                                 # Load the generated DLLs into PowerShell
                                 $publishDir = Join-Path (Get-Location).Path 'bin\Release\netstandard2.0\publish'
                                 $assemblies = Get-ChildItem -Path $publishDir -Filter *.dll
-                                foreach ($assembly in $assemblies) {
-                                    Add-Type -Path $assembly.FullName -IgnoreWarnings -ErrorAction SilentlyContinue
+                                $assemblies | ForEach-Object {
+                                    $assemblyName = $_.Name
+                                    $assemblyPath = $_.FullName
+                                    Write-Logg -Message "Adding assembly $assemblyName to the application domain" -level Info
+                                    Add-FileToAppDomain -BasePath $publishDir -File $assemblyName
                                 }
 
                                 Write-Logg -Message "Successfully installed the package $PackageName $Version" -level Info
