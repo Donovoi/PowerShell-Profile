@@ -327,7 +327,7 @@ function Install-PSModules {
             $ModulesToBeInstalled.ForEach({
                     try {
                         # Check if the module is already installed
-                        if (-not (Get-Module -Name $_ -ListAvailable)) {
+                        if (-not (Get-Module -Name $_ -ListAvailable -ErrorAction SilentlyContinue)) {
                             Write-Logg -Message "Installing module $_" -Level Verbose
 
                             if ($_ -like '*PSReadLine*') {
@@ -338,8 +338,9 @@ function Install-PSModules {
 
                             # Save the module locally only if LocalModulesDirectory is not null or empty
                             if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
-                                $localModule = Save-Module -Name $_ -Path "$PWD/PowerShellScriptsAndResources/Modules" -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-                                Import-Module -Name $localModule -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                                Save-Module -Name $_ -Path $($LocalModulesDirectory ? $LocalModulesDirectory : "$PWD/PowerShellScriptsAndResources/Modules") -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                                $savedmodulepath = "$($LocalModulesDirectory ? $LocalModulesDirectory : "$PWD/PowerShellScriptsAndResources/Modules")\$_"
+                                Import-Module -Name $savedmodulepath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                             }
                             else {
                                 # Install module
@@ -608,7 +609,13 @@ function Add-NuGetDependencies {
                         try {
                             Write-logg -Message 'Trying a manual install of the package by creating a temporary dotnet project' -level Warning
                             # Define temporary directory for the project
-                            $tempDir = New-Item -Force -Type Directory ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$PackageName" + 'Temp'))
+                            if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                                $tempDir = New-Item -Force -Type Directory -Path $LocalModulesDirectory
+                            }
+                            else {
+                                $tempDir = New-Item -Force -Type Directory ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$PackageName" + 'Temp'))
+
+                            }
                             Push-Location $tempDir.FullName
 
                             try {
@@ -634,9 +641,11 @@ function Add-NuGetDependencies {
                                 Write-Logg -Message "Successfully installed the package $PackageName $Version" -level Info
                             }
                             finally {
-                                # Clean up: Remove the temporary directory
+                                # Clean up: Remove the temporary directory if it is not specified
                                 Pop-Location
-                                Remove-Item -LiteralPath $tempDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                                if ( [string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                                    Remove-Item -LiteralPath $tempDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                                }
                             }
                             continue
                         }
@@ -645,9 +654,6 @@ function Add-NuGetDependencies {
                             continue
 
                         }
-
-
-
                     }
                 }
                 Download-NuGetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
