@@ -617,6 +617,10 @@ function Add-NuGetDependencies {
 
                     if (Test-Path -Path $libDir) {
                         Write-Output "Extracting $PackageName $Version..."
+                        # make sure destination path exists
+                        if (-not (Test-Path -Path $DestinationPath -PathType Container)) {
+                            New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction SilentlyContinue
+                        }
                         Copy-Item -Path "$libDir\*" -Destination $DestinationPath -Recurse -Force
                     }
                     else {
