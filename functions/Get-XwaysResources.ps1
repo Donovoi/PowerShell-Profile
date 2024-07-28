@@ -280,6 +280,7 @@ function Get-XwaysResources {
         Remove-Item -Path $_ -Force
       }
     }
+    #TODO Download all X-Tensions from X-Ways website and copy them to the $XWScriptsAndTemplatesFolder
 
   }
   catch {
