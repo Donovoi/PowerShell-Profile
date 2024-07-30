@@ -280,6 +280,7 @@ function Install-PSModules {
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
                     'PANSIES',
+                    'lolcat',
                     '7zip4powershell',
                     'Crescendo',
                     'F7History',
