@@ -74,7 +74,6 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
   # We need to remove chocolatey from the path if it exists
 
-  # Function to remove path entry
   function Remove-PathEntry {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -83,6 +82,7 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
       [Parameter(Mandatory = $true)]
       [string]$scope
     )
+
     # Get the current PATH environment variable based on the scope (Machine/User)
     $currentPath = [System.Environment]::GetEnvironmentVariable('Path', $scope)
 
@@ -94,6 +94,9 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
       $pathArray = $pathArray | Where-Object { $_ -notlike $pathToRemove }
     }
 
+    # Remove duplicates
+    $pathArray = $pathArray | Select-Object -Unique
+
     # Join the array back into a single string with ';' as the separator
     $newPath = ($pathArray -join ';')
 
@@ -103,9 +106,56 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
     }
   }
 
-  # Remove the Chocolatey path entry from both System and User PATH
-  Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'Machine'
-  Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'User'
+  # Example usage for removing Chocolatey from both user and machine PATH
+  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
+  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
+
+  # Function to add paths and persist changes
+  function Add-Paths {
+    param (
+      [string]$chocolateyPath,
+      [string]$nirsoftPath
+    )
+
+    # Update current session PATH
+    $env:Path += ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath"
+
+    # Get current PATH variables
+    $currentSystemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+
+    # Add new paths and remove duplicates
+    $newSystemPath = ($currentSystemPath + ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath") -split ';' | Select-Object -Unique -join ';'
+    $newUserPath = ($currentUserPath + ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath") -split ';' | Select-Object -Unique -join ';'
+
+    # Update registry for system PATH
+    [System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
+
+    # Update registry for user PATH
+    [System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
+
+    # Notify the system of the environment variable change
+    $HWND_BROADCAST = [IntPtr]0xffff
+    $WM_SETTINGCHANGE = 0x1a
+    $result = [UIntPtr]::Zero
+
+    Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @'
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern IntPtr SendMessageTimeout(
+            IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+            uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+'@
+
+    [Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
+  }
+
+  # Define paths
+  $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+  $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+
+  # Remove duplicates and persist changes
+  Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
+
 }
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
@@ -117,39 +167,6 @@ else {
   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
 }
-
-# Add the new path to the environment
-# Resolve paths
-$env:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-$nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-
-# Update current session PATH
-$env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
-
-# Update system and user PATH in registry
-$currentSystemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
-$currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
-
-$newSystemPath = $currentSystemPath + ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
-$newUserPath = $currentUserPath + ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
-
-[System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
-[System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
-
-# Notify the system of the environment variable change
-$HWND_BROADCAST = [IntPtr]0xffff
-$WM_SETTINGCHANGE = 0x1a
-$result = [UIntPtr]::Zero
-
-Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @'
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-    public static extern IntPtr SendMessageTimeout(
-        IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
-        uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
-'@
-
-[Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
-
 
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
