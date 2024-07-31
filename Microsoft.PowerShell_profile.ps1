@@ -86,19 +86,16 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
     # Get the current PATH environment variable based on the scope (Machine/User)
     $currentPath = [System.Environment]::GetEnvironmentVariable('Path', $scope)
 
-    # Split the PATH into an array of individual paths
-    $pathArray = $currentPath -split ';'
+    # Split the PATH into an array of individual paths and create a HashSet for uniqueness
+    $pathSet = [System.Collections.Generic.HashSet[string]]::new($currentPath -split ';')
 
     # Remove the entry if it exists
     if ($PSCmdlet.ShouldProcess($pathToRemove, 'Remove path entry')) {
-      $pathArray = $pathArray | Where-Object { $_ -notlike $pathToRemove }
+      $pathSet.Remove($pathToRemove) | Out-Null
     }
 
-    # Remove duplicates
-    $pathArray = $pathArray | Select-Object -Unique
-
-    # Join the array back into a single string with ';' as the separator
-    $newPath = ($pathArray -join ';')
+    # Join the HashSet back into a single string with ';' as the separator
+    $newPath = ($pathSet -join ';')
 
     # Set the updated PATH environment variable
     if ($PSCmdlet.ShouldProcess('Set PATH environment variable', 'Set updated PATH environment variable')) {
@@ -124,13 +121,26 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
     $currentSystemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
     $currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
 
-    # Add new paths and remove duplicates
-    $newSystemPath = ($currentSystemPath + ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath") -split ';' | Select-Object -Unique -join ';'
-    $newUserPath = ($currentUserPath + ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath") -split ';' | Select-Object -Unique -join ';'
+    # Create HashSets for uniqueness
+    $systemPathSet = [System.Collections.Generic.HashSet[string]]::new($currentSystemPath -split ';')
+    $userPathSet = [System.Collections.Generic.HashSet[string]]::new($currentUserPath -split ';')
+
+    # Add new paths
+    $systemPathSet.Add("$chocolateyPath") | Out-Null
+    $systemPathSet.Add("$chocolateyPath\bin") | Out-Null
+    $systemPathSet.Add("$nirsoftPath") | Out-Null
+
+    $userPathSet.Add("$chocolateyPath") | Out-Null
+    $userPathSet.Add("$chocolateyPath\bin") | Out-Null
+    $userPathSet.Add("$nirsoftPath") | Out-Null
+
+    # Join the HashSets back into single strings with ';' as the separator
+    $newSystemPath = ($systemPathSet -join ';')
+    $newUserPath = ($userPathSet -join ';')
 
     # Update registry for system PATH
     [System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
-
+   
     # Update registry for user PATH
     [System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
 
@@ -153,8 +163,9 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
   $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
   $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
 
-  # Remove duplicates and persist changes
+  # Add paths and persist changes
   Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
+
 
 }
 else {
