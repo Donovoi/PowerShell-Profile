@@ -130,10 +130,10 @@ function Invoke-RecordActions {
     }
 
     $ffmpegPath = if ($LocalDependencies) {
-        Join-Path -Path $LocalPath -ChildPath 'ffmpeg\bin\ffmpeg.exe' 
+        Join-Path -Path $LocalPath -ChildPath 'ffmpeg\bin\ffmpeg.exe'
     }
     else {
-        "$env:ProgramFiles\ffmpeg\bin\ffmpeg.exe" 
+        "$env:ProgramFiles\ffmpeg\bin\ffmpeg.exe"
     }
     $videoPath = Join-Path -Path $OutFolder -ChildPath $VideoName
     $stepsPath = Join-Path -Path $OutFolder -ChildPath $StepsFileName
