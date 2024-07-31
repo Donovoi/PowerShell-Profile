@@ -140,7 +140,7 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
     # Update registry for system PATH
     [System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
-   
+
     # Update registry for user PATH
     [System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
 
