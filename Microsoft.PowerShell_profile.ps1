@@ -106,11 +106,6 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
   # Remove the Chocolatey path entry from both System and User PATH
   Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'Machine'
   Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'User'
-
-  # Add the new path to the environment
-  $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-  $nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
 }
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
@@ -122,6 +117,13 @@ else {
   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
 }
+
+# Add the new path to the environment
+$env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+$nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+$env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
+
+
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
 }
