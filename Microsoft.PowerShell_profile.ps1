@@ -156,7 +156,7 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
             uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
 '@
 
-    [Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
+  $null =  [Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null
   }
 
   # Define paths
