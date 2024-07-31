@@ -119,12 +119,36 @@ else {
 }
 
 # Add the new path to the environment
-$env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-$nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-Write-Logg -Message "Adding $env:ChocolateyInstall and $nirsoftPath to the path" -Level Info
-Write-Logg -Message "Current path: $env:Path" -Level Info
-$env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
-Write-Logg -Message "Current path: $env:Path" -Level Info
+# Resolve paths
+$env:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+$nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+
+# Update current session PATH
+$env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
+
+# Update system and user PATH in registry
+$currentSystemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
+$currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+
+$newSystemPath = $currentSystemPath + ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
+$newUserPath = $currentUserPath + ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath"
+
+[System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
+
+# Notify the system of the environment variable change
+$HWND_BROADCAST = [IntPtr]0xffff
+$WM_SETTINGCHANGE = 0x1a
+$result = [UIntPtr]::Zero
+
+Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @'
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+        uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+'@
+
+[Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
 
 
 if ($host.Name -eq 'ConsoleHost') {
