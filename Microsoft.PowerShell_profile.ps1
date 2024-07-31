@@ -109,9 +109,9 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
   # Add the new path to the environment
   $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-  $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
   $nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-  $env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
+  $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
 }
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
@@ -120,7 +120,7 @@ else {
     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
     Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
   }
-  $env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
+  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
 }
 if ($host.Name -eq 'ConsoleHost') {
