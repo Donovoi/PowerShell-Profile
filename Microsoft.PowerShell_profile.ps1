@@ -121,7 +121,10 @@ else {
 # Add the new path to the environment
 $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
 $nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+Write-Logg -Message "Adding $env:ChocolateyInstall and $nirsoftPath to the path" -Level Info
+Write-Logg -Message "Current path: $env:Path" -Level Info
 $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
+Write-Logg -Message "Current path: $env:Path" -Level Info
 
 
 if ($host.Name -eq 'ConsoleHost') {
