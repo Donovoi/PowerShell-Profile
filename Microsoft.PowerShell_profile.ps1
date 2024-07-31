@@ -71,15 +71,54 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
 if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
+
+  # We need to remove chocolatey from the path if it exists
+
+  # Function to remove path entry
+  function Remove-PathEntry {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+      [Parameter(Mandatory = $true)]
+      [string]$pathToRemove,
+      [Parameter(Mandatory = $true)]
+      [string]$scope
+    )
+    # Get the current PATH environment variable based on the scope (Machine/User)
+    $currentPath = [System.Environment]::GetEnvironmentVariable('Path', $scope)
+
+    # Split the PATH into an array of individual paths
+    $pathArray = $currentPath -split ';'
+
+    # Remove the entry if it exists
+    if ($PSCmdlet.ShouldProcess($pathToRemove, 'Remove path entry')) {
+      $pathArray = $pathArray | Where-Object { $_ -notlike $pathToRemove }
+    }
+
+    # Join the array back into a single string with ';' as the separator
+    $newPath = ($pathArray -join ';')
+
+    # Set the updated PATH environment variable
+    if ($PSCmdlet.ShouldProcess('Set PATH environment variable', 'Set updated PATH environment variable')) {
+      [System.Environment]::SetEnvironmentVariable('Path', $newPath, $scope)
+    }
+  }
+
+  # Remove the Chocolatey path entry from both System and User PATH
+  Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'Machine'
+  Remove-PathEntry -pathToRemove '*chocolatey*' -scope 'User'
+
+  # Add the new path to the environment
   $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-  $env:Path += ";$env:ChocolateyInstall;$XWAYSUSB\chocolatey apps\chocolatey\bin\bin;$XWAYSUSB\NirSoft\NirSoft\x64;"
+  $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+  $nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+  $env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
 }
 else {
   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
   if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
     Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))  
+    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
   }
   $env:Path += ";$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
@@ -93,12 +132,12 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-
 }
 
 #if $Env:ChocolateyInstall is on the c drive do the following
-  if(Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
-    Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
-  }
-  else {
-    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-  }
+if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
+  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+}
+else {
+  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+}
 
 
 Update-SessionEnvironment

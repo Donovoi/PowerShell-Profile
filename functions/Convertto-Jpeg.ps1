@@ -93,14 +93,14 @@ Process
                 continue
             }
             $bitmap = AwaitOperation ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
-            
+
             # Determine output file name
             # Get name of original file, including extension
             $fileName = $inputFile.Name
             if ($RemoveOriginalExtension)
             {
                 # If removing original extension, get the original file name without the extension
-                $fileName = $inputFile.DisplayName 
+                $fileName = $inputFile.DisplayName
             }
             # Add .jpg to the file name
             $outputFileName = $fileName + ".jpg"

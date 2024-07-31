@@ -1,6 +1,6 @@
 <#
     .SYNOPSIS
-    
+
         Downloads symbols from the Microsoft store.
 
     .DESCRIPTION
@@ -44,7 +44,7 @@
         PS C:\>_ [string[]]$fileList = (Get-ChildItem -Path 'C:\Windows\System32' -Recurse -Force -File | Where-Object {
             ($PSItem.Name -like '*.exe') -or ($PSItem.Name -like '*.dll')
         }).FullName
-        
+
         PS C:\>_ Get-PdbSymbol -Path $fileList -DestinationStore 'C:\Symbols' -ReadTimeout 30 -DownloadTimeout 10 -Retry 0
 
     .NOTES
@@ -106,7 +106,7 @@ function Get-PdbSymbol {
             using System;
             using System.IO;
             using System.Runtime.InteropServices;
-            
+
             [StructLayout(LayoutKind.Sequential, Pack = 1)]
             public struct IMAGE_DEBUG_DIRECTORY_RAW
             {
@@ -117,7 +117,7 @@ function Get-PdbSymbol {
                 [MarshalAs(UnmanagedType.ByValArray, SizeConst = 255)]
                 public char[] name;
             }
-                    
+
             [StructLayout(LayoutKind.Sequential, Pack = 1)]
             public struct IMAGE_DEBUG_DIRECTORY
             {
@@ -130,10 +130,10 @@ function Get-PdbSymbol {
                 public UInt32 AddressOfRawData;
                 public UInt32 PointerToRawData;
             }
-            
+
             [StructLayout(LayoutKind.Sequential)]
             public struct IMAGE_DOS_HEADER
-            {      
+            {
                 public UInt16 e_magic;              // Magic number
                 public UInt16 e_cblp;               // Bytes on last page of file
                 public UInt16 e_cp;                 // Pages in file
@@ -314,7 +314,7 @@ function Get-PdbSymbol {
             [Flags]
             public enum DataSectionFlags : uint
             {
-                
+
                 TypeReg = 0x00000000,
                 TypeDsect = 0x00000001,
                 TypeNoLoad = 0x00000002,
@@ -377,7 +377,7 @@ function Get-PdbSymbol {
                 $uri = [System.Uri]::new($Url)
                 $request = [System.Net.HttpWebRequest]::Create($uri)
                 $request.Timeout = 15000
-    
+
                 try {
 
                     ## Gets the firs response and set values for the progress bar.
@@ -395,7 +395,7 @@ function Get-PdbSymbol {
                     $targetStream = [System.IO.FileStream]::new($TargetFile, [System.IO.FileMode]::Create)
                     $buffer = [byte[]]::new(10KB)
                     $count = $responseStream.Read($buffer, 0, $buffer.length)
-    
+
                     ## File download.
                     $downloadedBytes = $count
                     while ($count -gt 0) {
@@ -493,7 +493,7 @@ function Get-PdbSymbol {
                             $stopwatch.Reset()
                             $previousPercentage = $syncCopy.PercentComplete
                         }
-        
+
                         if ($stopwatch.Elapsed.Seconds -ge $DownloadTimeout) {
                             $Global:failedDownload.Add([PSCustomObject]@{
                                 FileName = [System.IO.Path]::GetFileName($TargetFile)
@@ -551,7 +551,7 @@ function Get-PdbSymbol {
             This function advances the stream position to the given value.
         #>
         function Invoke-StreamSeek($Stream, $Offset, $Origin) {
-            
+
             try {
                 [void]$Stream.Seek($Offset, $Origin)
             }
@@ -564,7 +564,7 @@ function Get-PdbSymbol {
     }
 
     Process {
-        
+
         if (!(Test-Path -Path $DestinationStore -PathType Container)) {
             [void](New-Item -Path $DestinationStore -ItemType Directory)
         }
@@ -579,10 +579,10 @@ function Get-PdbSymbol {
             $cacheContent = Get-Content -Path "$DestinationStore\.DownloadStatusCache.log" | ConvertFrom-Csv -Delimiter ';'
             [System.Collections.Generic.HashSet[string]]$Global:existingFilenames = ($cacheContent | Where-Object { $PSItem.DownloadStatus -in 'OK', 'NotFound', 'NoDebugInfo' }).OriginFile
         }
-    
+
         $processedFileCount = 0
         foreach ($file in $Path) {
-            
+
             $fileName = [System.IO.Path]::GetFileName($file)
             Write-Progress -Id 0 -Activity 'Get PDB Symbol' -Status "Processed files: $processedFileCount/$($Path.Count). $fileName" -PercentComplete (($processedFileCount / $Path.Count) * 100)
 
@@ -594,24 +594,24 @@ function Get-PdbSymbol {
                     continue
                 }
             }
-    
+
             ## Loading file in memory, and creating the BinaryReader.
             try {
                 $fileStream = [System.IO.FileStream]::new($file, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-                $reader = [System.IO.BinaryReader]::new($fileStream, [System.Text.Encoding]::UTF8)    
+                $reader = [System.IO.BinaryReader]::new($fileStream, [System.Text.Encoding]::UTF8)
             }
             # Not good, I know.
             catch { continue }
-            
+
             ## Reading IMAGE_DOS_HEADER.
             $dosHeader = Get-ObjectFromStreamBytes -Reader $reader -Type ([type][IMAGE_DOS_HEADER])
-            
+
             ## Advancing stream position.
             Invoke-StreamSeek -Stream $fileStream -Offset $dosHeader.e_lfanew -Origin ([System.IO.SeekOrigin]::Begin)
             try { [void]$reader.ReadUInt32() }
             # Not good, I know.
             catch { continue }
-            
+
             ## Reading IMAGE_FILE_HEADER and IMAGE_OPTIONAL_HEADER64/IMAGE_OPTIONAL_HEADER32.
             $fileHeader = Get-ObjectFromStreamBytes -Reader $reader -Type ([type][IMAGE_FILE_HEADER])
             if ($fileHeader.Machine -eq 0x14C) {
@@ -625,27 +625,27 @@ function Get-PdbSymbol {
             $cbFromHeader = 0
             [UInt64]$cbDebug = $optHeader.Debug.Size
             $imgSecHeader = [IMAGE_SECTION_HEADER[]]::new($fileHeader.NumberOfSections)
-            
+
             ## Reading all section headers.
             for ($headerNo = 0; $headerNo -lt $imgSecHeader.Length; $headerNo++) {
-                
+
                 $imgSecHeader[$headerNo] = Get-ObjectFromStreamBytes -Reader $reader -Type ([type][IMAGE_SECTION_HEADER])
 
                 if (($imgSecHeader[$headerNo].PointerToRawData -ne 0) -and ($imgSecHeader[$headerNo].SizeOfRawData -ne 0) -and ($cbFromHeader -lt ($imgSecHeader[$headerNo].PointerToRawData + $imgSecHeader[$headerNo].SizeOfRawData))) {
                     $cbFromHeader = ($imgSecHeader[$headerNo].PointerToRawData + $imgSecHeader[$headerNo].SizeOfRawData)
                 }
-            
+
                 if ($cbDebug -ne 0) {
                     if (($imgSecHeader[$headerNo].VirtualAddress -le $optHeader.Debug.VirtualAddress) -and (($imgSecHeader[$headerNo].VirtualAddress + $imgSecHeader[$headerNo].SizeOfRawData -gt $imgSecHeader[$headerNo].PointerToRawData))) {
                         $offDebug = $optHeader.Debug.VirtualAddress - $imgSecHeader[$headerNo].VirtualAddress + $imgSecHeader[$headerNo].PointerToRawData
                     }
                 }
-            
+
             }
-            
+
             ## Advancing stream position.
             Invoke-StreamSeek -Stream $fileStream -Offset $offDebug -Origin ([System.IO.SeekOrigin]::Begin)
-            
+
             <#
                 Reading debug information.
             #>
@@ -679,14 +679,14 @@ function Get-PdbSymbol {
                         try {
                             $bytes = $Reader.ReadBytes([System.Runtime.InteropServices.Marshal]::SizeOf(([type]$Type)))
                             if ($bytes.Count -gt 0) {
-            
+
                                 # Technically we don't need to pin the address of 'bytes' because 'PtrToStructure' is going to copy the data before it goes out of scope. Maybe?
                                 $hBytes = [System.Runtime.InteropServices.Marshal]::UnsafeAddrOfPinnedArrayElement($bytes, 0)
                                 return [System.Runtime.InteropServices.Marshal]::PtrToStructure($hBytes, ([type]$Type))
                             }
                         }
                         catch {
-            
+
                             if ($PSItem.Exception.InnerException.GetType() -ne [System.ObjectDisposedException]) {
                                 throw $PSItem
                             }
@@ -694,7 +694,7 @@ function Get-PdbSymbol {
                     }
 
                     function Invoke-StreamSeek($Stream, $Offset, $Origin) {
-                        
+
                         try {
                             [void]$Stream.Seek($Offset, $Origin)
                         }
@@ -715,27 +715,27 @@ function Get-PdbSymbol {
                             break
                         }
                         if (!$syncedObjects.Success) {
-                            
+
                             $imgDebugDir = Get-ObjectFromStreamBytes -Reader $syncedObjects.BinaryReader.Value -Type ([type]$IMAGE_DEBUG_DIRECTORY)
-                            
+
                             $seekPosition = $syncedObjects.FileStream.Value.Position
-                    
+
                             if ($imgDebugDir.Type -eq 2) {
-                                
+
                                 ## Advancing stream position.
                                 Invoke-StreamSeek -Stream $syncedObjects.FileStream.Value -Offset $imgDebugDir.PointerToRawData -Origin ([System.IO.SeekOrigin]::Begin)
                                 $syncedObjects.DebugInfo.Value = Get-ObjectFromStreamBytes -Reader $syncedObjects.BinaryReader.Value -Type ([type]$IMAGE_DEBUG_DIRECTORY_RAW)
-                                
+
                                 $syncedObjects.Success = $true
                                 if ([string]::new($syncedObjects.DebugInfo.Value).Contains('.ni.')) {
-                                    
+
                                     ## Advancing stream position.
                                     Invoke-StreamSeek -Stream $syncedObjects.FileStream.Value -Offset $seekPosition -Origin ([System.IO.SeekOrigin]::Begin)
                                     $syncedObjects.Success = $false
                                 }
                             }
                         }
-                    
+
                         $syncedObjects.CbDebug -= [System.Runtime.InteropServices.Marshal]::SizeOf([type]$IMAGE_DEBUG_DIRECTORY)
                     }
                     $stopwatch.Stop()
@@ -744,7 +744,7 @@ function Get-PdbSymbol {
 
                 $displayTimeout = 0
                 do {
-                
+
                     switch ($displayTimeout) {
                         { $PSItem -lt 100 } { Write-Progress -Id 1 -ParentId 0 -Activity "Reading file $fileName" -Status 'Looking for debug information.' }
                         { $PSItem -ge 100 -and $PSItem -lt 200 } { Write-Progress -Id 1 -ParentId 0 -Activity "Reading file $fileName" -Status 'Looking for debug information..' }
@@ -767,27 +767,27 @@ function Get-PdbSymbol {
                 $readPowershell.Dispose()
                 $readRunspace.Dispose()
             }
-            
+
             ## Download stage.
             if ($syncedObjects.Success) {
                 $pdbName = [string]::new($debugInfo.name)
                 if (![string]::IsNullOrEmpty($pdbName)) {
-    
+
                     $pdbName = $pdbName.Remove(($pdbName | Select-String -Pattern '\0').Matches[0].Index).Split('\')[$pdbName.Split('\').Length - 1]
-    
+
                     if (![string]::IsNullOrEmpty($pdbName)) {
                         ## Debug file age.
                         $pdbAge = $debugInfo.age.ToString('X')
-                    
+
                         ## Creating the destination path. Here we try to mimic SymChk.exe directory structure.
                         $pdbCode = "$($debugInfo.guid.ToString('N').ToUpper())$pdbAge"
-                        
+
                         if ($DestinationStore.EndsWith('\')) { $destinationPath = "$DestinationStore$pdbName\$pdbCode" }
                         else { $destinationPath = "$DestinationStore\$pdbName\$pdbCode" }
-    
+
                         ## Assembling the download URL.
                         $downloadUrl = "http://msdl.microsoft.com/download/symbols/$pdbName/$pdbCode/$pdbName"
-    
+
                         ## Download job.
                         Invoke-FileDownloadWithProgress -Url $downloadUrl -TargetFile "$destinationPath\$pdbName" -ParentProgressBarId 1 -OriginFileName $fileName
                     }
@@ -800,7 +800,7 @@ function Get-PdbSymbol {
 
             ## Cleanup.
             $fileStream.Flush()
-            $fileStream.Dispose() 
+            $fileStream.Dispose()
             $reader.Dispose()
 
             $processedFileCount++
