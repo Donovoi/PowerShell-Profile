@@ -110,7 +110,6 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
   # Add the new path to the environment
   $env:ChocolateyInstall = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
   $nirsoftPath = $(Resolve-Path $(Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-  $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$nirsoftPath;"
 }
 else {
