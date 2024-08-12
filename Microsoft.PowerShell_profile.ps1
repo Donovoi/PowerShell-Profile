@@ -53,6 +53,11 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
 
+if (-not (Get-Module -ListAvailable -Name Profiler)) {
+  Install-Module -Name Profiler -Force
+}
+Import-Module Profiler
+
 $trace = Trace-Script -ScriptBlock {
 
   # install and import modules needed for oh my posh
