@@ -11,7 +11,7 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-$neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+$neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Remove-PathEntry', 'Add-Paths')
 $neededcmdlets | ForEach-Object {
   if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
     if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -53,131 +53,50 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
 
+$trace = Trace-Script -ScriptBlock {
 
-
-# install and import modules needed for oh my posh
-# I've hardcoded these into the Install-Dependencies function :(
-if (-not (Get-Module -ListAvailable Pansies -ErrorAction SilentlyContinue)) {
+  # install and import modules needed for oh my posh
+  # I've hardcoded these into the Install-Dependencies function :(
   Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
-}
 
 
-# Variables for the commandline
-$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+  # Variables for the commandline
+  $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+  $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
 
 
-Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
+  Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
-if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
+  if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
-  # We need to remove chocolatey from the path if it exists
+    # We need to remove chocolatey from the path if it exists
+    # Example usage for removing Chocolatey from both user and machine PATH
+    Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
+    Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
 
-  function Remove-PathEntry {
-    [CmdletBinding(SupportsShouldProcess)]
-    param(
-      [Parameter(Mandatory = $true)]
-      [string]$pathToRemove,
-      [Parameter(Mandatory = $true)]
-      [string]$scope
-    )
+    # Function to add paths and persist changes
+    # Define paths
+    $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+    $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
 
-    # Get the current PATH environment variable based on the scope (Machine/User)
-    $currentPath = [System.Environment]::GetEnvironmentVariable('Path', $scope)
+    # Add paths and persist changes
+    Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
 
-    # Split the PATH into an array of individual paths and create a HashSet for uniqueness
-    $pathSet = [System.Collections.Generic.HashSet[string]]::new($currentPath -split ';')
 
-    # Remove the entry if it exists
-    if ($PSCmdlet.ShouldProcess($pathToRemove, 'Remove path entry')) {
-      $pathSet.Remove($pathToRemove) | Out-Null
+  }
+  else {
+    $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
+    if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
+      Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
+      Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
+      Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
     }
+    $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
-    # Join the HashSet back into a single string with ';' as the separator
-    $newPath = ($pathSet -join ';')
-
-    # Set the updated PATH environment variable
-    if ($PSCmdlet.ShouldProcess('Set PATH environment variable', 'Set updated PATH environment variable')) {
-      [System.Environment]::SetEnvironmentVariable('Path', $newPath, $scope)
-    }
   }
-
-  # Example usage for removing Chocolatey from both user and machine PATH
-  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
-  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
-
-  # Function to add paths and persist changes
-  function Add-Paths {
-    param (
-      [string]$chocolateyPath,
-      [string]$nirsoftPath
-    )
-
-    # Update current session PATH
-    $env:Path += ";$chocolateyPath;$chocolateyPath\bin;$nirsoftPath"
-
-    # Get current PATH variables
-    $currentSystemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
-
-    # Create HashSets for uniqueness
-    $systemPathSet = [System.Collections.Generic.HashSet[string]]::new($currentSystemPath -split ';')
-    $userPathSet = [System.Collections.Generic.HashSet[string]]::new($currentUserPath -split ';')
-
-    # Add new paths
-    $systemPathSet.Add("$chocolateyPath") | Out-Null
-    $systemPathSet.Add("$chocolateyPath\bin") | Out-Null
-    $systemPathSet.Add("$nirsoftPath") | Out-Null
-
-    $userPathSet.Add("$chocolateyPath") | Out-Null
-    $userPathSet.Add("$chocolateyPath\bin") | Out-Null
-    $userPathSet.Add("$nirsoftPath") | Out-Null
-
-    # Join the HashSets back into single strings with ';' as the separator
-    $newSystemPath = ($systemPathSet -join ';')
-    $newUserPath = ($userPathSet -join ';')
-
-    # Update registry for system PATH
-    [System.Environment]::SetEnvironmentVariable('Path', $newSystemPath, [System.EnvironmentVariableTarget]::Machine)
-
-    # Update registry for user PATH
-    [System.Environment]::SetEnvironmentVariable('Path', $newUserPath, [System.EnvironmentVariableTarget]::User)
-
-    # Notify the system of the environment variable change
-    $HWND_BROADCAST = [IntPtr]0xffff
-    $WM_SETTINGCHANGE = 0x1a
-    $result = [UIntPtr]::Zero
-
-    Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @'
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        public static extern IntPtr SendMessageTimeout(
-            IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
-            uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
-'@
-
-  $null =  [Win32.NativeMethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null
-  }
-
-  # Define paths
-  $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-  $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-
-  # Add paths and persist changes
-  Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
-
-
 }
-else {
-  $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
-  if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
-    Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
-    Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-  }
-  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
-
-}
+$trace.Top50SelfDuration | Format-Table -AutoSize
 
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
