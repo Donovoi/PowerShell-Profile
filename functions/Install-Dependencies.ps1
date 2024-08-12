@@ -279,8 +279,6 @@ function Install-PSModules {
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
-                    'PANSIES',
-                    'lolcat',
                     '7zip4powershell',
                     'Crescendo',
                     'F7History',
@@ -290,15 +288,18 @@ function Install-PSModules {
                     'Microsoft.PowerShell.SecretManagement',
                     'Microsoft.PowerShell.SecretStore',
                     'Microsoft.WinGet.Client',
+                    'PANSIES',
                     'PSEverything',
                     'PSFramework',
                     'PSReadLine',
                     'PSReflect-Functions',
                     'PSWriteColor',
-                    'PowerShellGet',
                     'PSColors',
+                    'PowerShellGet',
                     'Terminal-Icons',
-                    'posh-git'
+                    'lolcat',
+                    'posh-git',
+                    'profiler'
                 )
             }
             elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
