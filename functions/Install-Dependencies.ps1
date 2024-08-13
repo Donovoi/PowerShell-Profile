@@ -125,7 +125,7 @@ function Install-PackageProviders {
         }
 
         # check if the NuGet package provider is installed
-        if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
+        if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue) -and (-not(Get-PackageSource -Name 'NuGet' -ErrorAction SilentlyContinue))) {
             Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue
             Install-PackageProvider -Name NuGet -Force -Confirm:$false -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue
             Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue
