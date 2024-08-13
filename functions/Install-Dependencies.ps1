@@ -82,7 +82,7 @@ function Install-PackageProviders {
     )
     try {
         # Ensure NuGet package provider is installed and registered
-        if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -Erroraction SilentlyContinue)) {
+        if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
             # Define the URL for the latest PackageManagement nupkg
             $nugetUrl = 'https://www.powershellgallery.com/api/v2/package/PackageManagement'
 
@@ -118,50 +118,50 @@ function Install-PackageProviders {
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            if (-not(Get-Module -Name 'Pansies' -ListAvailable -Erroraction SilentlyContinue)) {
+            if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Write-Verbose 'Panises module not installed, installing now'
-                Install-Module -Name 'Pansies' -Force -Scope CurrentUser -Erroraction SilentlyContinue -AllowClobber
+                Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
             }
         }
 
         # check if the NuGet package provider is installed
-        if (-not(Get-PackageProvider -Name 'NuGet' -Erroraction SilentlyContinue) ) {
-            Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -Erroraction SilentlyContinue
-            Install-PackageProvider -Name NuGet -Force -Confirm:$false -RequiredVersion 2.8.5.208 -Erroraction SilentlyContinue
-            Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -Erroraction SilentlyContinue
-            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -Erroraction SilentlyContinue
+        if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue) ) {
+            Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
+            Install-PackageProvider -Name NuGet -Force -Confirm:$false -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
+            Import-PackageProvider -Name nuget -RequiredVersion 2.8.5.208 -ErrorAction SilentlyContinue | Out-Null
+            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
 
 
         # Ensure PowerShellGet package provider is installed
-        if (-not (Get-PackageProvider -Name PowerShellGet -Erroraction SilentlyContinue)) {
-            Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -Erroraction SilentlyContinue
+        if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
 
         # Trust all package sources
         $null = Get-PackageSource | ForEach-Object {
-            $null = Set-PackageSource -Name $_.Name -Trusted -Force -Erroraction SilentlyContinue | Out-Null
+            $null = Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
         # Trust PSGallery repository if it is not already trusted
-        if (-not(Get-PSRepository -Name PSGallery -Erroraction SilentlyContinue | Where-Object -FilterScript { $_.InstallationPolicy -eq 'Trusted' } -Erroraction SilentlyContinue)) {
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -Erroraction SilentlyContinue | Out-Null
+        if (-not(Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.InstallationPolicy -eq 'Trusted' } -ErrorAction SilentlyContinue)) {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
         }
 
-        if (-not(Get-Module -ListAvailable AnyPackage -Erroraction SilentlyContinue)) {
+        if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
             # PowerShellGet version 2
             Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck | Out-Null
         }
         if ($PSVersionTable.PSVersion.Major -ge 7) {
-            if (-not(Get-PSResource -Name AnyPackage -Erroraction SilentlyContinue)) {
+            if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
                 # PowerShellGet version 3
                 Install-PSResource AnyPackage | Out-Null
             }
         }
 
         # Ensure Pansies module is installed for logging
-        if (-not (Get-Module -Name 'Pansies' -ListAvailable -Erroraction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber -Erroraction SilentlyContinue
+        if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber -ErrorAction SilentlyContinue
         }
 
     }
