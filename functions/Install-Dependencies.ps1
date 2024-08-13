@@ -41,20 +41,23 @@ function Install-Dependencies {
     # Install NuGet dependencies
     if (-not $NoNugetPackage ) {
         Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage
-    }
-
-    # Install PowerShell modules
-    if (-not $NoPSModules) {
-        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
+        # refresh environment variables
+        Update-SessionEnvironment
     }
 
     # Add assemblies
     if ($AddDefaultAssemblies -or $AddCustomAssemblies) {
         Add-Assemblies -UseDefault:$AddDefaultAssemblies -CustomAssemblies:$AddCustomAssemblies
+        # refresh environment variables
+        Update-SessionEnvironment
     }
 
-    # refresh environment variables
-    Update-SessionEnvironment
+    # Install PowerShell modules
+    if (-not $NoPSModules) {
+        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
+        # refresh environment variables
+        Update-SessionEnvironment
+    }
 
 }
 
@@ -280,25 +283,16 @@ function Install-PSModules {
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
                     '7zip4powershell',
-                    'Crescendo',
                     'F7History',
-                    'ImportExcel',
-                    'JWTDetails',
                     'Microsoft.PowerShell.ConsoleGuiTools',
-                    'Microsoft.PowerShell.SecretManagement',
-                    'Microsoft.PowerShell.SecretStore',
                     'Microsoft.WinGet.Client',
                     'PANSIES',
                     'PSEverything',
                     'PSFramework',
                     'PSReadLine',
                     'PSReflect-Functions',
-                    'PSWriteColor',
-                    'PSColors',
                     'PowerShellGet',
-                    'Terminal-Icons',
                     'lolcat',
-                    'posh-git',
                     'profiler'
                 )
             }
