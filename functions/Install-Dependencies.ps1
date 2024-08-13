@@ -290,7 +290,6 @@ function Install-PSModules {
                     'PSEverything',
                     'PSReadLine',
                     'PSReflect-Functions',
-                    'PowerShellGet',
                     'lolcat',
                     'profiler'
                 )
