@@ -141,7 +141,7 @@ function Install-PackageProviders {
         # Trust all package sources
         $null = Get-PackageSource | ForEach-Object {
             $null = Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
-        } | Out-Null
+        }
 
         # Trust PSGallery repository if it is not already trusted
         if (-not(Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.InstallationPolicy -eq 'Trusted' } -ErrorAction SilentlyContinue)) {
