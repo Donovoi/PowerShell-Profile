@@ -52,7 +52,7 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   New-Item -Path $PROFILE
   Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
-
+# testing profile load times
 if (-not (Get-Module -ListAvailable -Name Profiler)) {
   Install-Module -Name Profiler -Force
 }
@@ -60,7 +60,7 @@ Import-Module Profiler
 
 $trace = Trace-Script -ScriptBlock {
 
-  # install and import modules needed for oh my posh
+  # install and import modules needed for my profile
   # I've hardcoded these into the Install-Dependencies function :(
   Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
 
