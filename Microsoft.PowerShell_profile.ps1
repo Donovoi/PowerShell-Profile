@@ -58,7 +58,7 @@ if (-not (Get-Module -ListAvailable -Name Profiler)) {
 }
 Import-Module Profiler
 
-$trace = Trace-Script -ScriptBlock {
+#$trace = Trace-Script -ScriptBlock {
 
   # install and import modules needed for my profile
   # I've hardcoded these into the Install-Dependencies function :(
@@ -100,8 +100,8 @@ $trace = Trace-Script -ScriptBlock {
     $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
   }
-}
-$trace.Top50SelfDuration | Format-Table -AutoSize
+#}
+#$trace.Top50SelfDuration | Format-Table -AutoSize
 
 if ($host.Name -eq 'ConsoleHost') {
   Import-Module PSReadLine
