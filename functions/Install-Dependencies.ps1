@@ -288,7 +288,6 @@ function Install-PSModules {
                     'Microsoft.WinGet.Client',
                     'PANSIES',
                     'PSEverything',
-                    'PSFramework',
                     'PSReadLine',
                     'PSReflect-Functions',
                     'PowerShellGet',
