@@ -139,21 +139,23 @@ function Install-PackageProviders {
         }
 
         # Trust all package sources
-        Get-PackageSource | ForEach-Object {
-            Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue
-        }
+        $null = Get-PackageSource | ForEach-Object {
+            $null = Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
+        } | Out-Null
 
-        # Trust PSGallery repository
-        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+        # Trust PSGallery repository if it is not already trusted
+        if (-not(Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue | Where-Object -FilterScript { $_.InstallationPolicy -eq 'Trusted' } -ErrorAction SilentlyContinue)) {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+        }
 
         if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
             # PowerShellGet version 2
-            Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck
+            Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck | Out-Null
         }
         if ($PSVersionTable.PSVersion.Major -ge 7) {
             if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
                 # PowerShellGet version 3
-                Install-PSResource AnyPackage
+                Install-PSResource AnyPackage | Out-Null
             }
         }
 
