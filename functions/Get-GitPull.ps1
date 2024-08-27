@@ -17,7 +17,7 @@ function Get-GitPull {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter ? $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter : 'C:\\'
+        [string]$Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     )
 
     $ErrorActionPreference = 'Continue'
