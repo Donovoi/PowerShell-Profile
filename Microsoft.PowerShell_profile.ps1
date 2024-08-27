@@ -61,7 +61,7 @@ if (-not (Get-Module -ListAvailable -Name Profiler)) {
 
   # install and import modules needed for my profile
   # I've hardcoded these into the Install-Dependencies function :(
-  Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
+  Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
 
 
   # Variables for the commandline
