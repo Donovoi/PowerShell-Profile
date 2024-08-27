@@ -186,7 +186,7 @@ function Get-GitPull {
 
     # Get the repositories
 
-    $dir_path = Resolve-Path -Path $script:Path -ErrorAction Stop
+    $dir_path = $(Resolve-Path -Path $script:Path -ErrorAction Stop).Path
     $search_name = '.git'
 
     if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
