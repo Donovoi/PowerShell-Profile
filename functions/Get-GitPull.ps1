@@ -17,10 +17,13 @@ function Get-GitPull {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$script:Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter ? $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter : 'C:\\'
+        [string]$Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter ? $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter : 'C:\\'
     )
 
     $ErrorActionPreference = 'Continue'
+
+    # Ensure Path is scoped correctly
+    $script:Path = Resolve-Path -Path $Path -ErrorAction Stop
 
     # Import the required cmdlets
     $neededcmdlets = @('Write-Logg')
@@ -36,8 +39,9 @@ function Get-GitPull {
             $Cmdletstoinvoke | Import-Module -Force
         }
     }
-    # Get all the repositories in the path specified. We are looking for directories that contain a .git directory
-    Write-Logg -Message "Searching for repositories in $Path, this can take a while..." -Level Verbose
+
+    # Get all the repositories in the path specified
+    Write-Logg -Message "Searching for repositories in $script:Path, this can take a while..." -Level Verbose
 
     $rustPgm = @'
   extern crate jwalk;
