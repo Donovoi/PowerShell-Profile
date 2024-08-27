@@ -56,7 +56,6 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
 if (-not (Get-Module -ListAvailable -Name Profiler)) {
   Install-Module -Name Profiler -Force
 }
-Import-Module Profiler
 
 #$trace = Trace-Script -ScriptBlock {
 

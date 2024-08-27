@@ -17,7 +17,7 @@ function Get-GitPull {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$Path = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
+        [string]$script:Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter ? $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter : 'C:\\'
     )
 
     $ErrorActionPreference = 'Continue'
@@ -182,7 +182,7 @@ function Get-GitPull {
 
     # Get the repositories
 
-    $dir_path = Resolve-Path -Path $Path -ErrorAction Stop
+    $dir_path = Resolve-Path -Path $script:Path -ErrorAction Stop
     $search_name = '.git'
 
     if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
