@@ -25,39 +25,39 @@ $neededcmdlets | ForEach-Object {
   }
 }
 
+$trace = Trace-Script -ScriptBlock {
+  # Define the profile path
+  $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
-# Define the profile path
-$powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+  $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
+  $FunctionsFolder.ForEach{ .$_.FullName }
 
-$FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
-$FunctionsFolder.ForEach{ .$_.FullName }
+  if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
+    New-Item -Path 'C:\temp\' -ItemType Directory -Force
+    Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
+  }
 
-if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
-  New-Item -Path 'C:\temp\' -ItemType Directory -Force
-  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
-}
+  # Check if PowerShell 7 is installed
+  if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
+    Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
+    # Download and install PowerShell 7 (you might want to check the URL for the latest version)
+    winget install powershell
 
-# Check if PowerShell 7 is installed
-if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-  Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
-  # Download and install PowerShell 7 (you might want to check the URL for the latest version)
-  winget install powershell
+    Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
+  }
 
-  Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
-}
+  # Check and create profile folders for PowerShell 7
+  if (-not (Test-Path -Path $powerShell7ProfilePath)) {
+    Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
+    New-Item -Path $PROFILE
+    Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
+  }
+  # testing profile load times
+  if (-not (Get-Module -ListAvailable -Name Profiler)) {
+    Install-Module -Name Profiler -Force
+  }
 
-# Check and create profile folders for PowerShell 7
-if (-not (Test-Path -Path $powerShell7ProfilePath)) {
-  Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
-  New-Item -Path $PROFILE
-  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
-}
-# testing profile load times
-if (-not (Get-Module -ListAvailable -Name Profiler)) {
-  Install-Module -Name Profiler -Force
-}
-
-#$trace = Trace-Script -ScriptBlock {
+  #$trace = Trace-Script -ScriptBlock {
 
   # install and import modules needed for my profile
   # I've hardcoded these into the Install-Dependencies function :(
@@ -99,45 +99,45 @@ if (-not (Get-Module -ListAvailable -Name Profiler)) {
     $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
   }
-#}
-#$trace.Top50SelfDuration | Format-Table -AutoSize
+  #}
+  #$trace.Top50SelfDuration | Format-Table -AutoSize
 
-if ($host.Name -eq 'ConsoleHost') {
-  Import-Module PSReadLine
+  if ($host.Name -eq 'ConsoleHost') {
+    Import-Module PSReadLine
+  }
+
+  if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+    winget install JanDeDobbeleer.OhMyPosh
+  }
+
+  #if $Env:ChocolateyInstall is on the c drive do the following
+  if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
+    Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+  }
+  else {
+    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+  }
+
+
+  Update-SessionEnvironment
+
+  # Invoke an awesome sample of PSReadline bindings
+  Invoke-SamplePSReadLineProfile
+
+  # Crazy oh my posh random theme function
+  Invoke-OhMyPoshRandomTheme
+
+
+  # Import the Chocolatey Profile that contains the necessary code to enable
+  # tab-completions to function for `choco`.
+  # Be aware that if you are missing these lines from your profile, tab completion
+  # for `choco` will not function.
+  # See https://ch0.co/tab-completion for details.
+  $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+  if (Test-Path ($ChocolateyProfile)) {
+    Import-Module "$ChocolateyProfile"
+  }
+
+
 }
-
-if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
-  winget install JanDeDobbeleer.OhMyPosh
-}
-
-#if $Env:ChocolateyInstall is on the c drive do the following
-if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
-  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
-}
-else {
-  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-}
-
-
-Update-SessionEnvironment
-
-# Invoke an awesome sample of PSReadline bindings
-Invoke-SamplePSReadLineProfile
-
-# Crazy oh my posh random theme function
-Invoke-OhMyPoshRandomTheme
-
-
-# Import the Chocolatey Profile that contains the necessary code to enable
-# tab-completions to function for `choco`.
-# Be aware that if you are missing these lines from your profile, tab completion
-# for `choco` will not function.
-# See https://ch0.co/tab-completion for details.
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path ($ChocolateyProfile)) {
-  Import-Module "$ChocolateyProfile"
-}
-
-
-
-
+$trace.Top50SelfDuration | Out-GridView
