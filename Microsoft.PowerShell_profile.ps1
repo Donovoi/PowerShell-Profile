@@ -24,120 +24,101 @@ $neededcmdlets | ForEach-Object {
     $Cmdletstoinvoke | Import-Module -Force
   }
 }
-Install-Module -Name Profiler
-#$trace = Trace-Script -ScriptBlock {
-  # Define the profile path
-  $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+# Define the profile path
+$powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
-  $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
-  $FunctionsFolder.ForEach{ .$_.FullName }
+$FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
+$FunctionsFolder.ForEach{ .$_.FullName }
 
-  if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
-    New-Item -Path 'C:\temp\' -ItemType Directory -Force
-    Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
+if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
+  New-Item -Path 'C:\temp\' -ItemType Directory -Force
+  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
+}
+
+# Check if PowerShell 7 is installed
+if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
+  Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
+  # Download and install PowerShell 7 (you might want to check the URL for the latest version)
+  winget install powershell
+  Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
+}
+
+# Check and create profile folders for PowerShell 7
+if (-not (Test-Path -Path $powerShell7ProfilePath)) {
+  Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
+  New-Item -Path $PROFILE
+  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
+}
+# install and import modules needed for my profile
+Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
+
+
+# Variables for the commandline
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+
+
+Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
+
+if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
+
+  # We need to remove chocolatey from the path if it exists
+  # Example usage for removing Chocolatey from both user and machine PATH
+  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin'
+
+  # Function to add paths and persist changes
+  # Define paths
+  $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+  $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+
+  # Add paths and persist changes
+  Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
+
+
+}
+else {
+  $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
+  if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
+    Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
+    Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
+    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
   }
+  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
-  # Check if PowerShell 7 is installed
-  if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-    Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
-    # Download and install PowerShell 7 (you might want to check the URL for the latest version)
-    winget install powershell
+}
 
-    Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
-  }
+if ($host.Name -eq 'ConsoleHost') {
+  Import-Module PSReadLine
+}
 
-  # Check and create profile folders for PowerShell 7
-  if (-not (Test-Path -Path $powerShell7ProfilePath)) {
-    Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
-    New-Item -Path $PROFILE
-    Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
-  }
-  # testing profile load times
-  if (-not (Get-Module -ListAvailable -Name Profiler)) {
-    Install-Module -Name Profiler -Force
-  }
+if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+  winget install JanDeDobbeleer.OhMyPosh
+}
 
+#if $Env:ChocolateyInstall is on the c drive do the following
+if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
+  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+}
+else {
+  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue
+}
 
 
-  # install and import modules needed for my profile
-  # I've hardcoded these into the Install-Dependencies function :(
-  #Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
+Update-SessionEnvironment
+
+# Invoke an awesome sample of PSReadline bindings
+Invoke-SamplePSReadLineProfile
+
+# Crazy oh my posh random theme function
+Invoke-OhMyPoshRandomTheme
 
 
-  # Variables for the commandline
-  $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-  $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-
-
-
-  Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
-
-  if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
-
-    # We need to remove chocolatey from the path if it exists
-    # Example usage for removing Chocolatey from both user and machine PATH
-    # Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
-    # Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
-
-    # Function to add paths and persist changes
-    # Define paths
-    $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-    $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
-
-    # Add paths and persist changes
-    Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
-
-
-  }
-  else {
-    $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
-    if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
-      Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
-      Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-      Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-    }
-    $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
-
-  }
-  #}
-  #$trace.Top50SelfDuration | Format-Table -AutoSize
-
-  if ($host.Name -eq 'ConsoleHost') {
-    Import-Module PSReadLine
-  }
-
-  if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
-    winget install JanDeDobbeleer.OhMyPosh
-  }
-
-  #if $Env:ChocolateyInstall is on the c drive do the following
-  if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
-    Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
-  }
-  else {
-    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-  }
-
-
-  Update-SessionEnvironment
-
-  # Invoke an awesome sample of PSReadline bindings
-  Invoke-SamplePSReadLineProfile
-
-  # Crazy oh my posh random theme function
-  Invoke-OhMyPoshRandomTheme
-
-
-  # Import the Chocolatey Profile that contains the necessary code to enable
-  # tab-completions to function for `choco`.
-  # Be aware that if you are missing these lines from your profile, tab completion
-  # for `choco` will not function.
-  # See https://ch0.co/tab-completion for details.
-  $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-  if (Test-Path ($ChocolateyProfile)) {
-    Import-Module "$ChocolateyProfile"
-  }
-
-
-#}
-#$trace.Top50SelfDuration | Out-GridView
+# Import the Chocolatey Profile that contains the necessary code to enable
+# tab-completions to function for `choco`.
+# Be aware that if you are missing these lines from your profile, tab completion
+# for `choco` will not function.
+# See https://ch0.co/tab-completion for details.
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path ($ChocolateyProfile)) {
+  Import-Module "$ChocolateyProfile"
+}
