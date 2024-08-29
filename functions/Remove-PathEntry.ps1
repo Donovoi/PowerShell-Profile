@@ -2,13 +2,11 @@ function Remove-PathEntry {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$pathToRemove,
-        [Parameter(Mandatory = $true)]
-        [string]$scope
+        [string]$pathToRemove
     )
 
     # Get the current PATH environment variable based on the scope (Machine/User)
-    $currentPath = [System.Environment]::GetEnvironmentVariable('Path', $scope)
+    $currentPath = $ENV:PATH
 
     # Split the PATH into an array of individual paths and create a HashSet for uniqueness
     $pathSet = [System.Collections.Generic.HashSet[string]]::new($currentPath -split ';')
@@ -23,6 +21,6 @@ function Remove-PathEntry {
 
     # Set the updated PATH environment variable
     if ($PSCmdlet.ShouldProcess('Set PATH environment variable', 'Set updated PATH environment variable')) {
-        [System.Environment]::SetEnvironmentVariable('Path', $newPath, $scope)
+        Set-ItemProperty -Path HKCU:\Environment -Name Path -Value $newPath -Force
     }
 }
