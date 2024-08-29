@@ -24,7 +24,7 @@ $neededcmdlets | ForEach-Object {
     $Cmdletstoinvoke | Import-Module -Force
   }
 }
-
+Install-Module -Name Profiler
 $trace = Trace-Script -ScriptBlock {
   # Define the profile path
   $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
