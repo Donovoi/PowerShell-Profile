@@ -1,7 +1,3 @@
-# the dependencies of this function are:
-#   - functions/Write-Logg.ps1
-
-
 function Install-Dependencies {
     [CmdletBinding()]
     param(
@@ -21,7 +17,7 @@ function Install-Dependencies {
     RunAsAdmin
 
     # Import the required cmdlets
-    $neededcmdlets = @('Get-FileDownload', 'Add-FileToAppDomain', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+    $neededcmdlets = @('Get-FileDownload', 'Add-FileToAppDomain', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg')
     $neededcmdlets | ForEach-Object {
         if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -128,7 +124,7 @@ function Install-PackageProviders {
         if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue) ) {
             Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
             Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Import-PackageProvider -Name nuget  -ErrorAction SilentlyContinue | Out-Null
+            Import-PackageProvider -Name nuget -ErrorAction SilentlyContinue | Out-Null
             Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
 
@@ -140,7 +136,9 @@ function Install-PackageProviders {
 
         # Trust all package sources
         $null = Get-PackageSource | ForEach-Object {
-            $null = Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
+            if ($_.Trusted -eq $false) {
+                Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
+            }
         }
 
         # Trust PSGallery repository if it is not already trusted
