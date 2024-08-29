@@ -76,8 +76,8 @@ $trace = Trace-Script -ScriptBlock {
 
     # We need to remove chocolatey from the path if it exists
     # Example usage for removing Chocolatey from both user and machine PATH
-    Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
-    Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
+    # Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'Machine'
+    # Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin' -scope 'User'
 
     # Function to add paths and persist changes
     # Define paths
