@@ -25,7 +25,7 @@ $neededcmdlets | ForEach-Object {
   }
 }
 Install-Module -Name Profiler
-$trace = Trace-Script -ScriptBlock {
+#$trace = Trace-Script -ScriptBlock {
   # Define the profile path
   $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
@@ -57,11 +57,11 @@ $trace = Trace-Script -ScriptBlock {
     Install-Module -Name Profiler -Force
   }
 
-  #$trace = Trace-Script -ScriptBlock {
+
 
   # install and import modules needed for my profile
   # I've hardcoded these into the Install-Dependencies function :(
-  Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
+  #Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
 
 
   # Variables for the commandline
@@ -139,5 +139,5 @@ $trace = Trace-Script -ScriptBlock {
   }
 
 
-}
-$trace.Top50SelfDuration | Out-GridView
+#}
+#$trace.Top50SelfDuration | Out-GridView
