@@ -121,7 +121,7 @@ function Update-VSCode {
         finally {
             if (-not($DoNotAddDataFolder)) {
                 # add data folder to keep everything within the parent folder
-                $folderstoadd = @("$($XWAYSUSB.DriveLetter)\vscode\data", "$($XWAYSUSB.DriveLetter)\vscode-insider\data")
+                $folderstoadd = @("$($XWAYSUSB.DriveLetter)\*\vscode\data", "$($XWAYSUSB.DriveLetter)\*\vscode-insider\data")
                 $folderstoadd | ForEach-Object {
                     if (-not(Test-Path -Path $_)) {
                         New-Item -Path $_ -ItemType Directory -Force
