@@ -63,13 +63,13 @@ function Update-VSCode {
                     Version           = 'stable'
                     URL               = 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive'
                     DownloadDirectory = "$ENV:USERPROFILE\downloads\vscodestable"
-                    DestinationPath   = "$($XWAYSUSB.DriveLetter)\vscode\"
+                    DestinationPath   = $(Resolve-Path -Path "$($XWAYSUSB.DriveLetter)\*\vscode\").Path
                 },
                 @{
                     Version           = 'insider'
                     URL               = 'https://code.visualstudio.com/sha/download?build=insider&os=win32-x64-archive'
                     DownloadDirectory = "$ENV:USERPROFILE\downloads\vscodeinsiders"
-                    DestinationPath   = "$($XWAYSUSB.DriveLetter)\vscode-insider\"
+                    DestinationPath   = $(Resolve-Path -Path "$($XWAYSUSB.DriveLetter)\*\vscode-insider\").Path
                 }
             )
 
