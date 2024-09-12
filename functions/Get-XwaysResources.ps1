@@ -227,7 +227,7 @@ function Get-XwaysResources {
     Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
 
     # Extract zip to destination folder in the Excire folder
-    Out-Host -InputObject "Extracting Excire to $XWaysRoot\Excire"
+    Out-Host -InputObject "Extracting Excire to $($XWaysRoot)Excire"
     Expand-Archive -Path "$XWaysRoot\Excire*.zip" -DestinationPath "$XWaysRoot" -Force
 
     # Remove the zip file
