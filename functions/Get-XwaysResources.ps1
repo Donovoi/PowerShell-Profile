@@ -222,16 +222,22 @@ function Get-XwaysResources {
     }
 
     Out-Host -InputObject 'Downloading Excire.zip and Conditional Coloring.cfg'
-    $urls = 'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg'
+    $urls = 'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg', 'https://www.x-ways.net/res/aff4-xways-2.1.1.zip'
 
     Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
 
     # Extract zip to destination folder in the Excire folder
-    Out-Host -InputObject "Extracting Excire to $($XWaysRoot)Excire"
+    Out-Host -InputObject "Extracting zip to $($XWaysRoot)"
     Expand-Archive -Path "$XWaysRoot\Excire*.zip" -DestinationPath "$XWaysRoot" -Force
+    $aff4pluginfolder = Join-Path -Path $XWaysRoot -ChildPath 'aff4'
+    if (-not (Test-Path $aff4pluginfolder)) {
+      New-Item -Path $aff4pluginfolder -ItemType Directory -Force
+    }
+    Expand-Archive -Path "$XWaysRoot\aff4*.zip" -DestinationPath $aff4pluginfolder -Force
 
     # Remove the zip file
     Remove-Item -Path "$XWaysRoot\Excire.zip" -Force
+    Remove-Item -Path "$XWaysRoot\aff4*.zip" -Force
 
     if ($GetTemplates) {
 
