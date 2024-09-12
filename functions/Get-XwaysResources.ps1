@@ -222,13 +222,13 @@ function Get-XwaysResources {
     }
 
     Out-Host -InputObject 'Downloading Excire.zip and Conditional Coloring.cfg'
-    $urls = 'https://x-ways.net/res/Excire.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg'
+    $urls = 'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg'
 
     Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
 
     # Extract zip to destination folder in the Excire folder
-    Out-Host -InputObject "Extracting Excire.zip to $XWaysRoot\Excire"
-    Expand-Archive -Path "$XWaysRoot\Excire.zip" -DestinationPath "$XWaysRoot\Excire" -Force
+    Out-Host -InputObject "Extracting Excire to $XWaysRoot\Excire"
+    Expand-Archive -Path "$XWaysRoot\Excire*.zip" -DestinationPath "$XWaysRoot" -Force
 
     # Remove the zip file
     Remove-Item -Path "$XWaysRoot\Excire.zip" -Force
