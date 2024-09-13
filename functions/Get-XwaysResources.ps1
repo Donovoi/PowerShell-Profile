@@ -221,7 +221,7 @@ function Get-XwaysResources {
       'Referer'       = 'https://x-ways.net/res/'
     }
 
-    Out-Host -InputObject 'Downloading Excire.zip and Conditional Coloring.cfg'
+    Out-Host -InputObject 'Downloading Excire.zip, Conditional Coloring.cfg, and aff4-xways-2.1.1.zip'
     $urls = 'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg', 'https://www.x-ways.net/res/aff4-xways-2.1.1.zip'
 
     Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
