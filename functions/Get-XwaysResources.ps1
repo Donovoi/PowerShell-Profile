@@ -226,18 +226,33 @@ function Get-XwaysResources {
 
     Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
 
-    # Extract zip to destination folder in the Excire folder
-    Out-Host -InputObject "Extracting zip to $($XWaysRoot)"
-    Expand-Archive -Path "$XWaysRoot\Excire*.zip" -DestinationPath "$XWaysRoot" -Force
-    $aff4pluginfolder = Join-Path -Path $XWaysRoot -ChildPath 'aff4'
-    if (-not (Test-Path $aff4pluginfolder)) {
-      New-Item -Path $aff4pluginfolder -ItemType Directory -Force
+    function Invoke-NormalizePath {
+      param (
+        [string]$path
+      )
+      return [System.IO.Path]::Combine($path, [System.IO.Path]::GetFileName($path))
     }
-    Expand-Archive -Path "$XWaysRoot\aff4*.zip" -DestinationPath $aff4pluginfolder -Force
 
-    # Remove the zip file
-    Remove-Item -Path "$XWaysRoot\Excire.zip" -Force
-    Remove-Item -Path "$XWaysRoot\aff4*.zip" -Force
+    function Expand-Zip {
+      param (
+        [string]$rootPath,
+        [string]$pluginName
+      )
+
+      $pluginFolder = Join-Path -Path $rootPath -ChildPath $pluginName
+      if (-not (Test-Path $pluginFolder)) {
+        New-Item -Path $pluginFolder -ItemType Directory -Force
+      }
+      Expand-Archive -Path "$rootPath\$pluginName*.zip" -DestinationPath $pluginFolder -Force
+      Remove-Item -Path "$rootPath\$pluginName*.zip" -Force
+    }
+
+    # Normalize the root path
+    $XWaysRoot = Invoke-NormalizePath -path $XWaysRoot
+
+    Out-Host -InputObject "Extracting zips to $($XWaysRoot)"
+    Expand-Zip -rootPath $XWaysRoot -pluginName 'Excire'
+    Expand-Zip -rootPath $XWaysRoot -pluginName 'aff4'
 
     if ($GetTemplates) {
 
