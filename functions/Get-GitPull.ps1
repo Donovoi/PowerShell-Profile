@@ -34,10 +34,33 @@ function Get-GitPull {
                 $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
-            Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+            # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose 
+            # if write-logg is not available use write-OutPut, but check first
+            if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
+                Write-Output "Importing cmdlet: $_"
+            }
+            else {
+                Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+            }
             $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
             $Cmdletstoinvoke | Import-Module -Force
         }
+    }
+
+    # install rust if it is not installed. Do it without any need for user input
+    Write-Logg -Message 'Checking if Rust is installed...' -Level Verbose
+    if (-not (Test-Path -Path "$env:USERPROFILE\.cargo\bin\rustup.exe")) {
+        Write-Logg -Message 'Rust is not installed. Installing Rust...' -Level Verbose
+        $rustInstaller = 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe'
+        $rustInstallerPath = "$env:TEMP\rustup-init.exe"
+        Invoke-WebRequest -Uri $rustInstaller -OutFile $rustInstallerPath
+        Start-Process -FilePath $rustInstallerPath -ArgumentList '-y' -Wait
+        Remove-Item -Path $rustInstallerPath -Force
+    }
+
+    # make sure we have cargo available, if not just call the cargo exe full path
+    if (-not (Get-Command -Name 'cargo' -ErrorAction SilentlyContinue)) {
+        $env:Path += ";$env:USERPROFILE\.cargo\bin"
     }
 
     # Get all the repositories in the path specified
@@ -105,6 +128,7 @@ function Get-GitPull {
     crate-type = ["cdylib"]
 
     [package]
+    edition = '2021'
     name = "findfiles"
     version = "0.1.0"
 
