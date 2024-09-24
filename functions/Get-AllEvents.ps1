@@ -260,7 +260,7 @@ function Get-AllEvents {
       elseif (-not (Test-Path $TimelineExplorerPath)) {
         Write-Logg -Message "Timeline Explorer not found at $TimelineExplorerPath" -Level Warning
         Write-Logg -Message 'Downloading now from https://ericzimmerman.github.io/#!index.md' -Level Info
-        $downloadUrl = 'https://f001.backblazeb2.com/file/EricZimmermanTools/net6/TimelineExplorer.zip'
+        $downloadUrl = 'https://download.ericzimmermanstools.com/net6/TimelineExplorer.zip'
         $downloadPath = "$env:TEMP"
         Get-FileDownload -Url $downloadUrl -DestinationDirectory $downloadPath -UseAria2
         $downloadzip = "$env:TEMP\TimelineExplorer.zip"
