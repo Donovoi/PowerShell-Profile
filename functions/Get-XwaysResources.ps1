@@ -315,5 +315,5 @@ function Get-XwaysResources {
     Remove-Item -Path $ariafiles -Force -Recurse
     Out-Host -InputObject 'All Done!'
   }
-  
+
 }
