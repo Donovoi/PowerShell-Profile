@@ -34,7 +34,7 @@ function Get-GitPull {
                 $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
-            # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose 
+            # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
             # if write-logg is not available use write-OutPut, but check first
             if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
                 Write-Output "Importing cmdlet: $_"

@@ -36,7 +36,10 @@ function Get-AllEvents {
     [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer\TimelineExplorer.exe",
 
     [Parameter()]
-    [switch]$ViewInTimelineExplorer
+    [switch]$ViewInTimelineExplorer,
+
+    [Parameter()]
+    [string[]]$CollectEVTXFromDirectory = ''
   )
 
   begin {
@@ -177,37 +180,53 @@ function Get-AllEvents {
     function Get-Events {
       [CmdletBinding()]
       param(
+        [Parameter()]
         [datetime]$startDateTime,
-        [datetime]$endDateTime
+
+        [Parameter()]
+        [datetime]$endDateTime,
+
+        [Parameter()]
+        [string[]]$CollectEVTXFromDirectory = ''
       )
 
       try {
-        try {
-          $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ErrorAction Stop
-          $err | ForEach-Object -Process {
-            $warnmessage = $_.Exception.Message -replace '.*about the ', ''
-            Write-Warning $warnmessage
-          }
-          # Get all event logs
-          $Events = $EventLogs | ForEach-Object -Parallel {
-            try {
-              Get-WinEvent -FilterHashtable @{
-                LogName   = "$($_.LogName)"
-                StartTime = $using:startDateTime
-                EndTime   = $using:endDateTime
-              } -MaxEvents $([System.Int64]::MaxValue) -Force -ErrorAction stop
-            }
-            catch {
-              # Output the log name along with the error message
-              $errorMessage = "Error querying log $($_): $($_.Exception.Message)"
-              Write-Verbose $errorMessage
-            }
-          } -ThrottleLimit 100
-        }
-        catch {
-          Write-Warning "An error occurred: $($_.Exception.Message)"
-        }
+        if ([string]::IsNullOrEmpty($CollectEVTXFromDirectory)) {
 
+
+          try {
+            $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ErrorAction Stop
+            $err | ForEach-Object -Process {
+              $warnmessage = $_.Exception.Message -replace '.*about the ', ''
+              Write-Warning $warnmessage
+            }
+            # Get all event logs
+            $Events = $EventLogs | ForEach-Object -Parallel {
+              try {
+                Get-WinEvent -FilterHashtable @{
+                  LogName   = "$($_.LogName)"
+                  StartTime = $using:startDateTime
+                  EndTime   = $using:endDateTime
+                } -MaxEvents $([System.Int64]::MaxValue) -Force -ErrorAction stop
+              }
+              catch {
+                # Output the log name along with the error message
+                $errorMessage = "Error querying log $($_): $($_.Exception.Message)"
+                Write-Verbose $errorMessage
+              }
+            } -ThrottleLimit 100
+          }
+          catch {
+            Write-Warning "An error occurred: $($_.Exception.Message)"
+            throw
+          }
+        }
+        else {
+          $Events = Get-WinEvent -Path $CollectEVTXFromDirectory -FilterHashtable @{
+            StartTime = $startDateTime
+            EndTime   = $endDateTime
+          } -MaxEvents $([System.Int64]::MaxValue) -Force -ErrorAction stop
+        }
 
         if ($Events.Count -gt 0) {
           $EventsSorted = $Events | Sort-Object -Property TimeCreated | Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
@@ -225,9 +244,14 @@ function Get-AllEvents {
     function Export-EventsToCsv {
       [CmdletBinding()]
       param (
+        [Parameter()]
         [object[]]$Events = $EventsSorted,
+
+        [Parameter()]
         [string]$ExportFolder
+
       )
+
       $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
       $filename = "Events_${date}_${ENV:COMPUTERNAME}.csv" -replace ':', '_' -replace '/', '-'
 
@@ -242,6 +266,7 @@ function Get-AllEvents {
         write-logg -message 'Export failed. Please check the log for details.' -level error
         throw
       }
+
       return $fullPath
     }
 
@@ -315,6 +340,13 @@ function Get-AllEvents {
   }
 
   process {
-    Initialize-EventLogGui
+    if ([string]::IsNullOrEmpty($CollectEVTXFromDirectory)) {
+      Initialize-EventLogGui
+    }
+    else {
+      $events = Get-Events -startDateTime $startDateTime -endDateTime $endDateTime -CollectEVTXFromDirectory $CollectEVTXFromDirectory
+      Out-EventsFormatted -Events $events -ExportToCsv:$ExportToCsv -ExportCSVToFolder:$ExportCSVToFolder -ViewInTimelineExplorer:$ViewInTimelineExplorer -TimelineExplorerPath:$TimelineExplorerPath
+    }
+
   }
 }
