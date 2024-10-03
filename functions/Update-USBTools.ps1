@@ -4,7 +4,7 @@ function Update-USBTools {
 
   )
 
-  $neededcmdlets = @('Write-Logg', 'Get-Properties', 'Show-TUIMenu', 'Update-DotNetSDK', 'Update-VisualStudio', 'Get-KapeAndTools', 'Get-GitPull', 'Update-PowerShell', 'Get-LatestSIV', 'Update-VScode', 'Update-VcRedist')
+  $neededcmdlets = @('Write-Logg', 'Get-Properties', 'Show-TUIMenu', 'Update-DotNetSDK', 'Update-VisualStudio', 'Get-KapeAndTools', 'Get-GitPull', 'Update-PowerShell', 'Update-VScode', 'Update-VcRedist')
   $neededcmdlets | ForEach-Object {
     if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
       if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -58,19 +58,18 @@ function Update-USBTools {
     }
   }
   $menuItem0 = [MenuItem]::new('All', { chocolatey upgrade all --ignore-dependencies; winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements; Update-VisualStudio; Update-VSCode; Get-KapeAndTools; Get-GitPull; Update-PowerShell; Get-LatestSIV; winget source reset --disable-interactivity --force; winget source update --disable-interactivity; winget upgrade --all --include-unknown --wait -h --force --accept-source-agreements --accept-package-agreements; DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow; Update-DotNetSDK })
-  $menuItem1 = [MenuItem]::new('UpgradeChocolatey', { $ENV:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path;chocolatey upgrade all --ignore-dependencies })
+  $menuItem1 = [MenuItem]::new('UpgradeChocolatey', { $ENV:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path; chocolatey upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
   $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
   $menuItem4 = [MenuItem]::new('UpdateVSCode', { Update-VSCode })
   $menuItem5 = [MenuItem]::new('GetKapeAndTools', { Get-KapeAndTools })
   $menuItem6 = [MenuItem]::new('GetGitPull', { Get-GitPull })
   $menuItem7 = [MenuItem]::new('UpdatePowerShell', { Update-PowerShell })
-  $menuItem8 = [MenuItem]::new('GetLatestSIV', { Get-LatestSIV })
-  $menuItem9 = [MenuItem]::new('ResetWingetSource', { winget source reset --disable-interactivity --force })
-  $menuItem10 = [MenuItem]::new('UpdateWingetSource', { winget source update --disable-interactivity })
-  $menuItem11 = [MenuItem]::new('UpgradeWinget', {winget pin add --id dell.DisplayManager --blocking; winget upgrade --all --accept-source-agreements --accept-package-agreements })
-  $menuItem12 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
-  $menuItem13 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
-  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
-  Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14) -ErrorAction SilentlyContinue
+  $menuItem8 = [MenuItem]::new('ResetWingetSource', { winget source reset --disable-interactivity --force })
+  $menuItem9 = [MenuItem]::new('UpdateWingetSource', { winget source update --disable-interactivity })
+  $menuItem10 = [MenuItem]::new('UpgradeWinget', { winget pin add --id dell.DisplayManager --blocking; winget upgrade --all --accept-source-agreements --accept-package-agreements })
+  $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
+  $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
+  $menuItem13 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
+  Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13) -ErrorAction SilentlyContinue
 }
