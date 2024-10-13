@@ -31,7 +31,7 @@ function Invoke-EverythingSearch {
     # Everything executable path
     [Parameter(Mandatory = $false)]
     [string]
-    $EverythingPortable,
+    $EverythingPortableExe,
     [Parameter(Mandatory = $false)]
     [string]
     $EverythingDirectory = $PWD,
@@ -66,13 +66,13 @@ function Invoke-EverythingSearch {
   }
     
 
-  $EverythingPortable = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-  if (-not ($EverythingPortable)) {
+  $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+  if (-not ($EverythingPortableExe)) {
     Write-Logg -Message 'Everything executable not found' -Level Info
     Write-Logg -Message 'Downloading Everything Portable' -Level Info
     $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode
     Expand-Archive -Path $everythingPortablezip -DestinationPath $EverythingDirectory -Force
-    $EverythingPortable = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
   }
   try {
 
@@ -353,16 +353,106 @@ function Invoke-EverythingSearch {
       # 'es.exe -size -dm -sizecolor 0x0d -dmcolor 0x0b -save-settings' = '# Show size and date modified columns, set colors, and save settings.'
     }
 
-    Start-Process -FilePath $EverythingPortable -WindowStyle Minimized
-    cmd.exe /c "$EverythingCLI $($SearchTerm + ' ' + $ESOptions.Keys -join ' ')"
+    # Start Everything Portable but throw if it does not start after 5 seconds
+    try {
+      # Before startung we need to ensure alpha_instance is 0 in the Everything-1.5a.ini file
+      # Get the first Everything-*.ini file, excluding backups
+      $everythingini = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything-*.ini' -Exclude '*backup.ini' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+
+      # Stop everything process if it is running, make sure we only stop the ones with running from $EverythingDirectory
+      $ProcessToKill = Get-Process -Name 'Everything*' -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "$EverythingDirectory*" }
+      if ($ProcessToKill) {      
+        Write-Logg -Message "Stopping Everything processes: $($ProcessToKill.Name -join ', ')" -Level Warning
+        Stop-Process -Name $ProcessToKill -Force -ErrorAction SilentlyContinue
+      }
+      # Check if the file is locked by any process
+      $everythinginilock = $false
+      try {
+        # Attempt to open the file to detect if it's locked
+        $fileStream = [System.IO.File]::Open($everythingini, 'Open', 'ReadWrite', [System.IO.FileShare]::None)
+        $fileStream.Close()
+      }
+      catch {
+        # If an exception is thrown, assume the file is locked
+        $everythinginilock = $true
+      }
+
+      # If the file is locked, display error and attempt to terminate the locking process (optional)
+      if ($everythinginilock) {
+        Write-Logg -Message 'Everything ini file is locked' -Level Error
+        Write-Logg -Message 'Please close the file and try again' -Level Error
+        throw 'Everything ini file is locked'
+      }
+
+      # Proceed with modifying the ini file
+      $everythinginicontent = Get-Content -Path $everythingini
+      $everythinginicontentfixed = $everythinginicontent -replace 'alpha_instance=1', 'alpha_instance=0'
+      $everythinginicontentfixed | Set-Content -Path $everythingini -Force
+
+      Write-Logg -Message "Successfully modified the ini file at $everythingini" -Level Info
+
+
+      # Get the full path of the Everything executable
+      $EverythingExeResolved = $(Resolve-Path -Path $EverythingPortableExe).Path
+      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -WindowStyle Minimized -ErrorAction Stop -PassThru
+      $count = 0
+      while (-not (Get-Process -Id $everythingprocess.Id -ErrorAction SilentlyContinue)) {
+        Start-Sleep -Seconds 1
+        $count++
+        if ($count -eq 4) {
+          throw 'Everything did not start'
+        }
+      }
+    }
+    catch {
+      Write-Logg -Message "Everything did not start. Executable is found at $EverythingExeResolved" -Level Error
+      Write-Logg -Message $_.Exception.Message -Level Error
+    }
+    
+    # Create a new ProcessStartInfo object
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $EverythingCLI
+    $processInfo.Arguments = "$($SearchTerm + ' ' + $ESOptions.Keys -join ' ')"
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+
+    # Create and start the process
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processInfo
+    $process.Start() | Out-Null
+
+    # Capture the output and error asynchronously
+    $stdOutput = $process.StandardOutput.ReadToEnd()
+    $stdError = $process.StandardError.ReadToEnd()
+
+    # Wait for the process to exit
+    $process.WaitForExit()
+
+    # Check if any errors were found in the stderr output
+    if ($stdError -match 'Error:') {
+      Write-Logg -Message "Error detected: $stdError" -Level Error
+    }
+
+    # Display the standard output
+    if ($stdOutput) {
+      Write-Logg -Message "CLI Output: $stdOutput" -level info
+    }
+
+    # Optionally handle errors
+    if ($stdError) {
+      Write-Logg -Message "CLI Error Output: $stdError" -level error
+    }
+
   }
   catch {
     Write-Logg -Message $_.Exception.Message -Level Error
   }
   finally {
-    # Uninstall Client Service
-    Stop-Process -Name 'Everything*' -Force
-    & $EverythingPortable '-uninstall-service'
+    # Uninstall make sure the process we started is now closed
+    if ($everythingprocess) {
+      Stop-Process -Id $everythingprocess.Id -Force -ErrorAction SilentlyContinue
+    }
   }
 }
-
