@@ -31,13 +31,22 @@ function Invoke-EverythingSearch {
     # Everything executable path
     [Parameter(Mandatory = $false)]
     [string]
-    $EverythingPortableExe,
+    $EverythingPortableExe = "$EverythingDirectory\Everything64.exe",
     [Parameter(Mandatory = $false)]
     [string]
-    $EverythingDirectory = $PWD,
+    $EverythingDirectory = $(Join-Path -Path $ENV:Temp -ChildPath '\Everything'),
+
     [Parameter(Mandatory = $false)]
     [string]
-    $SearchTerm = '*'
+    $EverythingCLI = "$EverythingDirectory\es.exe",
+
+    [Parameter(Mandatory = $false)]
+    [string]
+    $SearchInDirectory = $($ENV:SystemDrive) + '\',
+
+    [Parameter(Mandatory = $false)]
+    [string]
+    $SearchTerm = $SearchInDirectory + ' ' + '*'
   )
 
   # Import the required cmdlets
@@ -55,36 +64,37 @@ function Invoke-EverythingSearch {
     }
   }
 
+  # Make sure everythingdirectory exists
+  if (-not (Test-Path -Path $EverythingDirectory)) {
+    New-Item -Path $EverythingDirectory -ItemType Directory -Force
+  }
+
   # Download Everything if not found
-  $EverythingCLI = Get-ChildItem -Path $EverythingDirectory -Filter 'es.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-  if (-not($EverythingCLI)) {
+  $EverythingCLIResolved = $(Resolve-Path -Path $EverythingCLI -ErrorAction SilentlyContinue).Path
+  if (-not($EverythingCLIResolved) ) {
     Write-Logg -Message 'Everything CLI not found' -Level Info
     Write-Logg -Message 'Downloading Everything CLI' -Level Info
-    $everythingclizip = Get-FileDownload -URL 'https://www.voidtools.com/ES-1.1.0.27.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode
+    $everythingclizip = Get-FileDownload -URL 'https://www.voidtools.com/ES-1.1.0.27.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
     Expand-Archive -Path $everythingclizip -DestinationPath $EverythingDirectory -Force
     $EverythingCLI = Get-ChildItem -Path $EverythingDirectory -Filter 'es.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
   }
-    
 
-  $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-  if (-not ($EverythingPortableExe)) {
+
+  $EverythingPortableExeResolved = $(Resolve-Path -Path $EverythingPortableExe -ErrorAction SilentlyContinue).Path
+  if (-not ($EverythingPortableExeResolved)) {
     Write-Logg -Message 'Everything executable not found' -Level Info
     Write-Logg -Message 'Downloading Everything Portable' -Level Info
-    $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode
+    $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
     Expand-Archive -Path $everythingPortablezip -DestinationPath $EverythingDirectory -Force
     $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
   }
   try {
-
     # We will now start everything portable with the right arguments
-
-
-    # create the command line arguments for everything portable
     $EverythingPortableOptions = @{
       #'-filename *.evt' = '# <filename> Search for a file or folder by filename.'
       ## Installation Options
       #'-app-data'                                                              = '# Store settings and data in %APPDATA%\Everything or in the same location as the executable.'
-      '-noapp-data' = '# Store settings and data in the same location as the executable.'
+      #'-noapp-data' = '# Store settings and data in the same location as the executable.'
       #'-choose-language'                                                       = '# Show the language selection page.'
       #'-choose-volumes'                  = '# Do not automatically index volumes, removes all NTFS volumes from the index.'
       #'-service-port <port>'                                                   = '# Specify the port of the Everything service.'
@@ -192,7 +202,7 @@ function Invoke-EverythingSearch {
       #'-?'                                                                     = '# Show help.'
       #'-h'                                                                     = '# Show help (alternative command).'
       #'-help'                                                                  = '# Show help (alternative command).'
-      '-admin'      = '# Run Everything as an administrator.'
+      #'-admin'      = '# Run Everything as an administrator.'
       #'-client-svc'                                                            = '# Everything client service entry point.'
       #'-config <filename>'                                                     = '# Specify the ini file to use for configuration.'
       #'-console'                     = '# Show the debugging console.'
@@ -355,13 +365,27 @@ function Invoke-EverythingSearch {
 
     # Start Everything Portable but throw if it does not start after 5 seconds
     try {
+      # Get the full path of the Everything executable
+      $EverythingExeResolved = $(Resolve-Path -Path $EverythingPortableExe).Path
       # Before startung we need to ensure alpha_instance is 0 in the Everything-1.5a.ini file
       # Get the first Everything-*.ini file, excluding backups
       $everythingini = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything-*.ini' -Exclude '*backup.ini' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+      if (-not $everythingini) {
+        Write-Logg -Message 'Everything ini file not found' -Level Warning
+        Write-Logg -Message "Creating Everything ini file in $EverythingDirectory" -Level Warning
+        $everythingtempprocess = Start-Process -FilePath $EverythingExeResolved -ArgumentList '-quit', ' -noapp-data'
+      }
+
+      # check if the ini file has been created
+      $everythingini = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything-*.ini' -Exclude '*backup.ini' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+      if (-not $everythingini) {
+        Write-Logg -Message 'Everything ini file not found' -Level Error
+        throw 'Everything ini file not found'
+      }
 
       # Stop everything process if it is running, make sure we only stop the ones with running from $EverythingDirectory
       $ProcessToKill = Get-Process -Name 'Everything*' -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "$EverythingDirectory*" }
-      if ($ProcessToKill) {      
+      if ($ProcessToKill) {
         Write-Logg -Message "Stopping Everything processes: $($ProcessToKill.Name -join ', ')" -Level Warning
         Stop-Process -Name $ProcessToKill -Force -ErrorAction SilentlyContinue
       }
@@ -391,10 +415,8 @@ function Invoke-EverythingSearch {
 
       Write-Logg -Message "Successfully modified the ini file at $everythingini" -Level Info
 
-
-      # Get the full path of the Everything executable
-      $EverythingExeResolved = $(Resolve-Path -Path $EverythingPortableExe).Path
-      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -WindowStyle Minimized -ErrorAction Stop -PassThru
+      # Start Everything Portable
+      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -ArgumentList $($EverythingPortableOptions.Keys -join ' ') -WindowStyle Minimized -ErrorAction Stop -PassThru
       $count = 0
       while (-not (Get-Process -Id $everythingprocess.Id -ErrorAction SilentlyContinue)) {
         Start-Sleep -Seconds 1
@@ -408,7 +430,7 @@ function Invoke-EverythingSearch {
       Write-Logg -Message "Everything did not start. Executable is found at $EverythingExeResolved" -Level Error
       Write-Logg -Message $_.Exception.Message -Level Error
     }
-    
+
     # Create a new ProcessStartInfo object
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $EverythingCLI
@@ -456,3 +478,12 @@ function Invoke-EverythingSearch {
     }
   }
 }
+# Example
+# $searchParams = @{
+#   SearchInDirectory = 'F:\'
+#   SearchTerm        = '*.*'
+#   Verbose           = $true
+#   ErrorAction       = 'Break'
+# }
+
+# Invoke-EverythingSearch @searchParams
