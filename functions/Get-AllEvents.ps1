@@ -44,7 +44,7 @@ function Get-AllEvents {
 
   begin {
     # Import the required cmdlets
-    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Test-IsAdministrator')
+    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Test-IsAdministrator', 'Invoke-EverythingSearch')
     $neededcmdlets | ForEach-Object {
       if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
         if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -235,95 +235,10 @@ function Get-AllEvents {
           }
         }
         else {
-          # Use the ParallelFileSearcher class to search for EVTX files in parallel
-          Add-Type -TypeDefinition @'
-using System;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Threading.Tasks;
-
-public class UniqueParallelFileSearcher
-{
-    // Delegate with an additional severity parameter and async Task return type
-    public static Func<string, string, Task> LogMessage;
-
-    public static async Task<ConcurrentQueue<string>> SearchFilesAsync(string rootDirectory, string searchPattern)
-    {
-        var fileQueue = new ConcurrentQueue<string>();
-        var directoriesToProcess = new ConcurrentQueue<string>();
-
-        // Add the root directory to the queue to be processed
-        directoriesToProcess.Enqueue(rootDirectory);
-        if (LogMessage != null) await LogMessage("Info", $"[Info] Starting search in root directory: {rootDirectory}");
-
-        // Step 1: Custom directory enumeration using a queue
-        while (directoriesToProcess.TryDequeue(out string currentDirectory))
-        {
-            try
-            {
-                if (LogMessage != null) await LogMessage("Info", $"[Info] Enumerating directories under: {currentDirectory}");
-
-                // Enumerate and add subdirectories to the queue
-                foreach (var subDirectory in Directory.GetDirectories(currentDirectory))
-                {
-                    if (LogMessage != null) await LogMessage("Info", $"[Info] Discovered Directory: {subDirectory}");
-                    directoriesToProcess.Enqueue(subDirectory);
-                }
-
-                // Step 2: Collect files in the current directory
-                foreach (var file in Directory.EnumerateFiles(currentDirectory, searchPattern, SearchOption.TopDirectoryOnly))
-                {
-                    if (LogMessage != null) await LogMessage("Info", $"[Info] Found File: {file}");
-                    fileQueue.Enqueue(file);
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                if (LogMessage != null) await LogMessage("Warning", $"[Access Denied] Directory: {currentDirectory}");
-            }
-            catch (Exception ex)
-            {
-                if (LogMessage != null) await LogMessage("Error", $"[Error] Failed to process directory {currentDirectory}: {ex.Message}");
-            }
-        }
-
-        if (LogMessage != null) await LogMessage("Info", $"[Info] Total files found: {fileQueue.Count}");
-        return fileQueue;
-    }
-}
-'@ -Language CSharp
-
-          # Define an async logging function
-          $loggingActionAsync = [Func[string, string, [System.Threading.Tasks.Task]]] {
-            param($level, $msg)
-            # Start a Task to asynchronously log the message using a lambda
-            [System.Threading.Tasks.Task]::Run([Func[System.Threading.Tasks.Task]] {
-                switch ($level) {
-                  'Info' {
-                    Write-Logg -Message $msg -Level Info
-                  }
-                  'Warning' {
-                    Write-Logg -Message $msg -Level Warning
-                  }
-                  'Error' {
-                    Write-Logg -Message $msg -Level Error
-                  }
-                  default {
-                    Write-Logg -Message $msg -Level Info
-                  }
-                }
-                return [System.Threading.Tasks.Task]::CompletedTask
-              })
-          }
-
-          # Set the LogMessage delegate in the C# class to use the async logging action
-          [UniqueParallelFileSearcher]::LogMessage = $loggingActionAsync
-
-          # Run the search asynchronously
-          $filesTask = [UniqueParallelFileSearcher]::SearchFilesAsync($CollectEVTXFromDirectory, '*.evt*')
+          # Use Invoke-EverythingSearch to search for all EVTX files in the specified directories
 
           # Await the task to complete
-          $files = $filesTask.GetAwaiter().GetResult()
+          $files = Invoke-EverythingSearch -SearchString '*.evt*' -SearchInDirectory $CollectEVTXFromDirectory.GetEnumerator() -ErrorAction Stop
 
           # Output the result
           Write-Output "Total files found: $($files.Count)"
