@@ -265,9 +265,6 @@ function Get-FileDownload {
             Write-Error -Message "An error occurred: $_"
             throw
         }
-        # only return the downloaded file if it is not empty and not containing the term *aria2*
-        if ($Script:DownloadedFile -and $Script:DownloadedFile -notlike '*aria2*') {
-            return $Script:DownloadedFile
-        }
+        return $Script:DownloadedFile
     }
 }
