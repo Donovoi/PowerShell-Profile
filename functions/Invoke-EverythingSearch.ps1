@@ -1,46 +1,45 @@
 <#
 .SYNOPSIS
-    Uses voidtools' Everything to retrieve a list of all files in a specified directory and its subdirectories.
+Uses Voidtools' Everything to retrieve a list of all files in a specified directory and its subdirectories.
 
 .DESCRIPTION
-    The Invoke-EverythingSearch cmdlet allows you to search for files within a specified directory and its subdirectories using voidtools' Everything. You can either provide a directory path or use Everything's query syntax to perform the search.
+The Invoke-EverythingSearch cmdlet searches for files within a specified directory and its subdirectories using Voidtools' Everything. You can provide a directory path or use Everything's query syntax to perform the search. The cmdlet handles automatic downloading of required executables if not available.
 
 .PARAMETER EverythingPortableExe
-    The path to the Everything executable. This parameter is optional and defaults to "$EverythingDirectory\Everything64.exe".
+Specifies the path to the Everything executable. Defaults to "$EverythingDirectory\Everything64.exe" if not specified.
 
 .PARAMETER EverythingDirectory
-    The directory where the Everything executable is located. This parameter is optional and defaults to the temporary directory.
+Specifies the directory where the Everything executable is located. Defaults to the system's temporary directory if not specified.
 
 .PARAMETER EverythingCLI
-    The path to the Everything command-line interface executable. This parameter is optional and defaults to "$EverythingDirectory\es.exe".
+Specifies the path to the Everything command-line interface executable. Defaults to "$EverythingDirectory\es.exe" if not specified.
 
 .PARAMETER SearchInDirectory
-    The directory to search in. This parameter is optional and defaults to the system drive root directory.
+Specifies the directory to search in. If not specified, the search is performed in all indexed locations by Everything.
 
 .PARAMETER EverythingCLIDownloadURL
-    The URL to download the Everything CLI. This parameter is optional and defaults to 'https://www.voidtools.com/ES-1.1.0.27.x64.zip'.
+Specifies the URL to download the Everything CLI. Defaults to 'https://www.voidtools.com/ES-1.1.0.27.x64.zip'.
 
 .PARAMETER EverythingPortableDownloadURL
-    The URL to download the Everything Portable executable. This parameter is optional and defaults to 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip'.
+Specifies the URL to download the Everything Portable executable. Defaults to 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip'.
 
 .PARAMETER SearchTerm
-    The search term to use. This parameter is optional and defaults to '*'.
+Specifies the search term to use. Defaults to '*' to match all files.
 
 .NOTES
-    This function is not supported on Linux systems.
+This cmdlet is not supported on Linux systems. Requires Windows OS.
 
 .LINK
-    https://www.voidtools.com/support/everything/
+For more information, visit: https://www.voidtools.com/support/everything/
 
 .EXAMPLE
-    Invoke-EverythingSearch -EverythingPortableExe "C:\Path\To\Everything.exe"
-    Retrieves a list of all files in the specified directory and its subdirectories using the Everything executable.
+Invoke-EverythingSearch -EverythingPortableExe "C:\Path\To\Everything.exe" -SearchTerm "*.txt"
+Retrieves a list of all .txt files in all indexed locations using the specified Everything executable.
 
 .EXAMPLE
-    Invoke-EverythingSearch
-    Uses the default Everything executable path to retrieve a list of all files in the current directory and its subdirectories.
+Invoke-EverythingSearch -SearchInDirectory "C:\Users\Example"
+Uses the default Everything executable path to retrieve a list of all files in the specified directory (C:\Users\Example) and its subdirectories.
 #>
-
 
 
 function Invoke-EverythingSearch {
@@ -60,7 +59,7 @@ function Invoke-EverythingSearch {
 
     [Parameter(Mandatory = $false)]
     [string]
-    $SearchInDirectory = $(Join-Path -Path $ENV:SystemDrive -ChildPath '\'),
+    $SearchInDirectory = '',
 
     [Parameter(Mandatory = $false)]
     [string]
@@ -113,176 +112,182 @@ function Invoke-EverythingSearch {
     $everythingPortablezip = Get-FileDownload -Url $EverythingPortableDownloadURL -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
     Expand-Archive -Path $everythingPortablezip -DestinationPath $EverythingDirectory -Force
     $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    $EverythingPortableExeResolved = $(Resolve-Path -Path $EverythingPortableExe -ErrorAction SilentlyContinue).Path
   }
   try {
+    #region Everything Portable Options
+    
+    
     # We will now start everything portable with the right arguments
-    $EverythingPortableOptions = @{
-      #'-filename *.evt' = '# <filename> Search for a file or folder by filename.'
-      ## Installation Options
-      #'-app-data'                                                              = '# Store settings and data in %APPDATA%\Everything or in the same location as the executable.'
-      #'-noapp-data' = '# Store settings and data in the same location as the executable.'
-      #'-choose-language'                                                       = '# Show the language selection page.'
-      #'-choose-volumes'                  = '# Do not automatically index volumes, removes all NTFS volumes from the index.'
-      #'-service-port <port>'                                                   = '# Specify the port of the Everything service.'
-      #'-service-pipe-name <name>'                                              = '# Specify the pipe name of the Everything service.'
-      #'-enable-run-as-admin'              = '# Enable run as administrator. Requires administrative privileges.'
-      #'-disable-run-as-admin'                                                  = '# Disable run as administrator. Requires administrative privileges.'
-      #'-enable-update-notification'                                            = '# Enable update notification on startup.'
-      #'-disable-update-notification'                                           = '# Disable update notification on startup.'
-      #'-install <location>'                                                    = '# Copy Everything.exe and uninstall.exe to the new location. Creates uninstall entry in Programs and Features. Requires administrative privileges.'
-      #'-install-client-service'      = "# Install the 'Everything' client as a service. Requires administrative privileges."
-      #'-uninstall-client-service'                                              = "# Uninstall the 'Everything' client service. Requires administrative privileges."
-      #'-install-config <filename>'                                             = '# Install the specified configuration file.'
-      #'-install-desktop-shortcut'                                              = '# Create a desktop shortcut for the current user. Requires administrative privileges.'
-      #'-uninstall-desktop-shortcut'                                            = '# Delete the desktop shortcut for the current user. Requires administrative privileges.'
-      #'-install-all-users-desktop-shortcut'                                    = '# Create a desktop shortcut for all users. Requires administrative privileges.'
-      #'-uninstall-all-users-desktop-shortcut'                                  = '# Delete the desktop shortcut for all users. Requires administrative privileges.'
-      #'-install-efu-association'                                               = '# Create the EFU file association with Everything. Requires administrative privileges.'
-      #'-uninstall-efu-association'                                             = '# Remove the EFU file association with Everything. Requires administrative privileges.'
-      #'-install-folder-context-menu'                                           = '# Install folder context menus. Requires administrative privileges.'
-      #'-uninstall-folder-context-menu'                                         = '# Uninstall folder context menus. Requires administrative privileges.'
-      #'-install-options <command line options>'                                = '# Command line options to pass to the newly installed Everything.exe. Requires administrative privileges.'
-      #'-install-quick-launch-shortcut'                                         = '# Create the Search Everything quick launch shortcut.'
-      #'-uninstall-quick-launch-shortcut'                                       = '# Delete the Search Everything quick launch shortcut.'
-      #'-install-run-on-system-startup'                                         = '# Add Everything to system startup. Requires administrative privileges.'
-      #'-uninstall-run-on-system-startup'                                       = '# Remove Everything from system startup. Requires administrative privileges.'
-      #'-install-service' = "# Install the 'Everything' service. Service starts automatically. Requires administrative privileges."
-      #'-uninstall-service'                                                     = "# Uninstall the 'Everything' service. Requires administrative privileges."
-      #'-install-service-port <port>'                                           = '# Install the Everything service on the specified port. Requires administrative privileges.'
-      #'-install-service-pipe-name <name>'                                      = '# Install the Everything service with the specified pipe name. Requires administrative privileges.'
-      #'-install-start-menu-shortcuts'                                          = '# Create the Everything shortcuts in the Start menu for the current user. Requires administrative privileges.'
-      #'-uninstall-start-menu-shortcuts'                                        = '# Delete the Everything shortcuts in the Start menu for the current user. Requires administrative privileges.'
-      #'-install-all-users-start-menu-shortcuts'                                = '# Create the Everything shortcuts in the Start menu for all users. Requires administrative privileges.'
-      #'-uninstall-all-users-start-menu-shortcuts'                              = '# Delete the Everything shortcuts in the Start menu for all users. Requires administrative privileges.'
-      #'-install-url-protocol'                                                  = '# Install the URL Protocol for Everything. Requires administrative privileges.'
-      #'-uninstall-url-protocol'                                                = '# Uninstall the URL Protocol for Everything. Requires administrative privileges.'
-      #'-language <langID>'                                                     = '# Set the language to the specified language ID. Example: 1033 = English (US).'
-      #'-uninstall [path]'                                                      = '# Uninstall Everything from the specified path. Requires administrative privileges.'
-      #'-uninstall-user'                                                        = '# Uninstall Everything user files.'
-      #'-create-usn-journal \\.\C 1073741824' = '# <volume> <max-size-bytes> <allocation-delta-bytes> Create a USN Journal on the specified volume. Requires administrative privileges. '
-      #'-delete-usn-journal <volume>'                                           = '# Delete the USN Journal on the specified volume. Requires administrative privileges.'
-      #'-install-language <langID>'                                             = '# Set the installation language to the specified language ID. Requires administrative privileges.'
-      #'-save-install-options <user-install-option-flags>'                      = '# Save user install options to the registry. Example: 1 = Update notifications, 2 = Install Quick Launch shortcut.'
+    # $EverythingPortableOptions = @{
+    #   #'-filename *.evt' = '# <filename> Search for a file or folder by filename.'
+    #   ## Installation Options
+    #   #'-app-data'                                                              = '# Store settings and data in %APPDATA%\Everything or in the same location as the executable.'
+    #   #'-noapp-data' = '# Store settings and data in the same location as the executable.'
+    #   #'-choose-language'                                                       = '# Show the language selection page.'
+    #   #'-choose-volumes'                  = '# Do not automatically index volumes, removes all NTFS volumes from the index.'
+    #   #'-service-port <port>'                                                   = '# Specify the port of the Everything service.'
+    #   #'-service-pipe-name <name>'                                              = '# Specify the pipe name of the Everything service.'
+    #   #'-enable-run-as-admin'              = '# Enable run as administrator. Requires administrative privileges.'
+    #   #'-disable-run-as-admin'                                                  = '# Disable run as administrator. Requires administrative privileges.'
+    #   #'-enable-update-notification'                                            = '# Enable update notification on startup.'
+    #   #'-disable-update-notification'                                           = '# Disable update notification on startup.'
+    #   #'-install <location>'                                                    = '# Copy Everything.exe and uninstall.exe to the new location. Creates uninstall entry in Programs and Features. Requires administrative privileges.'
+    #   #'-install-client-service'      = "# Install the 'Everything' client as a service. Requires administrative privileges."
+    #   #'-uninstall-client-service'                                              = "# Uninstall the 'Everything' client service. Requires administrative privileges."
+    #   #'-install-config <filename>'                                             = '# Install the specified configuration file.'
+    #   #'-install-desktop-shortcut'                                              = '# Create a desktop shortcut for the current user. Requires administrative privileges.'
+    #   #'-uninstall-desktop-shortcut'                                            = '# Delete the desktop shortcut for the current user. Requires administrative privileges.'
+    #   #'-install-all-users-desktop-shortcut'                                    = '# Create a desktop shortcut for all users. Requires administrative privileges.'
+    #   #'-uninstall-all-users-desktop-shortcut'                                  = '# Delete the desktop shortcut for all users. Requires administrative privileges.'
+    #   #'-install-efu-association'                                               = '# Create the EFU file association with Everything. Requires administrative privileges.'
+    #   #'-uninstall-efu-association'                                             = '# Remove the EFU file association with Everything. Requires administrative privileges.'
+    #   #'-install-folder-context-menu'                                           = '# Install folder context menus. Requires administrative privileges.'
+    #   #'-uninstall-folder-context-menu'                                         = '# Uninstall folder context menus. Requires administrative privileges.'
+    #   #'-install-options <command line options>'                                = '# Command line options to pass to the newly installed Everything.exe. Requires administrative privileges.'
+    #   #'-install-quick-launch-shortcut'                                         = '# Create the Search Everything quick launch shortcut.'
+    #   #'-uninstall-quick-launch-shortcut'                                       = '# Delete the Search Everything quick launch shortcut.'
+    #   #'-install-run-on-system-startup'                                         = '# Add Everything to system startup. Requires administrative privileges.'
+    #   #'-uninstall-run-on-system-startup'                                       = '# Remove Everything from system startup. Requires administrative privileges.'
+    #   #'-install-service' = "# Install the 'Everything' service. Service starts automatically. Requires administrative privileges."
+    #   #'-uninstall-service'                                                     = "# Uninstall the 'Everything' service. Requires administrative privileges."
+    #   #'-install-service-port <port>'                                           = '# Install the Everything service on the specified port. Requires administrative privileges.'
+    #   #'-install-service-pipe-name <name>'                                      = '# Install the Everything service with the specified pipe name. Requires administrative privileges.'
+    #   #'-install-start-menu-shortcuts'                                          = '# Create the Everything shortcuts in the Start menu for the current user. Requires administrative privileges.'
+    #   #'-uninstall-start-menu-shortcuts'                                        = '# Delete the Everything shortcuts in the Start menu for the current user. Requires administrative privileges.'
+    #   #'-install-all-users-start-menu-shortcuts'                                = '# Create the Everything shortcuts in the Start menu for all users. Requires administrative privileges.'
+    #   #'-uninstall-all-users-start-menu-shortcuts'                              = '# Delete the Everything shortcuts in the Start menu for all users. Requires administrative privileges.'
+    #   #'-install-url-protocol'                                                  = '# Install the URL Protocol for Everything. Requires administrative privileges.'
+    #   #'-uninstall-url-protocol'                                                = '# Uninstall the URL Protocol for Everything. Requires administrative privileges.'
+    #   #'-language <langID>'                                                     = '# Set the language to the specified language ID. Example: 1033 = English (US).'
+    #   #'-uninstall [path]'                                                      = '# Uninstall Everything from the specified path. Requires administrative privileges.'
+    #   #'-uninstall-user'                                                        = '# Uninstall Everything user files.'
+    #   #'-create-usn-journal \\.\C 1073741824' = '# <volume> <max-size-bytes> <allocation-delta-bytes> Create a USN Journal on the specified volume. Requires administrative privileges. '
+    #   #'-delete-usn-journal <volume>'                                           = '# Delete the USN Journal on the specified volume. Requires administrative privileges.'
+    #   #'-install-language <langID>'                                             = '# Set the installation language to the specified language ID. Requires administrative privileges.'
+    #   #'-save-install-options <user-install-option-flags>'                      = '# Save user install options to the registry. Example: 1 = Update notifications, 2 = Install Quick Launch shortcut.'
 
-      ## File Lists
-      #'[file-list-filename]'                                                   = '# Open the specified file list.'
-      #'-create-file-list <filename> <path>'                                    = '# Create a file list of a specified path.'
-      #'-create-file-list-exclude-files <filters>'                              = '# Set filters to exclude files while creating a file list.'
-      #'-create-file-list-exclude-folders <filters>'                            = '# Set filters to exclude folders while creating a file list.'
-      #'-create-file-list-include-only-files <filters>'                         = '# Set filters to include only specific files while creating a file list.'
-      #'-edit <filename>'                                                       = '# Open a file list with the file list editor.'
-      #'-f <filename>'                                                          = '# Open a file list (short version).'
-      #'-filelist <filename>'                                                   = '# Open a file list.'
+    #   ## File Lists
+    #   #'[file-list-filename]'                                                   = '# Open the specified file list.'
+    #   #'-create-file-list <filename> <path>'                                    = '# Create a file list of a specified path.'
+    #   #'-create-file-list-exclude-files <filters>'                              = '# Set filters to exclude files while creating a file list.'
+    #   #'-create-file-list-exclude-folders <filters>'                            = '# Set filters to exclude folders while creating a file list.'
+    #   #'-create-file-list-include-only-files <filters>'                         = '# Set filters to include only specific files while creating a file list.'
+    #   #'-edit <filename>'                                                       = '# Open a file list with the file list editor.'
+    #   #'-f <filename>'                                                          = '# Open a file list (short version).'
+    #   #'-filelist <filename>'                                                   = '# Open a file list.'
 
-      ## ETP Options
-      #'-admin-server-share-links'                                              = '# Set link type for ETP connections.'
-      #'-server-share-links'                                                    = '# Set server link type for ETP connections.'
-      #'-ftp-links'                                                             = '# Set FTP links for ETP connections.'
-      #'-drive-links'                                                           = '# Set drive links for ETP connections.'
-      #'-connect <[username[:password]@]host[:port]>'                           = '# Connect to an ETP server.'
+    #   ## ETP Options
+    #   #'-admin-server-share-links'                                              = '# Set link type for ETP connections.'
+    #   #'-server-share-links'                                                    = '# Set server link type for ETP connections.'
+    #   #'-ftp-links'                                                             = '# Set FTP links for ETP connections.'
+    #   #'-drive-links'                                                           = '# Set drive links for ETP connections.'
+    #   #'-connect <[username[:password]@]host[:port]>'                           = '# Connect to an ETP server.'
 
-      ## Searching Options
-      #'-bookmark <name>'                                                       = '# Open a bookmark.'
-      #'-case'                                                                  = '# Enable case matching in searches.'
-      #'-nocase'                                                                = '# Disable case matching in searches.'
-      #'-diacritics'                                                            = '# Enable diacritics matching in searches.'
-      #'-nodiacritics'                                                          = '# Disable diacritics matching in searches.'
-      #'-filename *.evt*'                  = '# <filename> Search for a file or folder by filename.'
-      #'-filter <name>'                                                         = '# Select a search filter.'
-      #'-l'                                                                     = '# Load the local database.'
-      #'-local'                                                                 = '# Load the local database (alternative command).'
-      #'-matchpath'                                                             = '# Enable full path matching in searches.'
-      #'-nomatchpath'                                                           = '# Disable full path matching in searches.'
-      #'-p <path>'                                                              = '# Search for a specific path.'
-      #'-path <path>'                                                           = '# Search for a path (alternative command).'
-      #'-parent <path>'                                                         = '# Search for files and folders in a specified path without searching subfolders.'
-      #'-parentpath <path>'                                                     = '# Search for the parent of a specified path.'
-      #'-regex'                                                                 = '# Enable Regex in searches.'
-      #'-noregex'                                                               = '# Disable Regex in searches.'
-      #'-s C:\ "*.evt*"' = '#<text> Set the search text.'
-      #'-search <text>'                                                         = '# Set the search text (alternative command).'
-      #'-url <[es:]search>'                                                     = '# Set the search from an ES: URL.'
-      #'-wholeword'                                                             = '# Enable match whole word in searches.'
-      #'-nowholeword'                                                           = '# Disable match whole word in searches.'
-      #'-ww'                                                                    = '# Enable match whole word (short version).'
-      #'-noww'                                                                  = '# Disable match whole word (short version).'
-      #'-home'                                                                  = '# Open the home search page.'
-      #'-name-part <filename>'                                                  = '# Search for the name part of a filename.'
-      #'-search-file-list <filename>'                                           = '# Search a specified text file for a list of file names.'
+    #   ## Searching Options
+    #   #'-bookmark <name>'                                                       = '# Open a bookmark.'
+    #   #'-case'                                                                  = '# Enable case matching in searches.'
+    #   #'-nocase'                                                                = '# Disable case matching in searches.'
+    #   #'-diacritics'                                                            = '# Enable diacritics matching in searches.'
+    #   #'-nodiacritics'                                                          = '# Disable diacritics matching in searches.'
+    #   #'-filename *.evt*'                  = '# <filename> Search for a file or folder by filename.'
+    #   #'-filter <name>'                                                         = '# Select a search filter.'
+    #   #'-l'                                                                     = '# Load the local database.'
+    #   #'-local'                                                                 = '# Load the local database (alternative command).'
+    #   #'-matchpath'                                                             = '# Enable full path matching in searches.'
+    #   #'-nomatchpath'                                                           = '# Disable full path matching in searches.'
+    #   #'-p <path>'                                                              = '# Search for a specific path.'
+    #   #'-path <path>'                                                           = '# Search for a path (alternative command).'
+    #   #'-parent <path>'                                                         = '# Search for files and folders in a specified path without searching subfolders.'
+    #   #'-parentpath <path>'                                                     = '# Search for the parent of a specified path.'
+    #   #'-regex'                                                                 = '# Enable Regex in searches.'
+    #   #'-noregex'                                                               = '# Disable Regex in searches.'
+    #   #'-s C:\ "*.evt*"' = '#<text> Set the search text.'
+    #   #'-search <text>'                                                         = '# Set the search text (alternative command).'
+    #   #'-url <[es:]search>'                                                     = '# Set the search from an ES: URL.'
+    #   #'-wholeword'                                                             = '# Enable match whole word in searches.'
+    #   #'-nowholeword'                                                           = '# Disable match whole word in searches.'
+    #   #'-ww'                                                                    = '# Enable match whole word (short version).'
+    #   #'-noww'                                                                  = '# Disable match whole word (short version).'
+    #   #'-home'                                                                  = '# Open the home search page.'
+    #   #'-name-part <filename>'                                                  = '# Search for the name part of a filename.'
+    #   #'-search-file-list <filename>'                                           = '# Search a specified text file for a list of file names.'
 
-      ## Results Options
-      #'-sort <name>'                                                           = "# Set the sorting criteria for results. Example: -sort size, -sort 'Date Modified'."
-      #'-sort-ascending'                                                        = '# Sort results in ascending order.'
-      #'-sort-descending'                                                       = '# Sort results in descending order.'
-      #'-details'                     = '# View results in the detail view.'
-      #'-thumbnail-size <size>'                                                 = '# Specify the size of thumbnails in pixels.'
-      #'-thumbnails'                                                            = '# Show results in thumbnail view.'
-      #'-focus-bottom-result'                                                   = '# Focus on the bottom result.'
-      #'-focus-last-run-result'                                                 = '# Focus on the last run result.'
-      #'-focus-most-run-result'                                                 = '# Focus on the most run result.'
-      #'-focus-results'                                                         = '# Focus the result list.'
-      #'-focus-top-result'                                                      = '# Focus the top result.'
-      #'-select <filename>'                                                     = '# Focus and select a specified result.'
+    #   ## Results Options
+    #   #'-sort <name>'                                                           = "# Set the sorting criteria for results. Example: -sort size, -sort 'Date Modified'."
+    #   #'-sort-ascending'                                                        = '# Sort results in ascending order.'
+    #   #'-sort-descending'                                                       = '# Sort results in descending order.'
+    #   #'-details'                     = '# View results in the detail view.'
+    #   #'-thumbnail-size <size>'                                                 = '# Specify the size of thumbnails in pixels.'
+    #   #'-thumbnails'                                                            = '# Show results in thumbnail view.'
+    #   #'-focus-bottom-result'                                                   = '# Focus on the bottom result.'
+    #   #'-focus-last-run-result'                                                 = '# Focus on the last run result.'
+    #   #'-focus-most-run-result'                                                 = '# Focus on the most run result.'
+    #   #'-focus-results'                                                         = '# Focus the result list.'
+    #   #'-focus-top-result'                                                      = '# Focus the top result.'
+    #   #'-select <filename>'                                                     = '# Focus and select a specified result.'
 
-      ## General Options
-      #'-?'                                                                     = '# Show help.'
-      #'-h'                                                                     = '# Show help (alternative command).'
-      #'-help'                                                                  = '# Show help (alternative command).'
-      #'-admin'      = '# Run Everything as an administrator.'
-      #'-client-svc'                                                            = '# Everything client service entry point.'
-      #'-config <filename>'                                                     = '# Specify the ini file to use for configuration.'
-      #'-console'                     = '# Show the debugging console.'
-      #'-debug'                       = '# Show the debugging console.'
-      #'-debug-log'                   = '# Enable debug mode and log debugging information to disk.'
-      #'-exit'                                                                  = '# Exit an existing Everything instance.'
-      #'-quit'                                                                  = '# Exit an existing Everything instance (alternative command).'
-      #'-instance everythingportable' = '#  <name> The name of the Everything instance to run.'
-      #'-is-run-as'                                                             = "# Specify that Everything was executed with 'runas' and should not attempt to runas again."
-      #'-start-client-service'        = '# Start the Everything client service.'
-      #'-stop-client-service'                                                   = '# Stop the Everything client service.'
-      #'-start-service'               = '# Start the Everything service.'
-      #'-stop-service'                                                          = '# Stop the Everything service.'
-      #'-startup'                                                               = '# Run Everything in the background.'
-      #'-svc'                                                                   = '# Service entry point. Optionally combine with -svc-port.'
-      #'-svc-port <port>'                                                       = '# Run the Everything service on the specified port.'
-      #'-svc-pipe-name <name>'                                                  = '# Host the pipe server with the specified name.'
-      #'-svc-security-descriptor <sd>'                                          = '# Host the Everything Service pipe server with the specified security descriptor. Requires Everything 1.4.1.994 or later.'
-      #'-verbose'                     = '# Display all debug messages.'
-      #'-noverbose'                                                             = '# Display basic debug messages.'
-      #'-first-instance'                                                        = '# Only run Everything if this is the first instance.'
-      #'-no-first-instance'                                                     = '# Only run Everything if Everything is already running.'
+    #   ## General Options
+    #   #'-?'                                                                     = '# Show help.'
+    #   #'-h'                                                                     = '# Show help (alternative command).'
+    #   #'-help'                                                                  = '# Show help (alternative command).'
+    #   #'-admin'      = '# Run Everything as an administrator.'
+    #   #'-client-svc'                                                            = '# Everything client service entry point.'
+    #   #'-config <filename>'                                                     = '# Specify the ini file to use for configuration.'
+    #   #'-console'                     = '# Show the debugging console.'
+    #   #'-debug'                       = '# Show the debugging console.'
+    #   #'-debug-log'                   = '# Enable debug mode and log debugging information to disk.'
+    #   #'-exit'                                                                  = '# Exit an existing Everything instance.'
+    #   #'-quit'                                                                  = '# Exit an existing Everything instance (alternative command).'
+    #   #'-instance everythingportable' = '#  <name> The name of the Everything instance to run.'
+    #   #'-is-run-as'                                                             = "# Specify that Everything was executed with 'runas' and should not attempt to runas again."
+    #   #'-start-client-service'        = '# Start the Everything client service.'
+    #   #'-stop-client-service'                                                   = '# Stop the Everything client service.'
+    #   #'-start-service'               = '# Start the Everything service.'
+    #   #'-stop-service'                                                          = '# Stop the Everything service.'
+    #   #'-startup'                                                               = '# Run Everything in the background.'
+    #   #'-svc'                                                                   = '# Service entry point. Optionally combine with -svc-port.'
+    #   #'-svc-port <port>'                                                       = '# Run the Everything service on the specified port.'
+    #   #'-svc-pipe-name <name>'                                                  = '# Host the pipe server with the specified name.'
+    #   #'-svc-security-descriptor <sd>'                                          = '# Host the Everything Service pipe server with the specified security descriptor. Requires Everything 1.4.1.994 or later.'
+    #   #'-verbose'                     = '# Display all debug messages.'
+    #   #'-noverbose'                                                             = '# Display basic debug messages.'
+    #   #'-first-instance'                                                        = '# Only run Everything if this is the first instance.'
+    #   #'-no-first-instance'                                                     = '# Only run Everything if Everything is already running.'
 
-      ## Database Options
-      #'-db <filename>'                                                         = '# The filename of the database to load or save.'
-      #'-load-delay <milliseconds>'                                             = '# Delay in milliseconds before loading the database.'
-      #'-nodb'                                                                  = '# Do not save to or load from the Everything database file.'
-      #'-read-only'                                                             = '# Do not update the database.'
-      #'-reindex'                                                               = '# Force a database rebuild.'
-      #'-update'                                                                = '# Save the database to disk.'
-      #'-rescan-all'                                                            = '# Rescan all folder indexes.'
-      #'-monitor-pause'                                                         = '# Pause NTFS, ReFS, and folder index monitors.'
-      #'-monitor-resume'                                                        = '# Resume NTFS, ReFS, and folder index monitors.'
+    #   ## Database Options
+    #   #'-db <filename>'                                                         = '# The filename of the database to load or save.'
+    #   #'-load-delay <milliseconds>'                                             = '# Delay in milliseconds before loading the database.'
+    #   #'-nodb'                                                                  = '# Do not save to or load from the Everything database file.'
+    #   #'-read-only'                                                             = '# Do not update the database.'
+    #   #'-reindex'                                                               = '# Force a database rebuild.'
+    #   #'-update'                                                                = '# Save the database to disk.'
+    #   #'-rescan-all'                                                            = '# Rescan all folder indexes.'
+    #   #'-monitor-pause'                                                         = '# Pause NTFS, ReFS, and folder index monitors.'
+    #   #'-monitor-resume'                                                        = '# Resume NTFS, ReFS, and folder index monitors.'
 
-      ## Window Options
-      #'-fullscreen'                                                            = '# Show the search window in fullscreen.'
-      #'-nofullscreen'                                                          = '# Show the search window in a regular window.'
-      #'-maximized'                                                             = '# Maximize the search window.'
-      #'-nomaximized'                                                           = '# Restore the search window from maximized.'
-      #'-minimized'                                                             = '# Minimize the search window.'
-      #'-nominimized'                                                           = '# Restore the search window from minimized.'
-      #'-newwindow'                                                             = '# Create a new search window.'
-      #'-nonewwindow'                                                           = '# Show an existing window instead of creating a new one.'
-      #'-ontop'                                                                 = '# Enable always on top for the search window.'
-      #'-noontop'                                                               = '# Disable always on top for the search window.'
-      #'-close'                                                                 = '# Close the current search window.'
-      #'-toggle-window'                                                         = '# Show or hide the current search window.'
+    #   ## Window Options
+    #   #'-fullscreen'                                                            = '# Show the search window in fullscreen.'
+    #   #'-nofullscreen'                                                          = '# Show the search window in a regular window.'
+    #   #'-maximized'                                                             = '# Maximize the search window.'
+    #   #'-nomaximized'                                                           = '# Restore the search window from maximized.'
+    #   #'-minimized'                                                             = '# Minimize the search window.'
+    #   #'-nominimized'                                                           = '# Restore the search window from minimized.'
+    #   #'-newwindow'                                                             = '# Create a new search window.'
+    #   #'-nonewwindow'                                                           = '# Show an existing window instead of creating a new one.'
+    #   #'-ontop'                                                                 = '# Enable always on top for the search window.'
+    #   #'-noontop'                                                               = '# Disable always on top for the search window.'
+    #   #'-close'                                                                 = '# Close the current search window.'
+    #   #'-toggle-window'                                                         = '# Show or hide the current search window.'
 
-      ## Multi File Renaming
-      #'-copyto [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a copy to operation.'
-      #'-moveto [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a move to operation.'
-      #'-rename [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a rename operation.'
-    }
+    #   ## Multi File Renaming
+    #   #'-copyto [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a copy to operation.'
+    #   #'-moveto [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a move to operation.'
+    #   #'-rename [filename1] [filename2] [filename3] [...]'                      = '# Show the multi file renamer for a rename operation.'
+    # }
+    #endregion
 
+    #region EverthingCLI Options
     $ESOptions = @{
 
       # # General Command Line Options
@@ -388,18 +393,17 @@ function Invoke-EverythingSearch {
       # 'es.exe foo bar -highlight'                                     = '# Highlight the search terms foo and bar.'
       # 'es.exe -size -dm -sizecolor 0x0d -dmcolor 0x0b -save-settings' = '# Show size and date modified columns, set colors, and save settings.'
     }
+    #endregion
 
     # Start Everything Portable but throw if it does not start after 5 seconds
     try {
-      # Get the full path of the Everything executable
-      $EverythingExeResolved = $(Resolve-Path -Path $EverythingPortableExe).Path
-      # Before startung we need to ensure alpha_instance is 0 in the Everything-1.5a.ini file
+      # Before starting we need to ensure alpha_instance is 0 in the Everything-1.5a.ini file to allow ipc
       # Get the first Everything-*.ini file, excluding backups
       $everythingini = $(Get-ChildItem -Path $EverythingDirectory -Filter '*.ini' -ErrorAction SilentlyContinue).FullName | Where-Object { $_ -notlike 'backup' } | Select-Object -First 1
       if ([string]::IsNullOrEmpty($everythingini)) {
         Write-Logg -Message 'Everything ini file not found' -Level Warning
         Write-Logg -Message "Creating Everything ini file in $EverythingDirectory" -Level Warning
-        $everythingtempprocess = Start-Process -FilePath $EverythingExeResolved -ArgumentList '-quit', ' -noapp-data'
+        $null = Start-Process -FilePath $EverythingPortableExeResolved -ArgumentList '-quit', ' -noapp-data' -Wait
       }
 
       # check if the ini file has been created
@@ -419,7 +423,7 @@ function Invoke-EverythingSearch {
       $everythinginilock = $false
       try {
         # Attempt to open the file to detect if it's locked
-        $fileStream = [System.IO.File]::Open($everythingini, 'Open', 'ReadWrite', [System.IO.FileShare]::None)
+        $fileStream = [System.IO.File]::Open($everythingini2nd, 'Open', 'ReadWrite', [System.IO.FileShare]::None)
         $fileStream.Close()
       }
       catch {
@@ -435,14 +439,14 @@ function Invoke-EverythingSearch {
       }
 
       # Proceed with modifying the ini file
-      $everythinginicontent = Get-Content -Path $everythingini
+      $everythinginicontent = Get-Content -Path $everythingini2nd
       $everythinginicontentfixed = $everythinginicontent -replace 'alpha_instance=1', 'alpha_instance=0'
-      $everythinginicontentfixed | Set-Content -Path $everythingini -Force
+      $everythinginicontentfixed | Set-Content -Path $everythingini2nd -Force
 
-      Write-Logg -Message "Successfully modified the ini file at $everythingini" -Level INFO
+      Write-Logg -Message "Successfully modified the ini file at $everythingini2nd" -Level INFO
 
       # Start Everything Portable
-      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -WindowStyle Minimized -ErrorAction Stop -PassThru
+      $everythingprocess = Start-Process -FilePath $EverythingPortableExeResolved -WindowStyle Minimized -ErrorAction Stop -PassThru
       # Sleep for 5 seconds to allow Everything to start
       Start-Sleep -Seconds 5
       $count = 0
@@ -471,7 +475,7 @@ function Invoke-EverythingSearch {
       }
     }
 
-    # Create a new ProcessStartInfo object
+    # Start the cli this way so we can capture the output in memory
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $EverythingCLI
     $processInfo.Arguments = "$($SearchInDirectory + ' ' + $SearchTerm + ' ' + $ESOptions.Keys -join ' ')"
