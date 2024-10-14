@@ -5,8 +5,26 @@
 .DESCRIPTION
     The Invoke-EverythingSearch cmdlet allows you to search for files within a specified directory and its subdirectories using voidtools' Everything. You can either provide a directory path or use Everything's query syntax to perform the search.
 
-.PARAMETER EverythingPortable
-    The path to the Everything executable. This parameter is optional.
+.PARAMETER EverythingPortableExe
+    The path to the Everything executable. This parameter is optional and defaults to "$EverythingDirectory\Everything64.exe".
+
+.PARAMETER EverythingDirectory
+    The directory where the Everything executable is located. This parameter is optional and defaults to the temporary directory.
+
+.PARAMETER EverythingCLI
+    The path to the Everything command-line interface executable. This parameter is optional and defaults to "$EverythingDirectory\es.exe".
+
+.PARAMETER SearchInDirectory
+    The directory to search in. This parameter is optional and defaults to the system drive root directory.
+
+.PARAMETER EverythingCLIDownloadURL
+    The URL to download the Everything CLI. This parameter is optional and defaults to 'https://www.voidtools.com/ES-1.1.0.27.x64.zip'.
+
+.PARAMETER EverythingPortableDownloadURL
+    The URL to download the Everything Portable executable. This parameter is optional and defaults to 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip'.
+
+.PARAMETER SearchTerm
+    The search term to use. This parameter is optional and defaults to '*'.
 
 .NOTES
     This function is not supported on Linux systems.
@@ -15,7 +33,7 @@
     https://www.voidtools.com/support/everything/
 
 .EXAMPLE
-    Invoke-EverythingSearch -EverythingPortable "C:\Path\To\Everything.exe"
+    Invoke-EverythingSearch -EverythingPortableExe "C:\Path\To\Everything.exe"
     Retrieves a list of all files in the specified directory and its subdirectories using the Everything executable.
 
 .EXAMPLE
@@ -28,13 +46,9 @@
 function Invoke-EverythingSearch {
   [CmdletBinding()]
   param(
-    # Everything executable path
     [Parameter(Mandatory = $false)]
     [string]
-    $EverythingPortableExe = "$EverythingDirectory\Everything64.exe",
-    [Parameter(Mandatory = $false)]
-    [string]
-    $EverythingDirectory = $(Join-Path -Path $ENV:Temp -ChildPath '\Everything'),
+    $EverythingDirectory = $(Join-Path -Path $ENV:Temp -ChildPath 'Everything'),
 
     [Parameter(Mandatory = $false)]
     [string]
@@ -42,26 +56,34 @@ function Invoke-EverythingSearch {
 
     [Parameter(Mandatory = $false)]
     [string]
-    $SearchInDirectory = $($ENV:SystemDrive) + '\',
+    $SearchInDirectory = $(Join-Path -Path $ENV:SystemDrive -ChildPath '\'),
 
     [Parameter(Mandatory = $false)]
     [string]
-    $SearchTerm = $SearchInDirectory + ' ' + '*'
+    $SearchTerm = '*',
+
+    [Parameter(Mandatory = $false)]
+    [string]
+    $EverythingCLIDownloadURL = 'https://www.voidtools.com/ES-1.1.0.27.x64.zip',
+
+    [Parameter(Mandatory = $false)]
+    [string]
+    $EverythingPortableDownloadURL = 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip'
   )
 
   # Import the required cmdlets
   $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg')
-  $neededcmdlets | ForEach-Object {
-    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-      if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-      }
-      Write-Verbose -Message "Importing cmdlet: $_"
-      $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-      $Cmdletstoinvoke | Import-Module -Force
+  $missingCmdlets = $neededcmdlets | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) }
+
+  if ($missingCmdlets) {
+    if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+      $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+      $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+      New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
     }
+    Write-Verbose -Message "Importing missing cmdlets: $missingCmdlets"
+    $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $missingCmdlets
+    $Cmdletstoinvoke | Import-Module -Force
   }
 
   # Make sure everythingdirectory exists
@@ -72,9 +94,9 @@ function Invoke-EverythingSearch {
   # Download Everything if not found
   $EverythingCLIResolved = $(Resolve-Path -Path $EverythingCLI -ErrorAction SilentlyContinue).Path
   if (-not($EverythingCLIResolved) ) {
-    Write-Logg -Message 'Everything CLI not found' -Level Info
-    Write-Logg -Message 'Downloading Everything CLI' -Level Info
-    $everythingclizip = Get-FileDownload -URL 'https://www.voidtools.com/ES-1.1.0.27.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
+    Write-Logg -Message 'Everything CLI not found' -Level INFO
+    Write-Logg -Message 'Downloading Everything CLI' -Level INFO
+    $everythingclizip = Get-FileDownload -URL $EverythingCLIDownloadURL -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
     Expand-Archive -Path $everythingclizip -DestinationPath $EverythingDirectory -Force
     $EverythingCLI = Get-ChildItem -Path $EverythingDirectory -Filter 'es.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
   }
@@ -82,9 +104,9 @@ function Invoke-EverythingSearch {
 
   $EverythingPortableExeResolved = $(Resolve-Path -Path $EverythingPortableExe -ErrorAction SilentlyContinue).Path
   if (-not ($EverythingPortableExeResolved)) {
-    Write-Logg -Message 'Everything executable not found' -Level Info
-    Write-Logg -Message 'Downloading Everything Portable' -Level Info
-    $everythingPortablezip = Get-FileDownload -Url 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip' -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
+    Write-Logg -Message 'Everything executable not found' -Level INFO
+    Write-Logg -Message 'Downloading Everything Portable' -Level INFO
+    $everythingPortablezip = Get-FileDownload -Url $EverythingPortableDownloadURL -DestinationDirectory $EverythingDirectory -UseAria2 -noRPCMode | Select-Object -Last 1
     Expand-Archive -Path $everythingPortablezip -DestinationPath $EverythingDirectory -Force
     $EverythingPortableExe = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
   }
@@ -369,17 +391,17 @@ function Invoke-EverythingSearch {
       $EverythingExeResolved = $(Resolve-Path -Path $EverythingPortableExe).Path
       # Before startung we need to ensure alpha_instance is 0 in the Everything-1.5a.ini file
       # Get the first Everything-*.ini file, excluding backups
-      $everythingini = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything-*.ini' -Exclude '*backup.ini' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-      if (-not $everythingini) {
+      $everythingini = $(Get-ChildItem -Path $EverythingDirectory -Filter '*.ini' -ErrorAction SilentlyContinue).FullName | Where-Object { $_ -notlike 'backup' } | Select-Object -First 1
+      if ([string]::IsNullOrEmpty($everythingini)) {
         Write-Logg -Message 'Everything ini file not found' -Level Warning
         Write-Logg -Message "Creating Everything ini file in $EverythingDirectory" -Level Warning
         $everythingtempprocess = Start-Process -FilePath $EverythingExeResolved -ArgumentList '-quit', ' -noapp-data'
       }
 
       # check if the ini file has been created
-      $everythingini = Get-ChildItem -Path $EverythingDirectory -Filter 'Everything-*.ini' -Exclude '*backup.ini' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-      if (-not $everythingini) {
-        Write-Logg -Message 'Everything ini file not found' -Level Error
+      $everythingini2nd = $(Get-ChildItem -Path $EverythingDirectory -Filter '*.ini' -ErrorAction SilentlyContinue).FullName | Where-Object { $_ -notlike 'backup' } | Select-Object -First 1
+      if ([string]::IsNullOrEmpty($everythingini2nd)) {
+        Write-Logg -Message 'Everything ini file not found' -Level ERROR
         throw 'Everything ini file not found'
       }
 
@@ -401,10 +423,10 @@ function Invoke-EverythingSearch {
         $everythinginilock = $true
       }
 
-      # If the file is locked, display error and attempt to terminate the locking process (optional)
+      # If the file is locked, display error
       if ($everythinginilock) {
-        Write-Logg -Message 'Everything ini file is locked' -Level Error
-        Write-Logg -Message 'Please close the file and try again' -Level Error
+        Write-Logg -Message 'Everything ini file is locked' -Level ERROR
+        Write-Logg -Message 'Please close the file and try again' -Level ERROR
         throw 'Everything ini file is locked'
       }
 
@@ -413,12 +435,14 @@ function Invoke-EverythingSearch {
       $everythinginicontentfixed = $everythinginicontent -replace 'alpha_instance=1', 'alpha_instance=0'
       $everythinginicontentfixed | Set-Content -Path $everythingini -Force
 
-      Write-Logg -Message "Successfully modified the ini file at $everythingini" -Level Info
+      Write-Logg -Message "Successfully modified the ini file at $everythingini" -Level INFO
 
       # Start Everything Portable
-      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -ArgumentList $($EverythingPortableOptions.Keys -join ' ') -WindowStyle Minimized -ErrorAction Stop -PassThru
+      $everythingprocess = Start-Process -FilePath $EverythingExeResolved -WindowStyle Minimized -ErrorAction Stop -PassThru
+      # Sleep for 5 seconds to allow Everything to start
+      Start-Sleep -Seconds 5
       $count = 0
-      while (-not (Get-Process -Id $everythingprocess.Id -ErrorAction SilentlyContinue)) {
+      while (-not (Get-Process -Id $everythingprocess.Id -ErrorAction SilentlyContinue | Where-Object { $_.HasExited -eq $false })) {
         Start-Sleep -Seconds 1
         $count++
         if ($count -eq 4) {
@@ -427,14 +451,14 @@ function Invoke-EverythingSearch {
       }
     }
     catch {
-      Write-Logg -Message "Everything did not start. Executable is found at $EverythingExeResolved" -Level Error
-      Write-Logg -Message $_.Exception.Message -Level Error
+      Write-Logg -Message "Everything did not start. Executable is found at $EverythingExeResolved" -Level ERROR
+      Write-Logg -Message $_.Exception.Message -Level ERROR
     }
 
     # Create a new ProcessStartInfo object
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $EverythingCLI
-    $processInfo.Arguments = "$($SearchTerm + ' ' + $ESOptions.Keys -join ' ')"
+    $processInfo.Arguments = "$($SearchInDirectory + ' ' + $SearchTerm + ' ' + $ESOptions.Keys -join ' ')"
     $processInfo.RedirectStandardOutput = $true
     $processInfo.RedirectStandardError = $true
     $processInfo.UseShellExecute = $false
@@ -454,22 +478,22 @@ function Invoke-EverythingSearch {
 
     # Check if any errors were found in the stderr output
     if ($stdError -match 'Error:') {
-      Write-Logg -Message "Error detected: $stdError" -Level Error
+      Write-Logg -Message "Error detected: $stdError" -Level ERROR
     }
 
     # Display the standard output
     if ($stdOutput) {
-      Write-Logg -Message "CLI Output: $stdOutput" -level info
+      Write-Logg -Message "CLI Output: $stdOutput" -Level INFO
     }
 
     # Optionally handle errors
     if ($stdError) {
-      Write-Logg -Message "CLI Error Output: $stdError" -level error
+      Write-Logg -Message "CLI Error Output: $stdError" -Level ERROR
     }
 
   }
   catch {
-    Write-Logg -Message $_.Exception.Message -Level Error
+    Write-Logg -Message $_.Exception.Message -Level ERROR
   }
   finally {
     # Uninstall make sure the process we started is now closed
@@ -478,12 +502,3 @@ function Invoke-EverythingSearch {
     }
   }
 }
-# Example
-# $searchParams = @{
-#   SearchInDirectory = 'F:\'
-#   SearchTerm        = '*.*'
-#   Verbose           = $true
-#   ErrorAction       = 'Break'
-# }
-
-# Invoke-EverythingSearch @searchParams
