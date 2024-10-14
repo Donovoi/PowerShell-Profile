@@ -94,8 +94,11 @@ function Write-Logg {
             if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Install-Dependencies -PSModule 'pansies' -NoNugetPackage
             }
-            if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools'
+            if (-not (Get-Module -Name 'Terminal.Gui' -ListAvailable -ErrorAction SilentlyContinue)) {
+                $nugetpackages = @{
+                    'Terminal.Gui' = '2.0.0'
+                }
+                Install-Dependencies -NugetPackage $nugetpackages
             }
         }
         Import-Module -Name 'pansies', 'Microsoft.PowerShell.ConsoleGuiTools' -Force -ErrorAction SilentlyContinue
