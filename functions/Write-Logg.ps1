@@ -82,7 +82,7 @@ function Write-Logg {
     try {
         # make sure we have pansies to override write-host
         $cmdlets = @('Install-Dependencies', 'Show-TUIConfirmationDialog')
-        if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
+        if (-not (Get-Command -Name $cmdlets -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                 $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
                 $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
