@@ -76,7 +76,7 @@ function Invoke-EverythingSearch {
   )
 
   # Import the required cmdlets
-  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg')
+  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Show-TUIConfirmationDialog')
   $missingCmdlets = $neededcmdlets | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) }
 
   if ($missingCmdlets) {
@@ -457,6 +457,18 @@ function Invoke-EverythingSearch {
     catch {
       Write-Logg -Message "Everything did not start. Executable is found at $EverythingExeResolved" -Level ERROR
       Write-Logg -Message $_.Exception.Message -Level ERROR
+      $Confirmation = Write-Logg -Message 'Would you like to check for and kill any existing Everything processes?' -Level INFO -TUIPopUpMessage
+      if ($Confirmation -eq 'Yes') {
+        $ProcessesToKill = Get-Process | Where-Object { $_ -like '*everything64*' }
+        if ($ProcessesToKill) {
+          Write-Logg -Message "Stopping Everything processes: $($ProcessesToKill -join ', ')" -Level INFO
+          Stop-Process -Name $ProcessesToKill -Force -ErrorAction SilentlyContinue
+        }
+      }
+      else {
+        Write-Logg -Message 'Exiting script' -Level INFO
+        throw
+      }
     }
 
     # Create a new ProcessStartInfo object
@@ -485,22 +497,31 @@ function Invoke-EverythingSearch {
       Write-Logg -Message "Error detected: $stdError" -Level ERROR
     }
 
-    # Display the standard output
+    # Split the output into a hash table to make sure there are no empty lines or duplicates
+    $stdOutputHashtable = @{}  # Initialize an empty hash table
     if ($stdOutput) {
-      Write-Logg -Message "CLI Output: $stdOutput" -Level INFO
+      # Split the output into lines, remove empty lines, and trim each line
+      $allines = $stdOutput -split [System.Environment]::NewLine | Where-Object { $_ -ne '' } | ForEach-Object { $_.Trim() }
+
+      # Add each line to the hash table with a default key (numerical index)
+      $index = 0
+      foreach ($line in $allines) {
+        $stdOutputHashtable[$index] = $line
+        $index++
+      }
     }
 
     # Optionally handle errors
     if ($stdError) {
       Write-Logg -Message "CLI Error Output: $stdError" -Level ERROR
     }
-    return $stdOutput ? $stdOutput : $stdError
+    return $stdOutputHashtable.Values ? $stdOutputHashtable.Values : $stdError
   }
   catch {
     Write-Logg -Message $_.Exception.Message -Level ERROR
   }
   finally {
-    # Uninstall make sure the process we started is now closed
+    # Make sure the process we started is now closed
     if ($everythingprocess) {
       Stop-Process -Id $everythingprocess.Id -Force -ErrorAction SilentlyContinue
     }
