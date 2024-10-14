@@ -94,8 +94,11 @@ function Write-Logg {
             if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Install-Dependencies -PSModule 'pansies' -NoNugetPackage
             }
+            if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
+                Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools'
+            }
         }
-        Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
+        Import-Module -Name 'pansies', 'Microsoft.PowerShell.ConsoleGuiTools' -Force -ErrorAction SilentlyContinue
         # Capitalize the level for WARNING and ERROR for consistency
         if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
             $Level = $Level.ToUpper()
