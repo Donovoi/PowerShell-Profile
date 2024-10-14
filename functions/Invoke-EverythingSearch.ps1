@@ -56,6 +56,10 @@ function Invoke-EverythingSearch {
 
     [Parameter(Mandatory = $false)]
     [string]
+    $EverythingPortableExe = "$EverythingDirectory\Everything64.exe",
+
+    [Parameter(Mandatory = $false)]
+    [string]
     $SearchInDirectory = $(Join-Path -Path $ENV:SystemDrive -ChildPath '\'),
 
     [Parameter(Mandatory = $false)]
