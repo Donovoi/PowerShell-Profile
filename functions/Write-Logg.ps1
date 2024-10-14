@@ -81,7 +81,7 @@ function Write-Logg {
 
     try {
         # make sure we have pansies to override write-host
-        $cmdlets = @('Install-Dependencies')
+        $cmdlets = @('Install-Dependencies', 'Show-TUIConfirmationDialog')
         if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                 $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -94,14 +94,14 @@ function Write-Logg {
             if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
                 Install-Dependencies -PSModule 'pansies' -NoNugetPackage
             }
-            if (-not (Get-Module -Name 'Terminal.Gui' -ListAvailable -ErrorAction SilentlyContinue)) {
-                $nugetpackages = @{
-                    'Terminal.Gui' = '2.0.0'
+            if ($TUIPopUpMessage) {
+                if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
+                    Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools' -NoNugetPackage
+
                 }
-                Install-Dependencies -NugetPackage $nugetpackages
             }
         }
-        Import-Module -Name 'pansies', 'Microsoft.PowerShell.ConsoleGuiTools' -Force -ErrorAction SilentlyContinue
+        Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
         # Capitalize the level for WARNING and ERROR for consistency
         if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
             $Level = $Level.ToUpper()
@@ -119,7 +119,7 @@ function Write-Logg {
         }
 
         # Output to console if not suppressed
-        if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE')) {
+        if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE') -and (-not($TUIPopUpMessage))) {
             switch ($Level) {
                 'INFO' {
                     Write-Host -Object $logMessage -ForegroundColor Green
@@ -143,14 +143,9 @@ function Write-Logg {
 
         # Show Terminal.Gui pop-up message if specified
         if ($TUIPopUpMessage) {
-            # Initialize Terminal.Gui
-            [Terminal.Gui.Application]::Init()
 
             # Display the confirmation dialog
-            $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $Message -InfoLevel $Level
-
-            # Shutdown Terminal.Gui after displaying the dialog
-            [Terminal.Gui.Application]::Shutdown()
+            $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $logMessage -InfoLevel $Level
 
             # Return the confirmation result
             return $confirmationResult
