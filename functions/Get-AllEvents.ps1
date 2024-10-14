@@ -43,8 +43,9 @@ function Get-AllEvents {
   )
 
   begin {
+
     # Import the required cmdlets
-    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Test-IsAdministrator', 'Invoke-EverythingSearch')
+    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Test-IsAdministrator', 'Invoke-EverythingSearch')
     $neededcmdlets | ForEach-Object {
       if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
         if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -238,10 +239,8 @@ function Get-AllEvents {
           # Use Invoke-EverythingSearch to search for all EVTX files in the specified directories
 
           # Await the task to complete
-          $files = Invoke-EverythingSearch -SearchString '*.evt*' -SearchInDirectory $CollectEVTXFromDirectory.GetEnumerator() -ErrorAction Stop
+          $files = Invoke-EverythingSearch -SearchTerm '*.evt*' -SearchInDirectory $CollectEVTXFromDirectory.GetEnumerator() -ErrorAction SilentlyContinue
 
-          # Output the result
-          Write-Output "Total files found: $($files.Count)"
 
           # Count the number of files found
           $filecount = $files.Count
@@ -249,19 +248,60 @@ function Get-AllEvents {
           # Let the user know the next command will take a while
           Write-Logg -Message "Getting all Events from $filecount files, this may take a few minutes..." -Level Info
 
-          # Convert $files into an array
-          $fileArray = @($files.ToArray())
-
-          # Pass to Get-WinEvent
-          $Events = Get-WinEvent -Path $fileArray -ErrorAction Stop
-
+          try {
+            $Events = Get-WinEvent -Path $Files -ErrorAction SilentlyContinue
+          }
+          catch {
+            Write-Logg -Message "An error occurred getting events from files: $($_.Exception.Message)" -Level Warning
+          }
         }
-
         if ($Events.Count -gt 0) {
-          $EventsSorted = $Events |
-            Where-Object { $_.TimeCreated -ge $startDateTime -and $_.TimeCreated -le $endDateTime } |
-              Sort-Object -Property TimeCreated |
-                Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
+          # Concurrent queue to store filtered events
+          $concurrentQueue = [System.Collections.Concurrent.ConcurrentQueue[PSObject]]::new()
+
+          # Filter events in parallel and add to concurrent queue
+          $Events | ForEach-Object -Parallel {
+
+            $currentEvent = $_
+            $concurrentQueue = $using:concurrentQueue
+            if ($currentEvent.TimeCreated -ge $using:startDateTime -and $currentEvent.TimeCreated -le $using:endDateTime) {
+              # Add the filtered event to the concurrent queue
+              $concurrentQueue.Enqueue($currentEvent)
+            }
+          } -ThrottleLimit 5000
+
+          # Convert concurrent queue to an array and sort in chunks
+          $chunkSize = 10000 # Define a chunk size based on available memory and data size
+          $eventChunks = @()
+
+          # Split the concurrent queue into chunks in parallel
+          $chunkSize = 10000 # Define a chunk size based on available memory and data size
+
+          # Create an array of chunks for parallel processing
+          $eventChunks = @()
+
+          while ($concurrentQueue.Count -gt 0) {
+            $chunk = @()
+            for ($i = 0; $i -lt $chunkSize -and $concurrentQueue.TryDequeue([ref]$currentEvent); $i++) {
+              $chunk += $currentEvent
+            }
+            if ($chunk.Count -gt 0) {
+              $eventChunks += , $chunk
+            }
+          }
+
+          # Process chunks in parallel
+          $sortedChunks = $eventChunks | ForEach-Object -Parallel {
+            $chunk = $_
+            $chunk | Sort-Object -Property TimeCreated
+          } -ThrottleLimit 5000 # Adjust based on your system's capacity
+
+          # Merge sorted chunks
+          $EventsSorted = $sortedChunks | Sort-Object -Property TimeCreated
+
+          # Select the desired properties
+          $finalEvents = $EventsSorted |
+            Select-Object -Property TimeCreated, Id, LogName, LevelDisplayName, Message
         }
         else {
           Write-Logg -Message "No events found between $startDateTime and $endDateTime"
@@ -270,7 +310,7 @@ function Get-AllEvents {
       catch {
         Write-Logg -Message "An error occurred while retrieving events:`n$($_.Exception.Message)"
       }
-      return $EventsSorted
+      return $finalEvents
     }
 
     function Export-EventsToCsv {
@@ -374,4 +414,3 @@ function Get-AllEvents {
     Initialize-EventLogGui
   }
 }
-# Get-AllEvents -ExportToCsv -ExportCSVToFolder "$ENV:USERPROFILE" -ViewInTimelineExplorer -CollectEVTXFromDirectory 'C:\' -Verbose -ErrorAction Break
