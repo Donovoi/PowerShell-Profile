@@ -494,7 +494,7 @@ function Invoke-EverythingSearch {
     if ($stdError) {
       Write-Logg -Message "CLI Error Output: $stdError" -Level ERROR
     }
-
+    return $stdOutput ? $stdOutput : $stdError
   }
   catch {
     Write-Logg -Message $_.Exception.Message -Level ERROR
