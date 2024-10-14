@@ -116,8 +116,8 @@ function Invoke-EverythingSearch {
   }
   try {
     #region Everything Portable Options
-    
-    
+
+
     # We will now start everything portable with the right arguments
     # $EverythingPortableOptions = @{
     #   #'-filename *.evt' = '# <filename> Search for a file or folder by filename.'
