@@ -143,7 +143,7 @@ function Show-TUIConfirmationDialog {
     #   $label.ColorScheme = $colorScheme
 
     # Add the label to a window or dialog
-    $window.Add($label)
+    $dialog.Add($label)
 
 
 
