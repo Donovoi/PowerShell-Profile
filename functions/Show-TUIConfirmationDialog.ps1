@@ -44,6 +44,26 @@ function Show-TUIConfirmationDialog {
         [string]$InfoLevel
     )
 
+    # Import the required cmdlets
+    $neededcmdlets = @('Install-Dependencies')
+    $missingCmdlets = $neededcmdlets | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) }
+
+    if ($missingCmdlets) {
+        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+            $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+            New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        }
+        Write-Verbose -Message "Importing missing cmdlets: $missingCmdlets"
+        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $missingCmdlets
+        $Cmdletstoinvoke | Import-Module -Force
+    }
+
+    # Make sure Microsoft.PowerShell.ConsoleGuiTools is installed
+    if (-not(Get-Module 'Microsoft.PowerShell.ConsoleGuiTools' -List)) {
+        Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools'
+    }
+
     # Initialize Terminal.Gui
     $module = (Get-Module Microsoft.PowerShell.ConsoleGuiTools -List).ModuleBase
     Add-Type -Path (Join-Path $module 'Terminal.Gui.dll')
