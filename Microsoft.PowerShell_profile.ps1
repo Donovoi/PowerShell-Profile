@@ -27,6 +27,7 @@ $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways
 # Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
+# Import all of my functions
 $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
 $FunctionsFolder.ForEach{ .$_.FullName }
 
@@ -89,8 +90,15 @@ else {
 
 # install oh-my-posh
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+  Uninstall-Module oh-my-posh -AllVersions
+  Remove-Item $env:POSH_PATH -Force -Recurse
   winget install JanDeDobbeleer.OhMyPosh
 }
+# if path does not contain oh-my-posh, add it
+if ($env:Path -notcontains '\oh-my-posh\bin') {
+  $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
+}
+Import-Module oh-my-posh
 
 # Import the Chocolatey Profile
 if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
