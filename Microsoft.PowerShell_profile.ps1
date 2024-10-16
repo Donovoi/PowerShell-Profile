@@ -87,15 +87,11 @@ else {
 
 }
 
-if ($host.Name -eq 'ConsoleHost') {
-  Import-Module PSReadLine
-}
-
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   winget install JanDeDobbeleer.OhMyPosh
 }
 
-#if $Env:ChocolateyInstall is on the c drive do the following
+# Import the Chocolatey Profile
 if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
   Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
 }
@@ -107,7 +103,7 @@ else {
 Update-SessionEnvironment
 
 # Invoke an awesome sample of PSReadline bindings
-Invoke-SamplePSReadLineProfile
+#Invoke-SamplePSReadLineProfile
 
 # Crazy oh my posh random theme function
 Invoke-OhMyPoshRandomTheme
