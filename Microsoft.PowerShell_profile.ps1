@@ -92,7 +92,7 @@ else {
 # install oh-my-posh
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
-  if ([string]::IsNullOrEmpty($env:POSH_PATH)) {
+  if (-not ([string]::IsNullOrEmpty($env:POSH_PATH))) {
     Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
   }
   winget install JanDeDobbeleer.OhMyPosh
