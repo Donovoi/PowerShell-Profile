@@ -103,7 +103,7 @@ else {
 Update-SessionEnvironment
 
 # Invoke an awesome sample of PSReadline bindings
-#Invoke-SamplePSReadLineProfile
+Invoke-SamplePSReadLineProfile
 
 # Crazy oh my posh random theme function
 Invoke-OhMyPoshRandomTheme
