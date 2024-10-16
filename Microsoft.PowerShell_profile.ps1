@@ -52,7 +52,7 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
 # install and import modules needed for my profile
-Install-Dependencies -PsModule 'PANSIES' -NoNugetPackage
+Install-Dependencies -PsModule 'PANSIES','oh-my-posh' -NoNugetPackage
 
 
 # Variables for the commandline
