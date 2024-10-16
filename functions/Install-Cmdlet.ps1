@@ -42,7 +42,7 @@ function Install-Cmdlet {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ParameterSetName = 'Url')]
-        [string[]]$Urls,
+        [string[]]$url,
         [Parameter(Mandatory = $false, ParameterSetName = 'Url')]
         [string[]]$CmdletToInstall = '*',
         [Parameter(Mandatory = $false)]
@@ -96,7 +96,7 @@ function Install-Cmdlet {
                 }
             }
         }
-        if (-not $(Get-Variable -Name 'Urls' -ErrorAction SilentlyContinue) -or ([string]::IsNullOrEmpty($Urls))) {
+        if (-not $(Get-Variable -Name 'Url' -ErrorAction SilentlyContinue) -or ([string]::IsNullOrEmpty($url))) {
             $Urls = @()
         }
         if ($donovoicmdlets -and ( (-not $PreferLocal) -or ($cmdletsToDownload.Count -gt 0) )) {
