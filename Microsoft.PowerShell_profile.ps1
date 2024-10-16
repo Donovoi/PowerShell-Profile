@@ -106,7 +106,7 @@ Update-SessionEnvironment
 Invoke-SamplePSReadLineProfile
 
 # Crazy oh my posh random theme function
-Invoke-OhMyPoshRandomTheme
+#Invoke-OhMyPoshRandomTheme
 
 
 # Import the Chocolatey Profile that contains the necessary code to enable
