@@ -11,25 +11,26 @@ using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
-$neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Remove-PathEntry', 'Add-Paths')
-$neededcmdlets | ForEach-Object {
-  if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-    if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-      $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-      $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-      New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-    }
-    Write-Verbose -Message "Importing cmdlet: $_"
-    $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-    $Cmdletstoinvoke | Import-Module -Force
-  }
-}
+# $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Remove-PathEntry', 'Add-Paths')
+# $neededcmdlets | ForEach-Object {
+#   if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+#     if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+#       $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+#       $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+#       New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+#     }
+#     Write-Verbose -Message "Importing cmdlet: $_"
+#     $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+#     $Cmdletstoinvoke | Import-Module -Force
+#   }
+# }
 # Define the profile path
 $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
 
 $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
 $FunctionsFolder.ForEach{ .$_.FullName }
 
+# create this file so we can have more contrast in the terminal
 if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
   New-Item -Path 'C:\temp\' -ItemType Directory -Force
   Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
@@ -73,7 +74,6 @@ if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
   # Add paths and persist changes
   Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
-
 
 }
 else {
