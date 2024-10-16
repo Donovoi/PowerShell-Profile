@@ -50,7 +50,7 @@ function Install-Dependencies {
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        Install-PSModules -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
+        Install-PSModule -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
         # refresh environment variables
         Update-SessionEnvironment
     }
@@ -257,7 +257,7 @@ function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$Nuget
 
 
 
-function Install-PSModules {
+function Install-PSModule {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
@@ -283,16 +283,8 @@ function Install-PSModules {
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
-                    '7zip4powershell',
-                    'F7History',
-                    'Microsoft.PowerShell.ConsoleGuiTools',
-                    'Microsoft.WinGet.Client',
                     'PANSIES',
-                    'PSEverything',
-                    'PSReadLine',
-                    'PSReflect-Functions',
-                    'lolcat',
-                    'profiler'
+                    'PSReadLine'
                 )
             }
             elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
