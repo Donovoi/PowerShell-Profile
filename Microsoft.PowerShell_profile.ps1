@@ -83,7 +83,8 @@ else {
     Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
     winget install Chocolatey.Chocolatey --source winget  
-    Write-Logg -Message 'Chocolatey installed successfully!' -level Info}
+    Write-Logg -Message 'Chocolatey installed successfully!' -level Info
+  }
   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
 }
@@ -91,7 +92,9 @@ else {
 # install oh-my-posh
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
-  Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
+  if ([string]::IsNullOrEmpty($env:POSH_PATH)) {
+    Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
+  }
   winget install JanDeDobbeleer.OhMyPosh
 }
 # if path does not contain oh-my-posh, add it
