@@ -87,6 +87,7 @@ else {
 
 }
 
+# install oh-my-posh
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -and (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
   winget install JanDeDobbeleer.OhMyPosh
 }
@@ -99,14 +100,14 @@ else {
   Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue
 }
 
-
+# refresh the environment variables
 Update-SessionEnvironment
 
 # Invoke an awesome sample of PSReadline bindings
 Invoke-SamplePSReadLineProfile
 
 # Crazy oh my posh random theme function
-#Invoke-OhMyPoshRandomTheme
+Invoke-OhMyPoshRandomTheme
 
 
 # Import the Chocolatey Profile that contains the necessary code to enable
