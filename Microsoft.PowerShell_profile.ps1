@@ -89,19 +89,19 @@ else {
 
 }
 
-# # install oh-my-posh
-# if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
-#   Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
-#   if (-not ([string]::IsNullOrEmpty($env:POSH_PATH))) {
-#     Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
-#   }
-#   winget install JanDeDobbeleer.OhMyPosh --force
-#   Install-Cmdlet -URL 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/refs/heads/main/src/shell/scripts/omp.ps1'
-# }
-# # if path does not contain oh-my-posh, add it
-# if ($env:Path -notcontains '\oh-my-posh\bin') {
-#   $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
-# }
+# install oh-my-posh
+if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+  Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
+  if (-not ([string]::IsNullOrEmpty($env:POSH_PATH))) {
+    Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
+  }
+  winget install JanDeDobbeleer.OhMyPosh --force
+  Install-Cmdlet -URL 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/refs/heads/main/src/shell/scripts/omp.ps1'
+}
+# if path does not contain oh-my-posh, add it
+if ($env:Path -notcontains '\oh-my-posh\bin') {
+  $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
+}
 
 # Import the Chocolatey Profile
 if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
