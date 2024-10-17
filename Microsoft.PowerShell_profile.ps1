@@ -82,7 +82,7 @@ else {
   if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
     Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-    winget install Chocolatey.Chocolatey --source winget  
+    winget install Chocolatey.Chocolatey --source winget
     Write-Logg -Message 'Chocolatey installed successfully!' -level Info
   }
   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
@@ -90,25 +90,12 @@ else {
 }
 
 # install oh-my-posh
-if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue) -or (-not (Get-Command Get-PoshThemes -ErrorAction silentlycontinue))) {
+if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
   Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
   if (-not ([string]::IsNullOrEmpty($env:POSH_PATH))) {
     Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
   }
   winget install JanDeDobbeleer.OhMyPosh --force
-  $neededcmdlets = @('https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/refs/heads/main/src/shell/scripts/omp.ps1')
-  $neededcmdlets | ForEach-Object {
-    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-      if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-      }
-      Write-Verbose -Message "Importing cmdlet: $_"
-      $Cmdletstoinvoke = Install-Cmdlet -url $_
-      $Cmdletstoinvoke | Import-Module -Force
-    }
-  }
 }
 # if path does not contain oh-my-posh, add it
 if ($env:Path -notcontains '\oh-my-posh\bin') {
