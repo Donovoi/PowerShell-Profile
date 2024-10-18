@@ -283,7 +283,7 @@ function Install-PSModule {
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
-                    'PANSIES',
+                    #'PANSIES'
                     'PSReadLine'
                 )
             }
