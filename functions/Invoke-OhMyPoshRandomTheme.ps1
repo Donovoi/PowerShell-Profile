@@ -1,5 +1,6 @@
 function Invoke-OhMyPoshRandomTheme {
     # Get a list of all available Oh My Posh themes
+    oh-my-posh init pwsh | Invoke-Expression
     $themes = Get-PoshThemes
 
     # Select a random theme
