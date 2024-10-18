@@ -96,7 +96,7 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
     Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
   }
   winget install JanDeDobbeleer.OhMyPosh --force
-  oh-my-posh init pwsh | Invoke-Expression
+  & oh-my-posh init pwsh | out-null
 }
 # if path does not contain oh-my-posh, add it
 if ($env:Path -notcontains '\oh-my-posh\bin') {
