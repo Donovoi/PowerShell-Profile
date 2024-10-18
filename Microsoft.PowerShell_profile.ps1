@@ -96,7 +96,6 @@ if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
     Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
   }
   winget install JanDeDobbeleer.OhMyPosh --force
-  & oh-my-posh init pwsh | out-null
 }
 # if path does not contain oh-my-posh, add it
 if ($env:Path -notcontains '\oh-my-posh\bin') {
@@ -130,3 +129,5 @@ $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
 if (Test-Path ($ChocolateyProfile)) {
   Import-Module "$ChocolateyProfile"
 }
+
+oh-my-posh init pwsh | Invoke-Expression

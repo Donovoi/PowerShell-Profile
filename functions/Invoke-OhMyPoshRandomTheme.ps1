@@ -1,11 +1,10 @@
 function Invoke-OhMyPoshRandomTheme {
     # Get a list of all available Oh My Posh themes
-    & oh-my-posh init pwsh | out-null
-    $themes = Get-PoshThemes
+    $themes = "$ENV:APPDATALOCAL\Programs\oh-my-posh\themes" | Get-ChildItem -Filter '*.omp.json'
 
     # Select a random theme
     $theme = Get-Random -InputObject $themes
 
     # Initialize Oh My Posh with the random theme
-    & oh-my-posh init pwsh --config $theme.FullName
+    & ([ScriptBlock]::Create((oh-my-posh init pwsh --config "$theme.FullName" --print) -join "`n"))
 }
