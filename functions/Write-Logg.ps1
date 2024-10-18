@@ -91,9 +91,9 @@ function Write-Logg {
             Write-Verbose -Message "Importing cmdlets: $cmdlets"
             $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
             $Cmdletstoinvoke | Import-Module -Force
-            if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Dependencies -PSModule 'pansies' -NoNugetPackage
-            }
+            # if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+            #     Install-Dependencies -PSModule 'pansies' -NoNugetPackage
+            # }
             if ($TUIPopUpMessage) {
                 if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
                     Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools' -NoNugetPackage
@@ -101,7 +101,7 @@ function Write-Logg {
                 }
             }
         }
-        Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
+        # Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
         # Capitalize the level for WARNING and ERROR for consistency
         if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
             $Level = $Level.ToUpper()

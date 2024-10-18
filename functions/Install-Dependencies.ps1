@@ -114,10 +114,10 @@ function Install-PackageProviders {
             Remove-Item -Path $extractPath -Recurse
         }
         else {
-            if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-                Write-Verbose 'Panises module not installed, installing now'
-                Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
-            }
+            # if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+            #     Write-Verbose 'Panises module not installed, installing now'
+            #     Install-Module -Name 'Pansies' -Force -Scope CurrentUser -ErrorAction SilentlyContinue -AllowClobber
+            # }
         }
 
         # check if the NuGet package provider is installed
@@ -157,10 +157,10 @@ function Install-PackageProviders {
             }
         }
 
-        # Ensure Pansies module is installed for logging
-        if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber -ErrorAction SilentlyContinue
-        }
+        # # Ensure Pansies module is installed for logging
+        # if (-not (Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+        #     Install-Module -Name 'Pansies' -Force -Scope CurrentUser -AllowClobber -ErrorAction SilentlyContinue
+        # }
 
     }
     catch {
