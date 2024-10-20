@@ -1,7 +1,7 @@
 function Invoke-OhMyPoshRandomTheme {
     oh-my-posh init pwsh | Invoke-Expression
     # Get a list of all available Oh My Posh themes
-    $themes = Get-poshThemes #"$ENV:LOCALAPPDATA\Programs\oh-my-posh\themes" | Get-ChildItem -Filter '*.omp.json'
+    $themes = Get-poshThemes | Out-Null #"$ENV:LOCALAPPDATA\Programs\oh-my-posh\themes" | Get-ChildItem -Filter '*.omp.json'
 
     # Select a random theme
     $theme = Get-Random -InputObject $themes
