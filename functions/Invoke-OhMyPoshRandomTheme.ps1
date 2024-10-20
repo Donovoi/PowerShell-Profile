@@ -7,5 +7,5 @@ function Invoke-OhMyPoshRandomTheme {
     $theme = Get-Random -InputObject $themes
 
     # Initialize Oh My Posh with the random theme
-    & ([ScriptBlock]::Create((oh-my-posh init pwsh --config "$theme" --print) -join "`n"))
+    oh-my-posh init pwsh --config $theme | Invoke-Expression
 }
