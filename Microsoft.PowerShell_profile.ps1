@@ -130,4 +130,4 @@ if (Test-Path ($ChocolateyProfile)) {
   Import-Module "$ChocolateyProfile"
 }
 
-oh-my-posh init pwsh | Invoke-Expression
+# oh-my-posh init pwsh | Invoke-Expression
