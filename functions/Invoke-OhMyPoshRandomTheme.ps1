@@ -8,8 +8,10 @@ function Invoke-OhMyPoshRandomTheme {
     # Get the list of themes
     $themes = Get-PoshThemes -Path $env:POSH_THEMES_PATH -List -ErrorAction SilentlyContinue | Out-String
 
+    # Create a dynamic list to store the themes
+    $themesarray = New-Object System.Collections.Generic.List[string]
+
     # Process the themes list, suppressing output from the loop
-    $themesarray = @()
     $themes -split [System.Environment]::NewLine | ForEach-Object {
         if ($_ -like '*.omp.json') {
             [void]$themesarray.Add($_)
