@@ -3,7 +3,7 @@ function Invoke-OhMyPoshRandomTheme {
     param()
 
     # Specify a default theme configuration to prevent the banner
-    $null = oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH\default.omp.json" | Invoke-Expression | Out-Null
+    $null = oh-my-posh init pwsh | Invoke-Expression | Out-Null
 
     # Get the list of themes
     $themes = Get-ChildItem -Path "$env:POSH_THEMES_PATH\*.omp.json" | Select-Object -Property FullName
@@ -12,5 +12,6 @@ function Invoke-OhMyPoshRandomTheme {
     $theme = Get-Random -InputObject $themes
 
     # Initialize Oh My Posh with the random theme
-    oh-my-posh init pwsh --config $theme | Invoke-Expression | Out-Null
+    oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression | Out-Null
 }
+Invoke-OhMyPoshRandomTheme -Verbose -ErrorAction break
