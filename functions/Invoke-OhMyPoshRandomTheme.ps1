@@ -1,18 +1,21 @@
 function Invoke-OhMyPoshRandomTheme {
     [CmdletBinding()]
     param()
-    oh-my-posh init pwsh | Invoke-Expression | Out-Null
-    # Get a list of all available Oh My Posh themes
-    $themes = Get-PoshThemes -Path $env:POSH_THEMES_PATH -List
 
-    # Create an empty array to store the themes
-    $themearray = @()
+    # Specify a default theme configuration to prevent the banner
+    $null = oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH\default.omp.json" | Invoke-Expression | Out-Null
 
-    # create an array from the list of themes
-    $themearray += $themes | ForEach-Object { $_ }
+    $themes = $(Get-PoshThemes -Path $env:POSH_THEMES_PATH -List -ErrorAction SilentlyContinue | Out-String)
+
+    $themesarray = @()
+
+    $themes -split [System.Environment]::NewLine | ForEach-Object {
+        if ($_ -like '*.omp.json') {
+            $themesarray += $_
+        } return $themesarray }
 
     # Select a random theme
-    $theme = Get-Random -InputObject $themearray
+    $theme = Get-Random -InputObject $themesarray
 
     # Initialize Oh My Posh with the random theme
     oh-my-posh init pwsh --config $theme | Invoke-Expression
