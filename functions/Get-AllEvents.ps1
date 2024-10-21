@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-Retrieves all events from specified computers within a given time range and provides multiple options for exporting and analyzing the results.
+Retrieves all events from the local computer within a given time range and provides multiple options for exporting and analyzing the results.
 
 .DESCRIPTION
-The Get-AllEvents cmdlet retrieves event logs from specified computers. It allows exporting these logs to a CSV file and optionally viewing them using Timeline Explorer, making it easier to perform analysis and understand trends within the event data. Additionally, it provides filtering capabilities to narrow the results to a given time range and offers GUI options for easier interaction.
+The Get-AllEvents cmdlet retrieves event logs from the local computer. It allows exporting these logs to a CSV file and optionally viewing them using Timeline Explorer, making it easier to perform analysis and understand trends within the event data. Additionally, it provides filtering capabilities to narrow the results to a given time range and offers GUI options for easier interaction.
 
 .PARAMETER ExportToCsv
 Switch parameter that specifies whether the retrieved events should be exported to a CSV file for further analysis.
