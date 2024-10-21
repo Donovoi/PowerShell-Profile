@@ -14,4 +14,3 @@ function Invoke-OhMyPoshRandomTheme {
     # Initialize Oh My Posh with the random theme
     oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression | Out-Null
 }
-Invoke-OhMyPoshRandomTheme -Verbose -ErrorAction break
