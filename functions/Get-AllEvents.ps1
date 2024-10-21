@@ -1,26 +1,63 @@
 <#
 .SYNOPSIS
-    Retrieves all events from specified computers within a given time range.
+Retrieves all events from specified computers within a given time range and provides multiple options for exporting and analyzing the results.
 
 .DESCRIPTION
-    This function fetches event logs from specified computers. It allows exporting these logs to CSV and viewing in Timeline Explorer.
+The Get-AllEvents cmdlet retrieves event logs from specified computers. It allows exporting these logs to a CSV file and optionally viewing them using Timeline Explorer, making it easier to perform analysis and understand trends within the event data. Additionally, it provides filtering capabilities to narrow the results to a given time range and offers GUI options for easier interaction.
 
 .PARAMETER ExportToCsv
-    Indicates whether to export the events to a CSV file.
+Switch parameter that specifies whether the retrieved events should be exported to a CSV file for further analysis.
+If set to $true, a CSV file will be generated at the location specified by the ExportCSVToFolder parameter.
 
-.PARAMETER ExportToCSVPath
-    Specifies the path to export the CSV file.
+.PARAMETER ExportCSVToFolder
+Specifies the directory where the CSV file will be saved if ExportToCsv is specified.
+By default, it will save to the current working directory if no value is provided.
 
 .PARAMETER TimelineExplorerPath
-    Specifies the path of Timeline Explorer.
+Specifies the path to the Timeline Explorer executable. This tool is used for visually analyzing the exported CSV.
+By default, it will use the Timeline Explorer installed in the temporary folder ($ENV:TEMP).
 
 .PARAMETER ViewInTimelineExplorer
-    Indicates whether to view the exported events in Timeline Explorer.
+Switch parameter indicating whether the retrieved events should be opened directly in Timeline Explorer for easier analysis.
+If set to $true, the cmdlet will export the results to CSV (if not already done) and open Timeline Explorer to view the results.
+
+.PARAMETER CollectEVTXFromDirectory
+Specifies a list of directories to search for .evtx files. These files contain historical event logs that can be retrieved and processed.
+It allows you to specify additional sources of event logs beyond the local computer.
 
 .EXAMPLE
-    Get-AllEvents -ExportToCsv -ExportToCSVPath "C:\ExportPath"
+powershell
+    Get-AllEvents -ExportToCsv -ExportCSVToFolder "C:\ExportPath"
+    
+Retrieves events from the specified sources and exports them to a CSV file at C:\ExportPath.
 
-    Retrieves events from Server1 and exports them to a CSV file at C:\ExportPath.
+.EXAMPLE
+powershell
+    Get-AllEvents -ViewInTimelineExplorer -TimelineExplorerPath "C:\Tools\TimelineExplorer.exe"
+    
+Retrieves event logs and immediately opens the results in Timeline Explorer located at C:\Tools\TimelineExplorer.exe.
+
+.EXAMPLE
+powershell
+    Get-AllEvents -CollectEVTXFromDirectory "C:\EventLogs", "D:\BackupLogs" -ExportToCsv
+    
+Collects .evtx files from the specified directories and exports the results to CSV in the default location.
+
+.NOTES
+Author: Updated by chatgpt
+Date: Today
+Version: 1.1
+This script must be run with administrative privileges to ensure access to all event logs.
+
+.REQUIREMENTS
+- Administrative privileges to access all event logs.
+- Timeline Explorer (optional, for analyzing event data).
+- PowerShell 5.1 or higher.
+
+.TODO
+- Enhance the event filtering criteria to allow selection by event IDs and levels.
+- Add support for remote computer event collection.
+
 #>
 function Get-AllEvents {
   [CmdletBinding()]
@@ -208,27 +245,36 @@ function Get-AllEvents {
         if ([string]::IsNullOrEmpty($CollectEVTXFromDirectory)) {
 
           try {
-            $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ErrorAction Stop
+            $EventLogs = Get-WinEvent -ListLog * -ErrorVariable err -ErrorAction Stop | Where-Object { $_.RecordCount -gt 0 }
             $err | ForEach-Object -Process {
               $warnmessage = $_.Exception.Message -replace '.*about the ', ''
               Write-Warning $warnmessage
             }
+            
             # Get all event logs
-            $Events = $EventLogs | ForEach-Object -Parallel {
-              try {
-                Get-WinEvent -FilterHashtable @{
-                  LogName   = "$($_.LogName)"
-                  StartTime = $using:startDateTime
-                  EndTime   = $using:endDateTime
-                } -MaxEvents $([System.Int64]::MaxValue) -Force -ErrorAction stop
+            try {
+              # Initialize an empty array to hold all events
+              $Events = @()
+
+              # Loop through each log and get all events
+              foreach ($Log in $EventLogs) {
+                try {
+                  # Get all events from the current log
+                  $LogEvents = Get-WinEvent -LogName $Log.LogName -ErrorAction SilentlyContinue
+                  $Events += $LogEvents
+                }
+                catch {
+                  Write-Warning "Could not retrieve events for log $($Log.LogName)"
+                }
               }
-              catch {
-                # Output the log name along with the error message
-                $errorMessage = "Error querying log $($_): $($_.Exception.Message)"
-                Write-Logg -Message $errorMessage -Level Error
-                throw
-              }
-            } -ThrottleLimit 100
+
+            }
+            catch {
+              # Output the log name along with the error message
+              $errorMessage = "Error querying log $($_): $($_.Exception.Message)"
+              Write-Logg -Message $errorMessage -Level Error
+              throw
+            }
           }
           catch {
             Write-Logg -Message "An error occurred: $($_.Exception.Message)" -Level Error
@@ -241,7 +287,6 @@ function Get-AllEvents {
           # Await the task to complete
           $files = Invoke-EverythingSearch -SearchTerm '*.evt*' -SearchInDirectory $CollectEVTXFromDirectory.GetEnumerator() -ErrorAction SilentlyContinue
 
-
           # Count the number of files found
           $filecount = $files.Count
 
@@ -249,7 +294,13 @@ function Get-AllEvents {
           Write-Logg -Message "Getting all Events from $filecount files, this may take a few minutes..." -Level Info
 
           try {
-            $Events = Get-WinEvent -Path $Files -ErrorAction SilentlyContinue
+            # a threadsafe concurrent queue to store events
+            $Events = [System.Collections.Generic.Queue[PSObject]]::new()
+            $files | ForEach-Object {
+              $(Get-WinEvent -Path $_ -ErrorAction SilentlyContinue).foreach{
+                $Events.Enqueue($_)
+              }
+            }
           }
           catch {
             Write-Logg -Message "An error occurred getting events from files: $($_.Exception.Message)" -Level Warning
@@ -260,19 +311,16 @@ function Get-AllEvents {
           $concurrentQueue = [System.Collections.Concurrent.ConcurrentQueue[PSObject]]::new()
 
           # Filter events in parallel and add to concurrent queue
-          $Events | ForEach-Object -Parallel {
+          $Events | ForEach-Object {
 
             $currentEvent = $_
-            $concurrentQueue = $using:concurrentQueue
-            if ($currentEvent.TimeCreated -ge $using:startDateTime -and $currentEvent.TimeCreated -le $using:endDateTime) {
+            if ($currentEvent.TimeCreated -ge $startDateTime -and $currentEvent.TimeCreated -le $endDateTime) {
               # Add the filtered event to the concurrent queue
               $concurrentQueue.Enqueue($currentEvent)
             }
-          } -ThrottleLimit 5000
+          }
 
           # Convert concurrent queue to an array and sort in chunks
-          $chunkSize = 10000 # Define a chunk size based on available memory and data size
-          $eventChunks = @()
 
           # Split the concurrent queue into chunks in parallel
           $chunkSize = 10000 # Define a chunk size based on available memory and data size
@@ -294,7 +342,7 @@ function Get-AllEvents {
           $sortedChunks = $eventChunks | ForEach-Object -Parallel {
             $chunk = $_
             $chunk | Sort-Object -Property TimeCreated
-          } -ThrottleLimit 5000 # Adjust based on your system's capacity
+          }# Adjust based on your system's capacity
 
           # Merge sorted chunks
           $EventsSorted = $sortedChunks | Sort-Object -Property TimeCreated
@@ -345,6 +393,7 @@ function Get-AllEvents {
     function Open-WithTimelineExplorer {
       [CmdletBinding()]
       param (
+        [object[]]$Events,
         [string]$CsvFilePath,
         [string]$TimelineExplorerPath = "$ENV:TEMP\TimelineExplorer\TimelineExplorer.exe"
       )
@@ -371,7 +420,7 @@ function Get-AllEvents {
       # If the csv file doesn't exist, export the events to CSV
       if (-not (Test-Path $CsvFilePath)) {
         Write-Logg -Message 'Windows Event Log CSV not found at creating one now..' -Level Warning
-        $exportedCSV = Export-EventsToCsv -Events $EventsSorted -ExportFolder $ExportCSVToFolder
+        $exportedCSV = Export-EventsToCsv -Events $Events -ExportFolder $ExportCSVToFolder
         $fullcsvpath = $(Resolve-Path -Path $exportedCSV).Path
       }
 
@@ -381,6 +430,7 @@ function Get-AllEvents {
 
     function Out-EventsFormatted {
       [CmdletBinding()]
+      [OutputType([System.Object[]])]
       param (
         [Parameter(Mandatory = $true)]
         [object[]]$Events,
@@ -401,16 +451,18 @@ function Get-AllEvents {
 
       if ($ViewInTimelineExplorer) {
         $csvPath = $csvPath ? $csvPath : $(Export-EventsToCsv -Events $Events -ExportFolder $ExportCSVToFolder)
-        Open-WithTimelineExplorer -CsvFilePath $csvPath -TimelineExplorerPath $TimelineExplorerPath
+        Open-WithTimelineExplorer -CsvFilePath $csvPath -TimelineExplorerPath $TimelineExplorerPath -Events $Events
       }
       elseif (-not $ExportToCsv) {
         $Events | Out-ConsoleGridView -Title 'Events Found'
       }
+      return $Events
     }
     Test-AdminPrivilege
   }
 
   process {
     Initialize-EventLogGui
+    return $Events
   }
 }
