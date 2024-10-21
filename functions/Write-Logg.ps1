@@ -48,7 +48,7 @@ function Write-Logg {
         $Message,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('INFO', 'WARNING', 'ERROR', 'VERBOSE')]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'VERBOSE', 'LOLCAT')]
         [string]
         $Level = 'INFO',
 
@@ -76,11 +76,7 @@ function Write-Logg {
 
         [Parameter(Mandatory = $false)]
         [switch]
-        $LogToFile,
-
-        [Parameter(Mandatory = $false)]
-        [switch]
-        $lolcat
+        $LogToFile
     )
 
     try {
@@ -122,7 +118,7 @@ function Write-Logg {
             Add-Content -Path $LogFile -Value $logMessage
         }
 
-        if ($lolcat) {
+        if ($level -like 'LOLCAT') {
             if (-not (Get-Command -Name 'lolcat' -ErrorAction SilentlyContinue)) {
                 Install-Dependencies -PSModule 'lolcat' -NoNugetPackage
             }
@@ -132,7 +128,7 @@ function Write-Logg {
         if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE') -and (-not($TUIPopUpMessage))) {
             switch ($Level) {
                 'INFO' {
-                    Write-Information -MessageData $logMessage
+                    Write-Host -Message $logMessage -ForegroundColor Green
                 }
                 'WARNING' {
                     Write-Warning -Message $logMessage
@@ -147,24 +143,25 @@ function Write-Logg {
                     $logMessage | lolcat -a
                 }
             }
-
-            # Show WPF pop-up message if specified
-            if ($WPFPopUpMessage) {
-                New-WPFMessageBox -Content $Message -Title $Level -ButtonType 'OK-Cancel' -ContentFontSize 20 -TitleFontSize 40
-            }
-
-            # Show Terminal.Gui pop-up message if specified
-            if ($TUIPopUpMessage) {
-
-                # Display the confirmation dialog
-                $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $logMessage -InfoLevel $Level
-
-                # Return the confirmation result
-                return $confirmationResult
-            }
         }
-        catch {
-            Write-Error "An error occurred: $_"
-            Write-Error "Error details: $($_.Exception)"
+
+        # Show WPF pop-up message if specified
+        if ($WPFPopUpMessage) {
+            New-WPFMessageBox -Content $Message -Title $Level -ButtonType 'OK-Cancel' -ContentFontSize 20 -TitleFontSize 40
+        }
+
+        # Show Terminal.Gui pop-up message if specified
+        if ($TUIPopUpMessage) {
+
+            # Display the confirmation dialog
+            $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $logMessage -InfoLevel $Level
+
+            # Return the confirmation result
+            return $confirmationResult
         }
     }
+    catch {
+        Write-Error "An error occurred: $_"
+        Write-Error "Error details: $($_.Exception)"
+    }
+}
