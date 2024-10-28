@@ -828,14 +828,14 @@ function Get-PdbSymbol {
         }
     }
 
-    Clean {
-        ## Saving progress to the cache.
-        $Global:cacheObject | Out-File -FilePath "$DestinationStore\.DownloadStatusCache.log" -Append
+    # Clean {
+    #     ## Saving progress to the cache.
+    #     $Global:cacheObject | Out-File -FilePath "$DestinationStore\.DownloadStatusCache.log" -Append
 
-        if ($readPowershell.InvocationStateInfo.State -eq 'Running') {
-            [void]$readPowershell.StopAsync($null, $null)
-            $readPowershell.Dispose()
-            $readRunspace.Dispose()
-        }
-    }
+    #     if ($readPowershell.InvocationStateInfo.State -eq 'Running') {
+    #         [void]$readPowershell.StopAsync($null, $null)
+    #         $readPowershell.Dispose()
+    #         $readRunspace.Dispose()
+    #     }
+    # }
 }
