@@ -96,8 +96,6 @@ function Get-PdbSymbol {
         [int]$Retry = 3
     )
 
-    #Requires -Version 7.3
-
     Begin {
 
         try {
