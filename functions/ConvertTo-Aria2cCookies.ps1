@@ -49,16 +49,28 @@ function ConvertTo-Aria2cCookies {
         [System.Net.CookieContainer]$Cookies,
         [Parameter(Mandatory)]
         [string]$CookieFilePath,
-
         [Parameter(Mandatory)]
         [string]$Domain
     )
 
     $cookieList = @()
+
     foreach ($cookie in $Cookies.GetCookies($Domain)) {
-        $cookieList += "$($cookie.Domain)	$([int]$cookie.HttpOnly)	$($cookie.Path)	$([int]$cookie.Secure)	$($cookie.Expires.ToFileTimeUtc())	$($cookie.Name)	$($cookie.Value)"
+        # Check if the Expires property is valid
+        $expires = if ($cookie.Expires -eq [DateTime]::MinValue) {
+            # Default to a placeholder (e.g., 0 for session cookies)
+            0
+        }
+        else {
+            $cookie.Expires.ToFileTimeUtc()
+        }
+
+        # Append cookie information in aria2c-compatible format
+        $cookieList += "$($cookie.Domain)	$([int]$cookie.HttpOnly)	$($cookie.Path)	$([int]$cookie.Secure)	$expires	$($cookie.Name)	$($cookie.Value)"
     }
+
+    # Write the cookie list to the file
     $cookieList | Set-Content -Path $CookieFilePath -Encoding UTF8
-    
+
     return $CookieFilePath
 }
