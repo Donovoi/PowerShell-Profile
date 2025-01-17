@@ -96,7 +96,10 @@ function Get-FileDownload {
         [string]$AriaConsoleLogLevel = 'error',
 
         [Parameter(Mandatory = $false)]
-        [switch]$LogToFile
+        [switch]$LogToFile,
+
+        [Parameter(Mandatory = $false)]
+        [string]$LoadCookiesFromFile = ''
 
     )
     process {
@@ -222,10 +225,10 @@ function Get-FileDownload {
                         }
                     }
                     elseif ($NoRPCMode) {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -Verbose:$VerbosePreference
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
                     }
                     else {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -Verbose:$VerbosePreference
+                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
                     }
                 }
                 else {
