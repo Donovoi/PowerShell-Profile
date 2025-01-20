@@ -193,10 +193,10 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     foreach ($assembly in $assembliesToAdd) {
         try {
             Add-Type -AssemblyName $assembly -ErrorAction Stop
-            Write-Logg -Message "Successfully added assembly: $assembly" -Level Info
+            Write-Logg -Message "Successfully added assembly: $assembly" -Level Verbose
         }
         catch {
-            Write-Logg -Message "Failed to add assembly: $assembly. Error: $_" -Level Info
+            Write-Logg -Message "Failed to add assembly: $assembly. Error: $_" -Level Verbose
         }
     }
 }
@@ -233,17 +233,17 @@ function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$Nuget
 
         # Output the final hashtable for verification
         $deps.GetEnumerator() | ForEach-Object {
-            Write-Output "Package: $($_.Key), Version: $($_.Value.Version)"
+            Write-Logg -Message "Package: $($_.Key), Version: $($_.Value.Version)" -Level Verbose
         }
         # Log the installation process
-        Write-Logg -Message 'Installing NuGet dependencies' -Level Info
+        Write-Logg -Message 'Installing NuGet dependencies' -Level Verbose
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
             Add-NuGetDependencies -NugetPackage $deps
         }
         else {
-            Write-Logg -Message 'No NuGet packages to install' -Level Info
+            Write-Logg -Message 'No NuGet packages to install' -Level Verbose
         }
     }
     catch {
@@ -348,13 +348,13 @@ function Install-PSModule {
         }
         catch {
             if ($_.Exception.Message -match '.ps1xml') {
-                Write-Logg -Message 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.' -Level Info
+                Write-Logg -Message 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.' -Level Verbose
                 $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
                 Remove-Item $moduleDir -Recurse -Force
                 Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
             }
             else {
-                Write-Logg -Message "An unexpected global error occurred: $_" -Level Info
+                Write-Logg -Message "An unexpected global error occurred: $_" -Level Verbose
             }
         }
     }
@@ -372,7 +372,7 @@ function Update-SessionEnvironment {
     }
 
     if ($refreshEnv) {
-        Write-Output 'Refreshing environment variables from the registry for powershell.exe. Please wait...'
+        Write-Logg -Message 'Refreshing environment variables from the registry for powershell.exe. Please wait...'
     }
     else {
         Write-Verbose 'Refreshing environment variables from the registry.'
@@ -415,7 +415,7 @@ function Update-SessionEnvironment {
     }
 
     if ($refreshEnv) {
-        Write-Output 'Finished'
+        Write-Logg -Message 'Finished'
     }
 }
 
@@ -587,13 +587,13 @@ function Add-NuGetDependencies {
 
                     $nugetExe = 'nuget.exe'
                     if (-not (Test-Path -Path $nugetExe)) {
-                        Write-Output 'Downloading NuGet.exe...'
+                        Write-Logg -Message 'Downloading NuGet.exe...' -level Verbose
                         Invoke-WebRequest -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nugetExe
                     }
 
                     $packageFile = "$PackageName.$Version.nupkg"
                     if (-not (Test-Path -Path $packageFile)) {
-                        Write-Output "Downloading $PackageName $Version..."
+                        Write-Logg -Message "Downloading $PackageName $Version..." -level Verbose
                         #& $nugetExe install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion
                         #change the above line to the start-process instead
                         Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -NoNewWindow -Wait
@@ -603,7 +603,7 @@ function Add-NuGetDependencies {
                     $libDir = Join-Path -Path $packageDir -ChildPath 'lib/netstandard2.0'
 
                     if (Test-Path -Path $libDir) {
-                        Write-Output "Extracting $PackageName $Version..."
+                        Write-Logg -Message "Extracting $PackageName $Version..." -level Verbose
                         # make sure destination path exists
                         if (-not (Test-Path -Path $DestinationPath -PathType Container)) {
                             New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction SilentlyContinue
@@ -644,11 +644,11 @@ function Add-NuGetDependencies {
                                 $assemblies | ForEach-Object {
                                     $assemblyName = $_.Name
                                     $assemblyPath = $_.FullName
-                                    Write-Logg -Message "Adding assembly $assemblyName to the application domain" -level Info
+                                    Write-Logg -Message "Adding assembly $assemblyName to the application domain" -Level Verbose
                                     Add-FileToAppDomain -BasePath $publishDir -File $assemblyName
                                 }
 
-                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -level Info
+                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -Level Verbose
                             }
                             finally {
                                 # Clean up: Remove the temporary directory if it is not specified

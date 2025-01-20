@@ -26,13 +26,13 @@ function Add-FileToAppDomain {
 
     try {
         if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
-            throw "[!] Can't find or access folder ${BasePath}."
+            Write-Logg -Message "[!] Can't find or access folder ${BasePath}." -Level Error
         }
 
         $FileToLoad = Join-Path $BasePath $File
 
         if (-not (Test-Path -Path "$FileToLoad" -PathType Leaf)) {
-            throw "[!] Can't find or access file ${FileToLoad}."
+            Write-Logg -Message "[!] Can't find or access file ${FileToLoad}." -Level Error
         }
 
         if (-not ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object Location -Like $FileToLoad)) {
@@ -43,7 +43,7 @@ function Add-FileToAppDomain {
         }
     }
     catch {
-        Write-Error "An error occurred: $_"
-        Write-Error "Error details: $($_.Exception)"
+        Write-Logg -Message "An error occurred: $_" -Level Error
+        Write-Logg -Message "Error details: $($_.Exception)" -Level Error
     }
 }
