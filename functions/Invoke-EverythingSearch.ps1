@@ -71,7 +71,7 @@ function Invoke-EverythingSearch {
 
     [Parameter(Mandatory = $false)]
     [string]
-    $EverythingPortableDownloadURL = 'https://www.voidtools.com/Everything-1.5.0.1383a.x64.zip'
+    $EverythingPortableDownloadURL = 'https://www.voidtools.com/Everything-1.5.0.1390a.x64.zip'
   )
 
   # Import the required cmdlets
