@@ -132,18 +132,18 @@ function Show-TUIConfirmationDialog {
 
 
 
-    # Create a label
-    $label = [Terminal.Gui.Label]::new()
-    $label.X = [Terminal.Gui.Pos]::Center()   # Horizontal center
-    $label.Y = [Terminal.Gui.Pos]::Percent(30) # 20% from the top
-    $label.Width = [Terminal.Gui.Dim]::Fill() # Fill the width of the container
-    $label.Height = 1                         # Height is 1 line
-    $label.Text = 'Centered Text'
-    $label.TextAlignment = [Terminal.Gui.TextAlignment]::Centered
-    #   $label.ColorScheme = $colorScheme
+    # # Create a label
+    # $label = [Terminal.Gui.Label]::new()
+    # $label.X = [Terminal.Gui.Pos]::Center()   # Horizontal center
+    # $label.Y = [Terminal.Gui.Pos]::Percent(30) # 20% from the top
+    # $label.Width = [Terminal.Gui.Dim]::Fill() # Fill the width of the container
+    # $label.Height = 1                         # Height is 1 line
+    # # $label.Text = 'Centered Text'
+    # $label.TextAlignment = [Terminal.Gui.TextAlignment]::Centered
+    # #   $label.ColorScheme = $colorScheme
 
-    # Add the label to a window or dialog
-    $dialog.Add($label)
+    # # Add the label to a window or dialog
+    # $dialog.Add($label)
 
 
 
