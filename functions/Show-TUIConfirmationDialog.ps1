@@ -74,11 +74,11 @@ function Show-TUIConfirmationDialog {
     switch ($InfoLevel) {
         'INFO' {
             $colorScheme = [Terminal.Gui.ColorScheme]::new()
-            $colorScheme.Normal = [Terminal.Gui.Attribute]::new([ConsoleColor]::Black, [ConsoleColor]::Green)
-            $colorScheme.Focus = [Terminal.Gui.Attribute]::new([ConsoleColor]::Green, [ConsoleColor]::Black)
-            $colorScheme.HotNormal = [Terminal.Gui.Attribute]::new([ConsoleColor]::Black, [ConsoleColor]::Green)
-            $colorScheme.HotFocus = [Terminal.Gui.Attribute]::new([ConsoleColor]::Green, [ConsoleColor]::Black)
-            $colorScheme.Disabled = [Terminal.Gui.Attribute]::new([ConsoleColor]::Black, [ConsoleColor]::Green)
+            $colorScheme.Normal = [Terminal.Gui.Attribute]::new([ConsoleColor]::White, [ConsoleColor]::Blue)
+            $colorScheme.Focus = [Terminal.Gui.Attribute]::new([ConsoleColor]::Blue, [ConsoleColor]::White)
+            $colorScheme.HotNormal = [Terminal.Gui.Attribute]::new([ConsoleColor]::White, [ConsoleColor]::Blue)
+            $colorScheme.HotFocus = [Terminal.Gui.Attribute]::new([ConsoleColor]::Blue, [ConsoleColor]::White)
+            $colorScheme.Disabled = [Terminal.Gui.Attribute]::new([ConsoleColor]::White, [ConsoleColor]::Blue)
 
         }
         'WARNING' {
