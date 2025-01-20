@@ -89,6 +89,11 @@ function Invoke-EverythingSearch {
     $Cmdletstoinvoke | Import-Module -Force
   }
 
+  # First we need to terminate any existing everything processes
+  if (Get-Process -Name 'Everything*' -ErrorAction SilentlyContinue) {
+    Stop-Process -Name 'Everything*' -Force
+  }
+
   # Make sure everythingdirectory exists
   if (-not (Test-Path -Path $EverythingDirectory)) {
     New-Item -Path $EverythingDirectory -ItemType Directory -Force
