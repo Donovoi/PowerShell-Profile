@@ -10,7 +10,8 @@ function Install-Dependencies {
         [switch]$InstallDefaultNugetPackage,
         [switch]$AddDefaultAssemblies,
         [string[]]$AddCustomAssemblies,
-        [string]$LocalModulesDirectory
+        [string]$LocalModulesDirectory,
+        [switch]$SaveLocally
     )
 
     # Run as admin
@@ -36,21 +37,21 @@ function Install-Dependencies {
 
     # Install NuGet dependencies
     if (-not $NoNugetPackage ) {
-        Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage
+        $null = Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage -SaveLocally:$SaveLocally -LocalModulesDirectory:$LocalModulesDirectory
         # refresh environment variables
         Update-SessionEnvironment
     }
 
     # Add assemblies
     if ($AddDefaultAssemblies -or $AddCustomAssemblies) {
-        Add-Assemblies -UseDefault:$AddDefaultAssemblies -CustomAssemblies:$AddCustomAssemblies
+        $null = Add-Assemblies -UseDefault:$AddDefaultAssemblies -CustomAssemblies:$AddCustomAssemblies
         # refresh environment variables
         Update-SessionEnvironment
     }
 
     # Install PowerShell modules
     if (-not $NoPSModules) {
-        Install-PSModule -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
+        $null = Install-PSModule -InstallDefaultPSModules:$InstallDefaultPSModules -PSModule:$PSModule -RemoveAllModules:$RemoveAllModules -LocalModulesDirectory:$LocalModulesDirectory
         # refresh environment variables
         Update-SessionEnvironment
     }
@@ -122,10 +123,10 @@ function Install-PackageProviders {
 
         # check if the NuGet package provider is installed
         if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue) ) {
-            Find-PackageProvider -Name 'Nuget' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
-            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Import-PackageProvider -Name nuget -ErrorAction SilentlyContinue | Out-Null
-            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName NuGet -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
+            Install-PackageProvider -Name 'NuGet' -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Import-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue | Out-Null
+            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' -ProviderName 'NuGet' -Trusted -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
 
 
@@ -202,7 +203,14 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
 }
 
 
-function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$NugetPackage) {
+function Install-NugetDeps {
+    [CmdletBinding()]
+    param (
+        [bool]$SaveLocally,
+        [bool]$InstallDefaultNugetPackage,
+        [hashtable]$NugetPackage,
+        [string]$LocalModulesDirectory
+    )
     $deps = @{}  # Initialize an empty hashtable
     try {
         # Define default NuGet packages
@@ -214,7 +222,7 @@ function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$Nuget
         }
 
         # If InstallDefault is true, start with default packages
-        if ($InstallDefault) {
+        if ($InstallDefaultNugetPackage) {
             foreach ($package in $defaultPackages.GetEnumerator()) {
                 $deps[$package.Key] = @{
                     Name    = $package.Key
@@ -240,7 +248,7 @@ function Install-NugetDeps ([bool]$InstallDefaultNugetPackage, [hashtable]$Nuget
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
-            Add-NuGetDependencies -NugetPackage $deps
+            Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Verbose
@@ -548,19 +556,19 @@ function Add-NuGetDependencies {
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
 
             # check if module is already downloaded locally
-            if (Test-Path -Path "$destinationPath" -PathType Container) {
+            if (Test-Path -Path "$destinationPath" -PathType Container -ErrorAction SilentlyContinue) {
                 # Add all the DLLs to the application domain
                 $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
                 $DLLPath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
                 $DLLSplit = Split-Path -Path $DLLPath -Leaf
                 Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
-                Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
+                $null = Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit -ErrorAction SilentlyContinue
                 continue
             }
 
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
+                $null = Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 # Update the installed dependencies hashtable
