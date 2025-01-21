@@ -81,7 +81,7 @@ function Write-Logg {
 
     try {
         # make sure we have pansies to override write-host
-        $cmdlets = @('Install-Dependencies', 'Show-TUIConfirmationDialog')
+        $cmdlets = @('Install-Dependencies', 'Show-TUIConfirmationDialog', 'Write-InformationColored')
         if (-not (Get-Command -Name $cmdlets -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                 $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -91,9 +91,7 @@ function Write-Logg {
             Write-Verbose -Message "Importing cmdlets: $cmdlets"
             $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
             $Cmdletstoinvoke | Import-Module -Force
-            # if (-not(Get-Module -Name 'pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-            #     Install-Dependencies -PSModule 'pansies' -NoNugetPackage
-            # }
+
             if ($TUIPopUpMessage) {
                 if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
                     Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools' -NoNugetPackage
@@ -128,7 +126,7 @@ function Write-Logg {
         if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE') -and (-not($TUIPopUpMessage))) {
             switch ($Level) {
                 'INFO' {
-                    Write-Host -Message $logMessage -ForegroundColor Green
+                    Write-InformationColored -MessageData $logMessage -ForegroundColor 'Green'
                 }
                 'WARNING' {
                     Write-Warning -Message $logMessage
