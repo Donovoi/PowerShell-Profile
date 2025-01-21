@@ -25,8 +25,10 @@ function Write-InformationColored {
     if ($ListColors) {
         # Display all available colors with visual samples
         foreach ($color in $availableColors) {
-            Write-Host "$color" -ForegroundColor $color
+            [System.Console]::ForegroundColor = [System.ConsoleColor]::Parse([System.ConsoleColor], $color)
+            [System.Console]::WriteLine("$color")
         }
+        [System.Console]::ResetColor()
         return
     }
 
@@ -46,14 +48,17 @@ function Write-InformationColored {
     $fgColor = [System.Enum]::Parse([System.ConsoleColor], $ForegroundColor)
     $bgColor = [System.Enum]::Parse([System.ConsoleColor], $BackgroundColor)
 
-    # Create HostInformationMessage object
-    $msg = [System.Management.Automation.HostInformationMessage]@{
-        Message         = $MessageData
-        ForegroundColor = $fgColor
-        BackgroundColor = $bgColor
-        NoNewline       = $NoNewline.IsPresent
+    # Set console colors
+    [System.Console]::ForegroundColor = $fgColor
+    [System.Console]::BackgroundColor = $bgColor
+
+    # Write the message
+    if ($NoNewline) {
+        [System.Console]::Write($MessageData)
+    } else {
+        [System.Console]::WriteLine($MessageData)
     }
 
-    # Write the informational message
-    Write-Information -MessageData $msg
+    # Reset console colors to defaults
+    [System.Console]::ResetColor()
 }
