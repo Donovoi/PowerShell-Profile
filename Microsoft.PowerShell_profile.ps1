@@ -117,14 +117,14 @@ Update-SessionEnvironment
 Invoke-SamplePSReadLineProfile
 
 # Stop PSReadline from auto-completing certain characters
-Set-PSReadLineKeyHandler -Key '"' -Function None
-Set-PSReadLineKeyHandler -Key "'" -Function None
-Set-PSReadLineKeyHandler -Key '(' -Function None
-Set-PSReadLineKeyHandler -Key ')' -Function None
-Set-PSReadLineKeyHandler -Key '{' -Function None
-Set-PSReadLineKeyHandler -Key '}' -Function None
-Set-PSReadLineKeyHandler -Key '[' -Function None
-Set-PSReadLineKeyHandler -Key ']' -Function None
+Set-PSReadLineKeyHandler -Key '"' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key "'" -Function SelfInsert
+Set-PSReadLineKeyHandler -Key '(' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key ')' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key '{' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key '}' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key '[' -Function SelfInsert
+Set-PSReadLineKeyHandler -Key ']' -Function SelfInsert
 
 
 # Crazy oh my posh random theme function
