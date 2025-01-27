@@ -92,7 +92,7 @@ function Get-LatestGitHubRelease {
     )
     process {
         # Import the required cmdlets
-        $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
+        $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
         $neededcmdlets | ForEach-Object {
             if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -224,6 +224,9 @@ function Get-LatestGitHubRelease {
                 if ($PrivateRepo) {
                     $downloadFileParams['Token'] = $Token
                     $downloadFileParams['IsPrivateRepo'] = $true
+                }
+                if ($Token -and -not ($PrivateRepo)) {
+                    $downloadFileParams['Token'] = $Token
                 }
                 if ($Release) {
                     $downloadFileParams['URL'] = $Release
