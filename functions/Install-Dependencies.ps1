@@ -102,10 +102,10 @@ function Install-PackageProviders {
             Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
 
             # Find the DLL path
-            $dllPath = Get-ChildItem -Path $extractPath -Recurse -Filter 'PackageManagement.dll' | Select-Object -First 1 -ExpandProperty FullName
+            $dllBasePath = Get-ChildItem -Path $extractPath -Recurse -Filter 'PackageManagement.dll' | Select-Object -First 1 -ExpandProperty FullName
 
             # Import the module
-            Import-Module $dllPath
+            Import-Module $dllBasePath
 
             # Test to see if it's working
             Get-Command -Module PackageManagement
@@ -248,9 +248,35 @@ function Install-NugetDeps {
         # Log the installation process
         Write-Logg -Message 'Installing NuGet dependencies' -Level Verbose
 
-        if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
-            # Install NuGet packages
-            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory 
+        if ($deps.Count -gt 0) {
+
+            # For each one, check if it's installed, if not, install it
+            foreach ($entry in $deps.GetEnumerator()) {
+                $dep = $entry.Value.Name
+                $version = $entry.Value.Version
+        
+                # Check if the exact package name and version is already installed
+                $installed = Get-Package -Name $dep `
+                    -RequiredVersion $version `
+                    -ProviderName NuGet `
+                    -ErrorAction SilentlyContinue
+        
+                if ($installed) {
+                    Write-Logg -Message "Package '$dep' version '$version' is already installed. Skipping..." -Level Verbose
+                }
+                else {
+                    Write-Logg -Message "Package '$dep' version '$version' not found locally. Installing..." -Level Verbose
+        
+                    # Option A: Directly install with Install-Package here
+                    # or
+                    # Option B: Delegate to Add-NuGetDependencies:
+                    $null = Add-NuGetDependencies `
+                        -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } `
+                        -SaveLocally:$SaveLocally `
+                        -LocalNugetDirectory:$LocalModulesDirectory
+                }
+            }
+        
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Verbose
@@ -425,7 +451,7 @@ function Update-SessionEnvironment {
     }
 
     if ($refreshEnv) {
-        Write-Logg -Message 'Finished'
+        Write-Logg -Message 'Finished' -Level Verbose
     }
 }
 
@@ -536,7 +562,7 @@ function Add-NuGetDependencies {
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = Join-Path (Join-Path -Path $($LocalNugetDirectory ? $LocalNugetDirectory : $PWD) -ChildPath 'PowershellscriptsandResources') 'NugetPackage'
+            $TempWorkDir = Join-Path (Join-Path -Path $($LocalNugetDirectory ? $LocalNugetDirectory : $PWD) -ChildPath 'PowershellscriptsandResources/NugetPackages') 'NugetPackage'
             Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
@@ -554,20 +580,117 @@ function Add-NuGetDependencies {
         foreach ($package in $NugetPackage.GetEnumerator()) {
             $version = $package.Value.Version
             $dep = $package.Value.Name
-            #  first if $localModulesDirectory is not null or empty
+            #  first if $LocalNugetDirectory is not null or empty
             if (-not [string]::IsNullOrEmpty($LocalNugetDirectory)) {
                 $TempWorkDir = $LocalNugetDirectory
             }
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
-
+            $dllBasePath = ''
             # check if module is already downloaded locally
             if (Test-Path -Path "$destinationPath" -PathType Container -ErrorAction SilentlyContinue) {
                 # Add all the DLLs to the application domain
-                $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
-                $DLLPath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
-                $DLLSplit = Split-Path -Path $DLLPath -Leaf
+                $BasePath = "$destinationPath"
+                # Test if lib folder exists
+                if (-not (Test-Path -Path "$BasePath\lib" -PathType Container)) {
+                    # new basepath is equal to the destination path
+                    $dllFullPath = Get-ChildItem -Path $destinationPath -Include '*.dll' -Recurse | Select-Object -First 1
+                    $BasePath = Split-Path -Path $dllFullPath -Parent
+                }
+                else {
+
+                    # Retrieve the Release value from the registry
+                    $releaseKey = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release
+
+                    # Function to determine the .NET Framework version based on the Release key
+                    function Get-NetFrameworkVersion {
+                        param ($releaseKey)
+                        switch ($releaseKey) {
+                            { $_ -ge 533320 } {
+                                return '4.8.1' 
+                            }
+                            { $_ -ge 528040 } {
+                                return '4.8' 
+                            }
+                            { $_ -ge 461808 } {
+                                return '4.7.2' 
+                            }
+                            { $_ -ge 461308 } {
+                                return '4.7.1' 
+                            }
+                            { $_ -ge 460798 } {
+                                return '4.7' 
+                            }
+                            { $_ -ge 394802 } {
+                                return '4.6.2' 
+                            }
+                            { $_ -ge 394254 } {
+                                return '4.6.1' 
+                            }
+                            { $_ -ge 393295 } {
+                                return '4.6' 
+                            }
+                            { $_ -ge 379893 } {
+                                return '4.5.2' 
+                            }
+                            { $_ -ge 378675 } {
+                                return '4.5.1' 
+                            }
+                            { $_ -ge 378389 } {
+                                return '4.5' 
+                            }
+                            default {
+                                return 'Version 4.5 or later not detected' 
+                            }
+                        }
+                    }
+
+                    $netVersion = Get-NetFrameworkVersion -releaseKey $releaseKey
+                    Write-logg -message "Latest .NET Framework Version Detected: $netVersion" -level Verbose
+
+                    # Map .NET Framework versions to their corresponding folder names
+                    $frameworkMap = @{
+                        '4.8.1' = 'net45'
+                        '4.8'   = 'net45'
+                        '4.7.2' = 'net45'
+                        '4.7.1' = 'net45'
+                        '4.7'   = 'net45'
+                        '4.6.2' = 'net45'
+                        '4.6.1' = 'net45'
+                        '4.6'   = 'net45'
+                        '4.5.2' = 'net45'
+                        '4.5.1' = 'net45'
+                        '4.5'   = 'net45'
+                        '4.0'   = 'net40'
+                        '3.5'   = 'net35'
+                    }
+
+                    # Determine the folder corresponding to the detected .NET version
+                    $folder = $frameworkMap[$netVersion]
+
+                    if ($folder) {
+                        # Construct the full path to the DLL
+                        $dllBasePath = Join-Path -Path $basePath -ChildPath "lib\$folder"
+
+                        # Load the DLL into the PowerShell session
+                        if (Test-Path -Path $dllBasePath) {
+                            Write-Logg -Message "Loading DLL from: $dllBasePath" -Level Verbose
+                        }
+                        else {
+                            Write-Logg -Message "DLL not found at: $dllBasePath" -Level Verbose
+                        }
+                    }
+                    else {
+                        Write-Logg -Message "No corresponding DLL found for .NET Framework version: $netVersion" -Level Error
+                    }
+                }
+                if (([string]::IsNullOrWhiteSpace($dllBasePath))) {
+                    $dllBasePath = $BasePath ? $BasePath : ''
+                }
+
+                $DLLSplit = $(Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Name
+                $DLLFolder = $(Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Directory
                 Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
-                $null = Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit -ErrorAction SilentlyContinue
+                $null = Add-FileToAppDomain -BasePath $DLLFolder -File $DLLSplit -ErrorAction SilentlyContinue
                 continue
             }
 
@@ -708,8 +831,8 @@ function Add-NuGetDependencies {
 
             # Output the sorted folder names
             $BasePath = $($sortedFolders | Select-Object -First 1 -Property FullName).FullName
-            $DLLPath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
-            $DLLSplit = Split-Path -Path $DLLPath -Leaf
+            $dllBasePath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
+            $DLLSplit = Split-Path -Path $dllBasePath -Leaf
             Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
             Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
         }
