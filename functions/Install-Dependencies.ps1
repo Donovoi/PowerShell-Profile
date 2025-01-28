@@ -249,7 +249,7 @@ function Install-NugetDeps {
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
-            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally
+            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Verbose
