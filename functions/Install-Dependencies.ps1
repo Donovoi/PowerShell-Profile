@@ -212,8 +212,11 @@ function Install-NugetDeps {
         [hashtable]$NugetPackage,
         [string]$LocalModulesDirectory
     )
-    $deps = @{}  # Initialize an empty hashtable
+
     try {
+        # Build final list of packages to install
+        $deps = @{}
+
         # Define default NuGet packages
         $defaultPackages = @{
             'Interop.UIAutomationClient' = '10.19041.0'
@@ -222,7 +225,7 @@ function Install-NugetDeps {
             'HtmlAgilityPack'            = '1.11.50'
         }
 
-        # If InstallDefault is true, start with default packages
+        # Gather any default packages
         if ($InstallDefaultNugetPackage) {
             foreach ($package in $defaultPackages.GetEnumerator()) {
                 $deps[$package.Key] = @{
@@ -232,8 +235,8 @@ function Install-NugetDeps {
             }
         }
 
-        # Add packages from the $NugetPackage hashtable
-        if (-not ([string]::IsNullOrEmpty($NugetPackage))) {
+        # Gather additional packages
+        if ($NugetPackage) {
             foreach ($package in $NugetPackage.GetEnumerator()) {
                 $deps[$package.Key] = @{
                     Name    = $package.Key
@@ -241,20 +244,28 @@ function Install-NugetDeps {
                 }
             }
         }
-        # Output the final hashtable for verification
-        $deps.GetEnumerator() | ForEach-Object {
-            Write-Logg -Message "Package: $($_.Key), Version: $($_.Value.Version)" -Level Verbose
-        }
-        # Log the installation process
-        Write-Logg -Message 'Installing NuGet dependencies' -Level Verbose
 
         if ($deps.Count -gt 0) {
+            Write-Logg -Message 'Installing NuGet dependencies' -Level Verbose
 
-            # For each one, check if it's installed, if not, install it
+            # Show a progress bar over the NuGet deps
+            $count = 0
+            $total = $deps.Count
+
             foreach ($entry in $deps.GetEnumerator()) {
+                $count++
+
+                # Compute the percentage
+                $percent = [int](($count / $total) * 100)
+
                 $dep = $entry.Value.Name
                 $version = $entry.Value.Version
-        
+
+                Write-Progress `
+                    -Activity 'Installing NuGet Packages' `
+                    -Status "Installing $dep ($count of $total)" `
+                    -PercentComplete $percent
+
                 # Check if the exact package name and version is already installed
                 $installed = Get-Package -Name $dep `
                     -RequiredVersion $version `
@@ -266,137 +277,76 @@ function Install-NugetDeps {
                 }
                 else {
                     Write-Logg -Message "Package '$dep' version '$version' not found locally. Installing..." -Level Verbose
-        
-                    # Option A: Directly install with Install-Package here
-                    # or
-                    # Option B: Delegate to Add-NuGetDependencies:
-                    $null = Add-NuGetDependencies `
-                        -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } `
-                        -SaveLocally:$SaveLocally `
-                        -LocalNugetDirectory:$LocalModulesDirectory
+                    Add-NuGetDependencies -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory
                 }
             }
-        
         }
         else {
-            Write-Logg -Message 'No NuGet packages to install' -Level Verbose
+            Write-Logg -Message 'No NuGet packages to install.' -Level Verbose
         }
     }
     catch {
-        # Log any errors that occur during the installation
         Write-Logg "An error occurred while installing NuGet packages: $_" -level Error
     }
 }
 
 
-
-
-
-
 function Install-PSModule {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
         [bool]$InstallDefaultPSModules,
-
-        [Parameter(Mandatory = $false)]
         [string[]]$PSModule,
-
-        [Parameter(Mandatory = $false)]
         [bool]$RemoveAllModules,
-
-        [Parameter(Mandatory = $false)]
         [string]$LocalModulesDirectory
     )
 
-    begin {
-        # Not yet used
-    }
-
     process {
         try {
-            # Determine which modules are to be installed
+            # Build a module list
             $ModulesToBeInstalled = @()
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
-                    #'PANSIES'
-                    # 'PSReadLine'
+                    # Just an example – fill in your default modules here
+                    'PSReadLine'
                 )
             }
-            elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
+            elseif ($PSModule) {
                 $ModulesToBeInstalled = $PSModule
             }
 
-            # Uninstall modules if RemoveAllModules flag is set
-            if ($RemoveAllModules) {
-                $installedModules = Get-Module -ListAvailable
-                $installedModules | ForEach-Object {
-                    if ($_.Name -in $ModulesToBeInstalled) {
-                        Write-Output "Removing module $($_.Name)"
-                        Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
-                        Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
-                        if ($null -ne $_.InstalledLocation) {
-                            Remove-Item $_.InstalledLocation -Recurse -Force -ErrorAction SilentlyContinue
-                        }
-                        else {
-                            Write-Logg -Message "InstalledLocation is empty for module $($_.Name). Skipping removal." -level Warning
-                        }
+            # -- Show a progress bar for "Installing PS Modules" --
+            if ($ModulesToBeInstalled.Count -gt 0) {
+                $count = 0
+                $total = $ModulesToBeInstalled.Count
+                foreach ($moduleName in $ModulesToBeInstalled) {
+                    $count++
 
+                    # Compute the percentage
+                    $percent = [int](($count / $total) * 100)
+
+                    # Write progress for each module
+                    Write-Progress `
+                        -Activity 'Installing PowerShell modules' `
+                        -Status "Installing '$moduleName' ($count of $total)" `
+                        -PercentComplete $percent
+
+                    # Perform the install
+                    if (-not (Get-Module -Name $moduleName -ListAvailable -ErrorAction SilentlyContinue)) {
+                        Write-Logg -Message "Installing module $moduleName" -Level Verbose
+                        Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                     }
+
+                    # Import the module
+                    Import-Module -Name $moduleName -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 }
             }
-
-            # Install and import modules
-            $ModulesToBeInstalled.ForEach({
-                    try {
-                        # Check if the module is already installed
-                        if (-not (Get-Module -Name $_ -ListAvailable -ErrorAction SilentlyContinue)) {
-                            Write-Logg -Message "Installing module $_" -Level Verbose
-
-                            if ($_ -like '*PSReadLine*') {
-                                # Install prerelease version of PSReadLine
-                                Install-Module -Name PSReadLine -AllowPrerelease -Scope CurrentUser -Force -SkipPublisherCheck -ErrorAction SilentlyContinue
-                                Set-PSReadLineOption -PredictionSource History
-                            }
-
-                            # Save the module locally only if LocalModulesDirectory is not null or empty
-                            if (-not([string]::IsNullOrEmpty($LocalModulesDirectory))) {
-                                Save-Module -Name $_ -Path $($LocalModulesDirectory ? $LocalModulesDirectory : "$PWD/PowerShellScriptsAndResources/Modules") -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-                                $savedmodulepath = "$($LocalModulesDirectory ? $LocalModulesDirectory : "$PWD/PowerShellScriptsAndResources/Modules")\$_"
-                                Import-Module -Name $savedmodulepath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-                            }
-                            else {
-                                # Install module
-                                Install-Module -Name $_ -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
-                            }
-                        }
-                        else {
-                            Write-Verbose "Module $_ already installed"
-                        }
-
-                        # Import all modules specified in the $ModulesToBeInstalled array
-                        Import-Module -Name $ModulesToBeInstalled -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-                    }
-                    catch {
-                        Write-Error "An error occurred while processing module $_`: $($_.Exception)"
-                    }
-                })
+            else {
+                Write-Verbose 'No modules to install.'
+            }
         }
         catch {
-            if ($_.Exception.Message -match '.ps1xml') {
-                Write-Logg -Message 'Caught a global error related to a missing .ps1xml file. Deleting and reinstalling affected module.' -Level Verbose
-                $moduleDir = Split-Path (Split-Path $_.Exception.TargetObject -Parent) -Parent
-                Remove-Item $moduleDir -Recurse -Force
-                Install-Module -Name (Split-Path $moduleDir -Leaf) -Force
-            }
-            else {
-                Write-Logg -Message "An unexpected global error occurred: $_" -Level Verbose
-            }
+            Write-Error "An error occurred in Install-PSModule: $_"
         }
-    }
-
-    end {
-        # Not yet used
     }
 }
 
