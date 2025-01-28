@@ -18,7 +18,7 @@ function Install-Dependencies {
     RunAsAdmin
 
     # Import the required cmdlets
-    $neededcmdlets = @('Get-FileDownload', 'Add-FileToAppDomain', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg')
+    $neededcmdlets = @('Get-FileDownload', 'Add-FileToAppDomain', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Write-InformationColored')
     $neededcmdlets | ForEach-Object {
         if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -147,6 +147,7 @@ function Install-PackageProviders {
             Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
         }
 
+        # Ensure AnyPackage module is installed
         if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
             # PowerShellGet version 2
             Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck | Out-Null
@@ -581,7 +582,7 @@ function Add-NuGetDependencies {
             # if lib folder does not exist, they will need to use the nuget.exe to extract the dlls
             if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
                 Write-Logg -Message "The lib folder does not exist in $BasePath. Downloading using Nuget.exe" -Level VERBOSE
-                function Download-NuGetPackage {
+                function Get-NugetPackage {
                     param (
                         [Parameter(Mandatory = $true)]
                         [string]$PackageName,
@@ -604,7 +605,7 @@ function Add-NuGetDependencies {
                         Write-Logg -Message "Downloading $PackageName $Version..." -level Verbose
                         #& $nugetExe install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion
                         #change the above line to the start-process instead
-                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -NoNewWindow -Wait
+                        $null = Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -NoNewWindow -Wait
                     }
 
                     $packageDir = Join-Path -Path '.' -ChildPath $PackageName
@@ -635,16 +636,16 @@ function Add-NuGetDependencies {
 
                             try {
                                 # Create a new .NET Standard class library project
-                                dotnet new classlib --framework netstandard2.0 -n $("$PackageName" + 'Temp' + 'Project') --force
+                                $null = dotnet new classlib --framework netstandard2.0 -n $("$PackageName" + 'Temp' + 'Project') --force
 
                                 # Navigate into the project directory
                                 Set-Location (Join-Path $tempDir.FullName $("$PackageName" + 'Temp' + 'Project'))
 
                                 # Add the Silk.NET.Windowing package
-                                dotnet add package $PackageName
+                                $null = dotnet add package $PackageName
 
                                 # Publish the project to generate the DLLs
-                                dotnet publish -c Release
+                                $null = dotnet publish -c Release
 
                                 # Load the generated DLLs into PowerShell
                                 $publishDir = Join-Path (Get-Location).Path 'bin\Release\netstandard2.0\publish'
@@ -674,7 +675,7 @@ function Add-NuGetDependencies {
                         }
                     }
                 }
-                Download-NuGetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
+                Get-NugetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
                 continue
             }
 
