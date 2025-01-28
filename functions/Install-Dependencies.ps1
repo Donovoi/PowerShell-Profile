@@ -304,7 +304,7 @@ function Install-PSModule {
                 $installedModules = Get-Module -ListAvailable
                 $installedModules | ForEach-Object {
                     if ($_.Name -in $ModulesToBeInstalled) {
-                        Write-Host "Removing module $($_.Name)"
+                        Write-Output "Removing module $($_.Name)"
                         Remove-Module -Name $_.Name -Force -Confirm:$false -ErrorAction SilentlyContinue
                         Uninstall-Module -Name $_.Name -Force -AllVersions -ErrorAction SilentlyContinue
                         if ($null -ne $_.InstalledLocation) {
@@ -350,7 +350,7 @@ function Install-PSModule {
                         Import-Module -Name $ModulesToBeInstalled -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                     }
                     catch {
-                        Write-Host "An error occurred while processing module $_`: $($_.Exception)"
+                        Write-Error "An error occurred while processing module $_`: $($_.Exception)"
                     }
                 })
         }
