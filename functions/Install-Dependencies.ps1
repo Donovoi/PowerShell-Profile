@@ -249,7 +249,7 @@ function Install-NugetDeps {
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
-            Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally
+            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Verbose
@@ -520,7 +520,10 @@ function Add-NuGetDependencies {
         [hashtable]$NugetPackage,
 
         [Parameter(Mandatory = $false, HelpMessage = 'Specify if the packages should be saved locally.')]
-        [switch]$SaveLocally
+        [switch]$SaveLocally,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'The local directory to save the packages to.')]
+        [string]$LocalNugetDirectory
     )
 
     try {
@@ -532,7 +535,7 @@ function Add-NuGetDependencies {
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = Join-Path (Join-Path $PWD 'PowershellscriptsandResources') 'NugetPackage'
+            $TempWorkDir = Join-Path (Join-Path -Path $($LocalNugetDirectory ? $LocalNugetDirectory : $PWD) -ChildPath 'PowershellscriptsandResources') 'NugetPackage'
             Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
