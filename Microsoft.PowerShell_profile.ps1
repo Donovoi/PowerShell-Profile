@@ -15,7 +15,7 @@ $ErrorActionPreference = 'continue'
 #   Install-Module -Name profiler
 # }
 
-$trace = Trace-Script -ScriptBlock { & 'C:\Users\micha\PowerShell-Profile\Microsoft.PowerShell_profile.ps1' } -ExportPath icons
+# $trace = Trace-Script -ScriptBlock { & 'C:\Users\micha\PowerShell-Profile\Microsoft.PowerShell_profile.ps1' } -ExportPath icons
 
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
