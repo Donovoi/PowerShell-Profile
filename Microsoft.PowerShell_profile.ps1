@@ -9,6 +9,14 @@ IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 $ErrorActionPreference = 'continue'
+
+# # install the module called profiler if it is not installed
+# if (-not (Get-Module -Name profiler -ListAvailable -ErrorAction SilentlyContinue)) {
+#   Install-Module -Name profiler
+# }
+
+$trace = Trace-Script -ScriptBlock { & 'C:\Users\micha\PowerShell-Profile\Microsoft.PowerShell_profile.ps1' } -ExportPath icons
+
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
 # $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Remove-PathEntry', 'Add-Paths')
@@ -51,8 +59,8 @@ if (-not (Test-Path -Path $powerShell7ProfilePath)) {
   New-Item -Path $PROFILE
   Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
 }
-# install and import modules needed for my profile
-Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
+# # install and import modules needed for my profile
+# Install-Dependencies -InstallDefaultPSModules -NoNugetPackage
 
 
 # Variables for the commandline
@@ -62,32 +70,32 @@ $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_in
 
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
-if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
+# if (Test-Path -Path $XWAYSUSB -ErrorAction SilentlyContinue) {
 
-  # We need to remove chocolatey from the path if it exists
-  # Example usage for removing Chocolatey from both user and machine PATH
-  Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin'
+#   # We need to remove chocolatey from the path if it exists
+#   # Example usage for removing Chocolatey from both user and machine PATH
+#   Remove-PathEntry -pathToRemove 'C:\ProgramData\chocolatey\bin'
 
-  # Function to add paths and persist changes
-  # Define paths
-  $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
-  $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
+#   # Function to add paths and persist changes
+#   # Define paths
+#   $chocolateyPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path
+#   $nirsoftPath = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\NirSoft\NirSoft\x64')).Path
 
-  # Add paths and persist changes
-  Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
+#   # Add paths and persist changes
+#   Add-Paths -chocolateyPath $chocolateyPath -nirsoftPath $nirsoftPath
 
-}
-else {
-  $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
-  if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
-    Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
-    Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
-    winget install Chocolatey.Chocolatey --source winget
-    Write-Logg -Message 'Chocolatey installed successfully!' -level Info
-  }
-  $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
+# }
+# else {
+#   $env:ChocolateyInstall = 'C:\ProgramData\chocolatey\bin'
+#   if (-not (Test-Path -Path $env:ChocolateyInstall) -or (-not (Get-Command -Name choco -ErrorAction SilentlyContinue))) {
+#     Write-Logg -Message 'Chocolatey is not installed. Installing now...' -level Warning
+#     Remove-Item -Path 'C:\ProgramData\chocolatey' -Recurse -Force -ErrorAction SilentlyContinue
+#     winget install Chocolatey.Chocolatey --source winget
+#     Write-Logg -Message 'Chocolatey installed successfully!' -level Info
+#   }
+#   $env:Path += "$env:ChocolateyInstall;$env:ChocolateyInstall\bin;$env:USERPROFILE\.cargo\bin;"
 
-}
+# }
 
 # install oh-my-posh
 if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
@@ -102,16 +110,16 @@ if ($env:Path -notcontains '\oh-my-posh\bin') {
   $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
 }
 
-# Import the Chocolatey Profile
-if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
-  Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
-}
-else {
-  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue
-}
+# # Import the Chocolatey Profile
+# if (Test-Path -Path "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1") {
+#   Import-Module "$env:ChocolateyInstall\..\helpers\chocolateyProfile.psm1"
+# }
+# else {
+#   Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue
+# }
 
-# refresh the environment variables
-Update-SessionEnvironment
+# # refresh the environment variables
+# Update-SessionEnvironment
 
 # Invoke an awesome sample of PSReadline bindings
 Invoke-SamplePSReadLineProfile
@@ -136,9 +144,10 @@ Invoke-OhMyPoshRandomTheme
 # Be aware that if you are missing these lines from your profile, tab completion
 # for `choco` will not function.
 # See https://ch0.co/tab-completion for details.
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path ($ChocolateyProfile)) {
-  Import-Module "$ChocolateyProfile"
-}
+# $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+# if (Test-Path ($ChocolateyProfile)) {
+#   Import-Module "$ChocolateyProfile"
+# }
 
 # oh-my-posh init pwsh | Invoke-Expression
+# $trace.Top50SelfDuration
