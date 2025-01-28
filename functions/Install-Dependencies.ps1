@@ -233,13 +233,14 @@ function Install-NugetDeps {
         }
 
         # Add packages from the $NugetPackage hashtable
-        foreach ($package in $NugetPackage.GetEnumerator()) {
-            $deps[$package.Key] = @{
-                Name    = $package.Key
-                Version = $package.Value
+        if (-not ([string]::IsNullOrEmpty($NugetPackage))) {
+            foreach ($package in $NugetPackage.GetEnumerator()) {
+                $deps[$package.Key] = @{
+                    Name    = $package.Key
+                    Version = $package.Value
+                }
             }
         }
-
         # Output the final hashtable for verification
         $deps.GetEnumerator() | ForEach-Object {
             Write-Logg -Message "Package: $($_.Key), Version: $($_.Value.Version)" -Level Verbose
@@ -249,7 +250,7 @@ function Install-NugetDeps {
 
         if ((-not[string]::IsNullOrEmpty($NugetPackage)) -or $InstallDefault) {
             # Install NuGet packages
-            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory
+            $null = Add-NuGetDependencies -NugetPackage $deps -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory 
         }
         else {
             Write-Logg -Message 'No NuGet packages to install' -Level Verbose
@@ -293,7 +294,7 @@ function Install-PSModule {
             if ($InstallDefaultPSModules) {
                 $ModulesToBeInstalled = @(
                     #'PANSIES'
-                    'PSReadLine'
+                    # 'PSReadLine'
                 )
             }
             elseif ([string]::IsNullOrWhiteSpace($ModulesToBeInstalled)) {
@@ -554,8 +555,8 @@ function Add-NuGetDependencies {
             $version = $package.Value.Version
             $dep = $package.Value.Name
             #  first if $localModulesDirectory is not null or empty
-            if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
-                $TempWorkDir = $LocalModulesDirectory
+            if (-not [string]::IsNullOrEmpty($LocalNugetDirectory)) {
+                $TempWorkDir = $LocalNugetDirectory
             }
             $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
 
@@ -572,7 +573,7 @@ function Add-NuGetDependencies {
 
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                $null = Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue
+                $null = Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue | Out-Null
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 # Update the installed dependencies hashtable
