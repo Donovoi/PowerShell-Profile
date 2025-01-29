@@ -11,6 +11,7 @@ function Install-Dependencies {
         [switch]$AddDefaultAssemblies,
         [string[]]$AddCustomAssemblies,
         [string]$LocalModulesDirectory,
+        [string]$LocalNugetDirectory
         [switch]$SaveLocally
     )
 
@@ -37,7 +38,7 @@ function Install-Dependencies {
 
     # Install NuGet dependencies
     if (-not $NoNugetPackage ) {
-        $null = Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage -SaveLocally:$SaveLocally -LocalModulesDirectory:$LocalModulesDirectory
+        $null = Install-NugetDeps -InstallDefaultNugetPackage:$InstallDefaultNugetPackage -NugetPackage:$NugetPackage -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalNugetDirectory
         # refresh environment variables
         Update-SessionEnvironment
     }
