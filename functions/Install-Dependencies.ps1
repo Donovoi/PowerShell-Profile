@@ -271,8 +271,19 @@ function Install-NugetDeps {
                     -RequiredVersion $version `
                     -ProviderName NuGet `
                     -ErrorAction SilentlyContinue
+
+                # if savelocally is chosen check the local directory for the package
+                if ($SaveLocally -and (-not [string]::IsNullOrEmpty($LocalModulesDirectory))) {                    
+                    $LocalNugetPackage = Join-Path -Path $LocalModulesDirectory -ChildPath "$dep.$version"
+                    if (Test-Path -Path $LocalNugetPackage -PathType Container) {
+                        $installed = $true
+                    }
+                } else {
+                    Write-Logg -Message "Local destination directory not set but `$SaveLocally switch was used. Exiting script... " -Level Error
+                    throw
+                }
         
-                if ($installed) {
+                if ($installed ) {
                     Write-Logg -Message "Package '$dep' version '$version' is already installed. Skipping..." -Level Verbose
                 }
                 else {
@@ -287,6 +298,7 @@ function Install-NugetDeps {
     }
     catch {
         Write-Logg "An error occurred while installing NuGet packages: $_" -level Error
+        exit
     }
 }
 
@@ -512,7 +524,7 @@ function Add-NuGetDependencies {
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = Join-Path (Join-Path -Path $($LocalNugetDirectory ? $LocalNugetDirectory : $PWD) -ChildPath 'PowershellscriptsandResources/NugetPackages') 'NugetPackage'
+            $TempWorkDir = Join-Path (Join-Path -Path $($LocalNugetDirectory ? $LocalNugetDirectory : $PWD) -ChildPath 'PowershellscriptsandResources/NugetPackages')
             Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
