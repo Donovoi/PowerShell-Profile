@@ -263,8 +263,13 @@ function Install-NugetDeps {
 
                 Write-Progress `
                     -Activity 'Installing NuGet Packages' `
-                    -Status "Installing $dep ($count of $total)" `
+                    -Status "Installing $dep ($count of $total)`n" `
                     -PercentComplete $percent
+
+                # clear screen if progress is 100%
+                if ($percent -eq 100) {
+                    Clear-Host
+                }
 
                 # Check if the exact package name and version is already installed
                 $installed = Get-Package -Name $dep `
@@ -278,7 +283,8 @@ function Install-NugetDeps {
                     if (Test-Path -Path $LocalNugetPackage -PathType Container) {
                         $installed = $true
                     }
-                } else {
+                }
+                else {
                     Write-Logg -Message "Local destination directory not set but `$SaveLocally switch was used. Exiting script... " -Level Error
                     throw
                 }
@@ -341,11 +347,29 @@ function Install-PSModule {
                         -Activity 'Installing PowerShell modules' `
                         -Status "Installing '$moduleName' ($count of $total)" `
                         -PercentComplete $percent
+                    # clear screen if progress is 100%
+                    if ($percent -eq 100) {
+                        Clear-Host
+                    }
 
                     # Perform the install
                     if (-not (Get-Module -Name $moduleName -ListAvailable -ErrorAction SilentlyContinue)) {
                         Write-Logg -Message "Installing module $moduleName" -Level Verbose
-                        Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                        if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                            $LocalModulePath = Join-Path -Path $LocalModulesDirectory -ChildPath $moduleName
+                            if (Test-Path -Path $LocalModulePath -PathType Container) {
+                                Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level Verbose
+                                Import-Module -Name $LocalModulePath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                            }
+                            else {
+                                Write-Logg -Message "Module '$moduleName' not found locally. Installing..." -Level Verbose
+                                Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                            }
+                        }
+                        else {
+                            Write-Logg -Message 'Local destination directory not set. Exiting script... ' -Level Error
+                            throw
+                        }
                     }
 
                     # Import the module
