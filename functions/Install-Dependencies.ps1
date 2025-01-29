@@ -210,7 +210,7 @@ function Install-NugetDeps {
         [bool]$SaveLocally,
         [bool]$InstallDefaultNugetPackage,
         [hashtable]$NugetPackage,
-        [string]$LocalModulesDirectory
+        [string]$LocalNugetDirectory
     )
 
     try {
@@ -278,8 +278,8 @@ function Install-NugetDeps {
                     -ErrorAction SilentlyContinue
 
                 # if savelocally is chosen check the local directory for the package
-                if ($SaveLocally -and (-not [string]::IsNullOrEmpty($LocalModulesDirectory))) {                    
-                    $LocalNugetPackage = Join-Path -Path $LocalModulesDirectory -ChildPath "$dep.$version"
+                if ($SaveLocally -and (-not [string]::IsNullOrEmpty($LocalNugetDirectory))) {                    
+                    $LocalNugetPackage = Join-Path -Path $LocalNugetDirectory -ChildPath "$dep.$version"
                     if (Test-Path -Path $LocalNugetPackage -PathType Container) {
                         $installed = $true
                     }
@@ -294,7 +294,7 @@ function Install-NugetDeps {
                 }
                 else {
                     Write-Logg -Message "Package '$dep' version '$version' not found locally. Installing..." -Level Verbose
-                    Add-NuGetDependencies -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalModulesDirectory
+                    Add-NuGetDependencies -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalNugetDirectory
                 }
             }
         }
