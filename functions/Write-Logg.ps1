@@ -126,19 +126,19 @@ function Write-Logg {
         if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE') -and (-not($TUIPopUpMessage))) {
             switch ($Level) {
                 'INFO' {
-                    Write-InformationColored -MessageData $logMessage -ForegroundColor 'Green'
+                    Write-InformationColored -MessageData "$logMessage`n" -ForegroundColor 'Green'
                 }
                 'WARNING' {
-                    Write-Warning -Message $logMessage
+                    Write-Warning -Message "$logMessage`n"
                 }
                 'ERROR' {
-                    Write-Error -Exception $logMessage
+                    Write-Error -Exception "$logMessage`n"
                 }
                 'VERBOSE' {
-                    Write-Verbose -Message $logMessage
+                    Write-Verbose -Message "$logMessage`n"
                 }
                 'LOLCAT' {
-                    $logMessage | lolcat -a
+                    "$logMessage`n" | lolcat -a
                 }
             }
         }
