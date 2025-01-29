@@ -132,12 +132,20 @@ function Install-Cmdlet {
                             $cmdlet = $link.Split('/')[-1].Split('.')[0]
                             $module = Invoke-RestMethod -Uri $link.ToString()
                             Write-Information -MessageData "Downloading $cmdlet now..."
-                            $module | Out-File -FilePath "$LocalModuleFolder\$cmdlet.ps1" -Force
+                            $module | Out-File -FilePath "$LocalModuleFolder\$cmdlet.ps1" -Force -Encoding utf8
                             Write-Information -MessageData "The cmdlet $cmdlet was downloaded and saved to $LocalModuleFolder"
                         }
                         else {
                             # Just download and import the cmdlet all in memory
-                            $Cmdletsarraysb.AppendLine($(Invoke-RestMethod -Uri $link.ToString())) | Out-Null
+                            # 1. Get the original string
+                            $response = Invoke-RestMethod -Uri $link.ToString()
+
+                            # 2. Convert it to bytes and back to string using UTF-8:
+                            $responseBytes = [System.Text.Encoding]::UTF8.GetBytes($response)
+                            $responseNoBOM = [System.Text.Encoding]::UTF8.GetString($responseBytes)
+
+                            # 3. Append to StringBuilder with no BOM:
+                            $Cmdletsarraysb.AppendLine($responseNoBOM) | Out-Null
                         }
                     }
                     catch {
