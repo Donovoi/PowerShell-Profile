@@ -3,6 +3,7 @@
     $neededcmdlets = @(
         'Write-Logg', 
         'Write-InformationColored',
+        'Get-EnvironmentVariable'
         'Get-EnvironmentVariableNames'
     )
     $neededcmdlets | ForEach-Object {
