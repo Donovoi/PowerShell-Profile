@@ -54,11 +54,29 @@ function Write-InformationColored {
 
     # Write the message
     if ($NoNewline) {
+        Clear-CurrentLine
         [System.Console]::Write($MessageData)
-    } else {
+    }
+    else {
+        Clear-CurrentLine
         [System.Console]::WriteLine($MessageData)
     }
 
     # Reset console colors to defaults
     [System.Console]::ResetColor()
+}
+
+function Clear-CurrentLine {
+    # Get current vertical cursor position
+    $cursorTop = [Console]::CursorTop
+
+    # Move cursor to column 0 of the current line
+    [Console]::SetCursorPosition(0, $cursorTop)
+
+    # Overwrite the entire console width with spaces
+    $lineWidth = [Console]::WindowWidth
+    [Console]::Write(' ' * $lineWidth)
+
+    # Move cursor back to column 0 of the same line
+    [Console]::SetCursorPosition(0, $cursorTop)
 }
