@@ -557,11 +557,6 @@ function Add-NuGetDependencies {
             $TempWorkDir = Join-Path "$($env:TEMP)" "$CurrentFileNameHash"
             Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE
         }
-
-        if (Test-Path -Path "$TempWorkDir" -PathType Container) {
-            # empty the directory
-            Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
-        }
         New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue
 
         foreach ($package in $NugetPackage.GetEnumerator()) {
