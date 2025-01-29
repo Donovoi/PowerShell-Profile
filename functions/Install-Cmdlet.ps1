@@ -43,109 +43,134 @@ function Install-Cmdlet {
     param(
         [Parameter(Mandatory = $true, ParameterSetName = 'Url')]
         [string[]]$url,
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Url')]
         [string[]]$CmdletToInstall = '*',
+
         [Parameter(Mandatory = $false)]
         [string]$ModuleName = 'InMemoryModule',
+
         [Parameter(Mandatory = $true, ParameterSetName = 'Donovoicmdlets')]
         [string[]]$donovoicmdlets,
+
         [Parameter(Mandatory = $false, ParameterSetName = 'Donovoicmdlets')]
         [switch]$PreferLocal,
+
         [Parameter(Mandatory = $false)]
         [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\",
+
         [Parameter(Mandatory = $false)]
         [switch]$ContainsClass
     )
     try {
-
+        # Collect any cmdlets that need downloading if using -PreferLocal
         $cmdletsToDownload = @()
+
         if ($donovoicmdlets -and $PreferLocal) {
-            # make sure local modules folder exists
+            # Ensure local modules folder exists
             if (-not (Test-Path -Path $LocalModuleFolder)) {
-                New-Item -Path $LocalModuleFolder -ItemType Directory -Force
+                New-Item -Path $LocalModuleFolder -ItemType Directory -Force | Out-Null
             }
 
-            # create local module file that imports the cmdlet by glob search file path so we add all at once
-            $modulefile = [System.IO.Path]::Combine($LocalModuleFolder, 'cmdletCollection.psm1')
-            # if the module file does not exist, create it, otherwise overwrite the first line with "Import-module -Name .\*.ps1 -Force"
+            # Create or overwrite a local .psm1 file that imports all .ps1 files in the folder
+            $modulefile = Join-Path $LocalModuleFolder 'cmdletCollection.psm1'
             if (-not (Test-Path -Path $modulefile)) {
-                New-Item -Path $modulefile -ItemType File -Force
+                New-Item -Path $modulefile -ItemType File -Force | Out-Null
             }
             $modulecontent = @'
-            $ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
-            $ScriptParentPath = Split-Path -Path $(Resolve-Path -Path $($ActualScriptName.foreach{ $_ }) ) -Parent
-            Get-ChildItem -Path $ScriptParentPath | ForEach-Object {
-                . $_.FullName
-            }
-            Export-ModuleMember -Function * -Alias *
+$ActualScriptName = Get-PSCallStack | Select-Object -First 1 -ExpandProperty ScriptName
+$ScriptParentPath = Split-Path -Path (Resolve-Path -Path $ActualScriptName) -Parent
+Get-ChildItem -Path $ScriptParentPath -Filter *.ps1 | ForEach-Object {
+    . $_.FullName
+}
+Export-ModuleMember -Function * -Alias *
 '@
             Set-Content -Path $modulefile -Value $modulecontent -Force
 
             foreach ($cmdlet in $donovoicmdlets) {
-                if (-not (Test-Path -Path "$LocalModuleFolder\$cmdlet.ps1")) {
-                    Write-Warning -Message "The cmdlet $cmdlet was not found locally"
+                if (-not (Test-Path -Path (Join-Path $LocalModuleFolder "$cmdlet.ps1"))) {
+                    Write-Warning -Message "The cmdlet $cmdlet was not found locally."
                     Write-Information -MessageData "Downloading $cmdlet now..."
-                    Write-Information -MessageData "All cmdlets will be downloaded to $PSScriptRoot/Modules/"
+                    Write-Information -MessageData "All cmdlets will be downloaded to $LocalModuleFolder"
                     $cmdletsToDownload += $cmdlet
-                    continue
                 }
                 else {
-                    # import existing local module
-                    Import-Module -Name "$LocalModuleFolder\$cmdlet.ps1" -Force
-                    Write-Information -MessageData "The cmdlet $cmdlet was found locally and imported"
+                    # If found locally, just import it directly
+                    Import-Module (Join-Path $LocalModuleFolder "$cmdlet.ps1") -Force
+                    Write-Information -MessageData "The cmdlet $cmdlet was found locally and imported."
                 }
             }
         }
-        if (-not $(Get-Variable -Name 'Url' -ErrorAction SilentlyContinue) -or ([string]::IsNullOrEmpty($url))) {
+
+        # Convert $url to an array if it doesn't exist or is empty
+        if (-not $(Get-Variable -Name 'url' -ErrorAction SilentlyContinue) -or ([string]::IsNullOrEmpty($url))) {
             $Urls = @()
         }
-        if ($donovoicmdlets -and ( (-not $PreferLocal) -or ($cmdletsToDownload.Count -gt 0) )) {
+
+        # If user specified donovoicmdlets & either doesn't prefer local OR some cmdlets were missing and need to be downloaded
+        if (
+            $donovoicmdlets -and (
+                (-not $PreferLocal) -or
+                ($cmdletsToDownload.Count -gt 0)
+            )
+        ) {
             $sburls = [System.Text.StringBuilder]::new()
             foreach ($cmdlet in $donovoicmdlets) {
-                # build the array of urls for invoke-restmethod
                 $sburls.AppendLine("https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/$cmdlet.ps1") | Out-Null
             }
-            # clean up and remove any empty lines
-            $urls += $sburls.ToString().Split("`n").Trim() | Where-Object { $_ }
 
-            # validate the urls especially if the user has provided a custom url, and then process the urls
-            $Cmdletsarraysb = [System.Text.StringBuilder]::new()
-            # $urls should not be empty
+            # Collect all URLs (cleanup any empty lines)
+            $urls += $sburls.ToString().Split("`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+
             if ([string]::IsNullOrEmpty($urls)) {
-                throw [System.ArgumentException]::new('Nothing To Download, Exiting...')
+                throw [System.ArgumentException]::new('Nothing to download, exiting...')
             }
             else {
-                $urls | ForEach-Object -Process {
-                    $link = $_
-                    # make sure we are given a valid url
+                # Prepare a StringBuilder for the combined script content
+                $Cmdletsarraysb = [System.Text.StringBuilder]::new()
+                foreach ($link in $urls) {
+                    # Validate the URL
                     $searchpattern = "((ht|f)tp(s?)\:\/\/?)[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_]*)?"
                     $regexoptions = [System.Text.RegularExpressions.RegexOptions]('IgnoreCase, IgnorePatternWhitespace, Compiled')
                     $compiledregex = [regex]::new($searchpattern, $regexoptions)
-                    if (-not($Link -match $compiledregex)) {
-                        throw [System.ArgumentException]::new('The given url is not valid')
+                    if (-not ($link -match $compiledregex)) {
+                        throw [System.ArgumentException]::new("The given URL is not valid: $link")
                     }
 
                     try {
-                        # if preferlocal and cmdletstodownload is set then download the cmdlet as per the path
-                        # no need to keep it in memory as one script block, we will create and import all local cmdlets individually
-                        if ($PreferLocal -and $cmdletsToDownload -gt 0) {
-                            $cmdlet = $link.Split('/')[-1].Split('.')[0]
-                            $module = Invoke-RestMethod -Uri $link.ToString()
+                        # If we prefer local AND we have cmdlets to download, write them to disk BOM-less
+                        if ($PreferLocal -and $cmdletsToDownload.Count -gt 0) {
+                            $cmdlet = ($link.Split('/')[-1]).Split('.')[0]
                             Write-Information -MessageData "Downloading $cmdlet now..."
-                            $module | Out-File -FilePath "$LocalModuleFolder\$cmdlet.ps1" -Force -Encoding utf8
+
+                            $moduleContentRaw = Invoke-RestMethod -Uri $link
+                            # Remove BOM or zero-width chars
+                            $moduleContentClean = $moduleContentRaw `
+                                -replace ([char]0xFEFF), '' `
+                                -replace ([char]0x200B), ''
+
+                            # Out-File adds a BOM in Windows PowerShell 5.1, so we do a two-step approach:
+                            $tempFile = Join-Path $LocalModuleFolder "$cmdlet.ps1"
+                            $moduleContentClean | Out-File -FilePath $tempFile -Force -Encoding UTF8
+                            # Now strip any BOM that may have been reintroduced:
+                            (Get-Content $tempFile -Raw) `
+                                -replace ([char]0xFEFF), '' `
+                                -replace ([char]0x200B), '' |
+                                Set-Content -Encoding UTF8 -Force $tempFile
+
                             Write-Information -MessageData "The cmdlet $cmdlet was downloaded and saved to $LocalModuleFolder"
                         }
                         else {
-                            # Just download and import the cmdlet all in memory
-                            # 1. Get the original string
-                            $response = Invoke-RestMethod -Uri $link.ToString()
+                            # In-memory approach
+                            $responseRaw = Invoke-RestMethod -Uri $link
 
-                            # 2. Convert it to bytes and back to string using UTF-8:
-                            $responseBytes = [System.Text.Encoding]::UTF8.GetBytes($response)
-                            $responseNoBOM = [System.Text.Encoding]::UTF8.GetString($responseBytes)
+                            # Explicitly remove BOM / zero-width chars
+                            $responseClean = $responseRaw `
+                                -replace ([char]0xFEFF), '' `
+                                -replace ([char]0x200B), ''
 
-                            # 3. Append to StringBuilder with no BOM:
-                            $Cmdletsarraysb.AppendLine($responseNoBOM) | Out-Null
+                            # Append to our combined scripts
+                            $Cmdletsarraysb.AppendLine($responseClean) | Out-Null
                         }
                     }
                     catch {
@@ -154,20 +179,27 @@ function Install-Cmdlet {
                         throw $_
                     }
                 }
+
+                if (-not $PreferLocal) {
+                    # Create an in-memory module from the combined scripts, stripping BOM again
+                    $combinedScript = $Cmdletsarraysb.ToString() `
+                        -replace ([char]0xFEFF), '' `
+                        -replace ([char]0x200B), ''
+
+                    $modulescriptblock = [scriptblock]::Create($combinedScript)
+                    $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
+                }
             }
         }
-        if (-not $PreferLocal) {
-            #  do the rest of the needed in memory stuff
-            $modulescriptblock = [scriptblock]::Create($Cmdletsarraysb.ToString())
-            $module = New-Module -Name $ModuleName -ScriptBlock $modulescriptblock
-        }
-        else {
-            # import all local cmdlets
-            Import-Module -Name $moduleFile -Force
-            Write-Information -MessageData "The cmdlets $donovoicmdlets were imported"
-        }
-        return $module ? $module : $modulefile
 
+        if ($PreferLocal) {
+            # Import all local cmdlets via the .psm1 file
+            $modulefile = Join-Path $LocalModuleFolder 'cmdletCollection.psm1'
+            Import-Module -Name $modulefile -Force
+            Write-Information -MessageData "Local cmdlets $donovoicmdlets were imported from $modulefile"
+        }
+
+        return $module ? $module : $modulefile
     }
     catch {
         Write-Error -Message 'Failed to install the cmdlets'
