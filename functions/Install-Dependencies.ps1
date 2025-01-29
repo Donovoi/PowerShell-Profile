@@ -11,7 +11,7 @@ function Install-Dependencies {
         [switch]$AddDefaultAssemblies,
         [string[]]$AddCustomAssemblies,
         [string]$LocalModulesDirectory,
-        [string]$LocalNugetDirectory
+        [string]$LocalNugetDirectory,
         [switch]$SaveLocally
     )
 
