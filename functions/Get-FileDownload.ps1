@@ -256,7 +256,6 @@ function Get-FileDownload {
                     # If the job completed successfully, print the path of the downloaded file
                     if ($bitsJob.JobState -eq 'Transferred') {
                         $bitsJob.FileList | ForEach-Object {
-                            Write-Host "File downloaded to: $($_.LocalName)"
                             $DownloadedFile = $_.LocalName
                         }
                         $bitsJob | Complete-BitsTransfer
