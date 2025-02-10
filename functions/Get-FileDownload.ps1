@@ -271,6 +271,6 @@ function Get-FileDownload {
             Write-Error -Message "An error occurred: $_"
             throw
         }
-        return $DownloadedFile
+        return $DownloadedFile[1] ? $DownloadedFile[1] : $DownloadedFile[0]
     }
 }
