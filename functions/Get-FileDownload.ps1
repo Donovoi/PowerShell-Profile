@@ -271,6 +271,12 @@ function Get-FileDownload {
             Write-Error -Message "An error occurred: $_"
             throw
         }
-        return $DownloadedFile[1] ? $DownloadedFile[1] : $DownloadedFile[0]
+        # if downloadedfile has multiple values we will return the second one
+        if ($DownloadedFile -is [array]) {
+            return $DownloadedFile[1]
+        }
+        else {
+            return $DownloadedFile
+        }
     }
 }
