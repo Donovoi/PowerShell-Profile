@@ -6,7 +6,7 @@ function Install-PackageProviders {
         # (1) Import required cmdlets if missing
         $neededcmdlets = @(
             'Write-Logg'
-        
+
         )
         $neededcmdlets | ForEach-Object {
             if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {

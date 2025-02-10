@@ -1,7 +1,7 @@
 function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     $neededcmdlets = @(
         'Write-Logg'
-        
+
     )
     $neededcmdlets | ForEach-Object {
         if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {

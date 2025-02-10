@@ -1,7 +1,7 @@
 ﻿function Update-SessionEnvironment {
     # (1) Import required cmdlets if missing
     $neededcmdlets = @(
-        'Write-Logg', 
+        'Write-Logg',
         'Write-InformationColored',
         'Get-EnvironmentVariable'
         'Get-EnvironmentVariableNames'
@@ -60,10 +60,10 @@
 
     # reset user and architecture
     if ($userName) {
-        $env:USERNAME = $userName 
+        $env:USERNAME = $userName
     }
     if ($architecture) {
-        $env:PROCESSOR_ARCHITECTURE = $architecture 
+        $env:PROCESSOR_ARCHITECTURE = $architecture
     }
 
     if ($refreshEnv) {

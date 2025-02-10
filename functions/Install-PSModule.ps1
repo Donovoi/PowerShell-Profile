@@ -9,7 +9,7 @@ function Install-PSModule {
 
     process {
         $neededcmdlets = @(
-            'Write-Logg', 
+            'Write-Logg',
             'Write-InformationColored'
         )
         $neededcmdlets | ForEach-Object {
