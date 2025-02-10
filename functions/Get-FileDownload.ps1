@@ -254,7 +254,8 @@ function Get-FileDownload {
                     if ($bitsJob.JobState -eq 'Transferred') {
                         $bitsJob.FileList | ForEach-Object {
                             Write-Host "File downloaded to: $($_.LocalName)"
-                            $Script:DownloadedFile += $_.LocalName
+                            $Script:DownloadedFile = ''
+                            $Script:DownloadedFile = $_.LocalName
                         }
                         $bitsJob | Complete-BitsTransfer
                     }
