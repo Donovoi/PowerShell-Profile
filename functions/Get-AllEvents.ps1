@@ -28,19 +28,19 @@ It allows you to specify additional sources of event logs beyond the local compu
 .EXAMPLE
 powershell
     Get-AllEvents -ExportToCsv -ExportCSVToFolder "C:\ExportPath"
-    
+
 Retrieves events from the specified sources and exports them to a CSV file at C:\ExportPath.
 
 .EXAMPLE
 powershell
     Get-AllEvents -ViewInTimelineExplorer -TimelineExplorerPath "C:\Tools\TimelineExplorer.exe"
-    
+
 Retrieves event logs and immediately opens the results in Timeline Explorer located at C:\Tools\TimelineExplorer.exe.
 
 .EXAMPLE
 powershell
     Get-AllEvents -CollectEVTXFromDirectory "C:\EventLogs", "D:\BackupLogs" -ExportToCsv
-    
+
 Collects .evtx files from the specified directories and exports the results to CSV in the default location.
 
 .NOTES
@@ -250,7 +250,7 @@ function Get-AllEvents {
               $warnmessage = $_.Exception.Message -replace '.*about the ', ''
               Write-Warning $warnmessage
             }
-            
+
             # Get all event logs
             try {
               # Initialize an empty array to hold all events

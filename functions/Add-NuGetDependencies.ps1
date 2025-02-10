@@ -15,8 +15,8 @@ function Add-NuGetDependencies {
 
         # (1) Import required cmdlets if missing
         $neededcmdlets = @(
-            'Add-FileToAppDomain', 
-            'Write-Logg', 
+            'Add-FileToAppDomain',
+            'Write-Logg',
             'Write-InformationColored'
         )
         $neededcmdlets | ForEach-Object {
@@ -82,40 +82,40 @@ function Add-NuGetDependencies {
                         param ($releaseKey)
                         switch ($releaseKey) {
                             { $_ -ge 533320 } {
-                                return '4.8.1' 
+                                return '4.8.1'
                             }
                             { $_ -ge 528040 } {
-                                return '4.8' 
+                                return '4.8'
                             }
                             { $_ -ge 461808 } {
-                                return '4.7.2' 
+                                return '4.7.2'
                             }
                             { $_ -ge 461308 } {
-                                return '4.7.1' 
+                                return '4.7.1'
                             }
                             { $_ -ge 460798 } {
-                                return '4.7' 
+                                return '4.7'
                             }
                             { $_ -ge 394802 } {
-                                return '4.6.2' 
+                                return '4.6.2'
                             }
                             { $_ -ge 394254 } {
-                                return '4.6.1' 
+                                return '4.6.1'
                             }
                             { $_ -ge 393295 } {
-                                return '4.6' 
+                                return '4.6'
                             }
                             { $_ -ge 379893 } {
-                                return '4.5.2' 
+                                return '4.5.2'
                             }
                             { $_ -ge 378675 } {
-                                return '4.5.1' 
+                                return '4.5.1'
                             }
                             { $_ -ge 378389 } {
-                                return '4.5' 
+                                return '4.5'
                             }
                             default {
-                                return 'Version 4.5 or later not detected' 
+                                return 'Version 4.5 or later not detected'
                             }
                         }
                     }

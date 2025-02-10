@@ -202,14 +202,14 @@ function Invoke-AriaDownload {
                     $headerArgs += "--header=`"$key`: $($Headers[$key])`""
                 }
                 if (-not [string]::IsNullOrEmpty($LoadCookiesFromFile)) {
-                    if (Test-Path -Path $LoadCookiesFromFile) {                    
+                    if (Test-Path -Path $LoadCookiesFromFile) {
                         $headerArgs += "--Load-Cookies=$LoadCookiesFromFile"
                     }
                     else {
                         Write-Error -Message "The file $LoadCookiesFromFile does not exist."
                     }
                 }
-                
+
             }
             # Get all interfaces that can download the file
             $interfaces = @()

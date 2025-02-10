@@ -17,11 +17,11 @@ function Install-Dependencies {
 
     # (1) Import required cmdlets if missing
     $neededcmdlets = @(
-        'Get-FileDownload', 
-        'Add-FileToAppDomain', 
-        'Invoke-AriaDownload', 
-        'Get-LongName', 
-        'Write-Logg', 
+        'Get-FileDownload',
+        'Add-FileToAppDomain',
+        'Invoke-AriaDownload',
+        'Get-LongName',
+        'Write-Logg',
         'Write-InformationColored',
         'Invoke-RunAsAdmin',
         'Install-PackageProviders',
