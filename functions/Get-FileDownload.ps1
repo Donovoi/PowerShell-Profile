@@ -117,6 +117,9 @@ function Get-FileDownload {
                     $Cmdletstoinvoke | Import-Module -Force
                 }
             }
+            # clear this variable
+            $DownloadedFile = ''
+
             if ($UseAria2) {
                 $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1 -ErrorAction SilentlyContinue
                 if (-not(Test-Path -Path $aria2cExe -ErrorAction SilentlyContinue) ) {
@@ -216,19 +219,19 @@ function Get-FileDownload {
                     }
                     $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
                 }
-                $Script:DownloadedFile = ''
+                $DownloadedFile = ''
                 if ($UseAria2) {
                     # If it's a private repo, handle the secret
                     if ($IsPrivateRepo) {
                         if ($null -ne $Token) {
-                            $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
+                            $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Token:$Token
                         }
                     }
                     elseif ($NoRPCMode) {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
                     }
                     else {
-                        $Script:DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath $aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
                     }
                 }
                 else {
@@ -249,13 +252,12 @@ function Get-FileDownload {
                         }
                         Write-Host -ForegroundColor $newcolor -Object "Waiting for download to complete. Current state: $($bitsJob.JobState)"
                     }
-
+                    
                     # If the job completed successfully, print the path of the downloaded file
                     if ($bitsJob.JobState -eq 'Transferred') {
                         $bitsJob.FileList | ForEach-Object {
                             Write-Host "File downloaded to: $($_.LocalName)"
-                            $Script:DownloadedFile = ''
-                            $Script:DownloadedFile = $_.LocalName
+                            $DownloadedFile = $_.LocalName
                         }
                         $bitsJob | Complete-BitsTransfer
                     }
@@ -269,6 +271,6 @@ function Get-FileDownload {
             Write-Error -Message "An error occurred: $_"
             throw
         }
-        return $Script:DownloadedFile
+        return $DownloadedFile
     }
 }
