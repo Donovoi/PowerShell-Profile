@@ -112,6 +112,9 @@ function Get-LatestGitHubRelease {
         }
         $VersionOnly = $null
 
+        # Clear this variable each time
+        $DownloadedFile = $null
+
         # if it is a private repo we will use the token to access the release and download the asset
         if ($PrivateRepo) {
             # We will first make sure we can access the repo with the token
@@ -216,9 +219,6 @@ function Get-LatestGitHubRelease {
                     $Aria2cExePath = Get-ChildItem -Path $PWD -Recurse -Filter 'aria2c.exe' | Select-Object -First 1
                 }
 
-                # Download asset but make sure the variable is empty each time
-                $DownloadedFile = ''
-
                 # take the 3 variables as a array and download all of them that are not empty
                 $downloadFileParams = @{}
                 if ($PrivateRepo) {
@@ -251,10 +251,14 @@ function Get-LatestGitHubRelease {
                 }
                 # Splat the parameters onto the function call
                 $DownloadedFile = Get-FileDownload @downloadFileParams
+                Write-logg -Message "Downloaded $DownloadedFile" -level info
             }
 
             # Handle 'ExtractZip' parameter
             if ($ExtractZip) {
+                if ($DownloadedFile -is [array]) {
+                    $DownloadedFile = $DownloadedFile[1]
+                }
                 if ($downloadedFile -notlike '*.zip') {
                     Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
                     return $downloadedFile
