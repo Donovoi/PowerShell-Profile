@@ -4,13 +4,12 @@ function Install-PSModule {
         [bool]$InstallDefaultPSModules,
         [string[]]$PSModule,
         [bool]$RemoveAllModules,
-        [string]$LocalModulesDirectory
+        [string]$LocalModulesDirectory = $PWD
     )
 
     process {
         $neededcmdlets = @(
-            'Write-Logg',
-            'Write-InformationColored'
+            'Write-Logg'
         )
         $neededcmdlets | ForEach-Object {
             if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {

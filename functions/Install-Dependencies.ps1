@@ -22,7 +22,6 @@ function Install-Dependencies {
         'Invoke-AriaDownload',
         'Get-LongName',
         'Write-Logg',
-        'Write-InformationColored',
         'Invoke-RunAsAdmin',
         'Install-PackageProviders',
         'Add-Assemblies',
