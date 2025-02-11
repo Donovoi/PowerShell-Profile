@@ -10,8 +10,8 @@ function Install-Dependencies {
         [switch]$InstallDefaultNugetPackage,
         [switch]$AddDefaultAssemblies,
         [string[]]$AddCustomAssemblies,
-        [string]$LocalModulesDirectory,
-        [string]$LocalNugetDirectory,
+        [string]$LocalModulesDirectory = $PWD,
+        [string]$LocalNugetDirectory = $PWD,
         [switch]$SaveLocally
     )
 
