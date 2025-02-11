@@ -55,10 +55,14 @@ function Install-PSModule {
                     $count++
                     $percent = [int](($count / $total) * 100)
 
-                    Write-Progress `
-                        -Activity 'Installing PowerShell modules' `
-                        -Status "Installing '$moduleName' ($count of $total)" `
-                        -PercentComplete $percent
+                    $progressParams = @{
+                        Activity        = 'Installing PowerShell modules'
+                        Status          = "Installing '$moduleName' ($count of $total)"
+                        PercentComplete = $percent
+                        Completed       = $percent -eq 100
+                    }
+                    Write-Progress @progressParams
+                        
 
                     if ($percent -eq 100) {
                         Clear-Host
