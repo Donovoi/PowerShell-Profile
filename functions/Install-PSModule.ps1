@@ -59,14 +59,14 @@ function Install-PSModule {
                         Activity        = 'Installing PowerShell modules'
                         Status          = "Installing '$moduleName' ($count of $total)"
                         PercentComplete = $percent
-                        Completed       = $percent -eq 100
                     }
                     Write-Progress @progressParams
-                        
 
+                    # clear the write-progress if we're done
                     if ($percent -eq 100) {
-                        Clear-Host
+                        Write-Progress -Activity 'Installing PowerShell modules' -Completed
                     }
+
 
                     # Check if module is installed
                     if (-not (Get-Module -Name $moduleName -ListAvailable -ErrorAction SilentlyContinue)) {
