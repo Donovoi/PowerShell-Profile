@@ -6,13 +6,13 @@
     The Invoke-ConsoleNoise function generates a visual display of Unicode characters with a background
     color gradient in the console using the Pansies module to render RGB colors. Users can choose between
     different color gradients (Rainbow, Greyscale, or Custom) and between random Unicode characters or a specific character.
-    
+
     In non-RGB mode, the function uses a triple-nested loop to iterate over all possible combinations of
     hue, saturation, and lightness using the smallest increment possible (0.0001). For each fixed hue and saturation,
     all possible light values are rendered. When the light values are exhausted, saturation is incremented by the
     smallest step and the light loop repeats. Once both light and saturation have iterated completely, the hue is incremented,
     and the process repeats until the full range [0,1) for hue, saturation, and lightness is displayed.
-    
+
     For the 'Greyscale' gradient, the resulting RGB color is averaged to produce shades of grey.
 
 .PARAMETER ColorGradient
@@ -48,7 +48,7 @@
     Invoke-ConsoleNoise -ColorGradient "Custom" -UnicodeCharMode "Random"
     Displays a custom gradient using a nested loop that iterates through every combination of hue, saturation,
     and lightness (with extremely fine steps) with random Unicode characters.
-    
+
 .INPUTS
     None. You cannot pipe objects to this function.
 
@@ -59,7 +59,7 @@
     This function requires the Pansies module for rendering colors. Ensure that the module is installed.
     Due to the extremely fine HSL step (0.0001), the nested loops will run a huge number of iterations.
     Use with caution or adjust the step values for practical runtimes.
-    
+
 .LINK
     https://www.powershellgallery.com/packages/Pansies
 
@@ -70,7 +70,7 @@ function Invoke-ConsoleNoise {
     [CmdletBinding()]
     param (
         [Parameter()]
-        [ValidateSet('Rainbow', 'Greyscale', 'Custom')]
+        [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
         [string]$ColorGradient = 'Rainbow',
 
         [Parameter()]
@@ -88,18 +88,28 @@ function Invoke-ConsoleNoise {
     $originalFgColor = $Host.UI.RawUI.ForegroundColor
     $originalBgColor = $Host.UI.RawUI.BackgroundColor
 
+    # Make sure terminal supports unicode characters.
+    if ($env:TERM_PROGRAM -eq 'vscode') {
+        Write-Host 'vscode terminal detected, setting codepage to UTF-8.'
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    }
+
+
     try {
         # Ensure the Pansies module is available and imported.
-        if (-not (Get-Module -ListAvailable -Name Pansies)) {
-            try {
-                Install-Module -Name Pansies -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+        $modules = @('Pansies', 'lolcat')
+        foreach ($module in $modules) {
+            if (-not (Get-Module -ListAvailable -Name $module)) {
+                try {
+                    Install-Module -Name $module -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+                }
+                catch {
+                    Write-Error "Error installing $module module: $($_.Exception.Message)"
+                    return
+                }
             }
-            catch {
-                Write-Error "Error installing Pansies module: $($_.Exception.Message)"
-                return
-            }
+            Import-Module -Name $module -Force -ErrorAction SilentlyContinue
         }
-        Import-Module Pansies -Force
 
         # -------------------------------
         # Local helper functions
@@ -146,19 +156,19 @@ function Invoke-ConsoleNoise {
                 $hue2rgb = {
                     param($p, $q, $t)
                     if ($t -lt 0) {
-                        $t += 1 
+                        $t += 1
                     }
                     if ($t -gt 1) {
-                        $t -= 1 
+                        $t -= 1
                     }
                     if ($t -lt 1 / 6) {
-                        return $p + ($q - $p) * 6 * $t 
+                        return $p + ($q - $p) * 6 * $t
                     }
                     if ($t -lt 1 / 2) {
-                        return $q 
+                        return $q
                     }
                     if ($t -lt 2 / 3) {
-                        return $p + ($q - $p) * (2 / 3 - $t) * 6 
+                        return $p + ($q - $p) * (2 / 3 - $t) * 6
                     }
                     return $p
                 }
@@ -192,7 +202,7 @@ function Invoke-ConsoleNoise {
             if ($videoControllers -and $videoControllers.CurrentRefreshRate) {
                 $refreshRate = ($videoControllers.CurrentRefreshRate | Where-Object { $_ -gt 0 } | Select-Object -First 1) -as [int]
                 if (-not $refreshRate) {
-                    $refreshRate = 60 
+                    $refreshRate = 60
                 }
             }
             $sleepTimeMs = [math]::Round(1000 / $refreshRate)
@@ -213,10 +223,10 @@ function Invoke-ConsoleNoise {
                     for ($b = 0; $b -le 255; $b++) {
                         $color = [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
                         $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                            Get-RandomUnicodeCharacter 
+                            Get-RandomUnicodeCharacter
                         }
                         else {
-                            [string]$SpecificChar 
+                            [string]$SpecificChar
                         }
                         $lineToDisplay = $charToDisplay * $consoleWidth
                         Write-Host $lineToDisplay -ForegroundColor $color
@@ -224,6 +234,21 @@ function Invoke-ConsoleNoise {
                     }
                 }
             }
+        }
+        elseif ($ColorGradient -eq 'LolCat') {
+            # pipe the character to the lolcat command for a rainbow effect.
+            $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                Get-RandomUnicodeCharacter
+            }
+            else {
+                [string]$SpecificChar
+            }
+            while ($true) {
+                $lineToDisplay = $charToDisplay * $consoleWidth
+                $lineToDisplay | lolcat -a
+                Start-Sleep -Milliseconds $sleepTimeMs
+            }
+
         }
         else {
             # HSL mode with three nested loops for hue, saturation, and lightness.
@@ -240,10 +265,10 @@ function Invoke-ConsoleNoise {
                             $color = [PoshCode.Pansies.RgbColor]::new($avg, $avg, $avg)
                         }
                         $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                            Get-RandomUnicodeCharacter 
+                            Get-RandomUnicodeCharacter
                         }
                         else {
-                            [string]$SpecificChar 
+                            [string]$SpecificChar
                         }
                         $lineToDisplay = $charToDisplay * $consoleWidth
                         Write-Host $lineToDisplay -ForegroundColor $color
@@ -263,3 +288,4 @@ function Invoke-ConsoleNoise {
         Clear-Host
     }
 }
+Invoke-ConsoleNoise -ColorGradient LolCat -SpecificChar '★'
