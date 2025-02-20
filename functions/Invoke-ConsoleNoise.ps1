@@ -3,54 +3,62 @@
     Displays a color gradient with random Unicode characters in the console.
 
 .DESCRIPTION
-    The Invoke-ConsoleNoise function generates a visual display of random Unicode characters
-    with a background of a color gradient in the console. It uses the Pansies module to render RGB colors.
-    Users can select between different color gradients (Rainbow, Greyscale, or Custom) and choose
-    between random Unicode characters or a specific character.
+    The Invoke-ConsoleNoise function generates a visual display of Unicode characters with a background
+    color gradient in the console using the Pansies module to render RGB colors. Users can choose between
+    different color gradients (Rainbow, Greyscale, or Custom) and between random Unicode characters or a specific character.
+    
+    The "Custom" gradient now uses very small HSL increments. It starts at a bright red and over many iterations
+    gradually changes to a darker red that eventually turns purple. This yields a smooth, pleasing visual transition.
 
 .PARAMETER ColorGradient
     Specifies the type of color gradient to display.
     Options are:
-    - Rainbow: A full spectrum of colors.
-    - Greyscale: Shades of grey.
-    - Custom: User-defined gradient (requires additional implementation).
+      - Rainbow: A full spectrum of colors.
+      - Greyscale: Shades of grey.
+      - Custom: A smooth custom gradient from red to darker red to purple.
+
+.PARAMETER UseRgbColor
+    Switch to indicate that the full RGB loop should be used (iterating through all 256 values for red, green, and blue).
+    If not specified, an HSL-based gradient is used.
 
 .PARAMETER UnicodeCharMode
     Specifies the mode for displaying characters.
     Options are:
-    - Random: Display random Unicode characters.
-    - Specific: Display a specific character provided by the user.
+      - Random: Display random Unicode characters.
+      - Specific: Display a specific character provided by the user.
 
 .PARAMETER SpecificChar
     Specifies the specific character to display when UnicodeCharMode is set to 'Specific'.
-    This parameter is ignored if UnicodeCharMode is 'Random'.
+    This parameter is ignored if UnicodeCharMode is 'Random'. The default is a solid block.
 
 .EXAMPLE
     Invoke-ConsoleNoise -ColorGradient "Rainbow" -UnicodeCharMode "Random"
-    This example displays a rainbow gradient with random Unicode characters.
+    Displays a full-spectrum rainbow gradient with random Unicode characters using HSL conversion.
 
 .EXAMPLE
     Invoke-ConsoleNoise -ColorGradient "Greyscale" -UnicodeCharMode "Specific" -SpecificChar '★'
-    This example displays a greyscale gradient with the '★' character.
+    Displays a greyscale gradient with the '★' character using HSL conversion.
 
+.EXAMPLE
+    Invoke-ConsoleNoise -ColorGradient "Custom" -UnicodeCharMode "Random"
+    Displays a custom gradient that transitions very slightly from red to a darker red and eventually purple,
+    with random Unicode characters.
+    
 .INPUTS
-    None. You cannot pipe objects to Invoke-ConsoleNoise.
+    None. You cannot pipe objects to this function.
 
 .OUTPUTS
     Console output. The function renders colored characters directly to the console.
 
 .NOTES
-    This function requires the Pansies module to render RGB colors in the console.
-    Make sure the module is installed and imported before using this function.
-    The function is designed to demonstrate PowerShell's capability to generate visually
-    pleasing console outputs and is not optimized for performance.
-
+    This function requires the Pansies module for rendering colors. Ensure that the module is installed.
+    The function demonstrates PowerShell's dynamic console output and smooth color transitions.
+    
 .LINK
     https://www.powershellgallery.com/packages/Pansies
 
 .COMPONENT
-    Requires Pansies module for rendering colors.
-
+    Pansies module for RGB color rendering.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
@@ -60,174 +68,215 @@ function Invoke-ConsoleNoise {
         [string]$ColorGradient = 'Rainbow',
 
         [Parameter()]
-        [switch]$rgbColor,
+        [switch]$UseRgbColor,
 
         [Parameter()]
         [ValidateSet('Random', 'Specific')]
         [string]$UnicodeCharMode = 'Specific',
 
         [Parameter()]
-        $SpecificChar = [char]0x2588
+        [char]$SpecificChar = [char]0x2588
     )
-    # Array of block characters for gradient using Unicode escape sequences
-    #$blockChars = @(, [char]0x2592, [char]0x2593, [char]0x2588)
-    # Ensure the Pansies module is installed and imported
+
+    # Save original console colors to restore later.
+    $originalFgColor = $Host.UI.RawUI.ForegroundColor
+    $originalBgColor = $Host.UI.RawUI.BackgroundColor
+
     try {
+        # Ensure the Pansies module is available and imported.
         if (-not (Get-Module -ListAvailable -Name Pansies)) {
-            Install-Module -Name Pansies -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+            try {
+                Install-Module -Name Pansies -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+            }
+            catch {
+                Write-Error "Error installing Pansies module: $($_.Exception.Message)"
+                return
+            }
         }
         Import-Module Pansies -Force
-    }
-    catch {
-        Write-Error "Error importing Pansies module. Please ensure it's installed."
-        exit
-    }
 
-    function Get-RandomUnicodeCharacter {
-        # Define Unicode ranges for non-letter characters
-        $ranges = @(
-            @{Start = 0x1F300; End = 0x1F5FF }
-        )
+        # -------------------------------
+        # Local helper functions
+        # -------------------------------
 
-        $range = Get-Random -InputObject $ranges
-        $codePoint = Get-Random -Minimum $range.Start -Maximum $range.End
-        return [char]::ConvertFromUtf32($codePoint)
-    }
-
-    function Invoke-ColorGradient {
-        [CmdletBinding()]
-        param (
-            [Parameter(Mandatory)]
-            [int]$Red,
-
-            [Parameter(Mandatory)]
-            [int]$Green,
-
-            [Parameter(Mandatory)]
-            [int]$Blue
-        )
-        switch ($ColorGradient) {
-            'Rainbow' {
-                return [PoshCode.Pansies.RgbColor]::new($Red, $Green, $Blue)
-            }
-            'Greyscale' {
-                $grey = [int](($Red + $Green + $Blue) / 3)
-                return [PoshCode.Pansies.RgbColor]::new($grey, $grey, $grey)
-            }
-            'Custom' {
-                # Custom color logic can be added here
-            }
-        }
-    }
-    $consoleWidth = $Host.UI.RawUI.WindowSize.Width
-    $displaySettings = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
-    [int]$refreshRate = $displaySettings.CurrentRefreshRate[1] ? $displaySettings.CurrentRefreshRate[1] : $displaySettings.CurrentRefreshRate[0]
-    if($refreshRate -eq 0 -or ([string]::Isnullorwhitespace($refreshRate))) {
-        $refreshRate = 60
-    }
-    # Calculate the sleep time in milliseconds
-    $sleepTimeMs = 1000 / $refreshRate
-    if ($rgbColor) {
-        for ($r = 0; $r -le 255; $r++) {
-            for ($g = 0; $g -le 255; $g++) {
-                for ($b = 0; $b -le 255; $b++) {
-                    $color = Invoke-ColorGradient -Red $r -Green $g -Blue $b
-                    # Define your specific character or get a random Unicode character based on the mode
-                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                        Get-RandomUnicodeCharacter # Assuming this is a function that returns a single character
-                    }
-                    else {
-                        [string]$SpecificChar
-                    }
-                    # Create a string that repeats the character to fill the entire width of the console
-                    $lineToDisplay = $charToDisplay * $consoleWidth
-                    # Write the line to the console
-
-                    Write-Host $lineToDisplay -ForegroundColor $color
-                    Start-Sleep -Milliseconds $sleepTimeMs
-
-                }
-            }
-        }
-    }
-    else {
-        # Function to convert HSL to RGB
-        function Convert-HslToRgb {
-            param (
-                [float]$h,
-                [float]$s,
-                [float]$l
+        function Get-RandomUnicodeCharacter {
+            <#
+            .SYNOPSIS
+                Returns a random Unicode character from a predefined range.
+            #>
+            # Define a Unicode range (for example, miscellaneous symbols and pictographs)
+            $ranges = @(
+                @{ Start = 0x1F300; End = 0x1F5FF }
             )
+            $range = Get-Random -InputObject $ranges
+            $codePoint = Get-Random -Minimum $range.Start -Maximum ($range.End + 1)
+            return [char]::ConvertFromUtf32($codePoint)
+        }
 
-            if ($s -eq 0) {
-                $r = $l
-                $g = $l
-                $b = $l
+        function Convert-HslToRgb {
+            <#
+            .SYNOPSIS
+                Converts HSL color values to an RGB color.
+            .PARAMETER Hue
+                Hue value as a fraction between 0 and 1.
+            .PARAMETER Saturation
+                Saturation value as a fraction between 0 and 1.
+            .PARAMETER Lightness
+                Lightness value as a fraction between 0 and 1.
+            .OUTPUTS
+                An instance of [PoshCode.Pansies.RgbColor] representing the RGB color.
+            #>
+            param (
+                [Parameter(Mandatory = $true)][double]$Hue,
+                [Parameter(Mandatory = $true)][double]$Saturation,
+                [Parameter(Mandatory = $true)][double]$Lightness
+            )
+            if ($Saturation -eq 0) {
+                $r = $Lightness
+                $g = $Lightness
+                $b = $Lightness
             }
             else {
                 $hue2rgb = {
                     param($p, $q, $t)
                     if ($t -lt 0) {
-                        $t += 1
+                        $t += 1 
                     }
                     if ($t -gt 1) {
-                        $t -= 1
+                        $t -= 1 
                     }
                     if ($t -lt 1 / 6) {
-                        return $p + ($q - $p) * 6 * $t
+                        return $p + ($q - $p) * 6 * $t 
                     }
                     if ($t -lt 1 / 2) {
-                        return $q
+                        return $q 
                     }
                     if ($t -lt 2 / 3) {
-                        return $p + ($q - $p) * (2 / 3 - $t) * 6
+                        return $p + ($q - $p) * (2 / 3 - $t) * 6 
                     }
                     return $p
                 }
-
-                $q = if ($l -lt 0.5) {
-                    $l * (1 + $s)
+                $q = if ($Lightness -lt 0.5) {
+                    $Lightness * (1 + $Saturation) 
                 }
                 else {
-                    $l + $s - $l * $s
+                    $Lightness + $Saturation - $Lightness * $Saturation 
                 }
-                $p = 2 * $l - $q
-                $r = &$hue2rgb $p $q ($h + 1 / 3)
-                $g = &$hue2rgb $p $q $h
-                $b = &$hue2rgb $p $q ($h - 1 / 3)
+                $p = 2 * $Lightness - $q
+                $r = & $hue2rgb $p $q ($Hue + 1 / 3)
+                $g = & $hue2rgb $p $q $Hue
+                $b = & $hue2rgb $p $q ($Hue - 1 / 3)
             }
-
             $r = [math]::Round($r * 255)
             $g = [math]::Round($g * 255)
             $b = [math]::Round($b * 255)
-
             return [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
         }
 
-        $consoleWidth = $Host.UI.RawUI.WindowSize.Width
-        $displaySettings = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
-        [int]$refreshRate = $displaySettings.CurrentRefreshRate[1]
-        $sleepTimeMs = 1000 / $refreshRate
+        function Get-DisplaySettings {
+            <#
+            .SYNOPSIS
+                Retrieves console width and calculates sleep time based on the monitor's refresh rate.
+            .OUTPUTS
+                A hashtable with keys 'Width' and 'SleepTimeMs'.
+            #>
+            $width = $Host.UI.RawUI.WindowSize.Width
+            $videoControllers = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
+            $refreshRate = 60  # default
+            if ($videoControllers -and $videoControllers.CurrentRefreshRate) {
+                $refreshRate = ($videoControllers.CurrentRefreshRate | Where-Object { $_ -gt 0 } | Select-Object -First 1) -as [int]
+                if (-not $refreshRate) {
+                    $refreshRate = 60 
+                }
+            }
+            $sleepTimeMs = [math]::Round(1000 / $refreshRate)
+            return @{ Width = $width; SleepTimeMs = $sleepTimeMs }
+        }
 
-        for ($h = 0.01; $h -lt 360; $h += 0.001) {
-            $l += 0.001
-            $s += 0.001
-            # Adjust hue increment for smoother or faster transition
-            $color = Convert-HslToRgb -H $h -S $s -L $l
-            $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                Get-RandomUnicodeCharacter
+        # -------------------------------
+        # Main display logic
+        # -------------------------------
+        $displaySettings = Get-DisplaySettings
+        $consoleWidth = $displaySettings.Width
+        $sleepTimeMs = $displaySettings.SleepTimeMs
+
+        if ($UseRgbColor) {
+            # If using full RGB mode, iterate over all 256 values for each channel.
+            for ($r = 0; $r -le 255; $r++) {
+                for ($g = 0; $g -le 255; $g++) {
+                    for ($b = 0; $b -le 255; $b++) {
+                        $color = [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
+                        $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                            Get-RandomUnicodeCharacter 
+                        }
+                        else {
+                            [string]$SpecificChar 
+                        }
+                        $lineToDisplay = $charToDisplay * $consoleWidth
+                        Write-Host $lineToDisplay -ForegroundColor $color
+                        Start-Sleep -Milliseconds $sleepTimeMs
+                    }
+                }
+            }
+        }
+        else {
+            if ($ColorGradient -eq 'Custom') {
+                # Custom gradient: smoothly transition from red to darker red and finally toward purple.
+                $startHue = 0.0         # Red
+                $endHue = 0.75        # Approximate purple
+                $startLightness = 0.5         # Bright red
+                $endLightness = 0.3         # Darker red/purple
+                $totalSteps = 750         # Many iterations for a smooth change
+                for ($i = 0; $i -le $totalSteps; $i++) {
+                    $currentHue = $startHue + ($i * (($endHue - $startHue) / $totalSteps))
+                    $currentLightness = $startLightness + ($i * (($endLightness - $startLightness) / $totalSteps))
+                    $color = Convert-HslToRgb -Hue $currentHue -Saturation 1 -Lightness $currentLightness
+                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                        Get-RandomUnicodeCharacter 
+                    }
+                    else {
+                        [string]$SpecificChar 
+                    }
+                    $lineToDisplay = $charToDisplay * $consoleWidth
+                    Write-Host $lineToDisplay -ForegroundColor $color
+                    Start-Sleep -Milliseconds $sleepTimeMs
+                }
             }
             else {
-                [string]$SpecificChar
+                # For Rainbow or Greyscale, iterate through the full HSL spectrum in very small increments.
+                $hue = 0.001
+                $sat = 0.001
+                $light = 0.001
+                while ($hue -lt 1 -and $sat -lt 1 -and $light -lt 1) {
+                    $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
+                    if ($ColorGradient -eq 'Greyscale') {
+                        # Convert to greyscale by averaging RGB components.
+                        $avg = [math]::Round((($color.Red + $color.Green + $color.Blue) / 3))
+                        $color = [PoshCode.Pansies.RgbColor]::new($avg, $avg, $avg)
+                    }
+                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                        Get-RandomUnicodeCharacter 
+                    }
+                    else {
+                        [string]$SpecificChar 
+                    }
+                    $lineToDisplay = $charToDisplay * $consoleWidth
+                    Write-Host $lineToDisplay -ForegroundColor $color
+                    Start-Sleep -Milliseconds $sleepTimeMs
+                    $hue += 0.0001
+                    $sat += 0.0001
+                    $light += 0.0001
+                }
             }
-            # Create a string that repeats the character to fill the entire width of the console
-            $lineToDisplay = $charToDisplay * $consoleWidth
-            # Write the line to the console
-
-            Write-Host $lineToDisplay -ForegroundColor $color
-            Start-Sleep -Milliseconds $sleepTimeMs
-
         }
     }
+    catch {
+        Write-Error "Error: $($_.Exception.Message)"
+    }
+    finally {
+        # Restore the original console colors and clear the host.
+        $Host.UI.RawUI.ForegroundColor = $originalFgColor
+        $Host.UI.RawUI.BackgroundColor = $originalBgColor
+        Clear-Host
+    }
 }
-
