@@ -134,6 +134,10 @@ Set-PSReadLineKeyHandler -Key '}' -Function SelfInsert
 Set-PSReadLineKeyHandler -Key '[' -Function SelfInsert
 Set-PSReadLineKeyHandler -Key ']' -Function SelfInsert
 
+# Enable tab completion for tab
+Set-PSReadLineKeyHandler -Key Tab -Function Complete
+
+
 
 # Crazy oh my posh random theme function
 Invoke-OhMyPoshRandomTheme
