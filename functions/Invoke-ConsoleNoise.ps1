@@ -7,15 +7,20 @@
     color gradient in the console using the Pansies module to render RGB colors. Users can choose between
     different color gradients (Rainbow, Greyscale, or Custom) and between random Unicode characters or a specific character.
     
-    The "Custom" gradient now uses very small HSL increments. It starts at a bright red and over many iterations
-    gradually changes to a darker red that eventually turns purple. This yields a smooth, pleasing visual transition.
+    In non-RGB mode, the function uses a triple-nested loop to iterate over all possible combinations of
+    hue, saturation, and lightness using the smallest increment possible (0.0001). For each fixed hue and saturation,
+    all possible light values are rendered. When the light values are exhausted, saturation is incremented by the
+    smallest step and the light loop repeats. Once both light and saturation have iterated completely, the hue is incremented,
+    and the process repeats until the full range [0,1) for hue, saturation, and lightness is displayed.
+    
+    For the 'Greyscale' gradient, the resulting RGB color is averaged to produce shades of grey.
 
 .PARAMETER ColorGradient
     Specifies the type of color gradient to display.
     Options are:
       - Rainbow: A full spectrum of colors.
       - Greyscale: Shades of grey.
-      - Custom: A smooth custom gradient from red to darker red to purple.
+      - Custom: A smooth custom gradient (the nested loops will iterate over all HSL values).
 
 .PARAMETER UseRgbColor
     Switch to indicate that the full RGB loop should be used (iterating through all 256 values for red, green, and blue).
@@ -41,8 +46,8 @@
 
 .EXAMPLE
     Invoke-ConsoleNoise -ColorGradient "Custom" -UnicodeCharMode "Random"
-    Displays a custom gradient that transitions very slightly from red to a darker red and eventually purple,
-    with random Unicode characters.
+    Displays a custom gradient using a nested loop that iterates through every combination of hue, saturation,
+    and lightness (with extremely fine steps) with random Unicode characters.
     
 .INPUTS
     None. You cannot pipe objects to this function.
@@ -52,7 +57,8 @@
 
 .NOTES
     This function requires the Pansies module for rendering colors. Ensure that the module is installed.
-    The function demonstrates PowerShell's dynamic console output and smooth color transitions.
+    Due to the extremely fine HSL step (0.0001), the nested loops will run a huge number of iterations.
+    Use with caution or adjust the step values for practical runtimes.
     
 .LINK
     https://www.powershellgallery.com/packages/Pansies
@@ -157,10 +163,10 @@ function Invoke-ConsoleNoise {
                     return $p
                 }
                 $q = if ($Lightness -lt 0.5) {
-                    $Lightness * (1 + $Saturation) 
+                    $Lightness * (1 + $Saturation)
                 }
                 else {
-                    $Lightness + $Saturation - $Lightness * $Saturation 
+                    $Lightness + $Saturation - $Lightness * $Saturation
                 }
                 $p = 2 * $Lightness - $q
                 $r = & $hue2rgb $p $q ($Hue + 1 / 3)
@@ -173,7 +179,7 @@ function Invoke-ConsoleNoise {
             return [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
         }
 
-        function Get-DisplaySettings {
+        function Get-DisplayConfiguration {
             <#
             .SYNOPSIS
                 Retrieves console width and calculates sleep time based on the monitor's refresh rate.
@@ -196,12 +202,12 @@ function Invoke-ConsoleNoise {
         # -------------------------------
         # Main display logic
         # -------------------------------
-        $displaySettings = Get-DisplaySettings
+        $displaySettings = Get-DisplayConfiguration
         $consoleWidth = $displaySettings.Width
         $sleepTimeMs = $displaySettings.SleepTimeMs
 
         if ($UseRgbColor) {
-            # If using full RGB mode, iterate over all 256 values for each channel.
+            # Full RGB mode: iterate over all 256 values for each channel.
             for ($r = 0; $r -le 255; $r++) {
                 for ($g = 0; $g -le 255; $g++) {
                     for ($b = 0; $b -le 255; $b++) {
@@ -220,52 +226,29 @@ function Invoke-ConsoleNoise {
             }
         }
         else {
-            if ($ColorGradient -eq 'Custom') {
-                # Custom gradient: smoothly transition from red to darker red and finally toward purple.
-                $startHue = 0.0         # Red
-                $endHue = 0.75        # Approximate purple
-                $startLightness = 0.5         # Bright red
-                $endLightness = 0.3         # Darker red/purple
-                $totalSteps = 750         # Many iterations for a smooth change
-                for ($i = 0; $i -le $totalSteps; $i++) {
-                    $currentHue = $startHue + ($i * (($endHue - $startHue) / $totalSteps))
-                    $currentLightness = $startLightness + ($i * (($endLightness - $startLightness) / $totalSteps))
-                    $color = Convert-HslToRgb -Hue $currentHue -Saturation 1 -Lightness $currentLightness
-                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                        Get-RandomUnicodeCharacter 
+            # HSL mode with three nested loops for hue, saturation, and lightness.
+            $hueStep = 0.0001
+            $satStep = 0.0001
+            $lightStep = 0.0001
+            for ($hue = 0.0; $hue -lt 1.0; $hue += $hueStep) {
+                for ($sat = 0.0; $sat -lt 1.0; $sat += $satStep) {
+                    for ($light = 0.0; $light -lt 1.0; $light += $lightStep) {
+                        $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
+                        if ($ColorGradient -eq 'Greyscale') {
+                            # Convert to greyscale by averaging RGB components.
+                            $avg = [math]::Round((($color.Red + $color.Green + $color.Blue) / 3))
+                            $color = [PoshCode.Pansies.RgbColor]::new($avg, $avg, $avg)
+                        }
+                        $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                            Get-RandomUnicodeCharacter 
+                        }
+                        else {
+                            [string]$SpecificChar 
+                        }
+                        $lineToDisplay = $charToDisplay * $consoleWidth
+                        Write-Host $lineToDisplay -ForegroundColor $color
+                        Start-Sleep -Milliseconds $sleepTimeMs
                     }
-                    else {
-                        [string]$SpecificChar 
-                    }
-                    $lineToDisplay = $charToDisplay * $consoleWidth
-                    Write-Host $lineToDisplay -ForegroundColor $color
-                    Start-Sleep -Milliseconds $sleepTimeMs
-                }
-            }
-            else {
-                # For Rainbow or Greyscale, iterate through the full HSL spectrum in very small increments.
-                $hue = 0.001
-                $sat = 0.001
-                $light = 0.001
-                while ($hue -lt 1 -and $sat -lt 1 -and $light -lt 1) {
-                    $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
-                    if ($ColorGradient -eq 'Greyscale') {
-                        # Convert to greyscale by averaging RGB components.
-                        $avg = [math]::Round((($color.Red + $color.Green + $color.Blue) / 3))
-                        $color = [PoshCode.Pansies.RgbColor]::new($avg, $avg, $avg)
-                    }
-                    $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                        Get-RandomUnicodeCharacter 
-                    }
-                    else {
-                        [string]$SpecificChar 
-                    }
-                    $lineToDisplay = $charToDisplay * $consoleWidth
-                    Write-Host $lineToDisplay -ForegroundColor $color
-                    Start-Sleep -Milliseconds $sleepTimeMs
-                    $hue += 0.0001
-                    $sat += 0.0001
-                    $light += 0.0001
                 }
             }
         }
