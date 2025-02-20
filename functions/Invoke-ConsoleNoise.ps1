@@ -122,6 +122,9 @@ function Invoke-ConsoleNoise {
     $consoleWidth = $Host.UI.RawUI.WindowSize.Width
     $displaySettings = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
     [int]$refreshRate = $displaySettings.CurrentRefreshRate[1] ? $displaySettings.CurrentRefreshRate[1] : $displaySettings.CurrentRefreshRate[0]
+    if($refreshRate -eq 0 -or ([string]::Isnullorwhitespace($refreshRate))) {
+        $refreshRate = 60
+    }
     # Calculate the sleep time in milliseconds
     $sleepTimeMs = 1000 / $refreshRate
     if ($rgbColor) {
