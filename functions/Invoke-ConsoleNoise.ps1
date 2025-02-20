@@ -96,8 +96,8 @@ function Invoke-ConsoleNoise {
 
 
     try {
-        # Ensure the Pansies module is available and imported.
-        $modules = @('Pansies', 'lolcat')
+        # Ensure any modules are installed and imported.
+        $modules = @('Pansies')
         foreach ($module in $modules) {
             if (-not (Get-Module -ListAvailable -Name $module)) {
                 try {
@@ -236,6 +236,20 @@ function Invoke-ConsoleNoise {
             }
         }
         elseif ($ColorGradient -eq 'LolCat') {
+            $modules = @('lolcat')
+            foreach ($module in $modules) {
+                if (-not (Get-Module -ListAvailable -Name $module)) {
+                    try {
+                        Install-Module -Name $module -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+                    }
+                    catch {
+                        Write-Error "Error installing $module module: $($_.Exception.Message)"
+                        return
+                    }
+                }
+                Import-Module -Name $module -Force -ErrorAction SilentlyContinue
+            }
+
             # pipe the character to the lolcat command for a rainbow effect.
             $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
                 Get-RandomUnicodeCharacter
