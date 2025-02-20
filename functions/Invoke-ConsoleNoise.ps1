@@ -74,7 +74,7 @@ function Invoke-ConsoleNoise {
     # Ensure the Pansies module is installed and imported
     try {
         if (-not (Get-Module -ListAvailable -Name Pansies)) {
-            Install-Module -Name Pansies -Scope CurrentUser
+            Install-Module -Name Pansies -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
         }
         Import-Module Pansies -Force
     }
