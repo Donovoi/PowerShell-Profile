@@ -288,4 +288,3 @@ function Invoke-ConsoleNoise {
         Clear-Host
     }
 }
-Invoke-ConsoleNoise -ColorGradient LolCat -SpecificChar '★'
