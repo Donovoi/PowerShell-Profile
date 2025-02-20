@@ -28,8 +28,7 @@ function Get-KapeAndTools {
 
   if (-not (Resolve-Path -Path $XWAYSUSB\Triage -ErrorAction SilentlyContinue)) {
     $XWAYSUSBtriagefolder = Resolve-Path -Path $XWAYSUSB\*\Triage
-  }
-  else {
+  } else {
     $XWAYSUSBtriagefolder = Join-Path -Path $XWAYSUSB -ChildPath Triage
   }
 
@@ -55,4 +54,19 @@ function Get-KapeAndTools {
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
   Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater[1])", '-silent' -Wait -NoNewWindow
 
+  # After all is done copy the KAPE folder to my fast usb
+  $fastusb = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 't9'").DriveLetter
+
+  $params = @{
+    Path        = "$XWAYSUSBtriagefolder\kape\"
+    Destination = "$fastusb\triage\kape\"
+
+    Recurse     = $true
+    Force       = $true
+    ErrorAction = 'Continue'
+    Verbose     = $true
+  }
+  Copy-Item @params
+  Write-Logg -Message "Successfully copied KAPE folder to $fastusb\triage\kape\" -level info
+  Pop-Location
 }
