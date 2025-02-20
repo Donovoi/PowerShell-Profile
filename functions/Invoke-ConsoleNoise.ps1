@@ -76,7 +76,7 @@ function Invoke-ConsoleNoise {
         if (-not (Get-Module -ListAvailable -Name Pansies)) {
             Install-Module -Name Pansies -Scope CurrentUser
         }
-        Import-Module Pansies
+        Import-Module Pansies -Force
     }
     catch {
         Write-Error "Error importing Pansies module. Please ensure it's installed."
