@@ -309,10 +309,13 @@ function Get-XwaysResources {
     Write-Error "$errText"
     Write-Warning "If you are getting 'Unauthorized' try using the -ResetCredentials switch and rerun the script`n Exiting"
     Exit-PSHostProcess
-  } Finally {
+  }
+  Finally {
     # Remove any aria2c files and folders
     $ariafiles = Get-ChildItem -Path "$XWaysRoot" -Filter '*aria2*'
-    Remove-Item -Path $ariafiles -Force -Recurse
+    if (Test-Path $ariafiles -ErrorAction SilentlyContinue) {
+      Remove-Item -Path $ariafiles -Force -Recurse -ErrorAction SilentlyContinue
+    }
     Out-Host -InputObject 'All Done!'
   }
 
