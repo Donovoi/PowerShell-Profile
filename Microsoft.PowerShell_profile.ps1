@@ -40,9 +40,9 @@ $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*"
 $FunctionsFolder.ForEach{ .$_.FullName }
 
 # create this file so we can have more contrast in the terminal
-if (-not (Test-Path -Path 'C:\temp\menger.hlsl')) {
+if (-not (Test-Path -Path 'C:\temp\Retro.hlsl')) {
   New-Item -Path 'C:\temp\' -ItemType Directory -Force
-  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\menger.hlsl" -Destination 'C:\temp\menger.hlsl' -Force
+  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\Retro.hlsl" -Destination 'C:\temp\Retro.hlsl' -Force
 }
 
 # Check if PowerShell 7 is installed
