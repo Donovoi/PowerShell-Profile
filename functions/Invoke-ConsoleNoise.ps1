@@ -218,22 +218,46 @@ function Invoke-ConsoleNoise {
 
         if ($UseRgbColor) {
             # Full RGB mode: iterate over all 256 values for each channel.
-            for ($r = 0; $r -le 255; $r++) {
-                for ($g = 0; $g -le 255; $g++) {
-                    for ($b = 0; $b -le 255; $b++) {
-                        $color = [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
-                        $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                            Get-RandomUnicodeCharacter
-                        }
-                        else {
-                            [string]$SpecificChar
-                        }
-                        $lineToDisplay = $charToDisplay * $consoleWidth
-                        Write-Host $lineToDisplay -ForegroundColor $color
-                        Start-Sleep -Milliseconds $sleepTimeMs
-                    }
+            # Use a more efficient approach to cycle through colors
+            $gstep = 0.01
+            $bstep = 0.02
+            $rstep = 0.1  # Larger step size for faster color changes
+            $r = 255
+            $g = 0
+            $b = 0
+
+            while ($true) {
+                # Create RGB color
+                $color = [PoshCode.Pansies.RgbColor]::new([Math]::Round($r, 2), [Math]::Round($g, 2), [Math]::Round($b, 2))
+
+                # Display character
+                $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                    Get-RandomUnicodeCharacter
+                }
+                else {
+                    [string]$SpecificChar
+                }
+                $lineToDisplay = $charToDisplay * $consoleWidth
+
+                Write-Host $lineToDisplay -ForegroundColor $color
+                Start-Sleep -Milliseconds $sleepTimeMs
+
+                # Increment green channel
+                $g += $gstep
+                if ($g -eq 255) {
+                    $g = 0
+                }
+                $b += $bstep
+                if ($b -eq 255) {
+                    $b = 0
+                }
+                $r -= $rstep
+                if ($r -eq 0) {
+                    $r = 255
                 }
             }
+
+
         }
         elseif ($ColorGradient -eq 'LolCat') {
             $modules = @('lolcat')
@@ -266,9 +290,9 @@ function Invoke-ConsoleNoise {
         }
         else {
             # HSL mode with three nested loops for hue, saturation, and lightness.
-            $hueStep = 0.0001
-            $satStep = 0.0001
-            $lightStep = 0.0001
+            $hueStep = 0.01
+            $satStep = 0.01
+            $lightStep = 0.01
             for ($hue = 0.0; $hue -lt 1.0; $hue += $hueStep) {
                 for ($sat = 0.0; $sat -lt 1.0; $sat += $satStep) {
                     for ($light = 0.0; $light -lt 1.0; $light += $lightStep) {
