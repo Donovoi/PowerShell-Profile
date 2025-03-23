@@ -59,7 +59,7 @@ function Get-KapeAndTools {
 
   $params = @{
     Path        = "$XWAYSUSBtriagefolder\kape\"
-    Destination = "$fastusb\triage\kape\"
+    Destination = "$fastusb\triage\"
 
     Recurse     = $true
     Force       = $true
