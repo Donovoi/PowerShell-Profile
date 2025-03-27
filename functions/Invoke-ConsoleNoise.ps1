@@ -241,7 +241,9 @@ function Invoke-ConsoleNoise {
 
                 $originalColor = $Host.UI.RawUI.ForegroundColor
                 $Host.UI.RawUI.ForegroundColor = $color
-                Write-Information $lineToDisplay -InformationAction Continue
+                Write-Host $lineToDisplay -NoNewline -ForegroundColor $color
+                # Clear the line after displaying
+                [void][System.Console]::SetCursorPosition(0, [System.Console]::CursorTop)
                 $Host.UI.RawUI.ForegroundColor = $originalColor
                 Start-Sleep -Milliseconds $sleepTimeMs
 
@@ -318,8 +320,9 @@ function Invoke-ConsoleNoise {
                 }
                 $lineToDisplay = $charToDisplay * $consoleWidth
                 
-                # Replace Write-Host with Write-Information
-                Write-Information $lineToDisplay -InformationAction Continue -ForegroundColor $color
+                # Replace Write-Host with Write-Host
+                Write-Host $lineToDisplay -ForegroundColor $color
+                # Sleep for a short duration to control the speed of the gradient
                 Start-Sleep -Milliseconds $sleepTimeMs
             }
         }
