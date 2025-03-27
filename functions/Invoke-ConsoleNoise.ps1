@@ -328,9 +328,18 @@ function Invoke-ConsoleNoise {
         Write-Error "Error: $($_.Exception.Message)"
     }
     finally {
-        # Restore the original console colors and clear the host.
+        # Restore original colors.
         $Host.UI.RawUI.ForegroundColor = $originalFgColor
         $Host.UI.RawUI.BackgroundColor = $originalBgColor
+    
+        # Ensure the cursor is visible.
+        $Host.UI.RawUI.CursorVisible = $true
+    
+        # Flush any pending input.
+        $Host.UI.RawUI.FlushInputBuffer()
+    
+        # Clear the screen and force the prompt to reappear.
         Clear-Host
+        prompt
     }
 }
