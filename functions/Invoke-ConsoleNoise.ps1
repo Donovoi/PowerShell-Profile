@@ -242,9 +242,6 @@ function Invoke-ConsoleNoise {
                 $originalColor = $Host.UI.RawUI.ForegroundColor
                 $Host.UI.RawUI.ForegroundColor = $color
                 Write-Host $lineToDisplay -ForegroundColor $color
-                # Clear the line after displaying
-                [void][System.Console]::SetCursorPosition(0, [System.Console]::CursorTop)
-                $Host.UI.RawUI.ForegroundColor = $originalColor
                 Start-Sleep -Milliseconds $sleepTimeMs
 
                 # Increment green channel
