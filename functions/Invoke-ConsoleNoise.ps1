@@ -337,9 +337,15 @@ function Invoke-ConsoleNoise {
     
         # Flush any pending input.
         $Host.UI.RawUI.FlushInputBuffer()
-    
+
+        # Reset the console to its original state.
+        $Host.UI.RawUI.SetBufferContents([System.Management.Automation.Host.Coordinates]::new(0, 0), [System.Management.Automation.Host.BufferCell]::new(' ', $originalFgColor, $originalBgColor, [System.Management.Automation.Host.BufferCellType]::Character, 1))
+        $Host.UI.RawUI.SetBufferContents([System.Management.Automation.Host.Coordinates]::new(0, 0), [System.Management.Automation.Host.BufferCell]::new(' ', $originalFgColor, $originalBgColor, [System.Management.Automation.Host.BufferCellType]::Character, $consoleWidth))
+
         # Clear the screen and force the prompt to reappear.
         Clear-Host
         prompt
     }
 }
+
+Invoke-ConsoleNoise -ErrorAction break
