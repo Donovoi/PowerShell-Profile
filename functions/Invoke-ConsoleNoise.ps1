@@ -90,7 +90,7 @@ function Invoke-ConsoleNoise {
 
     # Make sure terminal supports unicode characters.
     if ($env:TERM_PROGRAM -eq 'vscode') {
-        Write-Host 'vscode terminal detected, setting codepage to UTF-8.'
+        Write-Information 'vscode terminal detected, setting codepage to UTF-8.' -InformationAction Continue
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     }
 
@@ -239,7 +239,10 @@ function Invoke-ConsoleNoise {
                 }
                 $lineToDisplay = $charToDisplay * $consoleWidth
 
-                Write-Host $lineToDisplay -ForegroundColor $color
+                $originalColor = $Host.UI.RawUI.ForegroundColor
+                $Host.UI.RawUI.ForegroundColor = $color
+                Write-Information $lineToDisplay -InformationAction Continue
+                $Host.UI.RawUI.ForegroundColor = $originalColor
                 Start-Sleep -Milliseconds $sleepTimeMs
 
                 # Increment green channel
@@ -289,30 +292,35 @@ function Invoke-ConsoleNoise {
 
         }
         else {
-            # HSL mode with three nested loops for hue, saturation, and lightness.
-            $hueStep = 0.01
-            $satStep = 0.01
-            $lightStep = 0.01
-            for ($hue = 0.0; $hue -lt 1.0; $hue += $hueStep) {
-                for ($sat = 0.0; $sat -lt 1.0; $sat += $satStep) {
-                    for ($light = 0.0; $light -lt 1.0; $light += $lightStep) {
-                        $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
-                        if ($ColorGradient -eq 'Greyscale') {
-                            # Convert to greyscale by averaging RGB components.
-                            $avg = [math]::Round((($color.Red + $color.Green + $color.Blue) / 3))
-                            $color = [PoshCode.Pansies.RgbColor]::new($avg, $avg, $avg)
-                        }
-                        $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
-                            Get-RandomUnicodeCharacter
-                        }
-                        else {
-                            [string]$SpecificChar
-                        }
-                        $lineToDisplay = $charToDisplay * $consoleWidth
-                        Write-Host $lineToDisplay -ForegroundColor $color
-                        Start-Sleep -Milliseconds $sleepTimeMs
-                    }
+            # Create a more controlled gradient pattern
+            $hue = 0.0
+            $sat = 0.8  # Fixed saturation for better color transitions
+            $light = 0.5  # Fixed lightness for better color transitions
+            
+            # Use a simpler approach with a single loop for smoother transitions
+            while ($true) {
+                if ($ColorGradient -eq 'Greyscale') {
+                    # For greyscale, cycle through lightness only
+                    $light = ($light + 0.01) % 1.0
+                    $color = Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $light
                 }
+                else {
+                    # For rainbow/custom, cycle through hues with fixed saturation and lightness
+                    $hue = ($hue + 0.01) % 1.0
+                    $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
+                }
+                
+                $charToDisplay = if ($UnicodeCharMode -eq 'Random') {
+                    Get-RandomUnicodeCharacter
+                }
+                else {
+                    [string]$SpecificChar
+                }
+                $lineToDisplay = $charToDisplay * $consoleWidth
+                
+                # Replace Write-Host with Write-Information
+                Write-Information $lineToDisplay -InformationAction Continue -ForegroundColor $color
+                Start-Sleep -Milliseconds $sleepTimeMs
             }
         }
     }

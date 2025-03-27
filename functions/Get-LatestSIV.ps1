@@ -37,7 +37,7 @@ function Get-LatestSIV {
     $response.EnsureSuccessStatusCode()
     $content = $response.Content.ReadAsByteArrayAsync().Result
     $finalfile = "$destinationFolder\$programName.zip"
-    
+
     Write-Output "Saving to $finalfile"
     if (Test-Path $finalfile) {
         Remove-Item -Path $finalfile
