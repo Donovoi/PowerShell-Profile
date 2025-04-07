@@ -193,20 +193,16 @@ function Get-FileDownload {
             # --- End Download method ---
             Write-Verbose "Downloaded file saved as: $DownloadedFile"
         }
-    }
-    catch {
-        Write-Error "An error occurred: $_"
-        throw
-    }
+        catch {
+            Write-Error "An error occurred: $_"
+            throw
+        }
 
-    if ($DownloadedFile -is [array]) {
-        return $DownloadedFile[1]
-    }
-    else {
-        return $DownloadedFile
+        if ($DownloadedFile -is [array]) {
+            return $DownloadedFile[1]
+        }
+        else {
+            return $DownloadedFile
+        }
     }
 }
-}
-
-# Example usage:
-Get-FileDownload -URL 'https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn' -DestinationDirectory 'C:\users\toor\Downloads' -UseAria2 -NoRPCMode -ErrorAction break -Verbose -AriaConsoleLogLevel 'debug'

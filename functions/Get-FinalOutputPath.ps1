@@ -1,5 +1,6 @@
 # Helper function to determine the final output path
 function Get-FinalOutputPath {
+    [CmdletBinding(SupportsShouldProcess=$true)]
     param (
         [string]$BasePath,
         [string]$FileName,
