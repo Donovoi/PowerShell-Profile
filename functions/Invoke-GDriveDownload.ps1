@@ -69,6 +69,8 @@ function Invoke-GDriveDownload {
             'Invoke-AriaDownload'                   # Alternative download method for large files
             'Get-FileDetailsFromResponse'           # Extracts file details from web response
             'Save-BinaryContent'                    # Saves binary content to disk
+            'Add-FileToAppDomain'
+            'Write-Logg'
         )
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
