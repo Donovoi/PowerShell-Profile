@@ -61,7 +61,15 @@ function Invoke-GDriveDownload {
     begin {
 
         # Import needed cmdlets if not already available
-        $neededcmdlets = @('Install-Dependencies', 'Get-FinalOutputPath', 'Get-FormDataFromGDriveConfirmation', 'Invoke-AriaDownload', 'Get-FileDetailsFromResponse', 'Save-BinaryContent', 'Get-FormDataFromGDriveConfirmation')
+        $neededcmdlets = @(
+            'Install-Dependencies'                  # Installs required dependencies
+            'Get-FinalOutputPath'                   # Determines final output path for downloaded files
+            'Add-NuGetDependencies'                 # Adds NuGet package dependencies
+            'Get-FormDataFromGDriveConfirmation'    # Parses Google Drive confirmation page for form data
+            'Invoke-AriaDownload'                   # Alternative download method for large files
+            'Get-FileDetailsFromResponse'           # Extracts file details from web response
+            'Save-BinaryContent'                    # Saves binary content to disk
+        )
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
