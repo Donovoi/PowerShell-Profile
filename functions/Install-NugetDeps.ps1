@@ -33,7 +33,7 @@ function Install-NugetDeps {
             'Interop.UIAutomationClient' = '10.19041.0'
             'FlaUI.Core'                 = '4.0.0'
             'FlaUI.UIA3'                 = '4.0.0'
-            'HtmlAgilityPack'            = '1.11.50'
+            'HtmlAgilityPack'            = '1.12.0'
         }
 
         # Gather default packages if requested
