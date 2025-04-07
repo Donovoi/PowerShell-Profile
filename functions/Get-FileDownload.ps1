@@ -290,7 +290,7 @@ function Get-FileDownload {
                         $ariaArgs['LoadCookiesFromFile'] = $LoadCookiesFromFile 
                     }
                     if ($NoRPCMode) {
-                        $ariaArgs['NoRPCMode'] = $true 
+                        $ariaArgs['RPCMode'] = $false 
                     }
                     
                     # Additional handling for Google Drive URLs
