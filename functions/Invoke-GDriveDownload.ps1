@@ -71,6 +71,7 @@ function Invoke-GDriveDownload {
             'Save-BinaryContent'                    # Saves binary content to disk
             'Add-FileToAppDomain'
             'Write-Logg'
+            'Get-FileDownload'
         )
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
@@ -150,7 +151,7 @@ function Invoke-GDriveDownload {
 
                 if ($PSCmdlet.ShouldProcess("$finalUrl", 'Download file')) {
                     # Use GET instead of POST
-                    $downloadResponse = Invoke-WebRequest -Uri $finalUrl -Method GET -WebSession $session -UserAgent $UserAgent
+                    $downloadResponse = Get-FileDownload -URL $finalUrl -UseAria2 -NoRPCMode
 
                     # Get file details from response
                     $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
