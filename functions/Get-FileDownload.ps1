@@ -129,13 +129,6 @@ function Get-FileDownload {
             if (-not (Test-Path -Path $DestinationDirectory)) {
                 New-Item -Path $DestinationDirectory -ItemType Directory -Force | Out-Null
             }
-
-            foreach ($download in $URL) {
-               
-
-                # Override the download URL with the constructed final URL.
-                $download = $finalUrl
-            }
             try {
                 if ($GitHub) {
                     $tempHeaders = @{ 'User-Agent' = 'PowerShell'; 'Accept' = 'application/vnd.github.v3+json' }
