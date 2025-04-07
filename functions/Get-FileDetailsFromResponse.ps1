@@ -2,7 +2,7 @@ function Get-FileDetailsFromResponse {
     param (
         [Parameter(Mandatory = $true)]
         [Microsoft.PowerShell.Commands.WebResponseObject]$Response,
-        
+
         [Parameter(Mandatory = $false)]
         [switch]$Force
     )
@@ -34,7 +34,7 @@ function Get-FileDetailsFromResponse {
         if ($Response.Headers.ContainsKey('Content-Length')) {
             # Fix: Handle Content-Length as possible array
             $contentLength = $Response.Headers['Content-Length']
-            
+
             if ($contentLength -is [array]) {
                 Write-Verbose 'Content-Length is an array, using first value'
                 $fileSize = [long]($contentLength[0])
@@ -42,7 +42,7 @@ function Get-FileDetailsFromResponse {
             else {
                 $fileSize = [long]$contentLength
             }
-            
+
             Write-Verbose "Content-Length: $fileSize bytes"
         }
         else {
