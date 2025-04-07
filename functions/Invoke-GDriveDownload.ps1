@@ -151,7 +151,7 @@ function Invoke-GDriveDownload {
 
                 if ($PSCmdlet.ShouldProcess("$finalUrl", 'Download file')) {
                     # Use GET instead of POST
-                    $downloadResponse = Get-FileDownload -URL $finalUrl -UseAria2 -NoRPCMode
+                    $downloadResponse = Get-FileDownload -URL $finalUrl -WebSession $session -DestinationDirectory $OutputPath
 
                     # Get file details from response
                     $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
