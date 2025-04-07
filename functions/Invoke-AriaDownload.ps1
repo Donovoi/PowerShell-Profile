@@ -146,6 +146,9 @@ function Invoke-AriaDownload {
         [Parameter(Mandatory = $false)]
         [string]$LoadCookiesFromFile = '',
 
+        [Parameter(Mandatory = $false)]
+        [string[]]$WebSession = '',
+
         # useragent string
         [Parameter(Mandatory = $false)]
         [string]
