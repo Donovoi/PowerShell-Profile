@@ -152,8 +152,8 @@ function Invoke-GDriveDownload {
                 if ($PSCmdlet.ShouldProcess("$finalUrl", 'Download file')) {
                     # write the cookies to a file
                     $cookieFile = Join-Path -Path $env:TEMP -ChildPath 'gdrive_cookies.txt'
-                    $session.Cookies | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
-                    $downloadResponse = Get-FileDownload -URL $finalUrl -LoadCookiesFromFile $cookieFile -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
+                    $session.Cookies.GetAllCookies() | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
+                    $downloadResponse = Get-FileDownload -URL $finalUrl -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
 
                     # Get file details from response
                     $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
