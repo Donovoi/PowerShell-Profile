@@ -135,3 +135,4 @@ System.Management/ref/net45/_._
 System.Management/ref/netstandard2.0/System.Management.xml
 System.Management/runtimes/win/lib/net45/_._
 System.Management/runtimes/win/lib/netcoreapp2.0/System.Management.xml
+HtmlAgilityPack/lib/net8.0/HtmlAgilityPack.deps.json
