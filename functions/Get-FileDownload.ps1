@@ -93,10 +93,7 @@ function Get-FileDownload {
         [switch]$LogToFile,
 
         [Parameter(Mandatory = $false)]
-        [string]$LoadCookiesFromFile = '',
-
-        [Parameter(Mandatory = $false)]
-        [string[]]$WebSession = ''
+        [string]$LoadCookiesFromFile = ''
     )
     begin {
         # Import needed cmdlets if not already available
@@ -129,62 +126,77 @@ function Get-FileDownload {
             if (-not (Test-Path -Path $DestinationDirectory)) {
                 New-Item -Path $DestinationDirectory -ItemType Directory -Force | Out-Null
             }
-            try {
-                if ($GitHub) {
-                    $tempHeaders = @{ 'User-Agent' = 'PowerShell'; 'Accept' = 'application/vnd.github.v3+json' }
-                }
-                else {
-                    $tempHeaders = $Headers
-                }
-                $headResponse = Invoke-WebRequest -Uri $download -Method Head -Headers $tempHeaders -UseBasicParsing
-                $contentDisp = $headResponse.Headers['Content-Disposition']
-                if ($contentDisp -match 'filename="?([^";]+)"?') {
-                    $finalFileName = $matches[1]
-                }
-                else {
-                    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                    $finalFileName = "TempFile-$timestamp"
-                }
-                $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
-                    
-            
-            }
-            catch {
-                $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                $OutFile = Join-Path -Path $DestinationDirectory -ChildPath "TempFile-$timestamp"
-            }
-            Write-Verbose "Output file will be: $OutFile"
-            $DownloadedFile = ''
 
-            # --- Download using aria2c or fallback ---
-            if ($UseAria2) {
-                if ($IsPrivateRepo -and $Token) {
-                    $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Token:$Token
+            foreach ($download in $URL) {
+                $originalDownload = $download
+                try {
+                    
+                    $UriParts = [System.Uri]::new($download)
+                    if ($UriParts.IsFile -or ($download.Split('/')[-1] -match '\.')) {
+                        $originalFileName = [System.IO.Path]::GetFileName($UriParts)
+                        $fileNameWithoutQuery = $originalFileName -split '\?' | Select-Object -First 1
+                        $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+                        $validChars = $fileNameWithoutQuery.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
+                        [string]$OutFile = -join $validChars
+                        $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $OutFile
+                    }
+                    else {
+                        if ($GitHub) {
+                            $tempHeaders = @{ 'User-Agent' = 'PowerShell'; 'Accept' = 'application/vnd.github.v3+json' }
+                        }
+                        else {
+                            $tempHeaders = $Headers
+                        }
+                        $headResponse = Invoke-WebRequest -Uri $download -Method Head -Headers $tempHeaders -UseBasicParsing
+                        $contentDisp = $headResponse.Headers['Content-Disposition']
+                        if ($contentDisp -match 'filename="?([^";]+)"?') {
+                            $finalFileName = $matches[1]
+                        }
+                        else {
+                            $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                            $finalFileName = "TempFile-$timestamp"
+                        }
+                        $OutFile = Join-Path -Path $DestinationDirectory -ChildPath $finalFileName
+                    }
+                    
                 }
-                elseif ($NoRPCMode) {
-                    $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                catch {
+                    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                    $OutFile = Join-Path -Path $DestinationDirectory -ChildPath "TempFile-$timestamp"
+                }
+                Write-Verbose "Output file will be: $OutFile"
+                $DownloadedFile = ''
+
+                # --- Download using aria2c or fallback ---
+                if ($UseAria2) {
+                    if ($IsPrivateRepo -and $Token) {
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Token:$Token
+                    }
+                    elseif ($NoRPCMode) {
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Headers:$Headers -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                    }
+                    else {
+                        $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                    }
                 }
                 else {
-                    $DownloadedFile = Invoke-AriaDownload -URL $download -OutFile $OutFile -Aria2cExePath:$aria2cExe -Headers:$Headers -RPCMode -AriaConsoleLogLevel:$AriaConsoleLogLevel -LogToFile:$LogToFile -LoadCookiesFromFile:$LoadCookiesFromFile -Verbose:$VerbosePreference
+                    Write-Verbose "Downloading $download using BITS transfer."
+                    $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
+                    while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
+                        Start-Sleep -Seconds 5
+                        Write-Verbose "Waiting for BITS job to complete. Current state: $($bitsJob.JobState)"
+                    }
+                    if ($bitsJob.JobState -eq 'Transferred') {
+                        $bitsJob.FileList | ForEach-Object { $DownloadedFile = $_.LocalName }
+                        $bitsJob | Complete-BitsTransfer
+                    }
+                    else {
+                        Write-Error "BITS job did not complete successfully. State: $($bitsJob.JobState)"
+                    }
                 }
+                # --- End Download method ---
+                Write-Verbose "Downloaded file saved as: $DownloadedFile"
             }
-            else {
-                Write-Verbose "Downloading $download using BITS transfer."
-                $bitsJob = Start-BitsTransfer -Source $download -Destination $OutFile -Asynchronous -Dynamic
-                while (($null -eq $bitsJob.JobState) -or ([string]::IsNullOrEmpty($bitsJob.JobState)) -or ($bitsJob.JobState -eq 'Transferring') -or ($bitsJob.JobState -eq 'Connecting')) {
-                    Start-Sleep -Seconds 5
-                    Write-Verbose "Waiting for BITS job to complete. Current state: $($bitsJob.JobState)"
-                }
-                if ($bitsJob.JobState -eq 'Transferred') {
-                    $bitsJob.FileList | ForEach-Object { $DownloadedFile = $_.LocalName }
-                    $bitsJob | Complete-BitsTransfer
-                }
-                else {
-                    Write-Error "BITS job did not complete successfully. State: $($bitsJob.JobState)"
-                }
-            }
-            # --- End Download method ---
-            Write-Verbose "Downloaded file saved as: $DownloadedFile"
         }
         catch {
             Write-Error "An error occurred: $_"
