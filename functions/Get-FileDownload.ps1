@@ -5,7 +5,7 @@ function Get-FileDownload {
 
     .DESCRIPTION
         Enhanced download function that intelligently handles different download sources, particularly Google Drive.
-        
+
         For Google Drive URLs:
         - Auto-detects Google Drive links and uses appropriate download strategies
         - Falls back to native PowerShell download when aria2c encounters issues
@@ -106,11 +106,11 @@ function Get-FileDownload {
 
         [Parameter(Mandatory = $false)]
         [string]$LoadCookiesFromFile = '',
-        
+
         [Parameter(Mandatory = $false)]
         [switch]$ForceNativeDownload
     )
-    
+
     begin {
         # Import needed cmdlets if not already available
         $neededcmdlets = @(
@@ -118,7 +118,7 @@ function Get-FileDownload {
             'Get-LatestGitHubRelease'  # For downloading aria2c if needed
             'Invoke-AriaDownload'      # For aria2c downloads
         )
-        
+
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -131,30 +131,30 @@ function Get-FileDownload {
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }
-        
+
         # Initialize session for web requests
         $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-        
+
         # Ensure destination directory exists
         if (-not (Test-Path -Path $DestinationDirectory)) {
             New-Item -Path $DestinationDirectory -ItemType Directory -Force | Out-Null
             Write-Verbose "Created destination directory: $DestinationDirectory"
         }
-        
+
         # Setup aria2c if requested
         if ($UseAria2 -and -not $ForceNativeDownload) {
             try {
                 if (-not $aria2cExe -or -not (Test-Path -Path $aria2cExe)) {
                     Write-Verbose 'Searching for aria2c executable in destination directory...'
-                    $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' -ErrorAction SilentlyContinue | 
+                    $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' -ErrorAction SilentlyContinue |
                         Select-Object -ExpandProperty FullName -First 1
-                    
+
                     if (-not $aria2cExe) {
                         Write-Verbose 'aria2c not found. Downloading latest version...'
                         Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -DownloadPathDirectory $DestinationDirectory
-                        $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' | 
+                        $aria2cExe = Get-ChildItem -Path $DestinationDirectory -Recurse -Filter 'aria2c.exe' |
                             Select-Object -ExpandProperty FullName -First 1
-                        
+
                         if (-not $aria2cExe) {
                             Write-Warning 'Failed to download aria2c. Falling back to native download methods.'
                             $UseAria2 = $false
@@ -173,32 +173,32 @@ function Get-FileDownload {
                 $UseAria2 = $false
             }
         }
-        
+
         # Initialize download tracking
         $DownloadedFile = ''
-        
+
         # Function to determine if a URL is a Google Drive link
         function Test-GoogleDriveUrl {
             param([string]$Url)
             return $Url -match 'drive\.google\.com|drive\.usercontent\.google\.com'
         }
-        
+
         # Function to generate an output filename from URL
         function Get-OutputFilename {
             param(
                 [Parameter(Mandatory = $true)]
                 [string]$Url,
-                
+
                 [Parameter(Mandatory = $true)]
                 [string]$DestDir,
-                
+
                 [Parameter(Mandatory = $false)]
                 [hashtable]$HeadersToUse
             )
-            
+
             try {
                 $UriParts = [System.Uri]::new($Url)
-                
+
                 # If URL has a filename with extension
                 if ($UriParts.IsFile -or ($Url.Split('/')[-1] -match '\.')) {
                     $originalFileName = [System.IO.Path]::GetFileName($UriParts.LocalPath)
@@ -206,7 +206,7 @@ function Get-FileDownload {
                     $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
                     $validChars = $fileNameWithoutQuery.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
                     [string]$fileName = -join $validChars
-                    
+
                     # Add additional uniqueness if needed
                     if ([string]::IsNullOrWhiteSpace($fileName)) {
                         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -218,7 +218,7 @@ function Get-FileDownload {
                     try {
                         $tempHeaders = $HeadersToUse ?? @{ 'User-Agent' = 'Mozilla/5.0' }
                         $headResponse = Invoke-WebRequest -Uri $Url -Method Head -Headers $tempHeaders -UseBasicParsing -WebSession $webSession
-                        
+
                         $contentDisp = $headResponse.Headers['Content-Disposition']
                         if ($contentDisp -match 'filename="?([^";]+)"?') {
                             $fileName = $matches[1]
@@ -234,7 +234,7 @@ function Get-FileDownload {
                         $fileName = "Download-$timestamp"
                     }
                 }
-                
+
                 return Join-Path -Path $DestDir -ChildPath $fileName
             }
             catch {
@@ -244,33 +244,33 @@ function Get-FileDownload {
             }
         }
     }
-    
+
     process {
         foreach ($download in $URL) {
             Write-Verbose "Processing download URL: $download"
             $originalURL = $download
             $OutFile = ''
-            
+
             # Determine if this is a Google Drive URL
             $isGoogleDrive = Test-GoogleDriveUrl -Url $download
             if ($isGoogleDrive) {
                 Write-Verbose 'Detected Google Drive URL'
-                
+
                 # For Google Drive, force native download if using aria2c caused issues previously
                 if ($UseAria2 -and -not $ForceNativeDownload) {
                     Write-Verbose 'Using aria2c for Google Drive with special handling'
                 }
             }
-            
+
             # Get appropriate output filename
             $OutFile = Get-OutputFilename -Url $download -DestDir $DestinationDirectory -HeadersToUse $Headers
             Write-Verbose "Output file will be: $OutFile"
-            
+
             try {
                 # Choose download method
                 if ($UseAria2 -and -not $ForceNativeDownload -and (-not $isGoogleDrive -or -not $ForceNativeDownload)) {
                     Write-Verbose 'Downloading using aria2c'
-                    
+
                     $ariaArgs = @{
                         URL                 = $download
                         OutFile             = $OutFile
@@ -278,38 +278,38 @@ function Get-FileDownload {
                         AriaConsoleLogLevel = $AriaConsoleLogLevel
                         LogToFile           = $LogToFile
                     }
-                    
+
                     # Add optional parameters
                     if ($Token) {
-                        $ariaArgs['Token'] = $Token 
+                        $ariaArgs['Token'] = $Token
                     }
                     if ($Headers) {
-                        $ariaArgs['Headers'] = $Headers 
+                        $ariaArgs['Headers'] = $Headers
                     }
                     if ($LoadCookiesFromFile) {
-                        $ariaArgs['LoadCookiesFromFile'] = $LoadCookiesFromFile 
+                        $ariaArgs['LoadCookiesFromFile'] = $LoadCookiesFromFile
                     }
                     if ($NoRPCMode) {
-                        $ariaArgs['RPCMode'] = $false 
+                        $ariaArgs['RPCMode'] = $false
                     }
-                    
+
                     # Additional handling for Google Drive URLs
                     if ($isGoogleDrive) {
                         Write-Verbose 'Using special handling for Google Drive with aria2c'
-                        
+
                         # Write the cookies to a file for aria2c
                         if ($webSession -and $webSession.Cookies.Count -gt 0) {
                             $cookieFile = Join-Path -Path $env:TEMP -ChildPath 'gdrive_cookies.txt'
-                            $webSession.Cookies.GetAllCookies() | ForEach-Object { 
-                                "$($_.Domain) $($_.Path) $($_.Name) $($_.Value)" 
+                            $webSession.Cookies.GetAllCookies() | ForEach-Object {
+                                "$($_.Domain) $($_.Path) $($_.Name) $($_.Value)"
                             } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
                             $ariaArgs['LoadCookiesFromFile'] = $cookieFile
                         }
-                        
+
                         # Try aria2c with special parameters for Google Drive
                         try {
                             $DownloadedFile = Invoke-AriaDownload @ariaArgs
-                            
+
                             # Check if download succeeded
                             if (-not (Test-Path -Path $DownloadedFile) -or (Get-Item -Path $DownloadedFile).Length -eq 0) {
                                 throw 'aria2c download failed or produced empty file'
@@ -330,11 +330,11 @@ function Get-FileDownload {
                     # Use native PowerShell download methods
                     $useNativeDownload = $true
                 }
-                
+
                 # Native download method (fallback or forced)
                 if ($useNativeDownload -or $ForceNativeDownload) {
                     Write-Verbose "Downloading using native PowerShell methods: $download"
-                    
+
                     # Set up request parameters
                     $webRequestParams = @{
                         Uri             = $download
@@ -342,12 +342,12 @@ function Get-FileDownload {
                         UseBasicParsing = $true
                         WebSession      = $webSession
                     }
-                    
+
                     # Add headers if provided
                     if ($Headers) {
                         $webRequestParams['Headers'] = $Headers
                     }
-                    
+
                     # Add GitHub token if applicable
                     if ($GitHub -and $Token) {
                         $authHeader = @{
@@ -356,11 +356,11 @@ function Get-FileDownload {
                         }
                         $webRequestParams['Headers'] = $authHeader
                     }
-                    
+
                     # Perform the download
                     Write-Verbose "Starting native download to $OutFile"
                     Invoke-WebRequest @webRequestParams
-                    
+
                     # Verify download
                     if (Test-Path -Path $OutFile) {
                         $DownloadedFile = $OutFile
@@ -377,7 +377,7 @@ function Get-FileDownload {
             }
         }
     }
-    
+
     end {
         # Return the path to the downloaded file
         if ($DownloadedFile -is [array]) {

@@ -6,11 +6,11 @@ function Invoke-VolatilityAnalysis {
     Runs Volatility 3 plugins against a memory image file and outputs results to text files.
 
     .DESCRIPTION
-    This advanced function automates the process of running multiple Volatility 3 plugins against 
-    a memory image file. It automatically discovers available plugins, runs each one, and saves 
+    This advanced function automates the process of running multiple Volatility 3 plugins against
+    a memory image file. It automatically discovers available plugins, runs each one, and saves
     the output to separate text files.
 
-    The function provides progress reporting, error handling, and verbose logging to help troubleshoot 
+    The function provides progress reporting, error handling, and verbose logging to help troubleshoot
     any issues that might occur during analysis.
 
     .PARAMETER MemoryImagePath
@@ -118,7 +118,7 @@ function Invoke-VolatilityAnalysis {
                 throw "Failed to create output directory '$OutputDirectory': $_"
             }
         }
-        
+
         # Check if Volatility is accessible
         try {
             $volatilityVersion = & $VolatilityPath --version 2>&1
@@ -130,22 +130,22 @@ function Invoke-VolatilityAnalysis {
 
         # Get available plugins - only if we're not using SpecificPlugins
         $pluginList = @()
-        
+
         if ($PSCmdlet.ParameterSetName -eq 'AllPlugins') {
             Write-Verbose 'Getting available Volatility plugins...'
             try {
                 $helpText = & $VolatilityPath -h 2>&1 | Out-String
-                
+
                 # Extract Windows plugin names using regex
                 $regex = [regex]::new('windows\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+')
                 $pluginList = $regex.Matches($helpText) | ForEach-Object { $_.Value } | Sort-Object -Unique
-                
+
                 # Remove excluded plugins if specified
                 if ($ExcludePlugins) {
                     $pluginList = $pluginList | Where-Object { $ExcludePlugins -notcontains $_ }
                     Write-Verbose "Excluded plugins: $($ExcludePlugins -join ', ')"
                 }
-                
+
                 Write-Verbose "Found $($pluginList.Count) plugins to run"
             }
             catch {
@@ -163,12 +163,12 @@ function Invoke-VolatilityAnalysis {
             $pluginList += $lsaDumpPlugin
             Write-Verbose 'Added LSA Dump plugin to the list'
         }
-        
+
         # Validate memory image using info plugin before proceeding
         Write-Verbose 'Validating memory image...'
         try {
             $infoOutput = & $VolatilityPath -f $MemoryImagePath windows.info.Info 2>&1
-            
+
             if ($infoOutput -match 'ERROR' -or $infoOutput -match 'No valid') {
                 Write-Warning "Memory image validation warning: $($infoOutput -join "`n")"
             }
@@ -191,15 +191,15 @@ function Invoke-VolatilityAnalysis {
         $results = @()
         $totalPlugins = $pluginList.Count
         $currentPlugin = 0
-        
+
         foreach ($plugin in $pluginList) {
             $currentPlugin++
             $percentComplete = [math]::Round(($currentPlugin / $totalPlugins) * 100)
-            
+
             # Create safe filename
             $safePluginName = $plugin -replace '[^\w\.]', '_'
             $outputFile = Join-Path -Path $OutputDirectory -ChildPath "$safePluginName.txt"
-            
+
             # Check if output exists and handle Force parameter
             if (Test-Path -Path $outputFile) {
                 if (-not $Force) {
@@ -210,14 +210,14 @@ function Invoke-VolatilityAnalysis {
                 }
                 Write-Verbose "Output file for $plugin exists and will be overwritten"
             }
-            
+
             Write-Progress -Activity 'Running Volatility Plugins' -Status "Running plugin $currentPlugin of $totalPlugins`: $plugin" -PercentComplete $percentComplete
             Write-Verbose "Running plugin: $plugin"
-            
+
             try {
                 # Run the plugin and capture output
                 & $VolatilityPath -f $MemoryImagePath $plugin > $outputFile 2>&1
-                
+
                 # Check if the output file has content
                 $fileSize = (Get-Item -Path $outputFile).Length
                 if ($fileSize -gt 0) {
@@ -228,7 +228,7 @@ function Invoke-VolatilityAnalysis {
                         Success    = $true
                         FileSize   = $fileSize
                     }
-                } 
+                }
                 else {
                     Write-Warning "Plugin $plugin produced no output"
                     $results += [PSCustomObject]@{
@@ -250,9 +250,9 @@ function Invoke-VolatilityAnalysis {
                 }
             }
         }
-        
+
         Write-Progress -Activity 'Running Volatility Plugins' -Completed
-        
+
         # Return results
         return $results
     }
@@ -261,7 +261,7 @@ function Invoke-VolatilityAnalysis {
         # Summarize results
         $successCount = ($results | Where-Object { $_.Success }).Count
         $failCount = ($results | Where-Object { -not $_.Success }).Count
-        
+
         Write-Verbose "Volatility analysis complete: $successCount plugins completed successfully, $failCount plugins failed"
         Write-Verbose "Results saved to: $OutputDirectory"
     }
