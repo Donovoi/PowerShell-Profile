@@ -150,8 +150,10 @@ function Invoke-GDriveDownload {
                 Write-Verbose "Downloading from URL: $finalUrl"
 
                 if ($PSCmdlet.ShouldProcess("$finalUrl", 'Download file')) {
-                    # Use GET instead of POST
-                    $downloadResponse = Get-FileDownload -URL $finalUrl -WebSession $session -DestinationDirectory $OutputPath
+                    # write the cookies to a file
+                    $cookieFile = Join-Path -Path $env:TEMP -ChildPath 'gdrive_cookies.txt'
+                    $session.Cookies | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
+                    $downloadResponse = Get-FileDownload -URL $finalUrl -LoadCookiesFromFile $cookieFile -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
 
                     # Get file details from response
                     $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
