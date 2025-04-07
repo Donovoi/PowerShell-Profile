@@ -6,7 +6,29 @@ function Get-FormDataFromGDriveConfirmation {
     )
 
     Write-Verbose 'Parsing Google Drive confirmation page...'
+    # Import needed cmdlets if not already available
+    $neededcmdlets = @(
+        'Install-Dependencies'                  # Installs required dependencies
+       
+        'Add-NuGetDependencies'                 # Adds NuGet package dependencies
+        
+        'Invoke-AriaDownload'                   # Alternative download method for large files
+    )
+    foreach ($cmd in $neededcmdlets) {
+        if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+            }
+            Write-Verbose "Importing cmdlet: $cmd"
+            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd
+            $Cmdletstoinvoke | Import-Module -Force
+        }
+    }
 
+    Install-Dependencies -NugetPackage @{'HtmlAgilityPack' = '1.12.0' } -AddCustomAssemblies @('System.Web')
+    
     # Create and load the HTML document
     $doc = New-Object HtmlAgilityPack.HtmlDocument
     $doc.LoadHtml($Contents)
