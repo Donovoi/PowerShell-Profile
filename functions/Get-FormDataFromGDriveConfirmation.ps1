@@ -9,10 +9,13 @@ function Get-FormDataFromGDriveConfirmation {
     # Import needed cmdlets if not already available
     $neededcmdlets = @(
         'Install-Dependencies'                  # Installs required dependencies
-       
+        'Get-FinalOutputPath'                   # Determines final output path for downloaded files
         'Add-NuGetDependencies'                 # Adds NuGet package dependencies
-        
         'Invoke-AriaDownload'                   # Alternative download method for large files
+        'Get-FileDetailsFromResponse'           # Extracts file details from web response
+        'Save-BinaryContent'                    # Saves binary content to disk
+        'Add-FileToAppDomain'
+        'Write-Logg'
     )
     foreach ($cmd in $neededcmdlets) {
         if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
@@ -28,7 +31,7 @@ function Get-FormDataFromGDriveConfirmation {
     }
 
     Install-Dependencies -NugetPackage @{'HtmlAgilityPack' = '1.12.0' } -AddCustomAssemblies @('System.Web')
-    
+
     # Create and load the HTML document
     $doc = New-Object HtmlAgilityPack.HtmlDocument
     $doc.LoadHtml($Contents)
