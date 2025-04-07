@@ -153,7 +153,7 @@ function Invoke-GDriveDownload {
                     # write the cookies to a file
                     $cookieFile = Join-Path -Path $env:TEMP -ChildPath 'gdrive_cookies.txt'
                     $session.Cookies.GetAllCookies() | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
-                    $downloadResponse = Get-FileDownload -URL $finalUrl -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
+                    $downloadResponse = Get-FileDownload -URL $finalUrl -LoadCookiesFromFile $cookieFile -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
 
                     # Get file details from response
                     $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
@@ -220,9 +220,4 @@ function Invoke-GDriveDownload {
         Write-Verbose 'Download operation completed.'
     }
 }
-
-# Example usage (commented out for module inclusion)
-
-$result = Invoke-GDriveDownload -Url 'https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn/view' -OutputPath 'C:\Temp\' -Verbose
-Write-Output "File '$($result.FileName)' downloaded to: $($result.FilePath) (Size: $($result.FileSize) bytes)"
 
