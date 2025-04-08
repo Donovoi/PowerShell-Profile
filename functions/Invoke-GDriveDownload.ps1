@@ -349,7 +349,3 @@ function Get-OutputFilename {
     }
 }
 
-# Example usage (commented out for module inclusion)
-
-Invoke-GDriveDownload -Url 'https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn/view' -OutputPath 'C:\Temp\' -Verbose
-
