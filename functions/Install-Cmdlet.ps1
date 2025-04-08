@@ -346,7 +346,7 @@ Export-ModuleMember -Function * -Alias *
 
         # Normalize parameter naming
         if ($PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets') {
-            $cmdletsToProcess = $RepositoryCmdlets
+            $cmdletsToProcess = $RepositoryCmdlets        
         }
         else {
             $cmdletsToProcess = $CmdletNames
@@ -355,16 +355,8 @@ Export-ModuleMember -Function * -Alias *
         try {
             Write-Verbose "Starting Install-Cmdlet in parameter set: $($PSCmdlet.ParameterSetName)"
 
-            # Handle Force flag with PreferLocal to clean the module folder for a fresh start
-            if ($Force -and $PreferLocal) {
-                if (Test-Path -Path $LocalModuleFolder) {
-                    if ($PSCmdlet.ShouldProcess($LocalModuleFolder, 'Remove entire module folder for clean installation')) {
-                        Write-Verbose 'Force and PreferLocal specified - removing entire module directory for clean slate'
-                        Remove-Item -Path $LocalModuleFolder -Recurse -Force
-                        Write-Verbose 'Module directory removed successfully'
-                    }
-                }
-            }
+            # Force will be handled per cmdlet in the individual processing sections
+            # rather than deleting the entire module folder at once
 
             # Ensure local module folder exists if needed
             if ($PreferLocal -or $PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets') {
