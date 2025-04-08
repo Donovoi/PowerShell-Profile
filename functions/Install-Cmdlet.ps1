@@ -161,7 +161,7 @@ function Install-Cmdlet {
 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [string]$GitHubRepositoryUrl = "https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/"
+        [string]$GitHubRepositoryUrl = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/'
     )    begin {
         # Initialize helper functions to follow Single Responsibility Principle
         function Initialize-LocalModuleEnvironment {
@@ -178,7 +178,7 @@ function Install-Cmdlet {
 
                 # Ensure the module folder exists
                 if (-not (Test-Path -Path $ModuleFolderPath)) {
-                    if ($PSCmdlet.ShouldProcess($ModuleFolderPath, "Create module directory")) {
+                    if ($PSCmdlet.ShouldProcess($ModuleFolderPath, 'Create module directory')) {
                         $null = New-Item -Path $ModuleFolderPath -ItemType Directory -Force
                         Write-Verbose "Created module directory: $ModuleFolderPath"
                     }
@@ -187,7 +187,7 @@ function Install-Cmdlet {
                 # Create or update the module manifest file
                 $moduleFilePath = Join-Path -Path $ModuleFolderPath -ChildPath 'cmdletCollection.psm1'
 
-                if ($PSCmdlet.ShouldProcess($moduleFilePath, "Create or update module manifest file")) {
+                if ($PSCmdlet.ShouldProcess($moduleFilePath, 'Create or update module manifest file')) {
                     # Modern module loader that handles dot-sourcing all PS1 files
                     $moduleContent = @'
 # Auto-generated module file for cmdlet collection
@@ -251,11 +251,11 @@ Export-ModuleMember -Function * -Alias *
 
             try {
                 # Basic URL validation
-                $validUrlPattern = "^(https?):\/\/[-A-Za-z0-9+&@#\/%?=~_|!:,.;]+[-A-Za-z0-9+&@#\/%=~_|]$"
+                $validUrlPattern = '^(https?):\/\/[-A-Za-z0-9+&@#\/%?=~_|!:,.;]+[-A-Za-z0-9+&@#\/%=~_|]$'
                 $isValidUrl = $Url -match $validUrlPattern
 
                 # Additional HTTPS validation if required
-                if ($isValidUrl -and $RequireHttps -and -not $Url.StartsWith("https://")) {
+                if ($isValidUrl -and $RequireHttps -and -not $Url.StartsWith('https://')) {
                     Write-Warning "URL security issue: $Url does not use HTTPS protocol"
                     return $false
                 }
@@ -283,7 +283,7 @@ Export-ModuleMember -Function * -Alias *
                 # Check if the content is valid PowerShell
                 try {
                     $null = [System.Management.Automation.Language.Parser]::ParseInput($cleanContent, [ref]$null, [ref]$null)
-                    Write-Verbose "PowerShell code validation passed"
+                    Write-Verbose 'PowerShell code validation passed'
                 }
                 catch {
                     Write-Warning "Downloaded content may not be valid PowerShell code: $_"
@@ -315,7 +315,7 @@ Export-ModuleMember -Function * -Alias *
             try {
                 $outputPath = Join-Path -Path $OutputFolder -ChildPath "$CmdletName.ps1"
 
-                if ($PSCmdlet.ShouldProcess($outputPath, "Save cmdlet to file")) {
+                if ($PSCmdlet.ShouldProcess($outputPath, 'Save cmdlet to file')) {
                     # Write content in a BOM-less way
                     $cleanContent = Get-CleanScriptContent -Content $Content
 
@@ -351,11 +351,20 @@ Export-ModuleMember -Function * -Alias *
         else {
             $cmdletsToProcess = $CmdletNames
         }
-    }
-
-    process {
+    }    process {
         try {
             Write-Verbose "Starting Install-Cmdlet in parameter set: $($PSCmdlet.ParameterSetName)"
+
+            # Handle Force flag with PreferLocal to clean the module folder for a fresh start
+            if ($Force -and $PreferLocal) {
+                if (Test-Path -Path $LocalModuleFolder) {
+                    if ($PSCmdlet.ShouldProcess($LocalModuleFolder, 'Remove entire module folder for clean installation')) {
+                        Write-Verbose 'Force and PreferLocal specified - removing entire module directory for clean slate'
+                        Remove-Item -Path $LocalModuleFolder -Recurse -Force
+                        Write-Verbose 'Module directory removed successfully'
+                    }
+                }
+            }
 
             # Ensure local module folder exists if needed
             if ($PreferLocal -or $PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets') {
@@ -376,7 +385,7 @@ Export-ModuleMember -Function * -Alias *
                         if (-not $cmdletExistsLocally -or $Force) {
                             if ($cmdletExistsLocally -and $Force) {
                                 Write-Verbose "Forcing re-download of cmdlet: $cmdletName"
-                                if ($PSCmdlet.ShouldProcess($localCmdletPath, "Remove existing cmdlet file for forced re-download")) {
+                                if ($PSCmdlet.ShouldProcess($localCmdletPath, 'Remove existing cmdlet file for forced re-download')) {
                                     Remove-Item -Path $localCmdletPath -Force
                                 }
                             }
@@ -388,11 +397,11 @@ Export-ModuleMember -Function * -Alias *
                         }
                         elseif ($PreferLocal) {
                             Write-Verbose "Using existing local cmdlet: $cmdletName"
-                            if ($PSCmdlet.ShouldProcess($localCmdletPath, "Import local cmdlet")) {
+                            if ($PSCmdlet.ShouldProcess($localCmdletPath, 'Import local cmdlet')) {
                                 try {
                                     $importParams = @{
-                                        Path = $localCmdletPath
-                                        Force = $true
+                                        Path        = $localCmdletPath
+                                        Force       = $true
                                         ErrorAction = 'Stop'
                                     }
 
@@ -433,12 +442,12 @@ Export-ModuleMember -Function * -Alias *
                             $cmdletName = ($url.Split('/')[-1]).Split('.')[0]
                             Write-Verbose "Processing URL: $url for cmdlet: $cmdletName"
 
-                            if ($PSCmdlet.ShouldProcess($url, "Download cmdlet content")) {
+                            if ($PSCmdlet.ShouldProcess($url, 'Download cmdlet content')) {
                                 try {
                                     $webRequestParams = @{
-                                        Uri = $url
+                                        Uri         = $url
                                         ErrorAction = 'Stop'
-                                        TimeoutSec = $TimeoutSeconds
+                                        TimeoutSec  = $TimeoutSeconds
                                     }
 
                                     $response = Invoke-RestMethod @webRequestParams
@@ -476,12 +485,12 @@ Export-ModuleMember -Function * -Alias *
                         $cmdletName = ($url.Split('/')[-1]).Split('.')[0]
                         Write-Verbose "Processing URL: $url for cmdlet: $cmdletName"
 
-                        if ($PSCmdlet.ShouldProcess($url, "Download cmdlet content")) {
+                        if ($PSCmdlet.ShouldProcess($url, 'Download cmdlet content')) {
                             try {
                                 $webRequestParams = @{
-                                    Uri = $url
+                                    Uri         = $url
                                     ErrorAction = 'Stop'
-                                    TimeoutSec = $TimeoutSeconds
+                                    TimeoutSec  = $TimeoutSeconds
                                 }
 
                                 $response = Invoke-RestMethod @webRequestParams
@@ -510,13 +519,13 @@ Export-ModuleMember -Function * -Alias *
             if ($combinedScriptContent.Length -gt 0 -and -not $PreferLocal) {
                 Write-Verbose "Creating in-memory module: $ModuleName"
 
-                if ($PSCmdlet.ShouldProcess("Memory", "Create in-memory module '$ModuleName'")) {
+                if ($PSCmdlet.ShouldProcess('Memory', "Create in-memory module '$ModuleName'")) {
                     try {
                         $finalScript = $combinedScriptContent.ToString()
                         $scriptBlock = [scriptblock]::Create($finalScript)
 
                         $moduleParams = @{
-                            Name = $ModuleName
+                            Name        = $ModuleName
                             ScriptBlock = $scriptBlock
                         }
 
@@ -530,9 +539,9 @@ Export-ModuleMember -Function * -Alias *
             }
             elseif ($PreferLocal -and $cmdletsToDownload.Count -gt 0) {
                 # If we downloaded any cmdlets locally, import the module file
-                Write-Verbose "Importing local module collection"
+                Write-Verbose 'Importing local module collection'
 
-                if ($PSCmdlet.ShouldProcess($moduleFile, "Import module collection")) {
+                if ($PSCmdlet.ShouldProcess($moduleFile, 'Import module collection')) {
                     try {
                         $result = Import-Module -Name $moduleFile.FullName -Force -Global -PassThru
                         Write-Verbose "Successfully imported local module collection: $($moduleFile.FullName)"
@@ -561,7 +570,7 @@ Export-ModuleMember -Function * -Alias *
             return Get-Item -Path $moduleFilePath
         }
         else {
-            Write-Warning "No result to return. Check for errors."
+            Write-Warning 'No result to return. Check for errors.'
             return $null
         }
     }
