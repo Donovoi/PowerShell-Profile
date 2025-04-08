@@ -18,7 +18,7 @@ function Get-OutputFilename {
         The URL of the file to be downloaded. This is used to determine an appropriate filename.
 
     .PARAMETER DestDir
-        The destination directory where the file will be saved. This is combined with the 
+        The destination directory where the file will be saved. This is combined with the
         determined filename to create a full path.
 
     .PARAMETER HeadersToUse
@@ -27,12 +27,12 @@ function Get-OutputFilename {
 
     .EXAMPLE
         $filename = Get-OutputFilename -Url "https://example.com/files/document.pdf" -DestDir "C:\Downloads"
-        
+
         Gets the output filename for a standard URL and returns the path "C:\Downloads\document.pdf".
 
     .EXAMPLE
         $filename = Get-OutputFilename -Url "https://drive.google.com/file/d/1ABC123XYZ/view" -DestDir "D:\Files" -HeadersToUse @{ 'Authorization' = 'Bearer token123' }
-        
+
         Gets the output filename for a Google Drive URL using custom headers and returns the appropriate path.
 
     .OUTPUTS
@@ -47,7 +47,7 @@ function Get-OutputFilename {
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory = $true, Position = 0, 
+        [Parameter(Mandatory = $true, Position = 0,
                    HelpMessage="The URL of the file to be downloaded")]
         [ValidateNotNullOrEmpty()]
         [string]$Url,
@@ -98,10 +98,10 @@ function Get-OutputFilename {
         if ($UriParts.IsFile -or ($Url.Split('/')[-1] -match '\.')) {
             # Extract filename from the URL path
             $originalFileName = [System.IO.Path]::GetFileName($UriParts.LocalPath)
-            
+
             # Remove query parameters from the filename
             $fileNameWithoutQuery = $originalFileName -split '\?' | Select-Object -First 1
-            
+
             # Remove invalid characters from the filename
             $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
             $validChars = $fileNameWithoutQuery.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
