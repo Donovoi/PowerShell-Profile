@@ -128,7 +128,7 @@ function Get-FileDownload {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }
@@ -291,7 +291,6 @@ function Get-FileDownload {
     process {
         foreach ($download in $URL) {
             Write-Verbose "Processing download URL: $download"
-            $originalURL = $download
             $OutFile = ''
 
             # Determine if this is a Google Drive URL
