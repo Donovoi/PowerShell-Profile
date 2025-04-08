@@ -81,7 +81,7 @@ function Invoke-GDriveDownload {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }
@@ -150,28 +150,53 @@ function Invoke-GDriveDownload {
                 Write-Verbose "Downloading from URL: $finalUrl"
 
                 if ($PSCmdlet.ShouldProcess("$finalUrl", 'Download file')) {
-                    # write the cookies to a file
+                    # Write the cookies to a file
                     $cookieFile = Join-Path -Path $env:TEMP -ChildPath 'gdrive_cookies.txt'
-                    $session.Cookies.GetAllCookies() | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
-                    $downloadResponse = Get-FileDownload -URL $finalUrl -LoadCookiesFromFile $cookieFile -DestinationDirectory $OutputPath -UseAria2 -NoRpcMode
+                    $session.Cookies.GetAllCookies() | ForEach-Object {
+                        "$($_.Name)=$($_.Value)"
+                    } | Out-File -FilePath $cookieFile -Encoding ASCII -Force
 
-                    # Get file details from response
-                    $fileDetails = Get-FileDetailsFromResponse -Response $downloadResponse -Force:$Force
+                    # Get file output path (directory or specific file)
+                    $isDirectory = Test-Path -Path $OutputPath -PathType Container
+                    $destinationDir = if ($isDirectory) {
+                        $OutputPath 
+                    }
+                    else {
+                        Split-Path -Path $OutputPath -Parent 
+                    }
 
-                    # Determine final output path
-                    $actualOutputPath = Get-FinalOutputPath -BasePath $OutputPath -FileName $fileDetails.FileName -Force:$Force
+                    # Ensure destination directory exists
+                    if (-not (Test-Path -Path $destinationDir)) {
+                        New-Item -Path $destinationDir -ItemType Directory -Force | Out-Null
+                    }
 
-                    # Save the downloaded content with progress reporting
-                    Save-BinaryContent -Content $downloadResponse.Content -Path $actualOutputPath
-                    Write-Verbose "File saved to: $actualOutputPath"
+                    # Download the file using Get-FileDownload, which saves directly to disk
+                    $downloadedFilePath = Get-FileDownload -URL $finalUrl -LoadCookiesFromFile $cookieFile -DestinationDirectory $destinationDir -UseAria2 -NoRpcMode
+
+                    # If a specific file path was provided (not just a directory), rename the file
+                    if (-not $isDirectory) {
+                        $requestedFileName = Split-Path -Path $OutputPath -Leaf
+                        $downloadDir = Split-Path -Path $downloadedFilePath -Parent
+                        $newPath = Join-Path -Path $downloadDir -ChildPath $requestedFileName
+
+                        if ($Force -or -not (Test-Path -Path $newPath)) {
+                            Move-Item -Path $downloadedFilePath -Destination $newPath -Force:$Force
+                            $downloadedFilePath = $newPath
+                        }
+                    }
+
+                    # Get file information from the downloaded file
+                    $fileInfo = Get-Item -Path $downloadedFilePath
+
+                    Write-Verbose "File successfully downloaded to: $downloadedFilePath"
 
                     # Return information about the download
                     [PSCustomObject]@{
                         Success     = $true
-                        FilePath    = $actualOutputPath
-                        FileName    = $fileDetails.FileName
-                        FileSize    = $fileDetails.FileSize
-                        ResponseUri = $downloadResponse.BaseResponse.ResponseUri
+                        FilePath    = $downloadedFilePath
+                        FileName    = $fileInfo.Name
+                        FileSize    = $fileInfo.Length
+                        ResponseUri = $finalUrl
                         FinalUrl    = $finalUrl
                         SourceUrl   = $Url
                     }
@@ -220,4 +245,111 @@ function Invoke-GDriveDownload {
         Write-Verbose 'Download operation completed.'
     }
 }
+
+# Function to generate an output filename from URL
+function Get-OutputFilename {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestDir,
+
+        [Parameter(Mandatory = $false)]
+        [hashtable]$HeadersToUse
+    )
+
+    try {
+        # Check if it's a Google URL (Drive or other Google services)
+        if ($Url -match '(drive\.google\.com|drive\.usercontent\.google\.com|google\.com)') {
+            Write-Verbose "Google URL detected: $Url - Using specialized extraction method"
+
+            # Make a GET request to get response headers for Google URLs
+            try {
+                $tempHeaders = $HeadersToUse ?? @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36' }
+                $response = Invoke-WebRequest -Uri $Url -Headers $tempHeaders -UseBasicParsing -WebSession $webSession -Method GET
+
+                # Use the specialized function to extract file details
+                $fileDetails = Get-FileDetailsFromResponse -Response $response
+
+                if (-not [string]::IsNullOrWhiteSpace($fileDetails.FileName) -and $fileDetails.FileName -ne 'downloaded_file') {
+                    Write-Verbose "Successfully extracted filename from Google response: $($fileDetails.FileName)"
+                    return Join-Path -Path $DestDir -ChildPath $fileDetails.FileName
+                }
+                else {
+                    Write-Verbose 'Could not extract meaningful filename from Google response, falling back to standard methods'
+                    # Fall back to standard method if Get-FileDetailsFromResponse didn't find a good filename
+                }
+            }
+            catch {
+                Write-Verbose "Error getting Google file details: $_"
+                # Continue to standard method
+            }
+        }
+
+        # Standard method for non-Google URLs or as fallback
+        $UriParts = [System.Uri]::new($Url)
+
+        # If URL has a filename with extension
+        if ($UriParts.IsFile -or ($Url.Split('/')[-1] -match '\.')) {
+            $originalFileName = [System.IO.Path]::GetFileName($UriParts.LocalPath)
+            $fileNameWithoutQuery = $originalFileName -split '\?' | Select-Object -First 1
+            $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+            $validChars = $fileNameWithoutQuery.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
+            [string]$fileName = -join $validChars
+
+            # Add additional uniqueness if needed
+            if ([string]::IsNullOrWhiteSpace($fileName)) {
+                $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                $fileName = "Download-$timestamp"
+            }
+        }
+        else {
+            # Try to get filename from content-disposition header
+            try {
+                $tempHeaders = $HeadersToUse ?? @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36' }
+                $headResponse = Invoke-WebRequest -Uri $Url -Method Head -Headers $tempHeaders -UseBasicParsing -WebSession $webSession
+
+                $contentDisp = $headResponse.Headers['Content-Disposition']
+                if ($contentDisp -match 'filename="?([^";]+)"?') {
+                    $fileName = $matches[1]
+                }
+                elseif ($contentDisp -match 'filename\*=UTF-8''([^'']+)') {
+                    $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                }
+                else {
+                    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                    $fileName = "Download-$timestamp"
+                }
+            }
+            catch {
+                Write-Verbose "Could not determine filename from headers: $_"
+                $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+                $fileName = "Download-$timestamp"
+            }
+        }
+
+        # Sanitize filename (additional check for invalid characters)
+        $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+        $validChars = $fileName.ToCharArray() | Where-Object { $invalidChars -notcontains $_ }
+        [string]$cleanFileName = -join $validChars
+
+        if ([string]::IsNullOrWhiteSpace($cleanFileName)) {
+            $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+            $cleanFileName = "Download-$timestamp"
+        }
+
+        return Join-Path -Path $DestDir -ChildPath $cleanFileName
+    }
+    catch {
+        Write-Verbose "Error determining output filename: $_"
+        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        return Join-Path -Path $DestDir -ChildPath "Download-$timestamp"
+    }
+}
+
+# Example usage (commented out for module inclusion)
+
+Invoke-GDriveDownload -Url 'https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn/view' -OutputPath 'C:\Temp\' -Verbose
 
