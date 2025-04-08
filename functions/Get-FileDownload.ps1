@@ -129,7 +129,7 @@ function Get-FileDownload {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }
