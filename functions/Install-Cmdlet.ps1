@@ -217,7 +217,7 @@ Export-ModuleMember -Function * -Alias *
                             ModuleVersion     = '1.0.0'
                             Author            = 'Auto-generated'
                             Description       = 'Collection of installed PowerShell cmdlets'
-                            PowerShellVersion = '5.1'
+                            PowerShellVersion = $PSVersionTable.PSVersion.ToString()
                         }
 
                         try {
@@ -346,7 +346,7 @@ Export-ModuleMember -Function * -Alias *
 
         # Normalize parameter naming
         if ($PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets') {
-            $cmdletsToProcess = $RepositoryCmdlets        
+            $cmdletsToProcess = $RepositoryCmdlets
         }
         else {
             $cmdletsToProcess = $CmdletNames
@@ -548,18 +548,46 @@ Export-ModuleMember -Function * -Alias *
             Write-Error "Failed to install cmdlets: $_"
             throw
         }
-    }
-
-    end {
+    }    end {
         # Return results
-        if ($result) {
+        if ($PreferLocal) {
+            # When PreferLocal is specified, return paths to individual cmdlet files
+            $cmdletPaths = @()
+
+            # Include any existing local cmdlets that were used
+            if ($RepositoryCmdlets) {
+                foreach ($cmdletName in $RepositoryCmdlets) {
+                    $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
+                    if (Test-Path -Path $cmdletPath) {
+                        $cmdletPaths += $cmdletPath
+                    }
+                }
+            }
+
+            # Include any downloaded URL cmdlets
+            if ($Urls) {
+                foreach ($url in $Urls) {
+                    $cmdletName = ($url.Split('/')[-1]).Split('.')[0]
+                    $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
+                    if (Test-Path -Path $cmdletPath) {
+                        $cmdletPaths += $cmdletPath
+                    }
+                }
+            }
+
+            if ($cmdletPaths.Count -gt 0) {
+                Write-Verbose "Returning paths to $($cmdletPaths.Count) cmdlet files"
+                return $cmdletPaths
+            }
+            else {
+                $moduleFilePath = Join-Path -Path $LocalModuleFolder -ChildPath 'cmdletCollection.psm1'
+                Write-Verbose "No specific cmdlet paths to return, returning module file path: $moduleFilePath"
+                return Get-Item -Path $moduleFilePath
+            }
+        }
+        elseif ($result) {
             Write-Verbose "Returning module result: $($result.Name)"
             return $result
-        }
-        elseif ($PreferLocal -and (Test-Path -Path $LocalModuleFolder)) {
-            $moduleFilePath = Join-Path -Path $LocalModuleFolder -ChildPath 'cmdletCollection.psm1'
-            Write-Verbose "Returning module file path: $moduleFilePath"
-            return Get-Item -Path $moduleFilePath
         }
         else {
             Write-Warning 'No result to return. Check for errors.'
