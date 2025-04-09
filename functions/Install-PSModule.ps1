@@ -11,16 +11,34 @@ function Install-PSModule {
         $neededcmdlets = @(
             'Write-Logg'
         )
-        $neededcmdlets | ForEach-Object {
-            if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+                foreach ($cmd in $neededcmdlets) {
+            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
                     $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
-                Write-Verbose -Message "Importing cmdlet: $_"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-                $Cmdletstoinvoke | Import-Module -Force
+                Write-Verbose "Importing cmdlet: $cmd"
+                $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
+                
+                # Check if the returned value is a ScriptBlock and import it properly
+                if ($scriptBlock -is [scriptblock]) {
+                    $moduleName = "Dynamic_$cmd"
+                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
+                }
+                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+                    # If a module info was returned, it's already imported
+                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+                }
+                elseif ($scriptBlock -is [System.IO.FileInfo]) {
+                    # If a file path was returned, import it
+                    Import-Module -Name $scriptBlock.FullName -Force -Global
+                    Write-Verbose "Imported $cmd from file: $($scriptBlock.FullName)"
+                }
+                else {
+                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+                }
             }
         }
 
