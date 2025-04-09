@@ -107,7 +107,7 @@ function Get-OutputFilename {
             try {
                 # Use provided headers or default to a standard User-Agent
                 $tempHeaders = $HeadersToUse ?? @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36' }
-                $response = Invoke-WebRequest -Uri $Url -Headers $tempHeaders -UseBasicParsing -WebSession $webSession -Method GET
+                $response = Invoke-WebRequest -Uri $Url -Headers $tempHeaders -UseBasicParsing -WebSession $webSession -Method HEAD
 
                 # Use the specialized function to extract file details
                 $fileDetails = Get-FileDetailsFromResponse -Response $response
