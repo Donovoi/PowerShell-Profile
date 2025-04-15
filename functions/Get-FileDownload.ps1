@@ -129,8 +129,8 @@ function Get-FileDownload {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
-                
+                $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
+
                 # Check if the returned value is a ScriptBlock and import it properly
                 if ($scriptBlock -is [scriptblock]) {
                     $moduleName = "Dynamic_$cmd"
@@ -141,10 +141,10 @@ function Get-FileDownload {
                     # If a module info was returned, it's already imported
                     Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
                 }
-                elseif ($scriptBlock -is [System.IO.FileInfo]) {
+                elseif ([System.IO.FileInfo]$scriptBlock -is [System.IO.FileInfo]) {
                     # If a file path was returned, import it
-                    Import-Module -Name $scriptBlock.FullName -Force -Global
-                    Write-Verbose "Imported $cmd from file: $($scriptBlock.FullName)"
+                    Import-Module -Name $scriptBlock -Force -Global
+                    Write-Verbose "Imported $cmd from file: $scriptBlock"
                 }
                 else {
                     Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
@@ -162,7 +162,7 @@ function Get-FileDownload {
         }
 
         # Setup aria2c if requested
-        if ($UseAria2 -and -not $ForceNativeDownload) {
+        if ($UseAria2 -and (-not $ForceNativeDownload)) {
             try {
                 if (-not $aria2cExe -or -not (Test-Path -Path $aria2cExe)) {
                     Write-Verbose 'Searching for aria2c executable in destination directory...'
@@ -200,7 +200,7 @@ function Get-FileDownload {
         # Function to determine if a URL is a Google Drive link
         function Test-GoogleDriveUrl {
             param([string]$Url)
-            return $Url -match 'drive\.google\.com|drive\.usercontent\.google\.com'
+            return $Url -match '\.google\.com'
         }
     }
 
@@ -215,7 +215,7 @@ function Get-FileDownload {
                 Write-Verbose 'Detected Google Drive URL'
 
                 # For Google Drive, force native download if using aria2c caused issues previously
-                if ($UseAria2 -and -not $ForceNativeDownload) {
+                if ($UseAria2 -and (-not $ForceNativeDownload)) {
                     Write-Verbose 'Using aria2c for Google Drive with special handling'
                 }
             }
