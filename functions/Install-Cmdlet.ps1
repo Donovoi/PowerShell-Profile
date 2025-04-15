@@ -359,7 +359,7 @@ Export-ModuleMember -Function * -Alias *
             # rather than deleting the entire module folder at once
 
             # Ensure local module folder exists if needed
-            if ($PreferLocal -or $PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets') {
+            if ($PreferLocal -or ($PSCmdlet.ParameterSetName -eq 'RepositoryCmdlets')) {
                 $moduleFile = Initialize-LocalModuleEnvironment -ModuleFolderPath $LocalModuleFolder
                 Write-Verbose "Local module environment initialized: $moduleFile"
             }
