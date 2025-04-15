@@ -374,7 +374,7 @@ Export-ModuleMember -Function * -Alias *
                         $cmdletExistsLocally = Test-Path -Path $localCmdletPath
 
                         # Determine if we need to download this cmdlet
-                        if (-not $cmdletExistsLocally -or $Force) {
+                        if ((-not $cmdletExistsLocally) -or $Force) {
                             if ($cmdletExistsLocally -and $Force) {
                                 Write-Verbose "Forcing re-download of cmdlet: $cmdletName"
                                 if ($PSCmdlet.ShouldProcess($localCmdletPath, 'Remove existing cmdlet file for forced re-download')) {
@@ -464,47 +464,6 @@ Export-ModuleMember -Function * -Alias *
                         }
                     }
                 }
-
-                'Url' {
-                    Write-Verbose "Processing direct URLs: $($Urls -join ', ')"
-
-                    foreach ($url in $Urls) {
-                        if (-not (Test-ValidUrl -Url $url -RequireHttps:$RequireHttps)) {
-                            Write-Error "Invalid URL: $url"
-                            continue
-                        }
-
-                        $cmdletName = ($url.Split('/')[-1]).Split('.')[0]
-                        Write-Verbose "Processing URL: $url for cmdlet: $cmdletName"
-
-                        if ($PSCmdlet.ShouldProcess($url, 'Download cmdlet content')) {
-                            try {
-                                $webRequestParams = @{
-                                    Uri         = $url
-                                    ErrorAction = 'Stop'
-                                    TimeoutSec  = $TimeoutSeconds
-                                }
-
-                                $response = Invoke-RestMethod @webRequestParams
-                                $cleanContent = Get-CleanScriptContent -Content $response
-
-                                if ($PreferLocal) {
-                                    # Save to disk for future use
-                                    $saved = Save-CmdletToLocalFolder -Content $cleanContent -CmdletName $cmdletName -OutputFolder $LocalModuleFolder
-                                    if ($saved) {
-                                        Write-Verbose "Saved cmdlet to disk: $cmdletName"
-                                    }
-                                }
-
-                                # Always add to in-memory collection for URL mode
-                                $null = $combinedScriptContent.AppendLine($cleanContent)
-                            }
-                            catch {
-                                Write-Error "Failed to download cmdlet from $url`: $_"
-                            }
-                        }
-                    }
-                }
             }
 
             # Create in-memory module if needed
@@ -558,7 +517,8 @@ Export-ModuleMember -Function * -Alias *
                     $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
                     if (Test-Path -Path $cmdletPath) {
                         $paths += $cmdletPath
-                    } else {
+                    }
+                    else {
                         Write-Warning "Cmdlet file not found: $cmdletPath"
                     }
                 }
@@ -569,17 +529,20 @@ Export-ModuleMember -Function * -Alias *
                     $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
                     if (Test-Path -Path $cmdletPath) {
                         $paths += $cmdletPath
-                    } else {
+                    }
+                    else {
                         Write-Warning "Cmdlet file not found: $cmdletPath"
                     }
                 }
             }
             if ($paths.Count -eq 1) {
                 return $paths[0]
-            } elseif ($paths.Count -gt 1) {
+            }
+            elseif ($paths.Count -gt 1) {
                 return $paths
-            } else {
-                Write-Warning "No cmdlet content found to return path(s)"
+            }
+            else {
+                Write-Warning 'No cmdlet content found to return path(s)'
                 return $null
             }
         }
