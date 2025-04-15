@@ -160,10 +160,10 @@ function Invoke-GDriveDownload {
                     # Get file output path (directory or specific file)
                     $isDirectory = Test-Path -Path $OutputPath -PathType Container
                     $destinationDir = if ($isDirectory) {
-                        $OutputPath 
+                        $OutputPath
                     }
                     else {
-                        Split-Path -Path $OutputPath -Parent 
+                        Split-Path -Path $OutputPath -Parent
                     }
 
                     # Ensure destination directory exists
