@@ -144,7 +144,7 @@ function Install-Cmdlet {
 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [string]$LocalModuleFolder = "$PSScriptRoot\PowerShellScriptsAndResources\Modules\cmdletCollection\",
+        [string]$LocalModuleFolder = "$ENV:USERPROFILE\PowerShellScriptsAndResources\Modules\cmdletCollection\",
 
         [Parameter(Mandatory = $false)]
         [switch]$ContainsClass,
