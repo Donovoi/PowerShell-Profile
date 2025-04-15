@@ -102,7 +102,7 @@ function Get-LatestGitHubRelease {
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
                 $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
-                
+
                 # Check if the returned value is a ScriptBlock and import it properly
                 if ($scriptBlock -is [scriptblock]) {
                     $moduleName = "Dynamic_$cmd"
