@@ -551,73 +551,35 @@ Export-ModuleMember -Function * -Alias *
     }    end {
         # Return results
         if ($PreferLocal) {
-            # When PreferLocal is specified, return scriptblocks for individual cmdlets
-            Write-Verbose "PreferLocal specified - creating scriptblocks for cmdlet files"
-            
-            $scriptblockContent = [System.Text.StringBuilder]::new()
-            
-            # Process repository cmdlets
+            # When PreferLocal is specified, return the full path(s) to the script file(s)
+            $paths = @()
             if ($RepositoryCmdlets) {
                 foreach ($cmdletName in $RepositoryCmdlets) {
                     $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
                     if (Test-Path -Path $cmdletPath) {
-                        # Read the content of the cmdlet file and add to our scriptblock
-                        try {
-                            $cmdletContent = Get-Content -Path $cmdletPath -Raw -ErrorAction Stop
-                            $cleanContent = Get-CleanScriptContent -Content $cmdletContent
-                            $null = $scriptblockContent.AppendLine($cleanContent)
-                            Write-Verbose "Added content from $cmdletName to scriptblock"
-                        }
-                        catch {
-                            Write-Error "Failed to read content from $cmdletPath`: $_"
-                        }
-                    }
-                    else {
+                        $paths += $cmdletPath
+                    } else {
                         Write-Warning "Cmdlet file not found: $cmdletPath"
                     }
                 }
             }
-
-            # Process URL cmdlets
             if ($Urls) {
                 foreach ($url in $Urls) {
                     $cmdletName = ($url.Split('/')[-1]).Split('.')[0]
                     $cmdletPath = Join-Path -Path $LocalModuleFolder -ChildPath "$cmdletName.ps1"
                     if (Test-Path -Path $cmdletPath) {
-                        # Read the content of the cmdlet file and add to our scriptblock
-                        try {
-                            $cmdletContent = Get-Content -Path $cmdletPath -Raw -ErrorAction Stop
-                            $cleanContent = Get-CleanScriptContent -Content $cmdletContent
-                            $null = $scriptblockContent.AppendLine($cleanContent)
-                            Write-Verbose "Added content from $cmdletName to scriptblock"
-                        }
-                        catch {
-                            Write-Error "Failed to read content from $cmdletPath`: $_"
-                        }
-                    }
-                    else {
+                        $paths += $cmdletPath
+                    } else {
                         Write-Warning "Cmdlet file not found: $cmdletPath"
                     }
                 }
             }
-
-            # Create and return the scriptblock if we have content
-            if ($scriptblockContent.Length -gt 0) {
-                try {
-                    $finalContent = $scriptblockContent.ToString()
-                    # Append export statement to ensure functions are exported
-                    $finalContent += "`nExport-ModuleMember -Function * -Alias *"
-                    $scriptBlock = [ScriptBlock]::Create($finalContent)
-                    Write-Verbose "Created scriptblock from $($RepositoryCmdlets.Count + $Urls.Count) cmdlets"
-                    return $scriptBlock
-                }
-                catch {
-                    Write-Error "Failed to create scriptblock from cmdlet content: $_"
-                    return $null
-                }
-            }
-            else {
-                Write-Warning "No cmdlet content found to create scriptblock"
+            if ($paths.Count -eq 1) {
+                return $paths[0]
+            } elseif ($paths.Count -gt 1) {
+                return $paths
+            } else {
+                Write-Warning "No cmdlet content found to return path(s)"
                 return $null
             }
         }
