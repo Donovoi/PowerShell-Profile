@@ -100,7 +100,7 @@ function Get-OutputFilename {
 
     try {
         # Check if it's a Google URL (Drive or other Google services)
-        if ($Url -match '(drive\.google\.com|drive\.usercontent\.google\.com|google\.com)') {
+        if ($Url -match '(\.google\.com)') {
             Write-Verbose "Google URL detected: $Url - Using specialized extraction method"
 
             # Make a GET request to get response headers for Google URLs
