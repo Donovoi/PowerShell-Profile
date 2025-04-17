@@ -300,7 +300,6 @@ function Get-FileDownload {
                         OutFile         = $OutFile
                         UseBasicParsing = $true
                         WebSession      = $webSession
-                        ProgressAction  = 'SilentlyContinue'
                     }
 
                     # Add headers if provided
