@@ -157,19 +157,32 @@ function Get-OutputFilename {
                 $headResponse = Invoke-WebRequest -Uri $Url -Method HEAD -Headers $tempHeaders -UseBasicParsing -WebSession $webSession
 
                 # Extract filename from Content-Disposition header if present
-                $contentDisp = $headResponse.Headers['Content-Disposition']
-                if ($contentDisp.GetEnumerator() | Where-Object { $_ -match 'filename="?([^";]+)"?' }) {
-                    # Standard filename format
-                    $fileName = $matches[1]
-                }
-                elseif ($contentDisp -match 'filename\*=UTF-8''([^'']+)') {
-                    # UTF-8 encoded filename format
-                    $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                #  first check if the header is present
+                if (-not $headResponse.Headers['Content-Disposition']) {
+                    Write-Verbose 'No Content-Disposition header found'
+                    # we will make a get request and parse the webpage for the filename
+                    $webResponse = Invoke-WebRequest -Uri $Url -Method GET -Headers $tempHeaders -UseBasicParsing -WebSession $webSession
+                    # Check if the response contains a filename in the HTML
+                    if ($webResponse.Content -match 'filename="?([^";]+)"?') {
+                        # Standard filename format
+                        $fileName = $matches[1]
+                    }
+                    elseif ($webResponse.Content -match 'filename\*=UTF-8''([^'']+)') {
+                        # UTF-8 encoded filename format
+                        $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                    }
                 }
                 else {
-                    # No usable filename found in headers, generate one
-                    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                    $fileName = "Download-$timestamp"
+                    Write-Verbose "Content-Disposition header found: $($headResponse.Headers['Content-Disposition'])"
+                    $contentDisp = $headResponse.Headers['Content-Disposition']
+                    if ($contentDisp.GetEnumerator() | Where-Object { $_ -match 'filename="?([^";]+)"?' }) {
+                        # Standard filename format
+                        $fileName = $matches[1]
+                    }
+                    elseif ($contentDisp -match 'filename\*=UTF-8''([^'']+)') {
+                        # UTF-8 encoded filename format
+                        $fileName = [System.Web.HttpUtility]::UrlDecode($matches[1])
+                    }
                 }
             }
             catch {
@@ -199,3 +212,4 @@ function Get-OutputFilename {
         return Join-Path -Path $DestDir -ChildPath "Download-$timestamp"
     }
 }
+
