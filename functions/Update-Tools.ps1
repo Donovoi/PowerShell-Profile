@@ -62,17 +62,22 @@ function Update-Tools {
 
   # create a nuget.config file in the user profile directory if it doesn't exist
   $nugetConfigPath = Join-Path -Path $env:USERPROFILE -ChildPath '.nuget\NuGet\NuGet.Config'
-  if (-not (Test-Path -Path $nugetConfigPath)) {
-    $nugetConfigContent = @'
-
+  
+  $nugetConfigContent = @'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+   <packageSources>
+      <clear/>
+      <add key="chocolatey" value="https://community.chocolatey.org/api/v2/"/>
+   </packageSources>
+</configuration>
 '@
-# create the folder if it doesn't exist
-    $nugetConfigDir = Split-Path -Path $nugetConfigPath -Parent
-    if (-not (Test-Path -Path $nugetConfigDir)) {
-      New-Item -Path $nugetConfigDir -ItemType Directory -Force | Out-Null
-    }
-    $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
+  # create the folder if it doesn't exist
+  $nugetConfigDir = Split-Path -Path $nugetConfigPath -Parent
+  if (-not (Test-Path -Path $nugetConfigDir)) {
+    New-Item -Path $nugetConfigDir -ItemType Directory -Force | Out-Null
   }
+  $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
 
 
   class MenuItem {
