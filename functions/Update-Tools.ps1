@@ -66,6 +66,11 @@ function Update-Tools {
     $nugetConfigContent = @'
 
 '@
+# create the folder if it doesn't exist
+    $nugetConfigDir = Split-Path -Path $nugetConfigPath -Parent
+    if (-not (Test-Path -Path $nugetConfigDir)) {
+      New-Item -Path $nugetConfigDir -ItemType Directory -Force | Out-Null
+    }
     $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
   }
 
