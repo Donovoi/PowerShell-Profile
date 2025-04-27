@@ -64,9 +64,9 @@ function Get-OutputFilename {
     $neededcmdlets = @(               # Alternative download method for large files
         'Get-FileDetailsFromResponse'           # Extracts file details from web response
 
-        
+
     )
-    
+
     foreach ($cmd in $neededcmdlets) {
         if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
             if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -76,7 +76,7 @@ function Get-OutputFilename {
             }
             Write-Verbose "Importing cmdlet: $cmd"
             $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
-            
+
             # Check if the returned value is a ScriptBlock and import it properly
             if ($scriptBlock -is [scriptblock]) {
                 $moduleName = "Dynamic_$cmd"

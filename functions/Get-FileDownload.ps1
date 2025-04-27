@@ -150,7 +150,7 @@ function Get-FileDownload {
             else {
                 Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
             }
-            
+
         }
 
         # Initialize session for web requests
