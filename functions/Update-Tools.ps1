@@ -73,7 +73,23 @@ function Update-Tools {
       }
     }
   }
-  $menuItem0 = [MenuItem]::new('All', { choco upgrade all --ignore-dependencies; winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements; Update-VisualStudio; Update-VSCode; Get-KapeAndTools; Get-GitPull; Update-PowerShell; Get-LatestSIV; winget source reset --disable-interactivity --force; winget source update --disable-interactivity; winget upgrade --all --force --accept-source-agreements --accept-package-agreements; DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow; Update-DotNetSDK })
+  $menuItem0 = [MenuItem]::new('All', {
+    choco upgrade all --ignore-dependencies
+    winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
+    Update-VisualStudio
+    Update-VSCode
+    Get-KapeAndTools
+    Get-GitPull
+    Update-PowerShell
+    # Get-LatestSIV # This command was in the original but not defined in the neededcmdlets list.
+    winget source reset --disable-interactivity --force
+    winget source update --disable-interactivity
+    winget upgrade --all --force --accept-source-agreements --accept-package-agreements
+    DISM /Online /Cleanup-Image /RestoreHealth
+    sfc /scannow
+    Update-DotNetSDK
+    Update-VcRedist
+  })
   $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
   $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
@@ -86,6 +102,23 @@ function Update-Tools {
   $menuItem10 = [MenuItem]::new('UpgradeWingetAndTools', { winget upgrade --all --accept-source-agreements --accept-package-agreements })
   $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
-  $menuItem13 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
-  Show-TUIMenu -MenuItems @($menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4, $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9, $menuItem10, $menuItem11, $menuItem12, $menuItem13) -ErrorAction SilentlyContinue
+  $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
+  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
+  Show-TUIMenu -MenuItems @(
+    $menuItem0,
+    $menuItem1,
+    $menuItem2,
+    $menuItem3,
+    $menuItem4,
+    $menuItem5,
+    $menuItem6,
+    $menuItem7,
+    $menuItem8,
+    $menuItem9,
+    $menuItem10,
+    $menuItem11,
+    $menuItem12,
+    $menuItem13,
+    $menuItem14
+  ) -ErrorAction SilentlyContinue
 }
