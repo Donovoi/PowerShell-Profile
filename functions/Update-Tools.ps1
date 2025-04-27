@@ -74,22 +74,22 @@ function Update-Tools {
     }
   }
   $menuItem0 = [MenuItem]::new('All', {
-    choco upgrade all --ignore-dependencies
-    winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
-    Update-VisualStudio
-    Update-VSCode
-    Get-KapeAndTools
-    Get-GitPull
-    Update-PowerShell
-    # Get-LatestSIV # This command was in the original but not defined in the neededcmdlets list.
-    winget source reset --disable-interactivity --force
-    winget source update --disable-interactivity
-    winget upgrade --all --force --accept-source-agreements --accept-package-agreements
-    DISM /Online /Cleanup-Image /RestoreHealth
-    sfc /scannow
-    Update-DotNetSDK
-    Update-VcRedist
-  })
+      choco upgrade all --ignore-dependencies
+      winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
+      Update-VisualStudio
+      Update-VSCode
+      Get-KapeAndTools
+      Get-GitPull
+      Update-PowerShell
+      # Get-LatestSIV # This command was in the original but not defined in the neededcmdlets list.
+      winget source reset --disable-interactivity --force
+      winget source update --disable-interactivity
+      winget upgrade --all --force --accept-source-agreements --accept-package-agreements
+      DISM /Online /Cleanup-Image /RestoreHealth
+      sfc /scannow
+      Update-DotNetSDK
+      Update-VcRedist
+    })
   $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
   $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
