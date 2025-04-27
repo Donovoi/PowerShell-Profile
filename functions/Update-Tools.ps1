@@ -60,6 +60,16 @@ function Update-Tools {
     Write-Verbose 'Failed to resolve Chocolatey installation path.'
   }
 
+  # create a nuget.config file in the user profile directory if it doesn't exist
+  $nugetConfigPath = Join-Path -Path $env:USERPROFILE -ChildPath '.nuget\NuGet\NuGet.Config'
+  if (-not (Test-Path -Path $nugetConfigPath)) {
+    $nugetConfigContent = @'
+
+'@
+    $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
+  }
+
+
   class MenuItem {
     [string]$Name
     [scriptblock]$Action
