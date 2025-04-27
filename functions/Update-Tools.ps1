@@ -57,8 +57,8 @@ function Update-Tools {
       }
     }
   }
-  $menuItem0 = [MenuItem]::new('All', { chocolatey upgrade all --ignore-dependencies; winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements; Update-VisualStudio; Update-VSCode; Get-KapeAndTools; Get-GitPull; Update-PowerShell; Get-LatestSIV; winget source reset --disable-interactivity --force; winget source update --disable-interactivity; winget upgrade --all --force --accept-source-agreements --accept-package-agreements; DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow; Update-DotNetSDK })
-  $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { $ENV:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path; chocolatey upgrade all --ignore-dependencies })
+  $menuItem0 = [MenuItem]::new('All', { choco upgrade all --ignore-dependencies; winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements; Update-VisualStudio; Update-VSCode; Get-KapeAndTools; Get-GitPull; Update-PowerShell; Get-LatestSIV; winget source reset --disable-interactivity --force; winget source update --disable-interactivity; winget upgrade --all --force --accept-source-agreements --accept-package-agreements; DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow; Update-DotNetSDK })
+  $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { $ENV:ChocolateyInstall = (Resolve-Path (Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin')).Path; choco upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
   $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
   $menuItem4 = [MenuItem]::new('UpdateVSCode', { Update-VSCode })
