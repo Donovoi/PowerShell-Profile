@@ -52,8 +52,7 @@ function Update-Tools {
     This class is intended to be used with the Show-TUIMenu function which handles the GUI representation and interaction.
 #>
 
-  $ENV:ChocolateyInstall = if (Resolve-Path $XWAYSUSB ) {
-
+  $ENV:ChocolateyInstall = if (Resolve-Path $XWAYSUSB -ErrorAction SilentlyContinue) {
     Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin' -Resolve
   }
 
