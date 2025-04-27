@@ -4,7 +4,18 @@ function Update-Tools {
 
   )
 
-  $neededcmdlets = @('Write-Logg', 'Get-Properties', 'Show-TUIMenu', 'Update-DotNetSDK', 'Update-VisualStudio', 'Get-KapeAndTools', 'Get-GitPull', 'Update-PowerShell', 'Update-VScode', 'Update-VcRedist')
+  $neededcmdlets = @(
+    'Write-Logg',
+    'Get-Properties',
+    'Show-TUIMenu',
+    'Update-DotNetSDK',
+    'Update-VisualStudio',
+    'Get-KapeAndTools',
+    'Get-GitPull',
+    'Update-PowerShell',
+    'Update-VScode',
+    'Update-VcRedist'
+  )
   $neededcmdlets | ForEach-Object {
     if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
       if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
