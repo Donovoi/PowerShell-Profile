@@ -91,7 +91,7 @@ function Update-Tools {
 
     [void]Invoke() {
       # foreach action seperated by ; we will execute it in a new window
-      $this.Action -split ';' | ForEach-Object {
+      $this.Action -split ';' | ForEach-Object -Parallel {
         Start-Process -FilePath 'pwsh.exe' -ArgumentList "-Noexit -command `"$_`"" -Verb RunAs
       }
     }
