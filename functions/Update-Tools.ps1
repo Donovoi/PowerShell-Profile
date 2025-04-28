@@ -92,7 +92,7 @@ function Update-Tools {
     [void]Invoke() {
       # foreach action seperated by ; we will execute it in a new window
       $this.Action -split ';' | ForEach-Object {
-        Start-Process -FilePath 'wt.exe' -ArgumentList "pwsh.exe -command $_" -Verb RunAs
+        Start-Process -FilePath 'pwsh.exe' -ArgumentList "-Noexit -command `"$_`"" -Verb RunAs
       }
     }
   }
