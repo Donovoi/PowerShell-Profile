@@ -137,6 +137,8 @@ Set-PSReadLineKeyHandler -Key ']' -Function SelfInsert
 # Enable tab completion for tab
 Set-PSReadLineKeyHandler -Key Tab -Function Complete
 
+# allow for the use of the arrow keys to navigate through the current line
+Set-PSReadLineOption -EditMode Windows
 
 
 # Crazy oh my posh random theme function
