@@ -104,7 +104,6 @@ function Update-Tools {
       Get-KapeAndTools;
       Get-GitPull;
       Update-PowerShell;
-      # Get-LatestSIV # This command was in the original but not defined in the neededcmdlets list.
       winget source reset --disable-interactivity --force;
       winget source update --disable-interactivity;
       winget upgrade --all --force --accept-source-agreements --accept-package-agreements;
