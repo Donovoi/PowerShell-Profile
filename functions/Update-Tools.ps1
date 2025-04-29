@@ -62,7 +62,7 @@ function Update-Tools {
 
   # create a nuget.config file in the user profile directory if it doesn't exist
   $nugetConfigPath = Join-Path -Path $env:USERPROFILE -ChildPath '.nuget\NuGet\NuGet.Config'
-  
+
   $nugetConfigContent = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -90,27 +90,58 @@ function Update-Tools {
     }
 
     [void]Invoke() {
-      # foreach action seperated by ; we will execute it in a new window
-      $this.Action -split ';' | ForEach-Object -Parallel {
-        Start-Process -FilePath 'pwsh.exe' -ArgumentList "-Noexit -command `"$_`"" -Verb RunAs
+      if ($this.Name -eq 'Exit') {
+        # Execute the exit action directly in the current context
+        # This should correctly stop the Terminal.Gui application
+        try {
+            & $this.Action
+        } catch {
+            # Log error if stopping fails, though Exit(0) should terminate anyway
+            Write-Error "Error during exit action: $($_.Exception.Message)"
+            # Force exit if necessary
+            [System.Environment]::Exit(1)
+        }
+      }
+      else {
+        # Original logic for other actions: split and run in new elevated processes
+        # Note: Splitting complex scriptblocks by ';' based on string representation can be unreliable.
+        $actionString = $this.Action.ToString().Trim()
+        # Remove surrounding braces if present
+        if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
+            $actionString = $actionString.Substring(1, $actionString.Length - 2).Trim()
+        }
+
+        $actionString -split ';' | ForEach-Object {
+          $commandPart = $_.Trim()
+          if ($commandPart) { # Ensure the part is not empty
+            try {
+                Write-Verbose "Starting process for action part: $commandPart"
+                # Attempt to run elevated
+                Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command `"$commandPart`"" -Verb RunAs -ErrorAction Stop
+            } catch {
+                Write-Warning "Failed to start elevated process for '$commandPart'. Error: $($_.Exception.Message)"
+                # Optional: Fallback or just log the error
+            }
+          }
+        }
       }
     }
   }
   $menuItem0 = [MenuItem]::new('All', {
-      choco upgrade all --ignore-dependencies;
-      winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements;
-      Update-VisualStudio;
-      Update-VSCode;
-      Get-KapeAndTools;
-      Get-GitPull;
-      Update-PowerShell;
-      winget source reset --disable-interactivity --force;
-      winget source update --disable-interactivity;
-      winget upgrade --all --force --accept-source-agreements --accept-package-agreements;
-      DISM /Online /Cleanup-Image /RestoreHealth;
-      sfc /scannow;
-      Update-DotNetSDK;
-      Update-VcRedist;
+      choco upgrade all --ignore-dependencies
+      winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
+      Update-VisualStudio
+      Update-VSCode
+      Get-KapeAndTools
+      Get-GitPull
+      Update-PowerShell
+      winget source reset --disable-interactivity --force
+      winget source update --disable-interactivity
+      winget upgrade --all --force --accept-source-agreements --accept-package-agreements
+      DISM /Online /Cleanup-Image /RestoreHealth
+      sfc /scannow
+      Update-DotNetSDK
+      Update-VcRedist
     })
   $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
@@ -125,7 +156,7 @@ function Update-Tools {
   $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
-  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); exit })
+  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [System.Environment]::Exit(0) })
   Show-TUIMenu -MenuItems @(
     $menuItem0,
     $menuItem1,
