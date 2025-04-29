@@ -19,54 +19,54 @@ function Get-GitPull {
         [Parameter(Mandatory = $false)]
         [string]$Path = $(Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
     )
+    try {
+        $ErrorActionPreference = 'Continue'
 
-    $ErrorActionPreference = 'Continue'
+        # Ensure Path is scoped correctly
+        $script:Path = Resolve-Path -Path $Path -ErrorAction Stop
 
-    # Ensure Path is scoped correctly
-    $script:Path = Resolve-Path -Path $Path -ErrorAction Stop
-
-    # Import the required cmdlets
-    $neededcmdlets = @('Write-Logg')
-    $neededcmdlets | ForEach-Object {
-        if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        # Import the required cmdlets
+        $neededcmdlets = @('Write-Logg')
+        $neededcmdlets | ForEach-Object {
+            if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+                }
+                # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+                # if write-logg is not available use write-OutPut, but check first
+                if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
+                    Write-Output "Importing cmdlet: $_"
+                }
+                else {
+                    Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+                }
+                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+                $Cmdletstoinvoke | Import-Module -Force
             }
-            # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
-            # if write-logg is not available use write-OutPut, but check first
-            if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
-                Write-Output "Importing cmdlet: $_"
-            }
-            else {
-                Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
-            }
-            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-            $Cmdletstoinvoke | Import-Module -Force
         }
-    }
 
-    # install rust if it is not installed. Do it without any need for user input
-    Write-Logg -Message 'Checking if Rust is installed...' -Level Verbose
-    if (-not (Test-Path -Path "$env:USERPROFILE\.cargo\bin\rustup.exe")) {
-        Write-Logg -Message 'Rust is not installed. Installing Rust...' -Level Verbose
-        $rustInstaller = 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe'
-        $rustInstallerPath = "$env:TEMP\rustup-init.exe"
-        Invoke-WebRequest -Uri $rustInstaller -OutFile $rustInstallerPath
-        Start-Process -FilePath $rustInstallerPath -ArgumentList '-y' -Wait
-        Remove-Item -Path $rustInstallerPath -Force
-    }
+        # install rust if it is not installed. Do it without any need for user input
+        Write-Logg -Message 'Checking if Rust is installed...' -Level Verbose
+        if (-not (Test-Path -Path "$env:USERPROFILE\.cargo\bin\rustup.exe")) {
+            Write-Logg -Message 'Rust is not installed. Installing Rust...' -Level Verbose
+            $rustInstaller = 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe'
+            $rustInstallerPath = "$env:TEMP\rustup-init.exe"
+            Invoke-WebRequest -Uri $rustInstaller -OutFile $rustInstallerPath
+            Start-Process -FilePath $rustInstallerPath -ArgumentList '-y' -Wait
+            Remove-Item -Path $rustInstallerPath -Force
+        }
 
-    # make sure we have cargo available, if not just call the cargo exe full path
-    if (-not (Get-Command -Name 'cargo' -ErrorAction SilentlyContinue)) {
-        $env:Path += ";$env:USERPROFILE\.cargo\bin"
-    }
+        # make sure we have cargo available, if not just call the cargo exe full path
+        if (-not (Get-Command -Name 'cargo' -ErrorAction SilentlyContinue)) {
+            $env:Path += ";$env:USERPROFILE\.cargo\bin"
+        }
 
-    # Get all the repositories in the path specified
-    Write-Logg -Message "Searching for repositories in $script:Path, this can take a while..." -Level Verbose
+        # Get all the repositories in the path specified
+        Write-Logg -Message "Searching for repositories in $script:Path, this can take a while..." -Level Verbose
 
-    $rustPgm = @'
+        $rustPgm = @'
   extern crate jwalk;
   use jwalk::WalkDir;
   use std::alloc::{alloc_zeroed, Layout};
@@ -115,13 +115,13 @@ function Get-GitPull {
   }
 '@
 
-    if (-not(Test-Path -Path "$PWD/target/release/findfiles.dll")) {
-        Remove-Item -Path "$PWD/target" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "$PWD/lib.rs" -Force -ErrorAction SilentlyContinue
-        # If the cargo file does not exist, create it
-        if (-not(Test-Path -Path "$PWD/Cargo.toml")) {
+        if (-not(Test-Path -Path "$PWD/target/release/findfiles.dll")) {
+            Remove-Item -Path "$PWD/target" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$PWD/lib.rs" -Force -ErrorAction SilentlyContinue
+            # If the cargo file does not exist, create it
+            if (-not(Test-Path -Path "$PWD/Cargo.toml")) {
 
-            $cargoFile = @'
+                $cargoFile = @'
     [lib]
     name = "findfiles"
     path = "./lib.rs"
@@ -135,13 +135,13 @@ function Get-GitPull {
     [dependencies]
     jwalk = "0.8.1"
 '@
-            $cargoFile | Set-Content -Encoding UTF8 "$PWD/Cargo.toml" -Force
+                $cargoFile | Set-Content -Encoding UTF8 "$PWD/Cargo.toml" -Force
+            }
+            $rustPgm | Set-Content -Encoding UTF8 "$PWD/lib.rs" -Force
+            cargo build --release
         }
-        $rustPgm | Set-Content -Encoding UTF8 "$PWD/lib.rs" -Force
-        cargo build --release
-    }
 
-    $definition = @'
+        $definition = @'
   using System;
   using System.Collections.Generic;
   using System.Runtime.InteropServices;
@@ -196,135 +196,153 @@ function Get-GitPull {
 
 '@
 
-    $typeName = 'FileFinder'
+        $typeName = 'FileFinder'
 
-    if (-not ([System.Management.Automation.PSTypeName]$typeName).Type) {
-        $target = Add-Type -TypeDefinition $definition -PassThru
-    }
-    else {
-        Write-Logg -Message "$typeName already exists. Please exit PowerShell and try again." -Level ERROR
-        Read-Host -Prompt 'Press Enter to exit'
-        Exit-PSHostProcess
-    }
-
-
-    # Get the repositories
-
-    $dir_path = $(Resolve-Path -Path $script:Path -ErrorAction Stop).Path
-    $search_name = '.git'
-
-    if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
-        # Start the stopwatch
-        $StopwatchENumMethod = [System.Diagnostics.Stopwatch]::StartNew()
-        $foundPaths = $target::GetFoundPaths($dir_path, $search_name)
-        # Stop the stopwatch
-        $StopwatchENumMethod.Stop()
-        # Make sure we only get the parent paths
-        $repositories = $foundPaths | Split-Path -Parent
-    }
-
-    # Show the elapsed time
-    Write-Logg -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run" -Level Verbose
+        if (-not ([System.Management.Automation.PSTypeName]$typeName).Type) {
+            $target = Add-Type -TypeDefinition $definition -PassThru
+        }
+        else {
+            Write-Logg -Message "$typeName already exists. Please exit PowerShell and try again." -Level ERROR
+            Read-Host -Prompt 'Press Enter to exit'
+            Exit-PSHostProcess
+        }
 
 
-    #Let the user know what we are doing and how many repositories we are working with
-    Write-Logg -Message "Found $($repositories.Count) repositories to pull from." -Level Verbose
+        # Get the repositories
 
-    if ($repositories.Count -gt 1) {
-        $multiplerepos = $repositories.GetEnumerator()
-    }
-    else {
-        $singleRepo = $repositories
-    }
-    #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
-    $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
-        Write-Logg -Message "Pulling from $($_)" -Level Verbose
-        $location = $(Resolve-Path -Path $_).Path
-        Set-Location -Path $location
-        # Set ownership to current user and grant full control to current user recursively
-        icacls.exe $_ /setowner "$env:UserName" /t /c /q
+        $dir_path = $(Resolve-Path -Path $script:Path -ErrorAction Stop).Path
+        $search_name = '.git'
 
-        # Check if the upstream remote is added
-        $upstream = git remote -v | Select-String 'upstream'
-        if ($null -ne $upstream) {
+        if ((Test-Path -Path $dir_path) -and (-not([string]::IsNullOrWhiteSpace($search_name)))) {
+            # Start the stopwatch
+            $StopwatchENumMethod = [System.Diagnostics.Stopwatch]::StartNew()
+            $foundPaths = $target::GetFoundPaths($dir_path, $search_name)
+            # Stop the stopwatch
+            $StopwatchENumMethod.Stop()
+            # Make sure we only get the parent paths
+            $repositories = $foundPaths | Split-Path -Parent
+        }
 
-            # Define the root path of the repository
-            $repoRootPath = Get-Location
-            try {
-                # Search for the lock file recursively
-                $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
-            }
-            catch {
-                Write-Warning "Unable to get lock file for $($_)" -Level Verbose
-                Write-Warning "Error is: $_.Exception.Message" -Level Verbose
-            }
+        # Show the elapsed time
+        Write-Logg -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run" -Level Verbose
 
 
-            # Check if the lock file was found
-            if ($null -ne $lockFile) {
-                # Try to remove the lock file
+        #Let the user know what we are doing and how many repositories we are working with
+        Write-Logg -Message "Found $($repositories.Count) repositories to pull from." -Level Verbose
+
+        if ($repositories.Count -gt 1) {
+            $multiplerepos = $repositories.GetEnumerator()
+        }
+        else {
+            $singleRepo = $repositories
+        }
+        #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
+        $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
+            Write-Logg -Message "Pulling from $($_)" -Level Verbose
+            $location = $(Resolve-Path -Path $_).Path
+            Set-Location -Path $location
+            # Set ownership to current user and grant full control to current user recursively
+            icacls.exe $_ /setowner "$env:UserName" /t /c /q
+
+            # Check if the upstream remote is added
+            $upstream = git remote -v | Select-String 'upstream'
+            if ($null -ne $upstream) {
+
+                # Define the root path of the repository
+                $repoRootPath = Get-Location
                 try {
-                    Remove-Item $lockFile.FullName -Force
-                    Write-Logg -Message "Lock file $($lockFile.FullName) removed successfully." -Level Info
+                    # Search for the lock file recursively
+                    $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
                 }
                 catch {
-                    Write-Logg -Message "Failed to remove lock file. Error: $_" -Level error
+                    Write-Warning "Unable to get lock file for $($_)" -Level Verbose
+                    Write-Warning "Error is: $_.Exception.Message" -Level Verbose
+                }
+
+
+                # Check if the lock file was found
+                if ($null -ne $lockFile) {
+                    # Try to remove the lock file
+                    try {
+                        Remove-Item $lockFile.FullName -Force
+                        Write-Logg -Message "Lock file $($lockFile.FullName) removed successfully." -Level Info
+                    }
+                    catch {
+                        Write-Logg -Message "Failed to remove lock file. Error: $_" -Level error
+                    }
+                }
+                else {
+                    Write-Logg -Message 'Lock file not found.' -Level Info
+                }
+                try {
+
+
+                    # If upstream is added, reset local changes and pull the latest changes from upstream
+                    git reset --hard
+                    git clean -fd
+                    git fetch upstream
+
+                    # Get the name of the default branch from the upstream remote
+                    $defaultBranch = git remote show upstream | Select-String 'HEAD branch' | Out-String
+                    $defaultBranch = ($defaultBranch -split ':')[1].Trim()
+
+                    # Checkout to the default branch
+                    git checkout $defaultBranch
+
+                    # Merge with the upstream branch, favoring their changes in case of conflicts
+                    git merge upstream/$defaultBranch -X theirs
+
+                    # Get the name of the current branch
+                    $currentBranch = git rev-parse --abbrev-ref HEAD
+
+                    # Push the changes to the remote repository
+                    git push origin $currentBranch
+
+                }
+                catch {
+
+                    try {
+                        # If the merge failed, check out the conflicted files from the upstream branch
+                        git reset --hard upstream/$defaultBranch
+                        git clean -fd
+                        git fetch upstream
+                    }
+                    catch {
+                        #    ignore error
+                    }
+
                 }
             }
             else {
-                Write-Logg -Message 'Lock file not found.' -Level Info
-            }
-            try {
-
-
-                # If upstream is added, reset local changes and pull the latest changes from upstream
-                git reset --hard
-                git clean -fd
-                git fetch upstream
-
-                # Get the name of the default branch from the upstream remote
-                $defaultBranch = git remote show upstream | Select-String 'HEAD branch' | Out-String
-                $defaultBranch = ($defaultBranch -split ':')[1].Trim()
-
-                # Checkout to the default branch
-                git checkout $defaultBranch
-
-                # Merge with the upstream branch, favoring their changes in case of conflicts
-                git merge upstream/$defaultBranch -X theirs
-
-                # Get the name of the current branch
-                $currentBranch = git rev-parse --abbrev-ref HEAD
-
-                # Push the changes to the remote repository
-                git push origin $currentBranch
-
-            }
-            catch {
-
                 try {
-                    # If the merge failed, check out the conflicted files from the upstream branch
-                    git reset --hard upstream/$defaultBranch
-                    git clean -fd
-                    git fetch upstream
+                    git pull
                 }
                 catch {
-                    #    ignore error
+                    Write-Warning "Unable to pull from $($_)" -Level Verbose
                 }
-
             }
+            Write-Logg -Message "git pull complete for $($_)" -Level INFO
+            [GC]::Collect()
         }
-        else {
-            try {
-                git pull
-            }
-            catch {
-                Write-Warning "Unable to pull from $($_)" -Level Verbose
-            }
-        }
-        Write-Logg -Message "git pull complete for $($_)" -Level INFO
+        # clean up if we need to
+        Remove-Variable -Name repositories -Force
         [GC]::Collect()
     }
-    # clean up if we need to
-    Remove-Variable -Name repositories -Force
-    [GC]::Collect()
+    catch {
+        Write-Logg -Message "An error occurred: $($_.Exception.Message)" -Level Error
+    }
+    finally {
+        # Clean up the Rust DLL and Cargo files
+        if (Test-Path -Path "$PWD/target/release/findfiles.dll") {
+            Remove-Item -Path "$PWD/target" -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -Path "$PWD/Cargo.toml") {
+            Remove-Item -Path "$PWD/Cargo.toml" -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -Path "$PWD/lib.rs") {
+            Remove-Item -Path "$PWD/lib.rs" -Force -ErrorAction SilentlyContinue
+        }
+
+    }
+
 }
