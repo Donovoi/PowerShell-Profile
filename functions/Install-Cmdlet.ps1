@@ -12,40 +12,36 @@
 #>
 function Install-Cmdlet {
     [CmdletBinding(SupportsShouldProcess = $true,
-                   ConfirmImpact = 'Medium',
-                   DefaultParameterSetName = 'Repository')]
+        ConfirmImpact = 'Medium',
+        DefaultParameterSetName = 'Repository')]
     [OutputType([System.Management.Automation.PSModuleInfo],  # when -PreferLocal:$false
-                [System.IO.FileInfo])]                         # when -PreferLocal:$true
+        [System.IO.FileInfo])]                         # when -PreferLocal:$true
     param(
         # ------- PARAMETER‑SET: Url ----------------------------------------
         [Parameter(Mandatory, ParameterSetName = 'Url', Position = 0)]
         [Alias('Url', 'Uri')]
         [string[]]$Urls,
 
-        [Parameter(ParameterSetName = 'Url', Position = 1)]
-        [Alias('Cmdlet', 'CmdletToInstall')]
-        [string[]]$CmdletNames = '*',
-
         [Parameter(ParameterSetName = 'Url', Position = 2)]
         [string]$ModuleName = 'InMemoryModule',
 
         # ------- PARAMETER‑SET: Repository ---------------------------------
         [Parameter(Mandatory,
-                   ParameterSetName = 'Repository',
-                   ValueFromPipeline = $true,
-                   ValueFromPipelineByPropertyName = $true)]
+            ParameterSetName = 'Repository',
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true)]
         [Alias('CmdletName')]
         [string[]]$RepositoryCmdlets,
 
         # ------- Common switches / settings --------------------------------
         [switch]$PreferLocal,
         [string]$LocalModuleFolder =
-            "$ENV:USERPROFILE\PowerShellScriptsAndResources\Modules\cmdletCollection\",
+        "$ENV:USERPROFILE\PowerShellScriptsAndResources\Modules\cmdletCollection\",
         [switch]$Force,
         [ValidateRange(5, 300)][int]$TimeoutSeconds = 30,
         [switch]$RequireHttps,
         [string]$GitHubRepositoryUrl =
-            'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/'
+        'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/'
     )
 
     # ------------------------------------------------------------------ #
@@ -59,8 +55,12 @@ function Install-Cmdlet {
                 [switch]$RequireHttps
             )
             $pattern = '^(https?):\/\/[-\w+&@#/%?=~_|!:,.;]+[-\w+&@#/%=~_|]$'
-            if ($Url -notmatch $pattern) { return $false }
-            if ($RequireHttps -and -not $Url.StartsWith('https://')) { return $false }
+            if ($Url -notmatch $pattern) {
+                return $false 
+            }
+            if ($RequireHttps -and -not $Url.StartsWith('https://')) {
+                return $false 
+            }
             return $true
         }
 
@@ -75,7 +75,8 @@ function Install-Cmdlet {
             try {
                 [System.Management.Automation.Language.Parser]::ParseInput(
                     $clean, [ref]$null, [ref]$null) | Out-Null
-            } catch {
+            }
+            catch {
                 Write-Verbose 'Code parsed with non‑fatal errors.'
             }
             return $clean
@@ -92,7 +93,7 @@ function Install-Cmdlet {
             # Autoloader .psm1
             $psm1 = Join-Path $Folder 'cmdletCollection.psm1'
             if (-not (Test-Path $psm1)) {
-@'
+                @'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 Get-ChildItem $here -Filter "*.ps1" | ForEach-Object { . $_.FullName }
 Export-ModuleMember -Function * -Alias *
@@ -103,13 +104,13 @@ Export-ModuleMember -Function * -Alias *
             $psd1 = Join-Path $Folder 'cmdletCollection.psd1'
             if (-not (Test-Path $psd1)) {
                 $v = $PSVersionTable.PSVersion
-                $ver = "{0}.{1}.{2}" -f $v.Major, $v.Minor, $v.Build
+                $ver = '{0}.{1}.{2}' -f $v.Major, $v.Minor, $v.Build
                 New-ModuleManifest -Path $psd1 `
-                                   -RootModule 'cmdletCollection.psm1' `
-                                   -ModuleVersion '1.0.0' `
-                                   -Author 'Auto-generated' `
-                                   -Description 'Cached cmdlet collection' `
-                                   -PowerShellVersion $ver
+                    -RootModule 'cmdletCollection.psm1' `
+                    -ModuleVersion '1.0.0' `
+                    -Author 'Auto-generated' `
+                    -Description 'Cached cmdlet collection' `
+                    -PowerShellVersion $ver
             }
             return (Get-Item $psm1)
         }
@@ -129,8 +130,8 @@ Export-ModuleMember -Function * -Alias *
 
         # One‑time init objects
         $needsDownload = [System.Collections.Generic.List[string]]::new()
-        $sbInMemory    = [System.Text.StringBuilder]::new()
-        $importResult  = $null
+        $sbInMemory = [System.Text.StringBuilder]::new()
+        $importResult = $null
 
         # Pre‑create cache folder if needed
         if ($PreferLocal -or $PSCmdlet.ParameterSetName -eq 'Repository') {
@@ -152,11 +153,12 @@ Export-ModuleMember -Function * -Alias *
             'Repository' {
                 foreach ($name in $RepositoryCmdlets) {
                     $localPath = Join-Path $LocalModuleFolder "$name.ps1"
-                    $exists    = Test-Path $localPath
+                    $exists = Test-Path $localPath
 
                     if (!$exists -or $Force) {
                         $needsDownload.Add($name)
-                    } elseif ($PreferLocal) {
+                    }
+                    elseif ($PreferLocal) {
                         Import-Module $localPath -Force
                     }
                 }
@@ -168,12 +170,13 @@ Export-ModuleMember -Function * -Alias *
                         continue
                     }
 
-                    $code  = Invoke-RestMethod $url -TimeoutSec $TimeoutSeconds
+                    $code = Invoke-RestMethod $url -TimeoutSec $TimeoutSeconds
                     $clean = Get-CleanScriptContent $code
 
                     if ($PreferLocal) {
-                        Save-CmdletToLocalFolder $clean $item $LocalModuleFolder | Out-Null
-                    } else {
+                        Save-CmdletToLocalFolder -Code $clean -Name $item -Folder $LocalModuleFolder | Out-Null
+                    }
+                    else {
                         $null = $sbInMemory.AppendLine($clean)
                     }
                 }
@@ -188,12 +191,13 @@ Export-ModuleMember -Function * -Alias *
                     }
 
                     $name = ([IO.Path]::GetFileNameWithoutExtension($u))
-                    $code  = Invoke-RestMethod $u -TimeoutSec $TimeoutSeconds
+                    $code = Invoke-RestMethod $u -TimeoutSec $TimeoutSeconds
                     $clean = Get-CleanScriptContent $code
 
                     if ($PreferLocal) {
-                        Save-CmdletToLocalFolder $clean $name $LocalModuleFolder | Out-Null
-                    } else {
+                        Save-CmdletToLocalFolder -Code $clean -Name $name -Folder $LocalModuleFolder | Out-Null
+                    }
+                    else {
                         $null = $sbInMemory.AppendLine($clean)
                     }
                 }
@@ -204,7 +208,7 @@ Export-ModuleMember -Function * -Alias *
         if (($sbInMemory.Length -gt 0) -and (-not $PreferLocal)) {
             $modSB = [scriptblock]::Create($sbInMemory.ToString())
             $importResult = New-Module -Name $ModuleName -ScriptBlock $modSB |
-                            Import-Module -Force -Global -PassThru
+                Import-Module -Force -Global -PassThru
         }
         # Or re‑import cache loader if we just wrote new scripts
         elseif ($PreferLocal -and $needsDownload.Count -gt 0) {
@@ -219,7 +223,8 @@ Export-ModuleMember -Function * -Alias *
         if ($PreferLocal) {
             Get-ChildItem $LocalModuleFolder -Filter '*.ps1' |
                 Select-Object -ExpandProperty FullName
-        } else {
+        }
+        else {
             $importResult
         }
     }
