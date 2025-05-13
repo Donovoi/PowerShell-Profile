@@ -203,7 +203,8 @@ function Get-LatestGitHubRelease {
         }
         else {
             if (-not $PreRelease) {
-                Write-Error -Message 'Only pre-releases found. skipping download.'
+                Write-Error -Message 'Only pre-releases found or there is an error downloading. skipping download.'
+                Write-Error -Message "Error message is: $($_.Exception.Message)"
                 throw
             }
             else {
