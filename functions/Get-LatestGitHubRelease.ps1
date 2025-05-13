@@ -35,6 +35,12 @@
 .PARAMETER PrivateRepo
     Specifies whether the repository is private. If set to true, the function will use the Token parameter to access the release and download the asset. This parameter is optional.
 
+.PARAMETER Authenticate
+    Specifies whether to authenticate with GitHub using the device flow. This parameter is optional.
+
+.PARAMETER NoRPCMode
+    Specifies whether to disable RPC mode for aria2. This parameter is optional.
+
 .OUTPUTS
     The function outputs a string representing the version number of the latest release. If the NoDownload parameter is specified, the function only returns the version number and does not download the asset.
 
@@ -88,12 +94,15 @@ function Get-LatestGitHubRelease {
         [switch] $PrivateRepo,
 
         [Parameter(Mandatory = $false)]
-        [switch]$NoRPCMode
+        [switch] $Authenticate,
+
+        [Parameter(Mandatory = $false)]
+        [switch] $NoRPCMode
     )
     process {
         # Import the required cmdlets
         $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
-                foreach ($cmd in $neededcmdlets) {
+        foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -101,200 +110,334 @@ function Get-LatestGitHubRelease {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
+                $scriptBlockOrPath = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force # Renamed variable
 
-                # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
+                # Check the type of the returned value and import accordingly
+                if ($scriptBlockOrPath -is [scriptblock]) {
                     $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                    New-Module -Name $moduleName -ScriptBlock $scriptBlockOrPath | Import-Module -Force -Global
                     Write-Verbose "Imported $cmd as dynamic module: $moduleName"
                 }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+                elseif ($scriptBlockOrPath -is [System.Management.Automation.PSModuleInfo]) {
+                    Write-Verbose "Module for $cmd was already imported: $($scriptBlockOrPath.Name)"
                 }
-                elseif ($scriptBlock -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    Import-Module -Name $scriptBlock.FullName -Force -Global
-                    Write-Verbose "Imported $cmd from file: $($scriptBlock.FullName)"
+                elseif ($scriptBlockOrPath -is [System.IO.FileInfo]) {
+                    Import-Module -Name $scriptBlockOrPath.FullName -Force -Global
+                    Write-Verbose "Imported $cmd from file: $($scriptBlockOrPath.FullName)"
                 }
                 else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet: $($scriptBlockOrPath.GetType().FullName)"
                 }
             }
         }
 
-        # fix any certificate issues
+        # --- AUTHENTICATION SETUP ---
         if ($PSVersionTable.PSVersion.Major -eq 5) {
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
         }
-        $VersionOnly = $null
 
-        # Clear this variable each time
-        $DownloadedFile = $null
+        $script:GitHubDeviceFlowToken = $script:GitHubDeviceFlowToken # Use script scope for session-wide token
+        $authorizationHeaderValue = $null
 
-        # if it is a private repo we will use the token to access the release and download the asset
-        if ($PrivateRepo) {
-            # We will first make sure we can access the repo with the token
-            $headers = @{
-                'Authorization' = "token $token"
-                'User-Agent'    = 'PowerShell'
-            }
+        if ($Authenticate) {
+            if (-not $script:GitHubDeviceFlowToken) {
+                Write-Information 'Attempting to authenticate with GitHub via device flow...'
+                # IMPORTANT: Replace 'YOUR_CLIENT_ID_HERE' with your actual GitHub OAuth App Client ID for device flow.
+                # You can create an OAuth App here: https://github.com/settings/applications/new
+                # Using a generic public client ID for broad compatibility, but for a personal script, your own is better.
+                $clientId = 'Iv1.b927f5024150d080' # Example: VS Code public client ID, replace if possible
 
-            $apiUrl = "https://api.github.com/repos/$Repository/releases"
-            $httpClient = New-Object System.Net.Http.HttpClient
-            $httpClient.DefaultRequestHeaders.Clear()
-
-            foreach ($key in $headers.Keys) {
-                $httpClient.DefaultRequestHeaders.Add($key, $headers[$key])
-            }
-
-
-            $response = $httpClient.GetAsync($apiUrl).Result
-            if (-not $response.IsSuccessStatusCode) {
-                Write-Error "Failed to get releases from GitHub API with status code $($response.StatusCode)."
-                return
-            }
-
-            $releases = ConvertFrom-Json $response.Content.ReadAsStringAsync().Result
-            $Latestrelease = $null
-            if (-not $PreRelease) {
-                $LatestRelease = $releases | Where-Object { $_.prerelease -eq $false } | Select-Object -First 1
-            }
-            else {
-                $LatestRelease = $releases | Where-Object { $_.prerelease -eq $true } | Select-Object -First 1
-            }
-
-            if ($null -eq $LatestRelease) {
-                Write-Error 'No release found.'
-                return
-            }
-
-            $asset = $LatestRelease.assets | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
-            if ($null -eq $asset) {
-                Write-Error 'No assets found in the release.'
-                return
-            }
-            $VersionOnly = $Latestrelease.tag_name
-            $Release = $asset.url
-        }
-        else {
-
-            # Prepare API headers without Authorization
-            $headers = @{
-                'Accept'               = 'application/vnd.github+json'
-                'X-GitHub-Api-Version' = '2022-11-28'
-            }
-        }
-
-
-        try {
-            if (-not $PrivateRepo) {
-                # Define API URL
-                $apiurl = "https://api.github.com/repos/$OwnerRepository/releases"
-
-                # Retrieve release information
-                $Release = $null
-                if ($PreRelease) {
-                    $releases = Invoke-WebRequest -Uri $apiurl -Headers $headers
-                    $Releaseparsedjson = ConvertFrom-Json -InputObject $releases.Content | Where-Object -FilterScript { $_.prerelease -eq $true }
-                    $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
-                    $VersionOnly = $Releaseparsedjson.tag_name
+                if ($clientId -eq 'YOUR_CLIENT_ID_HERE') {
+                    # Reminder if default placeholder is still there
+                    Write-Warning "Placeholder Client ID 'YOUR_CLIENT_ID_HERE' detected. GitHub device flow authentication may not work as expected until a valid Client ID is configured in the script."
                 }
-                else {
-                    $Releaseinfo = Invoke-WebRequest -Uri ($apiurl + '/latest') -Headers $headers -SkipHttpErrorCheck
-                    if (-not($Releaseinfo.StatusCode -like '40*')) {
-                        $Releaseparsedjson = ConvertFrom-Json -InputObject $Releaseinfo.Content
-                        $Release = $Releaseparsedjson.assets.Browser_Download_url | Where-Object -FilterScript { $_ -like "*$AssetName*" } | Select-Object -First 1
-                        $VersionOnly = $Releaseparsedjson.tag_name
+
+                $deviceCodePayload = @{ client_id = $clientId; scope = 'repo' }
+                try {
+                    $deviceCodeResponse = Invoke-RestMethod -Uri 'https://github.com/login/device/code' -Method POST -Body $deviceCodePayload -ContentType 'application/x-www-form-urlencoded' -ErrorAction Stop
+                }
+                catch {
+                    Write-Error "Failed to initiate GitHub device flow. Error: $($_.Exception.Message)"
+                    return
+                }
+
+                Write-Logg -Message "Please open your browser and go to: $($deviceCodeResponse.verification_uri)" -Level INFO
+                Write-Logg -Message "And enter this code: $($deviceCodeResponse.user_code)" -Level INFO
+                # Consider: Add-Type -AssemblyName System.Windows.Forms; try { [System.Windows.Forms.Clipboard]::SetText($deviceCodeResponse.user_code) } catch {}
+                # try { Start-Process $deviceCodeResponse.verification_uri } catch { Write-Warning "Could not auto-open browser."}
+
+                $tokenPollPayload = @{
+                    client_id   = $clientId
+                    device_code = $deviceCodeResponse.device_code
+                    grant_type  = 'urn:ietf:params:oauth:grant-type:device_code'
+                }
+                $pollInterval = $deviceCodeResponse.interval
+                $timeoutSeconds = $deviceCodeResponse.expires_in
+                $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                $obtainedToken = $null
+
+                Write-Information "Waiting for you to authorize in the browser (this request will timeout in $($timeoutSeconds / 60) minutes)..."
+                do {
+                    Start-Sleep -Seconds $pollInterval
+                    try {
+                        $tokenResponse = Invoke-RestMethod -Uri 'https://github.com/login/oauth/access_token' -Method POST -Body $tokenPollPayload -ContentType 'application/x-www-form-urlencoded' -ErrorAction SilentlyContinue
                     }
-                    else {
-                        Write-Logg -Message "Looks like the repo doesn't have a latest tag, let's try another way" -Level Warning
-                        # Handle the case where the repo doesn't have a latest tag
-                        $ManualRelease = Invoke-RestMethod -Uri $apiurl -Headers $headers | Sort-Object -Property created_at | Select-Object -Last 1
-                        $manualDownloadurl = $ManualRelease.assets.Browser_Download_url | Select-Object -First 1
-                        if ([string]::IsNullOrEmpty($manualDownloadurl)) {
-                            Write-Logg -Message "Looks like the repo doesn't have the release titled $($AssetName), try changing the asset name" -Level error
-                            Write-Logg -Message 'exiting script..' -Level warning
-                            exit
+                    catch {
+                        Write-Warning "Network error while polling for GitHub token: $($_.Exception.Message)"
+                        Start-Sleep -Seconds ($pollInterval * 2) # Basic backoff
+                        continue
+                    }
+
+                    if ($tokenResponse.access_token) {
+                        $obtainedToken = $tokenResponse.access_token
+                        $script:GitHubDeviceFlowToken = $obtainedToken
+                        Write-Information "`nSuccessfully authenticated with GitHub."
+                        break
+                    }
+                    elseif ($tokenResponse.error) {
+                        if ($tokenResponse.error -eq 'authorization_pending') {
+                            Write-Host '.' -NoNewline
+                        }
+                        elseif ($tokenResponse.error -eq 'slow_down') {
+                            $pollInterval += 5
+                            Write-Information "`nSlowing down polling interval to $pollInterval seconds as requested by GitHub."
+                        }
+                        elseif ($tokenResponse.error -eq 'expired_token') {
+                            Write-Error "`nGitHub device code expired. Please try running the command again."
+                            $stopwatch.Stop(); return
+                        }
+                        else {
+                            Write-Error "`nError during GitHub authentication: $($tokenResponse.error) - $($tokenResponse.error_description)"
+                            $stopwatch.Stop(); return
                         }
                     }
-                }
-            }
-
-            # Handle 'NoDownload' parameter
-            if ($PSBoundParameters.ContainsKey('NoDownload')) {
-                return $VersionOnly
-            }
-            # Prepare for download
-            if (-not (Test-Path $DownloadPathDirectory)) {
-                New-Item -Path $DownloadPathDirectory -ItemType Directory -Force
-            }
-
-            if ($Release -or $manualDownloadurl) {
-                if ((-not(Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue)) -and $UseAria2) {
-                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -DownloadPathDirectory $PWD
-                    $Aria2cExePath = Get-ChildItem -Path $PWD -Recurse -Filter 'aria2c.exe' | Select-Object -First 1
-                }
-
-                # take the 3 variables as a array and download all of them that are not empty
-                $downloadFileParams = @{}
-                if ($PrivateRepo) {
-                    $downloadFileParams['Token'] = $Token
-                    $downloadFileParams['IsPrivateRepo'] = $true
-                }
-                if ($Token -and -not ($PrivateRepo)) {
-                    $downloadFileParams['Token'] = $Token
-                }
-                if ($Release) {
-                    $downloadFileParams['URL'] = $Release
-                    $downloadFileParams['DestinationDirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-
-                    if ($UseAria2) {
-                        $downloadFileParams['UseAria2'] = $UseAria2
-                        $downloadFileParams['aria2cexe'] = $Aria2cExePath
-                        $downloadFileParams['NoRPCMode'] = $NoRPCMode
+                    else {
+                        Write-Warning "`nUnexpected response while polling for GitHub token."
                     }
 
-                }
-                else {
-                    $downloadFileParams['URL'] = $manualDownloadurl
-                    $downloadFileParams['DestinationDirectory'] = Get-LongName -ShortName $DownloadPathDirectory
-
-                    if ($UseAria2) {
-                        $downloadFileParams['UseAria2'] = $UseAria2
-                        $downloadFileParams['aria2cexe'] = $Aria2cExePath
-                        $downloadFileParams['NoRPCMode'] = $NoRPCMode
+                    if ($stopwatch.Elapsed.TotalSeconds -ge $timeoutSeconds) {
+                        Write-Error "`nGitHub authentication timed out. The device code expired."
+                        break
                     }
+                } while (-not $obtainedToken)
+                $stopwatch.Stop()
+
+                if (-not $script:GitHubDeviceFlowToken) {
+                    Write-Error 'GitHub authentication via device flow was not completed. Cannot proceed with authenticated requests.'
+                    return
                 }
-                # Splat the parameters onto the function call
-                $DownloadedFile = Get-FileDownload @downloadFileParams
-                Write-logg -Message "Downloaded $DownloadedFile" -level info
             }
-
-            # Handle 'ExtractZip' parameter
-            if ($ExtractZip) {
-                if ($DownloadedFile -is [array]) {
-                    $DownloadedFile = $DownloadedFile[1]
-                }
-                if ($downloadedFile -notlike '*.zip') {
-                    Write-Logg -Message 'The downloaded file is not a zip file, skipping extraction' -Level Warning
-                    return $downloadedFile
-                }
-
-                Expand-Archive -Path $downloadedFile -DestinationPath $DownloadPathDirectory -Force
-                $ExtractedFiles = Join-Path -Path $DownloadPathDirectory -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile))
-                Write-Logg -Message "Extracted $downloadedFile to $ExtractedFiles"
-                return $ExtractedFiles
-
-            }
-            else {
-                Write-Logg -Message "Downloaded $downloadedFile to $DownloadPathDirectory"
-                return $downloadedFile
+            # If -Authenticate was true, and we have a token (either new or from script scope var)
+            if ($script:GitHubDeviceFlowToken) {
+                $authorizationHeaderValue = "Bearer $($script:GitHubDeviceFlowToken)"
             }
         }
+        elseif ($Token) {
+            # If -Authenticate not used, but -Token (PAT) is provided
+            $authorizationHeaderValue = "token $Token"
+        }
+
+        if ($PrivateRepo -and -not $authorizationHeaderValue) {
+            Write-Error "Accessing a private repository ('$OwnerRepository') requires authentication. Please use the -Authenticate switch or provide a -Token with sufficient permissions."
+            return
+        }
+
+        $commonApiHeaders = @{
+            'Accept'               = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent'           = 'PowerShell-GetLatestGitHubRelease-Script'
+        }
+        if ($authorizationHeaderValue) {
+            $commonApiHeaders['Authorization'] = $authorizationHeaderValue
+            Write-Verbose 'Using Authorization header for GitHub API requests.'
+        }
+        else {
+            Write-Verbose 'Making unauthenticated GitHub API requests.'
+        }
+        # --- END AUTHENTICATION ---
+
+        $VersionOnly = $null
+        $DownloadedFile = $null
+        $ReleaseDownloadUrl = $null
+        $targetRelease = $null
+
+        try {
+            # --- FETCH RELEASE METADATA ---
+            $releasesApiUrlBase = "https://api.github.com/repos/$OwnerRepository/releases"
+            $fetchedReleasesData = $null # To store raw API response if needed
+
+            if ($PreRelease) {
+                Write-Verbose "Fetching all releases for '$OwnerRepository' to find pre-releases."
+                $allReleases = Invoke-RestMethod -Uri $releasesApiUrlBase -Headers $commonApiHeaders -Method Get -ErrorAction Stop
+                $targetRelease = $allReleases | Where-Object { $_.prerelease -eq $true } | Sort-Object -Property created_at -Descending | Select-Object -First 1
+            }
+            else {
+                try {
+                    Write-Verbose "Fetching latest stable release for '$OwnerRepository' from '$releasesApiUrlBase/latest'."
+                    $targetRelease = Invoke-RestMethod -Uri "$releasesApiUrlBase/latest" -Headers $commonApiHeaders -Method Get -ErrorAction Stop
+                }
+                catch {
+                    $statusCode = $_.Exception.Response.StatusCode
+                    Write-Logg -Message "Failed to get '/latest' release for '$OwnerRepository' (Status: $statusCode). Fetching all releases to find the latest stable. Error: $($_.Exception.Message)" -Level Warning
+                    $allReleases = Invoke-RestMethod -Uri $releasesApiUrlBase -Headers $commonApiHeaders -Method Get -ErrorAction Stop
+                    $targetRelease = $allReleases | Where-Object { $_.prerelease -eq $false } | Sort-Object -Property created_at -Descending | Select-Object -First 1
+                }
+            }
+
+            if (-not $targetRelease) {
+                $releaseTypeMsg = if ($PreRelease) {
+                    'pre-releases' 
+                }
+                else {
+                    'stable releases' 
+                }
+                Write-Error "No $releaseTypeMsg found for repository '$OwnerRepository'."
+                return
+            }
+
+            $VersionOnly = $targetRelease.tag_name
+            Write-Verbose "Latest release version for '$OwnerRepository' is: $VersionOnly"
+
+            if ($NoDownload) {
+                Write-Verbose "'-NoDownload' specified. Returning version '$VersionOnly'."
+                return $VersionOnly
+            }
+            # --- END FETCH RELEASE METADATA ---
+
+            # --- ASSET SELECTION ---
+            $selectedAsset = $null
+            if (-not $targetRelease.assets -or $targetRelease.assets.Count -eq 0) {
+                Write-Error "No assets found in release '$VersionOnly' (tag: $($targetRelease.tag_name)) for repository '$OwnerRepository'."
+                return
+            }
+
+            if ($AssetName) {
+                $selectedAsset = $targetRelease.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
+                if (-not $selectedAsset) {
+                    $selectedAsset = $targetRelease.assets | Where-Object { $_.name -like "*$AssetName*" } | Select-Object -First 1
+                }
+            }
+            elseif ($targetRelease.assets.Count -eq 1) {
+                $selectedAsset = $targetRelease.assets[0]
+                Write-Logg -Message "No -AssetName specified and only one asset ('$($selectedAsset.name)') found in release '$VersionOnly'. Selecting it automatically." -Level Verbose
+            }
+            elseif ($targetRelease.assets.Count -gt 1) {
+                $availableAssetNamesStr = $targetRelease.assets.name -join "', '"
+                Write-Error "Multiple assets found in release '$VersionOnly' for '$OwnerRepository'. Please specify -AssetName. Available assets: '$availableAssetNamesStr'"
+                return
+            }
+
+            if (-not $selectedAsset) {
+                $assetNameToReportMsg = if ($AssetName) {
+                    "'$AssetName'" 
+                }
+                else {
+                    'any asset (and none could be auto-selected)' 
+                }
+                Write-Error "Asset $assetNameToReportMsg not found in release '$VersionOnly' for '$OwnerRepository'."
+                if ($targetRelease.assets) {
+                    Write-Warning "Available assets in release '$VersionOnly': $($targetRelease.assets.name -join ', ')"
+                }
+                return
+            }
+            
+            $ReleaseDownloadUrl = $selectedAsset.browser_download_url
+            Write-Verbose "Selected asset for download: '$($selectedAsset.name)' from URL: $ReleaseDownloadUrl"
+            # --- END ASSET SELECTION ---
+
+            # --- DOWNLOAD LOGIC ---
+            if (-not (Test-Path $DownloadPathDirectory)) {
+                Write-Verbose "Creating download directory: $DownloadPathDirectory"
+                New-Item -Path $DownloadPathDirectory -ItemType Directory -Force | Out-Null
+            }
+
+            if ($ReleaseDownloadUrl) {
+                if ($UseAria2 -and (-not (Test-Path -Path $Aria2cExePath -ErrorAction SilentlyContinue))) {
+                    Write-Verbose "Aria2 specified but not found at '$Aria2cExePath'. Attempting to download Aria2."
+                    # Recursive call - ensure it doesn't cause infinite loop or auth issues
+                    # Pass -Authenticate:$false to prevent re-prompting if already in device flow for parent call
+                    Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '*-win-64bit-*' -ExtractZip -DownloadPathDirectory $PWD -Authenticate:$false 
+                    $foundAria2 = Get-ChildItem -Path $PWD -Recurse -Filter 'aria2c.exe' | Select-Object -First 1
+                    if ($foundAria2) {
+                        $Aria2cExePath = $foundAria2.FullName
+                        Write-Verbose "Aria2 downloaded to $Aria2cExePath"
+                    }
+                    else {
+                        Write-Warning 'Failed to download Aria2. Proceeding without it.'
+                        $UseAria2 = $false
+                    }
+                }
+
+                $downloadFileParams = @{
+                    URL                  = $ReleaseDownloadUrl
+                    DestinationDirectory = (Get-LongName -ShortName $DownloadPathDirectory)
+                }
+                if ($UseAria2 -and $Aria2cExePath) {
+                    $downloadFileParams['UseAria2'] = $true
+                    $downloadFileParams['aria2cexe'] = $Aria2cExePath
+                    if ($PSBoundParameters.ContainsKey('NoRPCMode')) {
+                        $downloadFileParams['NoRPCMode'] = $NoRPCMode 
+                    }
+                }
+
+                # Get-FileDownload might need a token for private assets.
+                # If device flow was used, $Token (PAT) might be null.
+                # If Get-FileDownload is adapted for Bearer tokens, $script:GitHubDeviceFlowToken could be used.
+                # For now, it relies on the original -Token (PAT) if provided.
+                if ($Token) {
+                    $downloadFileParams['Token'] = $Token
+                }
+                
+                Write-Verbose "Calling Get-FileDownload with parameters: $(($downloadFileParams | Out-String).Trim() | Select-String -NotMatch 'System.Collections.Hashtable')"
+                $DownloadedFile = Get-FileDownload @downloadFileParams
+                Write-Logg -Message "Downloaded file: $DownloadedFile" -Level Info
+            }
+            else {
+                Write-Error "No download URL could be determined for the selected asset '$($selectedAsset.name)'."
+                return
+            }
+            # --- END DOWNLOAD LOGIC ---
+
+            # --- EXTRACT LOGIC ---
+            if ($ExtractZip) {
+                if ($DownloadedFile -is [array]) {
+                    $DownloadedFile = $DownloadedFile | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
+                }
+                if (-not $DownloadedFile -or -not (Test-Path $DownloadedFile)) {
+                    Write-Error "Downloaded file path is invalid or file not found: '$DownloadedFile'. Cannot extract."
+                    return $null
+                }
+                if ($DownloadedFile -notlike '*.zip') {
+                    Write-Logg -Message "Downloaded file '$DownloadedFile' is not a zip file. Skipping extraction." -Level Warning
+                    return $DownloadedFile
+                }
+                Write-Verbose "Extracting '$DownloadedFile' to '$DownloadPathDirectory'"
+                Expand-Archive -Path $DownloadedFile -DestinationPath $DownloadPathDirectory -Force
+                # $ExtractedFilesPath = Join-Path -Path $DownloadPathDirectory -ChildPath ([System.IO.Path]::GetFileNameWithoutExtension($DownloadedFile)) # This might not be accurate if zip extracts to root
+                Write-Logg -Message "Extracted '$DownloadedFile' to '$DownloadPathDirectory'" -Level Info
+                return $DownloadPathDirectory 
+            }
+            else {
+                Write-Logg -Message "Downloaded '$DownloadedFile' to '$DownloadPathDirectory'. No extraction requested." -Level Info
+                return $DownloadedFile
+            }
+            # --- END EXTRACT LOGIC ---
+        }
         catch {
-            Write-Logg -Message "An error occurred: $_" -Level Error
+            Write-Logg -Message "An error occurred in Get-LatestGitHubRelease: $($_.Exception.Message)" -Level Error
+            if ($_.Exception.Response) {
+                Write-Logg -Message "Underlying HTTP Response Status: $($_.Exception.Response.StatusCode)" -Level Error
+                $responseContent = ''
+                try {
+                    $responseContent = $_.Exception.Response.Content | Out-String 
+                }
+                catch {
+                }
+                Write-Logg -Message "Underlying HTTP Response Content: $responseContent" -Level Verbose
+            }
+            elseif ($_.Exception.ErrorRecord) {
+                Write-Logg -Message "PowerShell Error Record: $($_.Exception.ErrorRecord | Out-String)" -Level Verbose
+            }
             throw
         }
     }
