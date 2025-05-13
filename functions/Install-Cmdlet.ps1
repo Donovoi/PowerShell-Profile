@@ -222,7 +222,7 @@ Export-ModuleMember -Function * -Alias *
     end {
         if ($PreferLocal) {
             Get-ChildItem $LocalModuleFolder -Filter '*.ps1' |
-                Select-Object -ExpandProperty FullName
+                Where-Object { $_.Name -like $name } | Select-Object -ExpandProperty FullName
         }
         else {
             $importResult
