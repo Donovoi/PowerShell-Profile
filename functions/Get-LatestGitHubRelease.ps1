@@ -6,14 +6,14 @@
 .DESCRIPTION
     Queries the GitHub REST API (v 2022‑11‑28) for the current release.
     • Falls back from `/releases/latest` to `/releases` when a repo only has
-      *pre‑releases* (the API returns 404 in that case). :contentReference[oaicite:0]{index=0}
+      *pre‑releases* (the API returns 404 in that case). 
     • Supports PAT or OAuth *device‑flow* auth and shows remaining rate‑limit
-      quota from `X‑RateLimit‑Remaining`. :contentReference[oaicite:1]{index=1}
-    • Adds the mandatory `User‑Agent` and `Accept` headers GitHub requires. :contentReference[oaicite:2]{index=2}
+      quota from `X‑RateLimit‑Remaining`. 
+    • Adds the mandatory `User‑Agent` and `Accept` headers GitHub requires. 
     • Downloads via native HTTP or **aria2** and can auto‑extract ZIPs.
     • Download / extract failures are trapped, surfaced with `Write‑Error`,
       **and** returned as a `[System.Management.Automation.ErrorRecord]`
-      for programmatic handling. :contentReference[oaicite:3]{index=3}
+      for programmatic handling. 
 
 .PARAMETER OwnerRepository
     Repository in **owner/name** format (e.g. `PowerShell/PowerShell`).
@@ -27,7 +27,7 @@
 
 .PARAMETER ExtractZip
     Expand a downloaded `.zip` into **DownloadPathDirectory**.  Uses
-    `Expand‑Archive`. :contentReference[oaicite:4]{index=4}
+    `Expand‑Archive`. 
 
 .PARAMETER UseAria2
     Fetch with *aria2c* for multi‑threaded, resumable transfers.
@@ -78,12 +78,12 @@
                             -AssetName 'UniExtractRC*.zip' -PreRelease
 
 .NOTES
-    • Comment‑based help format per *about_Comment_Based_Help*. :contentReference[oaicite:5]{index=5}  
-    • Error handling follows *about_Try_Catch_Finally*. :contentReference[oaicite:6]{index=6}  
-    • Returns `ErrorRecord` objects for inspection. :contentReference[oaicite:7]{index=7}  
-    • Uses dynamic module import via script‑block technique. :contentReference[oaicite:8]{index=8}  
-    • Path creation with `Test‑Path`/`New‑Item`. :contentReference[oaicite:9]{index=9}  
-    • `Write‑Error` vs `throw` guidance from community best practice. :contentReference[oaicite:10]{index=10}
+    • Comment‑based help format per *about_Comment_Based_Help*. 
+    • Error handling follows *about_Try_Catch_Finally*. 
+    • Returns `ErrorRecord` objects for inspection. 
+    • Uses dynamic module import via script‑block technique. 
+    • Path creation with `Test‑Path`/`New‑Item`. 
+    • `Write‑Error` vs `throw` guidance from community best practice. 
 #>
 function Get-LatestGitHubRelease {
 
@@ -145,7 +145,7 @@ function Get-LatestGitHubRelease {
                     } 
                 }
             }
-        } :contentReference[oaicite:11] { index=11 }
+        } 
 
         # --- TLS 1.2 for Windows PowerShell 5 ------------------------------
         if ($PSVersionTable.PSVersion.Major -eq 5) {
@@ -256,7 +256,7 @@ function Get-LatestGitHubRelease {
 
         # --------- download ------------------------------------------------
         if (-not (Test-Path $DownloadPathDirectory)) {
-            New-Item -ItemType Directory -Force -Path $DownloadPathDirectory | Out-Null :contentReference[oaicite:12] { index=12 }
+            New-Item -ItemType Directory -Force -Path $DownloadPathDirectory | Out-Null 
         }
 
         $dlParams = @{
@@ -285,7 +285,7 @@ function Get-LatestGitHubRelease {
         # --------- extract -------------------------------------------------
         if ($ExtractZip -and $downloaded -match '\.zip$') {
             try {
-                Expand-Archive -Path $downloaded -DestinationPath $DownloadPathDirectory -Force -EA Stop :contentReference[oaicite:13] { index=13 }
+                Expand-Archive -Path $downloaded -DestinationPath $DownloadPathDirectory -Force -EA Stop 
                 return $DownloadPathDirectory
             }
             catch {
@@ -307,4 +307,96 @@ function Get-LatestGitHubRelease {
         catch {
         }
     }
+}
+function Import-RequiredCmdlets {
+    [CmdletBinding()] param(
+        [string[]]$Cmdlets
+    )
+    foreach ($cmd in $Cmdlets) {
+        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+            $script = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+            $sb = [ScriptBlock]::Create($script + "`nExport-ModuleMember -Function * -Alias *")
+            New-Module -Name InstallCmdlet -ScriptBlock $sb | Import-Module
+        }
+        Write-Verbose "Importing cmdlet: $cmd"
+        $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
+        if ($result -is [ScriptBlock]) {
+            New-Module -Name "Dynamic_$cmd" -ScriptBlock $result | Import-Module -Force -Global
+        }
+        # if result is empty and $cmd is in memory, do nothing it was successfully imported
+        elseif ([string]::IsNullOrWhiteSpace($result) -and $(Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
+            continue
+        }
+        elseif ($result -is [System.IO.FileInfo]) {
+            Import-Module -Name $result -Force -Global
+        }
+        elseif ($result -is [string]) {
+            Write-Verbose "Importing cmdlet: $cmd"
+            $sb = [ScriptBlock]::Create($result + "`nExport-ModuleMember -Function * -Alias *")
+            New-Module -Name $cmd -ScriptBlock $sb | Import-Module
+        }
+        else {
+            Write-Warning "Unexpected return type for $cmd. Type is $($result.GetType())."
+        }
+    }
+}
+
+# Import dynamic cmdlets
+Import-RequiredCmdlets -Cmdlets @(
+    'Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload',
+    'Get-LongName', 'Write-Logg', 'Get-Properties', 'Write-InformationColored', 'Get-LatestGitHubRelease'
+)
+$returnresult = ''
+$DownloadDirectory = $ENV:TEMP
+# Define temporary download directories
+$temps = [ordered]@{
+    vcredist     = Join-Path $DownloadDirectory 'vcredist'
+    WindowsTerm  = Join-Path $DownloadDirectory 'WindowsTerminal'
+    PowerShellPr = Join-Path $DownloadDirectory 'PowerShell2'
+    Rclone       = Join-Path $DownloadDirectory 'rclone'
+    UniExtract   = Join-Path $DownloadDirectory 'UniExtract'
+}
+# Cleanup and recreate temp folders
+foreach ($dir in $temps.Values) {
+    if (Test-Path $dir) {
+        Remove-Item $dir -Recurse -Force 
+    }
+    New-Item -Path $dir -ItemType Directory -Force | Out-Null
+}
+
+# Download GitHub releases
+$repos = @{
+    'abbodi1406/vcredist'   = 'AIO_x86_x64.exe'
+    'microsoft/terminal'    = '_x64.zip'
+    'PowerShell/PowerShell' = 'win-x64.zip'
+    'rclone/rclone'         = 'windows-amd64.zip'
+    'Bioruebe/UniExtract2'  = 'UniExtractRC3.zip'
+}
+$i = 0
+foreach ($repo in $repos.GetEnumerator()) {
+    $outDir = $temps.Values[$i]
+    $commonParams = @{
+        OwnerRepository       = $repo.Key
+        AssetName             = $repo.Value
+        DownloadPathDirectory = $outDir
+        ExtractZip            = $true
+        Authenticate          = $true
+        UseAria2              = $true
+        NoRPCMode             = $true
+        ErrorAction           = 'Break'
+    }
+
+    if ($repo.Key -eq 'Bioruebe/UniExtract2') {
+        $returnresult = Get-LatestGitHubRelease @commonParams -PreRelease
+    }
+    else {
+        try {
+            $returnresult = Get-LatestGitHubRelease @commonParams
+            Write-Verbose "Params are: $($commonParams | Out-String)"
+        }
+        catch {
+            Write-Logg -Message "Failed to download from $($repo.Key). Error: $returnresult" -Level 'Error'
+        }
+    }
+    $i++
 }
