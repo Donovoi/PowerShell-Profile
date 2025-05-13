@@ -195,6 +195,10 @@ Export-ModuleMember -Function * -Alias *
                     $clean = Get-CleanScriptContent $code
 
                     if ($PreferLocal) {
+                        $localPath = Join-Path $LocalModuleFolder "$name.ps1"
+                        if ($Force -and $(Test-Path $localPath -ErrorAction SilentlyContinue)) {
+                            Remove-Item $localPath -Force -ErrorAction SilentlyContinue
+                        }
                         Save-CmdletToLocalFolder -Code $clean -Name $name -Folder $LocalModuleFolder | Out-Null
                     }
                     else {
