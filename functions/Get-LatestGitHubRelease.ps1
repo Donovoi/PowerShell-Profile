@@ -126,7 +126,7 @@ function Get-LatestGitHubRelease {
             Write-Verbose "Importing cmdlet: $cmd"
             $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
             if (-not $result) {
-                Write-Warning "result for $cmd is empty, assuming it is imported"
+                Write-Verbose "result for $cmd is empty, assuming it is imported"
                 continue 
             }
             switch ($result.GetType().Name) {
@@ -305,38 +305,6 @@ function Get-LatestGitHubRelease {
             }
         }
         catch {
-        }
-    }
-}
-function Import-RequiredCmdlets {
-    [CmdletBinding()] param(
-        [string[]]$Cmdlets
-    )
-    foreach ($cmd in $Cmdlets) {
-        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-            $script = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-            $sb = [ScriptBlock]::Create($script + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name InstallCmdlet -ScriptBlock $sb | Import-Module
-        }
-        Write-Verbose "Importing cmdlet: $cmd"
-        $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
-        if ($result -is [ScriptBlock]) {
-            New-Module -Name "Dynamic_$cmd" -ScriptBlock $result | Import-Module -Force -Global
-        }
-        # if result is empty and $cmd is in memory, do nothing it was successfully imported
-        elseif ([string]::IsNullOrWhiteSpace($result) -and $(Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-            continue
-        }
-        elseif ($result -is [System.IO.FileInfo]) {
-            Import-Module -Name $result -Force -Global
-        }
-        elseif ($result -is [string]) {
-            Write-Verbose "Importing cmdlet: $cmd"
-            $sb = [ScriptBlock]::Create($result + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name $cmd -ScriptBlock $sb | Import-Module
-        }
-        else {
-            Write-Warning "Unexpected return type for $cmd. Type is $($result.GetType())."
         }
     }
 }
