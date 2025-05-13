@@ -113,7 +113,7 @@ function Update-Tools {
 
         # Split the action string into individual command parts
         # Filter out any empty parts that might result from multiple semicolons or trailing ones
-        $commandParts = $actionString -split '[\\r\\n;]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+        $commandParts = $actionString -split "[`r`n;]+" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
         if ($commandParts.Count -gt 0) {
           Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently via background jobs."
