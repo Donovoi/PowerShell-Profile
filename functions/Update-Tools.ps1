@@ -94,36 +94,68 @@ function Update-Tools {
         # Execute the exit action directly in the current context
         # This should correctly stop the Terminal.Gui application
         try {
-            & $this.Action
-        } catch {
-            # Log error if stopping fails, though Exit(0) should terminate anyway
-            Write-Error "Error during exit action: $($_.Exception.Message)"
-            # Force exit if necessary
-            [System.Environment]::Exit(1)
+          & $this.Action
+        }
+        catch {
+          # Log error if stopping fails, though Exit(0) should terminate anyway
+          Write-Error "Error during exit action: $($_.Exception.Message)"
+          # Force exit if necessary
+          [System.Environment]::Exit(1)
         }
       }
       else {
-        # Original logic for other actions: split and run in new elevated processes
-        # Note: Splitting complex scriptblocks by ';' based on string representation can be unreliable.
+        # Logic for other actions: split and run in new elevated processes concurrently using jobs
         $actionString = $this.Action.ToString().Trim()
         # Remove surrounding braces if present
         if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
-            $actionString = $actionString.Substring(1, $actionString.Length - 2).Trim()
+          $actionString = $actionString.Substring(1, $actionString.Length - 2).Trim()
         }
 
-        $actionString -split ';' | ForEach-Object {
-          $commandPart = $_.Trim()
-          if ($commandPart) { # Ensure the part is not empty
-            try {
-                Write-Verbose "Starting process for action part: $commandPart"
-                # Attempt to run elevated
-                Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command `"$commandPart`"" -Verb RunAs -ErrorAction Stop
-            } catch {
-                Write-Warning "Failed to start elevated process for '$commandPart'. Error: $($_.Exception.Message)"
-                # Optional: Fallback or just log the error
-            }
+        # Split the action string into individual command parts
+        # Filter out any empty parts that might result from multiple semicolons or trailing ones
+        $commandParts = $actionString -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+
+        if ($commandParts.Count -gt 0) {
+          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently via background jobs."
+        }
+        else {
+          Write-Verbose "No command parts to execute for action: $($this.Name)"
+          return
+        }
+
+        foreach ($commandPartItem in $commandParts) {
+          # Renamed loop variable to avoid conflict
+          try {
+            Write-Verbose "Starting job for action part: $commandPartItem"
+            # Each command part is launched in a separate background job.
+            # The job's scriptblock will execute Start-Process.
+            Start-Job -ScriptBlock {
+              # This scriptblock runs in a background PowerShell process/runspace.
+              param($CmdToExecuteInternal)
+
+              try {
+                # Start the actual command in a new, elevated PowerShell window.
+                # -NoExit keeps the window open after the command finishes.
+                # -Verb RunAs requests elevation.
+                Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command `"$CmdToExecuteInternal`"" -Verb RunAs -ErrorAction Stop
+                # Verbose/Warning from here goes to job's stream, not console directly.
+              }
+              catch {
+                # Catch errors from Start-Process (e.g., user cancels UAC).
+                # This error will be in the job's error stream.
+                $jobErrorMessage = "Job failed to start elevated process for '$CmdToExecuteInternal'. Error: $($_.Exception.Message)"
+                Write-Error $jobErrorMessage # Puts error into the job's error stream
+              }
+            } -ArgumentList $commandPartItem # Pass the command part to the job's scriptblock
+          }
+          catch {
+            # Catch errors from Start-Job itself (e.g., job system issues).
+            Write-Warning "Failed to start job for action part '$commandPartItem'. Error: $($_.Exception.Message)"
           }
         }
+        # After this loop, all jobs are started and running in the background.
+        # The Invoke method returns, and the main script continues.
+        # These are fire-and-forget jobs from the perspective of this Invoke method.
       }
     }
   }
