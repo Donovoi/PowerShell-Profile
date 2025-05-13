@@ -125,6 +125,10 @@ function Get-LatestGitHubRelease {
         foreach ($cmd in $neededCmdlets) {
             Write-Verbose "Importing cmdlet: $cmd"
             $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
+            if (-not $result) {
+                Write-Warning "result for $cmd is empty, assuming it is imported"
+                continue 
+            }
             switch ($result.GetType().Name) {
                 'ScriptBlock' {
                     New-Module -Name "Dynamic_$cmd" -ScriptBlock $result | Import-Module -Force -Global 
@@ -304,4 +308,3 @@ function Get-LatestGitHubRelease {
         }
     }
 }
-
