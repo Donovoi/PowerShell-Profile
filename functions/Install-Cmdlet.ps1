@@ -110,7 +110,7 @@ Export-ModuleMember -Function * -Alias *
                     -ModuleVersion '1.0.0' `
                     -Author 'Auto-generated' `
                     -Description 'Cached cmdlet collection' `
-                    -PowerShellVersion $ver
+                    -PowerShellVersion $ver.Trim('.')
             }
             return (Get-Item $psm1)
         }
