@@ -128,7 +128,7 @@ function Update-Tools {
     }
   }
   $menuItem0 = [MenuItem]::new('All', {
-      choco upgrade all --ignore-dependencies
+      choco upgrade all --ignore-dependencies -y
       winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
       Update-VisualStudio
       Update-VSCode
