@@ -35,7 +35,7 @@ function Unprotect-Excel {
         $cmdlets = @('Test-MAMEncryption', 'Get-Entropy', 'Write-Logg', 'Install-Dependencies')
 
         Write-Verbose -Message "Importing cmdlets: $cmdlets"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmdlets
         $Cmdletstoinvoke | Import-Module -Force
 
         # Define paths for temporary and backup files

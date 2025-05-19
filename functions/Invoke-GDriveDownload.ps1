@@ -82,7 +82,7 @@ function Invoke-GDriveDownload {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal
+                $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }

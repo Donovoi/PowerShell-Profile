@@ -26,7 +26,7 @@ function Get-WSASetup {
     $cmdlets = @('Write-Logg', 'Install-Dependencies')
 
     Write-Verbose -Message "Importing cmdlets: $cmdlets"
-    $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+    $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmdlets
     $Cmdletstoinvoke | Import-Module -Force
 
     Write-Logg -Message 'Starting the WSA setup' -Level Info

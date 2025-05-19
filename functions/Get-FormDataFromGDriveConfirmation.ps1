@@ -25,7 +25,7 @@ function Get-FormDataFromGDriveConfirmation {
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
             Write-Verbose "Importing cmdlet: $cmd"
-            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmd
+            $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmd
             $Cmdletstoinvoke | Import-Module -Force
         }
     }

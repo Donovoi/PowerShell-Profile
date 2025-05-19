@@ -42,7 +42,7 @@ function Update-VSCode {
             }
         }
         Write-Verbose -Message "Importing cmdlets: $cmdlets"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmdlets
         $Cmdletstoinvoke | Import-Module -Force
 
         # Print the name of the running script

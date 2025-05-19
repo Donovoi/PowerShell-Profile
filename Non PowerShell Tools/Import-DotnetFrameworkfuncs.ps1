@@ -9,7 +9,7 @@ Invoke-Command -Session $sessionName -ScriptBlock {
     $cmdlets = @('Install-Dependencies')
     if (-not (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue)) {
         Write-Verbose -Message "Importing cmdlets: $cmdlets"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmdlets
         $Cmdletstoinvoke | Import-Module -Force
         if (-not(Get-Module -Name 'PSReflect-Functions' -ErrorAction SilentlyContinue)) {
             Install-Dependencies -PSModule PSReflect-Functions -ErrorAction SilentlyContinue -NoNugetPackages

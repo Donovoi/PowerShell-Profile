@@ -42,7 +42,7 @@ function Get-GitPull {
                 else {
                     Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
                 }
-                $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+                $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
                 $Cmdletstoinvoke | Import-Module -Force
             }
         }
