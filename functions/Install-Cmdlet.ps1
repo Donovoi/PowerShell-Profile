@@ -155,11 +155,18 @@ Export-ModuleMember -Function * -Alias *
                     $localPath = Join-Path $LocalModuleFolder "$name.ps1"
                     $exists = Test-Path $localPath
 
-                    if (!$exists -or $Force) {
+                    if (!$exists) {
+                    
                         $needsDownload.Add($name)
                     }
-                    elseif ($PreferLocal) {
-                        Import-Module $localPath -Force
+                    elseif ($PreferLocal -and $Force) {
+                        if (Test-Path $localPath -ErrorAction SilentlyContinue) {
+                            Remove-Item $localPath -Force -ErrorAction SilentlyContinue
+                            $needsDownload.Add($name)
+                        }
+                        else {
+                            Import-Module $localPath -Force -Global -PassThru | Out-Null
+                        }
                     }
                 }
 
