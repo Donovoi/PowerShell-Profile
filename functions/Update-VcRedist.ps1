@@ -19,7 +19,7 @@ function Update-VcRedist {
         New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
       }
       Write-Verbose -Message "Importing cmdlet: $_"
-      $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
+      $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
       $Cmdletstoinvoke | Import-Module -Force
     }
   }

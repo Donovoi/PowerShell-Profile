@@ -55,7 +55,7 @@ function Show-TUIConfirmationDialog {
             New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
         }
         Write-Verbose -Message "Importing missing cmdlets: $missingCmdlets"
-        $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $missingCmdlets
+        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $missingCmdlets
         $Cmdletstoinvoke | Import-Module -Force
     }
 

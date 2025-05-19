@@ -89,7 +89,7 @@ function Write-Logg {
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
             Write-Verbose -Message "Importing cmdlets: $cmdlets"
-            $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $cmdlets
+            $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $cmdlets
             $Cmdletstoinvoke | Import-Module -Force
 
             if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {

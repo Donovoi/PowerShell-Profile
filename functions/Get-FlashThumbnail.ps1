@@ -9,7 +9,7 @@ function Get-FlashThumbnail {
         [string]$htmlFile
     )
     $cmdlets = @('Write-Logg', 'Install-Dependencies')
-    $module = Install-Cmdlet -Donovoicmdlets $cmdlets
+    $module = Install-Cmdlet -RepositoryCmdlets $cmdlets
     $nugetpackages = @('Selenium.WebDriver', 'Newtonsoft.Json', 'Selenium.Support', 'Castle.Core')
     #Install-Dependencies -PSModule pansies -NugetPackage $nugetpackages
     Write-logg -Message "Installed cmdlets: $($module.ExportedCommands.Keys -join ', ')" -Level 'Info'

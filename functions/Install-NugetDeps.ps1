@@ -21,7 +21,7 @@ function Install-NugetDeps {
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
                 Write-Verbose "Importing cmdlet: $cmd"
-                $scriptBlock = Install-Cmdlet -donovoicmdlets $cmd -PreferLocal -Force
+                $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
 
                 # Check if the returned value is a ScriptBlock and import it properly
                 if ($scriptBlock -is [scriptblock]) {
