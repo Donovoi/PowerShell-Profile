@@ -1,14 +1,14 @@
 <#
 .SYNOPSIS
     Download/import one or more PowerShell cmdlets – from a URL or a
-    local cache – with preview‑safe manifest handling.
+    local cache – with preview-safe manifest handling.
 
 .DESCRIPTION
     • URL mode:  fetch each .ps1 file, optionally cache on disk, then
-      create an *in‑memory* module that you can unload at will.
+      create an *in-memory* module that you can unload at will.
     • Repository mode: same idea but you pass bare cmdlet names and the
       function builds GitHub raw URLs for you.
-    • Prefer‑local: always check (or save to) the cache folder first.
+    • Prefer-local: always check (or save to) the cache folder first.
 #>
 function Install-Cmdlet {
     [CmdletBinding(SupportsShouldProcess = $true,
@@ -17,7 +17,7 @@ function Install-Cmdlet {
     [OutputType([System.Management.Automation.PSModuleInfo],  # when -PreferLocal:$false
         [System.IO.FileInfo])]                         # when -PreferLocal:$true
     param(
-        # ------- PARAMETER‑SET: Url ----------------------------------------
+        # ------- PARAMETER-SET: Url ----------------------------------------
         [Parameter(Mandatory, ParameterSetName = 'Url', Position = 0)]
         [Alias('Url', 'Uri')]
         [string[]]$Urls,
@@ -25,7 +25,7 @@ function Install-Cmdlet {
         [Parameter(ParameterSetName = 'Url', Position = 2)]
         [string]$ModuleName = 'InMemoryModule',
 
-        # ------- PARAMETER‑SET: Repository ---------------------------------
+        # ------- PARAMETER-SET: Repository ---------------------------------
         [Parameter(Mandatory,
             ParameterSetName = 'Repository',
             ValueFromPipeline = $true,
@@ -45,7 +45,7 @@ function Install-Cmdlet {
     )
 
     # ------------------------------------------------------------------ #
-    #  BEGIN – helper functions & one‑time setup                         #
+    #  BEGIN – helper functions & one-time setup                         #
     # ------------------------------------------------------------------ #
     begin {
         # -- Helper: validate URL format + enforce https (optional) ------
@@ -56,15 +56,15 @@ function Install-Cmdlet {
             )
             $pattern = '^(https?):\/\/[-\w+&@#/%?=~_|!:,.;]+[-\w+&@#/%=~_|]$'
             if ($Url -notmatch $pattern) {
-                return $false 
+                return $false
             }
             if ($RequireHttps -and -not $Url.StartsWith('https://')) {
-                return $false 
+                return $false
             }
             return $true
         }
 
-        # -- Helper: strip BOM / zero‑width chars; quick AST check -------
+        # -- Helper: strip BOM / zero-width chars; quick AST check -------
         function Get-CleanScriptContent {
             param([string]$Content)
 
@@ -77,12 +77,12 @@ function Install-Cmdlet {
                     $clean, [ref]$null, [ref]$null) | Out-Null
             }
             catch {
-                Write-Verbose 'Code parsed with non‑fatal errors.'
+                Write-Verbose 'Code parsed with non-fatal errors.'
             }
             return $clean
         }
 
-        # -- Helper: create cache folder & preview‑safe manifest ---------
+        # -- Helper: create cache folder & preview-safe manifest ---------
         function Initialize-LocalModuleEnvironment {
             param([string]$Folder)
 
@@ -115,7 +115,7 @@ Export-ModuleMember -Function * -Alias *
             return (Get-Item $psm1)
         }
 
-        # -- Helper: save script to cache, UTF‑8 no BOM ------------------
+        # -- Helper: save script to cache, UTF-8 no BOM ------------------
         function Save-CmdletToLocalFolder {
             param(
                 [string]$Code,
@@ -124,16 +124,16 @@ Export-ModuleMember -Function * -Alias *
             )
             $path = Join-Path $Folder "$Name.ps1"
             $clean = Get-CleanScriptContent $Code
-            [IO.File]::WriteAllText($path, $clean)   # UTF‑8 w/o BOM
+            [IO.File]::WriteAllText($path, $clean)   # UTF-8 w/o BOM
             return $path
         }
 
-        # One‑time init objects
+        # One-time init objects
         $needsDownload = [System.Collections.Generic.List[string]]::new()
         $sbInMemory = [System.Text.StringBuilder]::new()
         $importResult = $null
 
-        # Pre‑create cache folder if needed
+        # Pre-create cache folder if needed
         if ($PreferLocal -or $PSCmdlet.ParameterSetName -eq 'Repository') {
             $psm1File = Initialize-LocalModuleEnvironment $LocalModuleFolder
         }
@@ -208,13 +208,13 @@ Export-ModuleMember -Function * -Alias *
             } # end Url
         }
 
-        # Build a dynamic module if we have memory‑only code
+        # Build a dynamic module if we have memory-only code
         if (($sbInMemory.Length -gt 0) -and (-not $PreferLocal)) {
             $modSB = [scriptblock]::Create($sbInMemory.ToString())
             $importResult = New-Module -Name $ModuleName -ScriptBlock $modSB |
                 Import-Module -Force -Global -PassThru
         }
-        # Or re‑import cache loader if we just wrote new scripts
+        # Or re-import cache loader if we just wrote new scripts
         elseif ($PreferLocal -and $needsDownload.Count -gt 0) {
             $importResult = Import-Module $psm1File.FullName -Force -Global -PassThru
         }
