@@ -5,18 +5,36 @@ function Get-KapeAndTools {
   param(
 
   )
-  # Import the required cmdlets
-  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties', 'Get-LatestGitHubRelease')
-  $neededcmdlets | ForEach-Object {
-    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-      if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+  # --- dynamically import helper cmdlets ----------------------------
+  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-LatestGitHubRelease')
+  if (-not (Get-Command Install-Cmdlet -EA SilentlyContinue)) {
+    $script = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+    $sb = [ScriptBlock]::Create($script + "`nExport-ModuleMember -Function * -Alias *")
+    New-Module -Name InstallCmdlet -ScriptBlock $sb | Import-Module
+  }
+
+  foreach ($cmd in $neededCmdlets) {
+    Write-Verbose "Importing cmdlet: $cmd"
+    $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
+    if (-not $result) {
+      Write-Verbose "result for $cmd is empty, assuming it is imported"
+      continue
+    }
+    switch ($result.GetType().Name) {
+      'ScriptBlock' {
+        New-Module -Name "Dynamic_$cmd" -ScriptBlock $result | Import-Module -Force -Global
       }
-      Write-Verbose -Message "Importing cmdlet: $_"
-      $Cmdletstoinvoke = Install-Cmdlet -donovoicmdlets $_
-      $Cmdletstoinvoke | Import-Module -Force
+      'FileInfo' {
+        Import-Module -Name $result -Force -Global
+      }
+      'String' {
+        $sb = [ScriptBlock]::Create($result + "`nExport-ModuleMember -Function * -Alias *"); New-Module -Name $cmd -ScriptBlock $sb | Import-Module
+      }
+      default {
+        if (-not [string]::IsNullOrWhiteSpace($result)) {
+          Write-Warning "Unexpected return type for $cmd`: $($result.GetType())"
+        }
+      }
     }
   }
   Write-Logg -Message "Script is running as $($MyInvocation.MyCommand.Name)" -level info
@@ -28,7 +46,8 @@ function Get-KapeAndTools {
 
   if (-not (Resolve-Path -Path $XWAYSUSB\Triage -ErrorAction SilentlyContinue)) {
     $XWAYSUSBtriagefolder = Resolve-Path -Path $XWAYSUSB\*\Triage
-  } else {
+  }
+  else {
     $XWAYSUSBtriagefolder = Join-Path -Path $XWAYSUSB -ChildPath Triage
   }
 
@@ -52,7 +71,7 @@ function Get-KapeAndTools {
   }
 
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
-  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater[1])", '-silent' -Wait -NoNewWindow
+  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
 
   # After all is done copy the KAPE folder to my fast usb
   $fastusb = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 't9'").DriveLetter
