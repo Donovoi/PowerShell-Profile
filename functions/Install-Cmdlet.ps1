@@ -156,7 +156,7 @@ Export-ModuleMember -Function * -Alias *
                     $exists = Test-Path $localPath
 
                     if (!$exists) {
-                    
+
                         $needsDownload.Add($name)
                     }
                     elseif ($PreferLocal -and $Force) {

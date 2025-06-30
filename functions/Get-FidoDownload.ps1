@@ -54,31 +54,46 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
     [string]$Arch = 'x64',
     [switch]$GetUrl,
     [string]$LOCALE = 'en-US',
-    [string]$Language = 'English (United States)'
+    [string]$Language = 'English (United States)',
+    [switch]$GUI = $false
   )
   try {
     $FidoURL = 'https://raw.githubusercontent.com/pbatard/Fido/master/Fido.ps1'
-    $FidoResponse = Invoke-WebRequest -Uri $FidoURL -UseBasicParsing -Verbose
-    # convert script content to ascii
-    $FidoResponse.Content | Out-File -FilePath 'Fido.ps1' -Encoding utf8 -Force
-    # Fix weird encoding issue
-    Get-Content -Path 'Fido.ps1' -Raw | Out-File -FilePath 'Fidodecoded.ps1' -Encoding Ascii -Force
-    # execute the script
-    $file = 'Fidodecoded.ps1'
-    $Arguments = @{
-      Win      = $WindowsVersion
-      Rel      = $Rel
-      Ed       = $Ed
-      Arch     = $Arch
-      GetUrl   = $GetUrl.IsPresent
-      Locale   = $LOCALE
-      Language = $Language
+    $FidoResponse = Invoke-RestMethod -Uri $FidoURL
+    # save the script to a file
+    $fidofile = 'Fido.ps1'
+    $FidoResponse | Out-File -FilePath $fidofile -Encoding utf8BOM -Force
+
+    # convert to ascii encoding to fix encoding issues
+    $fidofileContent = Get-Content -Path $fidofile -Encoding utf8BOM
+    $fidofileContent | Set-Content -Path $fidofile -Encoding ascii -Force
+    #  remove the BOM from the file it is the first character in the file
+    $fidofileContent = Get-Content -Path $fidofile -Encoding ascii
+    $fidofileContent = $fidofileContent[1..$fidofileContent.Length]
+    $fidofileContent | Set-Content -Path $fidofile -Encoding ascii -Force
+
+
+    # if gui then remove all args and just run the script
+    if ($GUI) {
+      $Arguments = ''
+    }
+    else {
+      # execute the script
+      $Arguments = @{
+        Win      = $WindowsVersion
+        Rel      = $Rel
+        Ed       = $Ed
+        Arch     = $Arch
+        GetUrl   = $GetUrl.IsPresent
+        Locale   = $LOCALE
+        Language = $Language
+      }
     }
     # Convert the hashtable to a list of arguments
     $ArgumentList = $Arguments.GetEnumerator() | ForEach-Object { "-$($_.Key)", $_.Value }
 
     # Add the necessary arguments for powershell.exe
-    $ArgumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $file) + $ArgumentList
+    $ArgumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $fidofile) + $ArgumentList
 
     # Start the process and capture the output
     $ProcessStartInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -96,5 +111,11 @@ System.String. Get-FidoDownload returns the download URL as a string if the -Get
   }
   catch {
     Write-Error "Failed to download or execute the Fido script: $($_.Exception.Message)"
+  }
+  finally {
+    # Clean up the temporary file
+    if (Test-Path -Path $fidofile) {
+      Remove-Item -Path $fidofile -Force -ErrorAction SilentlyContinue
+    }
   }
 }
