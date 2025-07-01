@@ -76,7 +76,7 @@ function Install-PackageProviders {
             Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
             Install-PackageProvider -Name 'NuGet' -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
             Import-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue | Out-Null
-            Register-PackageSource -Name 'NuGet' -Location 'https://www.nuget.org/api/v2' `
+            Register-PackageSource -Name 'NuGet' -Location 'https://api.nuget.org/v3/index.json' `
                 -ProviderName 'NuGet' -Trusted -Force -Confirm:$false `
                 -ErrorAction SilentlyContinue | Out-Null
         }
