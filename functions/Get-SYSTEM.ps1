@@ -7,7 +7,7 @@ function Get-SYSTEM {
 
     [Parameter(Position = 1)]
     [ValidateNotNullOrEmpty()]
-    [string]$PowerShellPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    [string]$PowerShellPath = (Get-Command pwsh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source) ?? "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
   )
 
   <#
@@ -37,6 +37,19 @@ function Get-SYSTEM {
   #>
 
   begin {
+    # Detect PowerShell version and prefer pwsh if available
+    $preferPwsh = $PSVersionTable.PSVersion.Major -ge 6 -or (Get-Command pwsh -ErrorAction SilentlyContinue)
+
+    if ($preferPwsh) {
+      $pwshPath = Get-Command pwsh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+      if ($pwshPath) {
+        $PowerShellPath = $pwshPath
+        Write-Verbose "Using PowerShell 7+ (pwsh): $PowerShellPath"
+      }
+    } else {
+      Write-Verbose "Using Windows PowerShell 5.1: $PowerShellPath"
+    }
+
     # Check if running as administrator
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
