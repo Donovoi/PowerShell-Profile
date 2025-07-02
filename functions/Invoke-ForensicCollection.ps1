@@ -35,33 +35,76 @@ function Invoke-AllForensicCollection {
         [string[]]$ArtifactFilter = @()
     )
 
+    $requiredFunctions = @(
+        'Install-Dependencies'     # For installing dependencies
+        'Get-LatestGitHubRelease'  # For downloading aria2c if needed
+        'Invoke-AriaDownload'
+        'Get-FileDetailsFromResponse'
+        'Get-OutputFilename'
+        'Test-InPath'
+        'Invoke-AriaRPCDownload'
+        'Get-SYSTEM'
+        'Invoke-RawCopy'
+        'Copy-FileSystemUtilities'  # For copying files
+        'Copy-ForensicArtifact'     # For copying artifacts
+    )
+
+    foreach ($cmd in $requiredFunctions) {
+        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+            $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+            New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        }
+        Write-Verbose "Importing cmdlet: $cmd"
+        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -Force
+
+        # Check if the returned value is a ScriptBlock and import it properly
+        if ($scriptBlock -is [scriptblock]) {
+            $moduleName = "Dynamic_$cmd"
+            New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+            Write-Verbose "Imported $cmd as dynamic module: $moduleName"
+        }
+        elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+            # If a module info was returned, it's already imported
+            Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+        }
+        elseif ([System.IO.FileInfo]$scriptBlock -is [System.IO.FileInfo]) {
+            # If a file path was returned, import it
+            Import-Module -Name $scriptBlock -Force -Global
+            Write-Verbose "Imported $cmd from file: $scriptBlock"
+        }
+        else {
+            Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+        }
+    }
+
     $overallResult = [PSCustomObject]@{
-        CollectionType = "All Artifacts"
-        TotalArtifacts = 0
-        ProcessedArtifacts = 0
+        CollectionType      = 'All Artifacts'
+        TotalArtifacts      = 0
+        ProcessedArtifacts  = 0
         SuccessfulArtifacts = 0
         TotalFilesCollected = 0
-        CollectionPath = $CollectionPath
-        StartTime = Get-Date
-        EndTime = $null
-        Duration = $null
-        ArtifactResults = @()
-        Errors = @()
+        CollectionPath      = $CollectionPath
+        StartTime           = Get-Date
+        EndTime             = $null
+        Duration            = $null
+        ArtifactResults     = @()
+        Errors              = @()
     }
 
     try {
         # Initialize dependencies (powershell-yaml)
         try {
             Import-Module powershell-yaml -ErrorAction Stop
-            Write-Verbose "powershell-yaml module loaded successfully"
+            Write-Verbose 'powershell-yaml module loaded successfully'
         }
         catch {
-            Write-Warning "powershell-yaml module not found. Attempting to install..."
+            Write-Warning 'powershell-yaml module not found. Attempting to install...'
             try {
                 if (Get-Command Install-Module -ErrorAction SilentlyContinue) {
                     Install-Module -Name powershell-yaml -Force -Scope CurrentUser -ErrorAction Stop
                     Import-Module powershell-yaml -ErrorAction Stop
-                    Write-Verbose "powershell-yaml module installed and loaded"
+                    Write-Verbose 'powershell-yaml module installed and loaded'
                 }
                 else {
                     throw 'Install-Module not available. Please install powershell-yaml module manually.'
@@ -80,7 +123,7 @@ function Invoke-AllForensicCollection {
         }
 
         # Download and process artifacts
-        Write-Verbose "Downloading forensic artifacts definitions..."
+        Write-Verbose 'Downloading forensic artifacts definitions...'
         $artifactsSourceUrl = 'https://raw.githubusercontent.com/ForensicArtifacts/artifacts/main/artifacts/data/windows.yaml'
         
         $yamlContent = Invoke-RestMethod -Uri $artifactsSourceUrl -ErrorAction Stop
@@ -202,7 +245,7 @@ function Invoke-AllForensicCollection {
         $overallResult.EndTime = Get-Date
         $overallResult.Duration = $overallResult.EndTime - $overallResult.StartTime
 
-        Write-Information "Collection Summary:" -InformationAction Continue
+        Write-Information 'Collection Summary:' -InformationAction Continue
         Write-Information "  Total Artifacts: $($overallResult.TotalArtifacts)" -InformationAction Continue
         Write-Information "  Processed Artifacts: $($overallResult.ProcessedArtifacts)" -InformationAction Continue
         Write-Information "  Successful Artifacts: $($overallResult.SuccessfulArtifacts)" -InformationAction Continue
@@ -278,15 +321,15 @@ function Invoke-ForensicCollection {
 
     # If no specific artifact provided, retrieve and collect all artifacts
     if (-not $Artifact) {
-        Write-Verbose "No specific artifact provided - retrieving all available artifacts"
+        Write-Verbose 'No specific artifact provided - retrieving all available artifacts'
         return Invoke-AllForensicCollection -CollectionPath $CollectionPath -ToolsPath $ToolsPath -SkipToolDownload:$SkipToolDownload -ArtifactFilter $ArtifactFilter
     }
 
     $collectionResult = [PSCustomObject]@{
-        ArtifactName = $Artifact.Name
-        Success = $false
+        ArtifactName   = $Artifact.Name
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
         CollectionPath = $null
     }
 
@@ -373,7 +416,7 @@ function Initialize-ForensicTool {
 
     # Use script-level caching to avoid repeated downloads
     if ($script:CachedForensicTools) {
-        Write-Verbose "Using cached forensic tools"
+        Write-Verbose 'Using cached forensic tools'
         return $script:CachedForensicTools
     }
 
@@ -389,12 +432,12 @@ function Initialize-ForensicTool {
         # Check for Invoke-RawCopy function (preferred method)
         if (Get-Command Invoke-RawCopy -ErrorAction SilentlyContinue) {
             $forensicTools += [PSCustomObject]@{
-                Name = 'Invoke-RawCopy'
-                Path = 'Invoke-RawCopy'
-                Type = 'Function'
+                Name     = 'Invoke-RawCopy'
+                Path     = 'Invoke-RawCopy'
+                Type     = 'Function'
                 Priority = 1
             }
-            Write-Verbose "Found Invoke-RawCopy function (preferred forensic copy method)"
+            Write-Verbose 'Found Invoke-RawCopy function (preferred forensic copy method)'
         }
         else {
             # Try to load Invoke-RawCopy from the functions directory
@@ -403,12 +446,12 @@ function Initialize-ForensicTool {
                 try {
                     . $rawCopyScript
                     $forensicTools += [PSCustomObject]@{
-                        Name = 'Invoke-RawCopy'
-                        Path = 'Invoke-RawCopy'
-                        Type = 'Function'
+                        Name     = 'Invoke-RawCopy'
+                        Path     = 'Invoke-RawCopy'
+                        Type     = 'Function'
                         Priority = 1
                     }
-                    Write-Verbose "Loaded and registered Invoke-RawCopy function"
+                    Write-Verbose 'Loaded and registered Invoke-RawCopy function'
                 }
                 catch {
                     Write-Verbose "Failed to load Invoke-RawCopy: $($_.Exception.Message)"
@@ -467,7 +510,7 @@ function Install-RawCopyTool {
 
     # Use script-level variable to track download attempts
     if ($script:RawCopyDownloadAttempted) {
-        Write-Verbose "RawCopy download already attempted"
+        Write-Verbose 'RawCopy download already attempted'
         return $false
     }
 
@@ -475,7 +518,7 @@ function Install-RawCopyTool {
     $rawCopyPath = Join-Path $ToolsPath 'rawcopy.exe'
 
     try {
-        Write-Verbose "Downloading RawCopy from GitHub..."
+        Write-Verbose 'Downloading RawCopy from GitHub...'
         $downloadUrl = 'https://github.com/jschicht/RawCopy/releases/latest/download/RawCopy.exe'
         
         Invoke-WebRequest -Uri $downloadUrl -OutFile $rawCopyPath -TimeoutSec 30 -ErrorAction Stop
@@ -485,13 +528,13 @@ function Install-RawCopyTool {
             return $true
         }
         else {
-            Write-Warning "RawCopy download completed but file not found"
+            Write-Warning 'RawCopy download completed but file not found'
             return $false
         }
     }
     catch {
         Write-Verbose "Failed to download RawCopy: $($_.Exception.Message)"
-        Write-Verbose "You can manually download RawCopy from: https://github.com/jschicht/RawCopy"
+        Write-Verbose 'You can manually download RawCopy from: https://github.com/jschicht/RawCopy'
         return $false
     }
 }
@@ -533,9 +576,9 @@ function Copy-ForensicArtifact {
     )
 
     $copyResult = [PSCustomObject]@{
-        Success = $false
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
     }
 
     try {
@@ -545,7 +588,12 @@ function Copy-ForensicArtifact {
         if ($SourcePath -match '^HK(EY_)?(LOCAL_MACHINE|CURRENT_USER|CLASSES_ROOT|USERS|CURRENT_CONFIG|LM|CU|CR|U|CC)\\') {
             $registryResult = Copy-RegistryArtifact -RegistryPath $SourcePath -DestinationPath $DestinationPath
             $copyResult.Success = $registryResult.Success
-            $copyResult.FilesCollected = if ($registryResult.Success) { 1 } else { 0 }
+            $copyResult.FilesCollected = if ($registryResult.Success) {
+                1 
+            }
+            else {
+                0 
+            }
             if (-not $registryResult.Success) {
                 $copyResult.Errors += $registryResult.Error
             }
@@ -567,4 +615,4 @@ function Copy-ForensicArtifact {
     }
 }
 # Example usage - collect all forensic artifacts
-# Invoke-ForensicCollection -CollectionPath "C:\ForensicCollection" -Verbose
+# Invoke-ForensicCollection -CollectionPath 'C:\ForensicCollection' -Verbose

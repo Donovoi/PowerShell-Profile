@@ -223,7 +223,14 @@ function Invoke-RawCopy {
         $sw = [Diagnostics.Stopwatch]::StartNew()
         
         # Get the actual file size to avoid setting length too large
-        $actualFileSize = (Get-Item $Path).Length
+        try {
+            $actualFileSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
+        }
+        catch {
+            Write-Verbose "Could not get file size for '$Path': $($_.Exception.Message)"
+            # Use a reasonable default or calculate from extents
+            $actualFileSize = $extents | ForEach-Object { [UInt64]$_.ClusterCount * [UInt64]$clusterSize } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+        }
         
         foreach ($e in $extents) {
             # skip sparse run or nonsense extents beyond disk size
