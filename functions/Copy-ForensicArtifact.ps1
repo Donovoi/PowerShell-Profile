@@ -195,7 +195,7 @@ function Copy-FileSystemArtifact {
         }
 
         # Handle direct file/directory copy
-        if (Test-Path $SourcePath -ErrorAction SilentlyContinue) {
+        if (Test-Path -LiteralPath $SourcePath -ErrorAction SilentlyContinue) {
             $directResult = Copy-DirectPath -SourcePath $SourcePath -DestinationPath $DestinationPath -ForensicTools $ForensicTools
             return $directResult
         }

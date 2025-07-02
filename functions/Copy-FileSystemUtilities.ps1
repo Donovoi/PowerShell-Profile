@@ -144,7 +144,7 @@ function Copy-DirectPath {
     }
 
     try {
-        $item = Get-Item $SourcePath -Force -ErrorAction Stop
+        $item = Get-Item -LiteralPath $SourcePath -Force -ErrorAction Stop
         $destPath = Join-Path $DestinationPath $item.Name
 
         if ($item.PSIsContainer) {
@@ -221,7 +221,8 @@ function Copy-StandardFile {
             New-Item -Path $destDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
-        Copy-Item -Path $SourceFile -Destination $DestinationFile -Force -ErrorAction Stop
+        # Use -LiteralPath to handle special characters in filenames
+        Copy-Item -LiteralPath $SourceFile -Destination $DestinationFile -Force -ErrorAction Stop
         return $true
     }
     catch {
@@ -301,32 +302,66 @@ function Copy-LockedFile {
             Write-Verbose "Attempting forensic copy with $($tool.Name): $SourceFile"
             
             $success = switch ($tool.Name) {
-                'RawyCopy' {
-                    # Use our custom RawyCopy function
+                'Invoke-RawCopy' {
+                    # Use our advanced Invoke-RawCopy function with VSS support
                     try {
-                        Invoke-RawyCopy -SourcePath $SourceFile -DestinationPath $DestinationFile -ErrorAction Stop
-                        $true
+                        $invokeRawCopyParams = @{
+                            Path = $SourceFile
+                            Destination = $DestinationFile
+                            Overwrite = $true
+                        }
+                        # Use call operator to invoke the function
+                        & $tool.Path @invokeRawCopyParams
+                        Test-Path -LiteralPath $DestinationFile
                     }
                     catch {
-                        Write-Verbose "RawyCopy failed: $($_.Exception.Message)"
+                        Write-Verbose "Invoke-RawCopy failed: $($_.Exception.Message)"
                         $false
                     }
                 }
                 
                 'RawCopy' {
-                    # Use RawCopy executable
-                    $rawCopyArgs = @("/FileNamePath:$SourceFile", "/OutputPath:$DestinationFile")
-                    $process = Start-Process -FilePath $tool.Path -ArgumentList $rawCopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-                    $process.ExitCode -eq 0 -and (Test-Path $DestinationFile)
+                    # Use RawCopy executable (legacy fallback)
+                    try {
+                        $rawCopyArgs = @("/FileNamePath:`"$SourceFile`"", "/OutputPath:`"$DestinationFile`"")
+                        $process = Start-Process -FilePath $tool.Path -ArgumentList $rawCopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+                        $process.ExitCode -eq 0 -and (Test-Path -LiteralPath $DestinationFile)
+                    }
+                    catch {
+                        Write-Verbose "RawCopy executable failed: $($_.Exception.Message)"
+                        $false
+                    }
                 }
                 
                 'Robocopy' {
                     # Use Robocopy for locked files
-                    $sourceDir = Split-Path $SourceFile -Parent
-                    $sourceFile = Split-Path $SourceFile -Leaf
-                    $robocopyArgs = @("`"$sourceDir`"", "`"$destDir`"", "`"$sourceFile`"", '/B', '/NP', '/R:0', '/W:0')
-                    $process = Start-Process -FilePath $tool.Path -ArgumentList $robocopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-                    ($process.ExitCode -le 7) -and (Test-Path $DestinationFile)
+                    try {
+                        $sourceDir = Split-Path $SourceFile -Parent
+                        $sourceFileName = Split-Path $SourceFile -Leaf
+                        $destDir = Split-Path $DestinationFile -Parent
+                        
+                        # Escape special characters for Robocopy
+                        $robocopyArgs = @("`"$sourceDir`"", "`"$destDir`"", "`"$sourceFileName`"", '/B', '/NP', '/R:0', '/W:0')
+                        $process = Start-Process -FilePath $tool.Path -ArgumentList $robocopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+                        ($process.ExitCode -le 7) -and (Test-Path -LiteralPath $DestinationFile)
+                    }
+                    catch {
+                        Write-Verbose "Robocopy failed: $($_.Exception.Message)"
+                        $false
+                    }
+                }
+                
+                'XCopy' {
+                    # Use XCopy for basic file copying
+                    try {
+                        $xcopyArgs = @("`"$SourceFile`"", "`"$DestinationFile`"", '/H', '/Y')
+                        $process = Start-Process -FilePath $tool.Path -ArgumentList $xcopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+                        $process.ExitCode -eq 0 -and (Test-Path -LiteralPath $DestinationFile)
+                    }
+                    catch {
+                        Write-Verbose "XCopy failed: $($_.Exception.Message)"
+                        $false
+                    }
                 }
                 
                 default {
