@@ -40,7 +40,7 @@ function Copy-RegistryArtifact {
 
     $result = [PSCustomObject]@{
         Success = $false
-        Error = $null
+        Error   = $null
     }
 
     try {
@@ -56,7 +56,8 @@ function Copy-RegistryArtifact {
         # Generate export filename
         if ($OutputFileName) {
             $exportFile = Join-Path $DestinationPath $OutputFileName
-        } else {
+        }
+        else {
             $sanitizedName = $RegistryPath -replace '[\\/:*?"<>|]', '_'
             $exportFile = Join-Path $DestinationPath "registry_$sanitizedName.reg"
         }
@@ -76,7 +77,8 @@ function Copy-RegistryArtifact {
             $keyExists = Test-Path "Registry::$normalizedPath" -ErrorAction SilentlyContinue
             $errorMsg = if (-not $keyExists) {
                 "Registry key does not exist: $normalizedPath"
-            } else {
+            }
+            else {
                 "Registry export failed (Exit code: $($regProcess.ExitCode))"
             }
             $result.Error = $errorMsg
@@ -123,15 +125,15 @@ function ConvertTo-RegistryExportPath {
 
     # Registry hive mappings
     $hiveMappings = @{
-        '^HKLM\\' = 'HKEY_LOCAL_MACHINE\'
-        '^HKCU\\' = 'HKEY_CURRENT_USER\'
-        '^HKCR\\' = 'HKEY_CLASSES_ROOT\'
-        '^HKU\\' = 'HKEY_USERS\'
-        '^HKCC\\' = 'HKEY_CURRENT_CONFIG\'
-        '^HKEY_LOCAL_MACHINE\\' = 'HKEY_LOCAL_MACHINE\'
-        '^HKEY_CURRENT_USER\\' = 'HKEY_CURRENT_USER\'
-        '^HKEY_CLASSES_ROOT\\' = 'HKEY_CLASSES_ROOT\'
-        '^HKEY_USERS\\' = 'HKEY_USERS\'
+        '^HKLM\\'                = 'HKEY_LOCAL_MACHINE\'
+        '^HKCU\\'                = 'HKEY_CURRENT_USER\'
+        '^HKCR\\'                = 'HKEY_CLASSES_ROOT\'
+        '^HKU\\'                 = 'HKEY_USERS\'
+        '^HKCC\\'                = 'HKEY_CURRENT_CONFIG\'
+        '^HKEY_LOCAL_MACHINE\\'  = 'HKEY_LOCAL_MACHINE\'
+        '^HKEY_CURRENT_USER\\'   = 'HKEY_CURRENT_USER\'
+        '^HKEY_CLASSES_ROOT\\'   = 'HKEY_CLASSES_ROOT\'
+        '^HKEY_USERS\\'          = 'HKEY_USERS\'
         '^HKEY_CURRENT_CONFIG\\' = 'HKEY_CURRENT_CONFIG\'
     }
 
@@ -189,9 +191,9 @@ function Copy-FileSystemArtifact {
     )
 
     $result = [PSCustomObject]@{
-        Success = $false
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
     }
 
     try {
@@ -260,9 +262,9 @@ function Copy-RecursivePattern {
     )
 
     $result = [PSCustomObject]@{
-        Success = $false
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
     }
 
     try {
@@ -280,7 +282,8 @@ function Copy-RecursivePattern {
         # Find matching files
         $items = if ([string]::IsNullOrEmpty($pattern) -or $pattern -eq '**') {
             Get-ChildItem -Path $basePath -Recurse -Force -File -ErrorAction SilentlyContinue
-        } else {
+        }
+        else {
             Get-ChildItem -Path $basePath -Recurse -Force -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $pattern }
         }
 
@@ -363,9 +366,9 @@ function Copy-WildcardPattern {
     )
 
     $result = [PSCustomObject]@{
-        Success = $false
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
     }
 
     try {
@@ -393,21 +396,37 @@ function Copy-WildcardPattern {
                 # Create destination file path
                 $destFile = Join-Path $DestinationPath $item.Name
 
-                # Attempt standard copy first
-                if (Copy-StandardFile -SourceFile $item.FullName -DestinationFile $destFile) {
-                    $result.FilesCollected++
-                    $result.Success = $true
-                    Write-Verbose "Copied: $($item.FullName)"
-                }
-                else {
-                    # Try forensic copy for locked files
+                # For forensic artifacts, prefer forensic copy tools for system files
+                $isSystemFile = $item.FullName -match '(\\Windows\\|\\System32\\|\\SysWOW64\\|AppCompat\\|\\config\\|\.hve$|\.dat$|\.log$)'
+                
+                if ($isSystemFile -and $ForensicTools -and $ForensicTools.Count -gt 0) {
+                    # Try forensic copy first for system files
                     if (Copy-LockedFile -SourceFile $item.FullName -DestinationFile $destFile -ForensicTools $ForensicTools) {
                         $result.FilesCollected++
                         $result.Success = $true
-                        Write-Verbose "Forensic copied: $($item.FullName)"
+                        Write-Verbose "Forensic copied system file: $($item.FullName)"
                     }
                     else {
-                        $result.Errors += "Failed to copy: $($item.FullName)"
+                        $result.Errors += "Failed to copy system file: $($item.FullName)"
+                    }
+                }
+                else {
+                    # Standard copy flow for non-system files
+                    if (Copy-StandardFile -SourceFile $item.FullName -DestinationFile $destFile) {
+                        $result.FilesCollected++
+                        $result.Success = $true
+                        Write-Verbose "Copied: $($item.FullName)"
+                    }
+                    else {
+                        # Try forensic copy for locked files
+                        if (Copy-LockedFile -SourceFile $item.FullName -DestinationFile $destFile -ForensicTools $ForensicTools) {
+                            $result.FilesCollected++
+                            $result.Success = $true
+                            Write-Verbose "Forensic copied: $($item.FullName)"
+                        }
+                        else {
+                            $result.Errors += "Failed to copy: $($item.FullName)"
+                        }
                     }
                 }
             }
@@ -458,9 +477,9 @@ function Copy-DirectPath {
     )
 
     $result = [PSCustomObject]@{
-        Success = $false
+        Success        = $false
         FilesCollected = 0
-        Errors = @()
+        Errors         = @()
     }
 
     try {
@@ -501,19 +520,36 @@ function Copy-DirectPath {
             # Handle single file copy
             $destFile = Join-Path $DestinationPath $item.Name
             
-            if (Copy-StandardFile -SourceFile $SourcePath -DestinationFile $destFile) {
-                $result.FilesCollected++
-                $result.Success = $true
-                Write-Verbose "Copied: $SourcePath"
-            }
-            else {
+            # For forensic artifacts, prefer forensic copy tools for system files
+            $isSystemFile = $SourcePath -match '(\\Windows\\|\\System32\\|\\SysWOW64\\|AppCompat\\|\\config\\|\.hve$|\.dat$|\.log$)'
+            
+            if ($isSystemFile -and $ForensicTools -and $ForensicTools.Count -gt 0) {
+                # Try forensic copy first for system files
                 if (Copy-LockedFile -SourceFile $SourcePath -DestinationFile $destFile -ForensicTools $ForensicTools) {
                     $result.FilesCollected++
                     $result.Success = $true
-                    Write-Verbose "Forensic copied: $SourcePath"
+                    Write-Verbose "Forensic copied system file: $SourcePath"
                 }
                 else {
-                    $result.Errors += "Failed to copy: $SourcePath"
+                    $result.Errors += "Failed to copy system file: $SourcePath"
+                }
+            }
+            else {
+                # Standard copy flow for non-system files
+                if (Copy-StandardFile -SourceFile $SourcePath -DestinationFile $destFile) {
+                    $result.FilesCollected++
+                    $result.Success = $true
+                    Write-Verbose "Copied: $SourcePath"
+                }
+                else {
+                    if (Copy-LockedFile -SourceFile $SourcePath -DestinationFile $destFile -ForensicTools $ForensicTools) {
+                        $result.FilesCollected++
+                        $result.Success = $true
+                        Write-Verbose "Forensic copied: $SourcePath"
+                    }
+                    else {
+                        $result.Errors += "Failed to copy: $SourcePath"
+                    }
                 }
             }
         }
