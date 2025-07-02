@@ -1,14 +1,11 @@
-function Invoke-ForensicCollection {
+function Invoke-AllForensicCollection {
     <#
     .SYNOPSIS
-    Collects forensic artifacts from the file system and registry.
+    Retrieves and collects all available forensic artifacts.
 
     .DESCRIPTION
-    Performs the actual collection of forensic artifacts, handling both file system
-    and registry artifacts with appropriate error handling and forensic tool usage.
-
-    .PARAMETER Artifact
-    The processed artifact object to collect.
+    Downloads forensic artifact definitions and processes all artifacts for collection,
+    with optional filtering support.
 
     .PARAMETER CollectionPath
     Root path where artifacts will be collected.
@@ -19,8 +16,246 @@ function Invoke-ForensicCollection {
     .PARAMETER SkipToolDownload
     Skip automatic download of forensic tools.
 
+    .PARAMETER ArtifactFilter
+    Array of strings to filter artifacts by name.
+
+    .OUTPUTS
+    PSCustomObject with overall collection results and statistics.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$CollectionPath,
+        
+        [string]$ToolsPath = (Join-Path $PSScriptRoot 'Tools'),
+        
+        [switch]$SkipToolDownload,
+        
+        [string[]]$ArtifactFilter = @()
+    )
+
+    $overallResult = [PSCustomObject]@{
+        CollectionType = "All Artifacts"
+        TotalArtifacts = 0
+        ProcessedArtifacts = 0
+        SuccessfulArtifacts = 0
+        TotalFilesCollected = 0
+        CollectionPath = $CollectionPath
+        StartTime = Get-Date
+        EndTime = $null
+        Duration = $null
+        ArtifactResults = @()
+        Errors = @()
+    }
+
+    try {
+        # Initialize dependencies (powershell-yaml)
+        try {
+            Import-Module powershell-yaml -ErrorAction Stop
+            Write-Verbose "powershell-yaml module loaded successfully"
+        }
+        catch {
+            Write-Warning "powershell-yaml module not found. Attempting to install..."
+            try {
+                if (Get-Command Install-Module -ErrorAction SilentlyContinue) {
+                    Install-Module -Name powershell-yaml -Force -Scope CurrentUser -ErrorAction Stop
+                    Import-Module powershell-yaml -ErrorAction Stop
+                    Write-Verbose "powershell-yaml module installed and loaded"
+                }
+                else {
+                    throw 'Install-Module not available. Please install powershell-yaml module manually.'
+                }
+            }
+            catch {
+                $overallResult.Errors += "Failed to initialize dependencies: $($_.Exception.Message)"
+                throw "Failed to initialize dependencies: $($_.Exception.Message)"
+            }
+        }
+
+        # Create collection directory
+        if (-not (Test-Path $CollectionPath)) {
+            New-Item -Path $CollectionPath -ItemType Directory -Force | Out-Null
+            Write-Verbose "Created collection directory: $CollectionPath"
+        }
+
+        # Download and process artifacts
+        Write-Verbose "Downloading forensic artifacts definitions..."
+        $artifactsSourceUrl = 'https://raw.githubusercontent.com/ForensicArtifacts/artifacts/main/artifacts/data/windows.yaml'
+        
+        $yamlContent = Invoke-RestMethod -Uri $artifactsSourceUrl -ErrorAction Stop
+        $artifactsData = ConvertFrom-Yaml -AllDocuments $yamlContent
+        
+        $overallResult.TotalArtifacts = $artifactsData.Count
+        Write-Verbose "Processing $($artifactsData.Count) artifact definitions..."
+
+        foreach ($artifact in $artifactsData) {
+            try {
+                # Apply artifact filter if specified
+                $includeArtifact = $true
+                if ($ArtifactFilter -and $ArtifactFilter.Count -gt 0) {
+                    $includeArtifact = $false
+                    foreach ($filter in $ArtifactFilter) {
+                        if ($artifact.name -like "*$filter*") {
+                            $includeArtifact = $true
+                            break
+                        }
+                    }
+                }
+                
+                if (-not $includeArtifact) {
+                    continue
+                }
+
+                $overallResult.ProcessedArtifacts++
+
+                # Process artifact data
+                $artifactType = $artifact.sources.type
+                $paths = @()
+                
+                # Extract paths based on artifact type
+                switch ($artifactType) {
+                    'REGISTRY_VALUE' {
+                        if ($artifact.sources.attributes.key_value_pairs) {
+                            foreach ($pair in $artifact.sources.attributes.key_value_pairs) {
+                                $regPath = $pair.registry_path ?? $pair.path
+                                if ($regPath) {
+                                    $paths += $regPath 
+                                }
+                            }
+                        }
+                    }
+                    'REGISTRY_KEY' {
+                        if ($artifact.sources.attributes.keys) {
+                            $paths += $artifact.sources.attributes.keys
+                        }
+                    }
+                    'FILE' {
+                        if ($artifact.sources.attributes.paths) {
+                            $paths += $artifact.sources.attributes.paths
+                        }
+                    }
+                    default {
+                        if ($artifact.sources.attributes.paths) {
+                            $paths += $artifact.sources.attributes.paths
+                        }
+                        if ($artifact.sources.attributes.keys) {
+                            $paths += $artifact.sources.attributes.keys
+                        }
+                    }
+                }
+                
+                # Expand paths
+                $expandedPaths = @()
+                if ($paths) {
+                    foreach ($path in $paths) {
+                        if (-not [string]::IsNullOrEmpty($path)) {
+                            # Simple path expansion
+                            $expandedPath = $path
+                            $expandedPath = $expandedPath -replace '%%environ_systemroot%%', $env:SystemRoot
+                            $expandedPath = $expandedPath -replace '%%environ_systemdrive%%', $env:SystemDrive
+                            $expandedPath = $expandedPath -replace '%%environ_programfiles%%', $env:ProgramFiles
+                            $expandedPath = $expandedPath -replace '%%users\.appdata%%', $env:APPDATA
+                            $expandedPath = $expandedPath -replace '%%users\.localappdata%%', $env:LOCALAPPDATA
+                            $expandedPath = [Environment]::ExpandEnvironmentVariables($expandedPath)
+                            $expandedPaths += $expandedPath
+                        }
+                    }
+                }
+                
+                # Create artifact object
+                $processedArtifact = [PSCustomObject][Ordered]@{
+                    Name           = $artifact.name
+                    Description    = $artifact.doc
+                    Type           = $artifactType
+                    References     = $artifact.urls
+                    Paths          = $paths
+                    ExpandedPaths  = $expandedPaths
+                    ProcessingDate = Get-Date
+                }
+
+                # Collect the artifact
+                if ($processedArtifact.ExpandedPaths -and $processedArtifact.ExpandedPaths.Count -gt 0) {
+                    $artifactResult = Invoke-ForensicCollection -Artifact $processedArtifact -CollectionPath $CollectionPath -ToolsPath $ToolsPath -SkipToolDownload:$SkipToolDownload
+                    
+                    $overallResult.ArtifactResults += $artifactResult
+                    $overallResult.TotalFilesCollected += $artifactResult.FilesCollected
+                    
+                    if ($artifactResult.Success) {
+                        $overallResult.SuccessfulArtifacts++
+                    }
+                    
+                    $overallResult.Errors += $artifactResult.Errors
+                    
+                    Write-Verbose "Processed artifact '$($artifact.name)': $($artifactResult.FilesCollected) files collected"
+                }
+                else {
+                    Write-Verbose "Skipping artifact '$($artifact.name)': No valid paths found"
+                }
+            }
+            catch {
+                $overallResult.Errors += "Error processing artifact '$($artifact.name)': $($_.Exception.Message)"
+                Write-Warning "Error processing artifact '$($artifact.name)': $($_.Exception.Message)"
+            }
+        }
+
+        $overallResult.EndTime = Get-Date
+        $overallResult.Duration = $overallResult.EndTime - $overallResult.StartTime
+
+        Write-Information "Collection Summary:" -InformationAction Continue
+        Write-Information "  Total Artifacts: $($overallResult.TotalArtifacts)" -InformationAction Continue
+        Write-Information "  Processed Artifacts: $($overallResult.ProcessedArtifacts)" -InformationAction Continue
+        Write-Information "  Successful Artifacts: $($overallResult.SuccessfulArtifacts)" -InformationAction Continue
+        Write-Information "  Total Files Collected: $($overallResult.TotalFilesCollected)" -InformationAction Continue
+        Write-Information "  Collection Path: $($overallResult.CollectionPath)" -InformationAction Continue
+        Write-Information "  Duration: $($overallResult.Duration.TotalMinutes.ToString('F2')) minutes" -InformationAction Continue
+
+        return $overallResult
+    }
+    catch {
+        $overallResult.Errors += $_.Exception.Message
+        $overallResult.EndTime = Get-Date
+        $overallResult.Duration = $overallResult.EndTime - $overallResult.StartTime
+        Write-Error "Failed to collect all forensic artifacts: $($_.Exception.Message)"
+        return $overallResult
+    }
+}
+
+function Invoke-ForensicCollection {
+    <#
+    .SYNOPSIS
+    Collects forensic artifacts from the file system and registry.
+
+    .DESCRIPTION
+    Performs the actual collection of forensic artifacts, handling both file system
+    and registry artifacts with appropriate error handling and forensic tool usage.
+    When no specific artifact is provided, retrieves and collects all available artifacts.
+
+    .PARAMETER Artifact
+    The processed artifact object to collect. If not specified, all available artifacts will be retrieved and collected.
+
+    .PARAMETER CollectionPath
+    Root path where artifacts will be collected.
+
+    .PARAMETER ToolsPath
+    Path where forensic tools are located.
+
+    .PARAMETER SkipToolDownload
+    Skip automatic download of forensic tools.
+
+    .PARAMETER ArtifactFilter
+    Array of strings to filter artifacts by name when collecting all artifacts.
+
     .EXAMPLE
     $result = Invoke-ForensicCollection -Artifact $artifact -CollectionPath "C:\Investigation"
+
+    .EXAMPLE
+    Invoke-ForensicCollection -CollectionPath "C:\Investigation" -Verbose
+    # Collects all available forensic artifacts
+
+    .EXAMPLE
+    Invoke-ForensicCollection -CollectionPath "C:\Investigation" -ArtifactFilter @("Browser", "Registry") -Verbose
+    # Collects only browser and registry related artifacts
 
     .OUTPUTS
     PSCustomObject with collection results and statistics.
@@ -28,7 +263,7 @@ function Invoke-ForensicCollection {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
-        [Parameter(Mandatory)]
+        [Parameter()]
         [PSObject]$Artifact,
         
         [Parameter(Mandatory)]
@@ -36,8 +271,16 @@ function Invoke-ForensicCollection {
         
         [string]$ToolsPath = (Join-Path $PSScriptRoot 'Tools'),
         
-        [switch]$SkipToolDownload
+        [switch]$SkipToolDownload,
+        
+        [string[]]$ArtifactFilter = @()
     )
+
+    # If no specific artifact provided, retrieve and collect all artifacts
+    if (-not $Artifact) {
+        Write-Verbose "No specific artifact provided - retrieving all available artifacts"
+        return Invoke-AllForensicCollection -CollectionPath $CollectionPath -ToolsPath $ToolsPath -SkipToolDownload:$SkipToolDownload -ArtifactFilter $ArtifactFilter
+    }
 
     $collectionResult = [PSCustomObject]@{
         ArtifactName = $Artifact.Name
@@ -143,41 +386,40 @@ function Initialize-ForensicTool {
             Write-Verbose "Created tools directory: $ToolsPath"
         }
 
-        # Check for RawCopy
-        $rawCopyPath = Join-Path $ToolsPath 'rawcopy.exe'
-        if (Test-Path $rawCopyPath) {
+        # Check for Invoke-RawCopy function (preferred method)
+        if (Get-Command Invoke-RawCopy -ErrorAction SilentlyContinue) {
             $forensicTools += [PSCustomObject]@{
-                Name = 'RawCopy'
-                Path = $rawCopyPath
-                Type = 'Executable'
+                Name = 'Invoke-RawCopy'
+                Path = 'Invoke-RawCopy'
+                Type = 'Function'
+                Priority = 1
             }
-            Write-Verbose "Found RawCopy tool at: $rawCopyPath"
+            Write-Verbose "Found Invoke-RawCopy function (preferred forensic copy method)"
         }
         else {
-            Write-Verbose "RawCopy not found, attempting download..."
-            if (Install-RawCopyTool -ToolsPath $ToolsPath) {
-                $forensicTools += [PSCustomObject]@{
-                    Name = 'RawCopy'
-                    Path = $rawCopyPath
-                    Type = 'Executable'
+            # Try to load Invoke-RawCopy from the functions directory
+            $rawCopyScript = Join-Path $PSScriptRoot 'Invoke-RawCopy.ps1'
+            if (Test-Path $rawCopyScript) {
+                try {
+                    . $rawCopyScript
+                    $forensicTools += [PSCustomObject]@{
+                        Name = 'Invoke-RawCopy'
+                        Path = 'Invoke-RawCopy'
+                        Type = 'Function'
+                        Priority = 1
+                    }
+                    Write-Verbose "Loaded and registered Invoke-RawCopy function"
+                }
+                catch {
+                    Write-Verbose "Failed to load Invoke-RawCopy: $($_.Exception.Message)"
                 }
             }
         }
 
-        # Check for custom RawyCopy function
-        if (Get-Command Invoke-RawyCopy -ErrorAction SilentlyContinue) {
-            $forensicTools += [PSCustomObject]@{
-                Name = 'RawyCopy'
-                Path = 'Invoke-RawyCopy'
-                Type = 'Function'
-            }
-            Write-Verbose "Found Invoke-RawyCopy function"
-        }
-
-        # Add built-in tools
+        # Add built-in tools (lower priority than Invoke-RawCopy)
         $builtInTools = @(
-            @{ Name = 'Robocopy'; Path = 'robocopy.exe'; Type = 'BuiltIn' },
-            @{ Name = 'XCopy'; Path = 'xcopy.exe'; Type = 'BuiltIn' }
+            @{ Name = 'Robocopy'; Path = 'robocopy.exe'; Type = 'BuiltIn'; Priority = 3 },
+            @{ Name = 'XCopy'; Path = 'xcopy.exe'; Type = 'BuiltIn'; Priority = 4 }
         )
 
         foreach ($tool in $builtInTools) {
@@ -187,9 +429,10 @@ function Initialize-ForensicTool {
             }
         }
 
-        $script:CachedForensicTools = $forensicTools
-        Write-Verbose "Initialized $($forensicTools.Count) forensic tools"
-        return $forensicTools
+        # Sort tools by priority (lower number = higher priority)
+        $script:CachedForensicTools = $forensicTools | Sort-Object Priority, Name
+        Write-Verbose "Initialized $($forensicTools.Count) forensic tools (Invoke-RawCopy preferred)"
+        return $script:CachedForensicTools
     }
     catch {
         Write-Warning "Failed to initialize forensic tools: $($_.Exception.Message)"
@@ -323,3 +566,5 @@ function Copy-ForensicArtifact {
         return $copyResult
     }
 }
+# Example usage - collect all forensic artifacts
+# Invoke-ForensicCollection -CollectionPath "C:\ForensicCollection" -Verbose
