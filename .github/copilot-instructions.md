@@ -1,1 +1,3 @@
 - @azure Rule - Use Azure Best Practices: When generating code for Azure, running terminal commands for Azure, or performing operations related to Azure, invoke your `get_azure_best_practices` tool if available.
+- @Copilot Rule - Use Copilot Best Practices: When generating code, running terminal commands, or performing operations related to Copilot, invoke your `get_copilot_best_practices` tool if available.
+- @GitHub Rule - Use GitHub Best Practices: When generating code, running terminal commands, or performing operations related to GitHub, invoke your `get_github_best_practices` tool if available.
