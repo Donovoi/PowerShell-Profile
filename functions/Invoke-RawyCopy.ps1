@@ -263,7 +263,9 @@ function Invoke-RawCopy {
         
         # Set the final file length to match the original file
         $dest.SetLength([Int64]$actualFileSize)
-        Write-Progress -Activity 'RawCopy' -Completed
+        Write-Progress -Activity 'RawCopy' -Completed -Status 'Copy complete' -PercentComplete 100
+        Write-Output 'Copy complete'
+        Write-Output "Destination File is: $Destination"
     }
     finally {
         $dest.Dispose(); $vol.Dispose(); $srcFile.Dispose(); if ($shadow) {
