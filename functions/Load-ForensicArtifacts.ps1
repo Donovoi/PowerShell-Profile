@@ -13,34 +13,46 @@ if (-not $script:DependenciesInitialized -or $Force) {
     $script:RawCopyDownloadAttempted = $false
 }
 
-# Define module root
-$ModuleRoot = $PSScriptRoot
-
-# Define required modules in dependency order
-$ForensicModules = @(
-    'Initialize-ForensicEnvironment.ps1',
-    'ConvertTo-ForensicArtifact.ps1', 
-    'Copy-FileSystemUtilities.ps1',
-    'Copy-ForensicArtifact.ps1',
-    'Invoke-ForensicCollection.ps1',
-    'Write-ForensicReport.ps1',
-    'Get-ForensicArtifacts.ps1'
-)
-
-Write-Verbose "Loading Forensic Artifacts module from: $ModuleRoot"
-
 try {
     # Load modules in order
-    foreach ($module in $ForensicModules) {
-        $modulePath = Join-Path $ModuleRoot $module
-        
-        if (Test-Path $modulePath) {
-            Write-Verbose "Loading module: $module"
-            . $modulePath
+    $neededcmdlets = @(
+        'Initialize-ForensicDependencies'     # For installing dependencies
+        'ConvertTo-ForensicArtifact'
+        'Copy-FileSystemUtilities'           # For copying files
+        'Copy-ForensicArtifact'              # For copying artifacts
+        'Invoke-ForensicCollection'          # For collecting artifacts
+        'Write-ForensicReport'               # For writing reports
+        'Get-ForensicArtifacts'               # Main function to get artifacts
+    )
+
+    foreach ($cmd in $neededcmdlets) {
+        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+            $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+            New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        }
+        Write-Verbose "Importing cmdlet: $cmd"
+        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -Force
+
+        # Check if the returned value is a ScriptBlock and import it properly
+        if ($scriptBlock -is [scriptblock]) {
+            $moduleName = "Dynamic_$cmd"
+            New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+            Write-Verbose "Imported $cmd as dynamic module: $moduleName"
+        }
+        elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+            # If a module info was returned, it's already imported
+            Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+        }
+        elseif ([System.IO.FileInfo]$scriptBlock -is [System.IO.FileInfo]) {
+            # If a file path was returned, import it
+            Import-Module -Name $scriptBlock -Force -Global
+            Write-Verbose "Imported $cmd from file: $scriptBlock"
         }
         else {
-            Write-Warning "Module file not found: $modulePath"
+            Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
         }
+
     }
 
     # Verify core functions are available
@@ -63,17 +75,17 @@ try {
     }
 
     Write-Verbose "Successfully loaded $($ForensicModules.Count) forensic artifact modules"
-    Write-Information "Forensic Artifacts module loaded successfully!" -InformationAction Continue
-    Write-Information "Available commands:" -InformationAction Continue
-    Write-Information "  Get-ForensicArtifacts - Main function for artifact collection" -InformationAction Continue
-    Write-Information "  Use Get-Help Get-ForensicArtifacts -Full for detailed usage" -InformationAction Continue
+    Write-Information 'Forensic Artifacts module loaded successfully!' -InformationAction Continue
+    Write-Information 'Available commands:' -InformationAction Continue
+    Write-Information '  Get-ForensicArtifacts - Main function for artifact collection' -InformationAction Continue
+    Write-Information '  Use Get-Help Get-ForensicArtifacts -Full for detailed usage' -InformationAction Continue
 
     if ($PassThru) {
         return [PSCustomObject]@{
-            ModuleRoot = $ModuleRoot
+            ModuleRoot    = $ModuleRoot
             LoadedModules = $ForensicModules
             CoreFunctions = $CoreFunctions
-            LoadTime = Get-Date
+            LoadTime      = Get-Date
         }
     }
 }
@@ -81,15 +93,3 @@ catch {
     Write-Error "Failed to load Forensic Artifacts module: $($_.Exception.Message)" -ErrorAction Stop
 }
 
-# Export module members (if running as a module)
-if ($MyInvocation.InvocationName -eq '.') {
-    Export-ModuleMember -Function @(
-        'Get-ForensicArtifacts',
-        'Initialize-ForensicDependencies',
-        'ConvertTo-ForensicArtifact', 
-        'Invoke-ForensicCollection',
-        'Copy-ForensicArtifact',
-        'Expand-ForensicPath',
-        'Write-ForensicCollectionReport'
-    )
-}

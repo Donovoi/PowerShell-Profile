@@ -124,13 +124,7 @@ function Get-ForensicArtifacts {
         # Import needed cmdlets if not already available
         $neededcmdlets = @(
             'Install-Dependencies'     # For installing dependencies
-            'Get-LatestGitHubRelease'  # For downloading aria2c if needed
-            'Invoke-AriaDownload'
-            'Get-FileDetailsFromResponse'
-            'Get-OutputFilename'
-            'Test-InPath'
-            'Invoke-AriaRPCDownload'
-            'Initialize-ForensicDependencies'
+            'Get-SYSTEM'
         )
 
         foreach ($cmd in $neededcmdlets) {
@@ -167,13 +161,14 @@ function Get-ForensicArtifacts {
         try {
             # Check for YAML parsing capability
             if (-not (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue)) {
-                Write-Verbose "Installing powershell-yaml module..."
+                Write-Verbose 'Installing powershell-yaml module...'
                 if (Get-Command Install-Module -ErrorAction SilentlyContinue) {
                     Install-Module -Name powershell-yaml -Force -Scope CurrentUser -ErrorAction Stop
                     Import-Module powershell-yaml -Force
-                    Write-Verbose "Successfully installed powershell-yaml module"
-                } else {
-                    throw "Install-Module not available. Please install powershell-yaml module manually."
+                    Write-Verbose 'Successfully installed powershell-yaml module'
+                }
+                else {
+                    throw 'Install-Module not available. Please install powershell-yaml module manually.'
                 }
             }
         }
@@ -198,14 +193,15 @@ function Get-ForensicArtifacts {
             # Handle SYSTEM elevation if requested
             if ($ElevateToSystem -and -not $isSystem) {
                 if (-not $isAdmin) {
-                    throw "Administrative privileges required for SYSTEM elevation"
+                    throw 'Administrative privileges required for SYSTEM elevation'
                 }
 
                 if (Get-Command Get-SYSTEM -ErrorAction SilentlyContinue) {
-                    Write-Information "Attempting elevation to SYSTEM privileges..." -InformationAction Continue
-                    Write-Warning "SYSTEM elevation requires the refactored modular version. Please use the ForensicArtifacts modules for full functionality."
-                } else {
-                    Write-Warning "Get-SYSTEM function not available, continuing with current privileges"
+                    Write-Information 'Attempting elevation to SYSTEM privileges...' -InformationAction Continue
+                    Write-Warning 'SYSTEM elevation requires the refactored modular version. Please use the ForensicArtifacts modules for full functionality.'
+                }
+                else {
+                    Write-Warning 'Get-SYSTEM function not available, continuing with current privileges'
                 }
             }
 
@@ -252,7 +248,9 @@ function Get-ForensicArtifacts {
                             if ($artifact.sources.attributes.key_value_pairs) {
                                 foreach ($pair in $artifact.sources.attributes.key_value_pairs) {
                                     $regPath = $pair.registry_path ?? $pair.path
-                                    if ($regPath) { $paths += $regPath }
+                                    if ($regPath) {
+                                        $paths += $regPath 
+                                    }
                                 }
                             }
                         }
@@ -296,20 +294,25 @@ function Get-ForensicArtifacts {
                     
                     # Create artifact object
                     $processedArtifact = [PSCustomObject][Ordered]@{
-                        Name = $artifact.name
-                        Description = $artifact.doc
-                        Type = $artifactType
-                        References = $artifact.urls
-                        Paths = $paths
-                        ExpandedPaths = if ($ExpandPaths) { $expandedPaths } else { $null }
+                        Name           = $artifact.name
+                        Description    = $artifact.doc
+                        Type           = $artifactType
+                        References     = $artifact.urls
+                        Paths          = $paths
+                        ExpandedPaths  = if ($ExpandPaths) {
+                            $expandedPaths 
+                        }
+                        else {
+                            $null 
+                        }
                         ProcessingDate = Get-Date
                     }
                     
                     # Add collection result if collecting
                     if ($CollectArtifacts) {
-                        Write-Warning "Collection functionality requires the full refactored modular version."
-                        Write-Warning "Please use: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1 to load the complete module."
-                        $processedArtifact | Add-Member -NotePropertyName 'CollectionResult' -NotePropertyValue "Not available in simplified version" -Force
+                        Write-Warning 'Collection functionality requires the full refactored modular version.'
+                        Write-Warning 'Please use: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1 to load the complete module.'
+                        $processedArtifact | Add-Member -NotePropertyName 'CollectionResult' -NotePropertyValue 'Not available in simplified version' -Force
                     }
                     
                     $results += $processedArtifact
@@ -317,8 +320,8 @@ function Get-ForensicArtifacts {
             }
             
             if ($CollectArtifacts) {
-                Write-Information "For full collection functionality, please use the refactored modular version." -InformationAction Continue
-                Write-Information "Load with: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1" -InformationAction Continue
+                Write-Information 'For full collection functionality, please use the refactored modular version.' -InformationAction Continue
+                Write-Information 'Load with: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1' -InformationAction Continue
             }
             
             return $results
@@ -334,3 +337,5 @@ function Get-ForensicArtifacts {
         }
     }
 }
+
+Get-ForensicArtifacts -CollectionPath C:\ForensicArtifacts -CollectArtifacts -ExpandPaths -ElevateToSystem -Verbose -ErrorAction break
