@@ -162,34 +162,154 @@ function Get-ForensicArtifacts {
             }
 
         }
-        # Validate and install dependencies
-        Initialize-ForensicDependencies
+        
+        # Initialize forensic dependencies locally
+        try {
+            # Check for YAML parsing capability
+            if (-not (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue)) {
+                Write-Verbose "Installing powershell-yaml module..."
+                if (Get-Command Install-Module -ErrorAction SilentlyContinue) {
+                    Install-Module -Name powershell-yaml -Force -Scope CurrentUser -ErrorAction Stop
+                    Import-Module powershell-yaml -Force
+                    Write-Verbose "Successfully installed powershell-yaml module"
+                } else {
+                    throw "Install-Module not available. Please install powershell-yaml module manually."
+                }
+            }
+        }
+        catch {
+            Write-Error "Failed to initialize dependencies: $($_.Exception.Message)" -ErrorAction Stop
+        }
         
         # Initialize collection configuration
         if ($CollectArtifacts) {
-            $config = Initialize-ForensicCollection -CollectionPath $CollectionPath -ElevateToSystem:$ElevateToSystem
-            if (-not $config.Success) {
-                throw "Failed to initialize forensic collection: $($config.Message)"
+            # Generate collection path if not provided
+            if (-not $CollectionPath) {
+                $CollectionPath = Join-Path $env:TEMP "$($script:CollectionDirPrefix)$(Get-Date -Format 'yyyyMMdd_HHmmss')"
             }
-            $CollectionPath = $config.CollectionPath
+
+            # Check current privilege level
+            $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+            $isAdmin = ([Security.Principal.WindowsPrincipal]$currentUser).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+            $isSystem = $currentUser.IsSystem
+
+            Write-Verbose "Current user: $($currentUser.Name) | Admin: $isAdmin | SYSTEM: $isSystem"
+
+            # Handle SYSTEM elevation if requested
+            if ($ElevateToSystem -and -not $isSystem) {
+                if (-not $isAdmin) {
+                    throw "Administrative privileges required for SYSTEM elevation"
+                }
+
+                if (Get-Command Get-SYSTEM -ErrorAction SilentlyContinue) {
+                    Write-Information "Attempting elevation to SYSTEM privileges..." -InformationAction Continue
+                    Write-Warning "SYSTEM elevation requires the refactored modular version. Please use the ForensicArtifacts modules for full functionality."
+                } else {
+                    Write-Warning "Get-SYSTEM function not available, continuing with current privileges"
+                }
+            }
+
+            # Create collection directory
+            if (-not (Test-Path $CollectionPath)) {
+                New-Item -Path $CollectionPath -ItemType Directory -Force | Out-Null
+                Write-Verbose "Created collection directory: $CollectionPath"
+            }
         }
     }
 
     process {
         try {
             Write-Verbose 'Downloading forensic artifacts definitions...'
-            $artifactsData = Get-ForensicArtifactsData -SourceUrl $script:ArtifactsSourceUrl
+            
+            # Download artifacts data
+            $yamlContent = Invoke-RestMethod -Uri $script:ArtifactsSourceUrl -ErrorAction Stop
+            $artifactsData = ConvertFrom-Yaml -AllDocuments $yamlContent
             
             Write-Verbose "Processing $($artifactsData.Count) artifact definitions..."
             $results = @()
             
             foreach ($artifact in $artifactsData) {
-                if (Test-ArtifactFilter -Artifact $artifact -Filter $ArtifactFilter) {
-                    $processedArtifact = ConvertTo-ForensicArtifact -ArtifactData $artifact -ExpandPaths:$ExpandPaths
+                # Apply artifact filter if specified
+                $includeArtifact = $true
+                if ($ArtifactFilter -and $ArtifactFilter.Count -gt 0) {
+                    $includeArtifact = $false
+                    foreach ($filter in $ArtifactFilter) {
+                        if ($artifact.name -like "*$filter*") {
+                            $includeArtifact = $true
+                            break
+                        }
+                    }
+                }
+                
+                if ($includeArtifact) {
+                    # Process artifact data
+                    $artifactType = $artifact.sources.type
+                    $paths = @()
                     
+                    # Extract paths based on artifact type
+                    switch ($artifactType) {
+                        'REGISTRY_VALUE' {
+                            if ($artifact.sources.attributes.key_value_pairs) {
+                                foreach ($pair in $artifact.sources.attributes.key_value_pairs) {
+                                    $regPath = $pair.registry_path ?? $pair.path
+                                    if ($regPath) { $paths += $regPath }
+                                }
+                            }
+                        }
+                        'REGISTRY_KEY' {
+                            if ($artifact.sources.attributes.keys) {
+                                $paths += $artifact.sources.attributes.keys
+                            }
+                        }
+                        'FILE' {
+                            if ($artifact.sources.attributes.paths) {
+                                $paths += $artifact.sources.attributes.paths
+                            }
+                        }
+                        default {
+                            if ($artifact.sources.attributes.paths) {
+                                $paths += $artifact.sources.attributes.paths
+                            }
+                            if ($artifact.sources.attributes.keys) {
+                                $paths += $artifact.sources.attributes.keys
+                            }
+                        }
+                    }
+                    
+                    # Expand paths if requested
+                    $expandedPaths = @()
+                    if ($ExpandPaths -and $paths) {
+                        foreach ($path in $paths) {
+                            if (-not [string]::IsNullOrEmpty($path)) {
+                                # Simple path expansion
+                                $expandedPath = $path
+                                $expandedPath = $expandedPath -replace '%%environ_systemroot%%', $env:SystemRoot
+                                $expandedPath = $expandedPath -replace '%%environ_systemdrive%%', $env:SystemDrive
+                                $expandedPath = $expandedPath -replace '%%environ_programfiles%%', $env:ProgramFiles
+                                $expandedPath = $expandedPath -replace '%%users\.appdata%%', $env:APPDATA
+                                $expandedPath = $expandedPath -replace '%%users\.localappdata%%', $env:LOCALAPPDATA
+                                $expandedPath = [Environment]::ExpandEnvironmentVariables($expandedPath)
+                                $expandedPaths += $expandedPath
+                            }
+                        }
+                    }
+                    
+                    # Create artifact object
+                    $processedArtifact = [PSCustomObject][Ordered]@{
+                        Name = $artifact.name
+                        Description = $artifact.doc
+                        Type = $artifactType
+                        References = $artifact.urls
+                        Paths = $paths
+                        ExpandedPaths = if ($ExpandPaths) { $expandedPaths } else { $null }
+                        ProcessingDate = Get-Date
+                    }
+                    
+                    # Add collection result if collecting
                     if ($CollectArtifacts) {
-                        $collectionResult = Invoke-ForensicCollection -Artifact $processedArtifact -CollectionPath $CollectionPath -ToolsPath $ToolsPath -SkipToolDownload:$SkipToolDownload
-                        $processedArtifact = $processedArtifact | Add-Member -NotePropertyName 'CollectionResult' -NotePropertyValue $collectionResult -PassThru
+                        Write-Warning "Collection functionality requires the full refactored modular version."
+                        Write-Warning "Please use: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1 to load the complete module."
+                        $processedArtifact | Add-Member -NotePropertyName 'CollectionResult' -NotePropertyValue "Not available in simplified version" -Force
                     }
                     
                     $results += $processedArtifact
@@ -197,7 +317,8 @@ function Get-ForensicArtifacts {
             }
             
             if ($CollectArtifacts) {
-                Write-ForensicCollectionReport -Results $results -CollectionPath $CollectionPath
+                Write-Information "For full collection functionality, please use the refactored modular version." -InformationAction Continue
+                Write-Information "Load with: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1" -InformationAction Continue
             }
             
             return $results
@@ -213,4 +334,3 @@ function Get-ForensicArtifacts {
         }
     }
 }
-Get-ForensicArtifacts -CollectionPath 'C:\ForensicArtifacts' -CollectArtifacts -ExpandPaths -ElevateToSystem -Verbose -ErrorAction Break
