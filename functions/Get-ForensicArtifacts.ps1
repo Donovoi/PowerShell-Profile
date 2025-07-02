@@ -110,7 +110,7 @@ function Get-ForensicArtifacts {
 
         [Parameter(HelpMessage = 'Path where forensic tools will be stored')]
         [ValidateScript({ Test-Path (Split-Path $_ -Parent) -PathType Container })]
-        [string]$ToolsPath = (Join-Path $PSScriptRoot 'Tools'),
+        [string]$ToolsPath = (Join-Path $PWD 'Tools'),
 
         [Parameter(HelpMessage = 'Skip automatic download of forensic tools')]
         [switch]$SkipToolDownload
