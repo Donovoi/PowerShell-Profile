@@ -20,39 +20,70 @@ function Initialize-ForensicDependencies {
     param()
 
     if ($script:DependenciesInitialized) {
-        Write-Verbose "Dependencies already initialized, skipping check"
+        Write-Verbose 'Dependencies already initialized, skipping check'
         return
     }
 
     try {
         # Check for YAML parsing capability
         if (-not (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue)) {
-            Write-Verbose "Installing powershell-yaml module..."
+            Write-Verbose 'Installing powershell-yaml module...'
             if (Get-Command Install-Module -ErrorAction SilentlyContinue) {
                 Install-Module -Name powershell-yaml -Force -Scope CurrentUser -ErrorAction Stop
                 Import-Module powershell-yaml -Force
-                Write-Verbose "Successfully installed powershell-yaml module"
-            } else {
-                throw "Install-Module not available. Please install powershell-yaml module manually."
+                Write-Verbose 'Successfully installed powershell-yaml module'
+            }
+            else {
+                throw 'Install-Module not available. Please install powershell-yaml module manually.'
             }
         }
 
         # Check for custom forensic functions
-        $requiredFunctions = @('Get-SYSTEM', 'Invoke-RawyCopy')
-        foreach ($function in $requiredFunctions) {
-            if (-not (Get-Command $function -ErrorAction SilentlyContinue)) {
-                $functionPath = Join-Path $PSScriptRoot "$function.ps1"
-                if (Test-Path $functionPath) {
-                    . $functionPath
-                    Write-Verbose "Imported function: $function"
-                } else {
-                    Write-Warning "Optional function '$function' not found at: $functionPath"
-                }
+        Write-Verbose 'Checking for required forensic functions...'
+        $requiredFunctions = @(
+            'Install-Dependencies'     # For installing dependencies
+            'Get-LatestGitHubRelease'  # For downloading aria2c if needed
+            'Invoke-AriaDownload'
+            'Get-FileDetailsFromResponse'
+            'Get-OutputFilename'
+            'Test-InPath'
+            'Invoke-AriaRPCDownload'
+            'Get-SYSTEM'
+            'Invoke-RawCopy'
+        )
+
+        foreach ($cmd in $requiredFunctions) {
+            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
+            Write-Verbose "Importing cmdlet: $cmd"
+            $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -Force
+
+            # Check if the returned value is a ScriptBlock and import it properly
+            if ($scriptBlock -is [scriptblock]) {
+                $moduleName = "Dynamic_$cmd"
+                New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                Write-Verbose "Imported $cmd as dynamic module: $moduleName"
+            }
+            elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+                # If a module info was returned, it's already imported
+                Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+            }
+            elseif ([System.IO.FileInfo]$scriptBlock -is [System.IO.FileInfo]) {
+                # If a file path was returned, import it
+                Import-Module -Name $scriptBlock -Force -Global
+                Write-Verbose "Imported $cmd from file: $scriptBlock"
+            }
+            else {
+                Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+            }
+
         }
 
         $script:DependenciesInitialized = $true
-        Write-Verbose "Dependency initialization completed successfully"
+        Write-Verbose 'Dependency initialization completed successfully'
     }
     catch {
         Write-Error "Failed to initialize dependencies: $($_.Exception.Message)" -ErrorAction Stop
@@ -104,21 +135,22 @@ function Initialize-ForensicCollection {
         if ($ElevateToSystem -and -not $isSystem) {
             if (-not $isAdmin) {
                 return [PSCustomObject]@{
-                    Success = $false
+                    Success        = $false
                     CollectionPath = $null
-                    Message = "Administrative privileges required for SYSTEM elevation"
+                    Message        = 'Administrative privileges required for SYSTEM elevation'
                 }
             }
 
             if (Get-Command Get-SYSTEM -ErrorAction SilentlyContinue) {
-                Write-Information "Attempting elevation to SYSTEM privileges..." -InformationAction Continue
+                Write-Information 'Attempting elevation to SYSTEM privileges...' -InformationAction Continue
                 $elevationResult = Start-ForensicSystemElevation -CollectionPath $CollectionPath
                 if ($elevationResult.Success) {
                     return $elevationResult
                 }
-                Write-Warning "SYSTEM elevation failed, continuing with current privileges"
-            } else {
-                Write-Warning "Get-SYSTEM function not available, continuing with current privileges"
+                Write-Warning 'SYSTEM elevation failed, continuing with current privileges'
+            }
+            else {
+                Write-Warning 'Get-SYSTEM function not available, continuing with current privileges'
             }
         }
 
@@ -129,16 +161,16 @@ function Initialize-ForensicCollection {
         }
 
         return [PSCustomObject]@{
-            Success = $true
+            Success        = $true
             CollectionPath = $CollectionPath
-            Message = "Collection initialized successfully"
+            Message        = 'Collection initialized successfully'
         }
     }
     catch {
         return [PSCustomObject]@{
-            Success = $false
+            Success        = $false
             CollectionPath = $null
-            Message = $_.Exception.Message
+            Message        = $_.Exception.Message
         }
     }
 }
@@ -173,7 +205,7 @@ function Get-ForensicArtifactsData {
         Write-Verbose "Downloading artifacts from: $SourceUrl"
         $yamlContent = Invoke-RestMethod -Uri $SourceUrl -ErrorAction Stop
         
-        Write-Verbose "Parsing YAML content..."
+        Write-Verbose 'Parsing YAML content...'
         $artifacts = ConvertFrom-Yaml -AllDocuments $yamlContent
         
         Write-Verbose "Successfully parsed $($artifacts.Count) artifact definitions"
