@@ -337,5 +337,3 @@ function Get-ForensicArtifacts {
         }
     }
 }
-
-Get-ForensicArtifacts -CollectionPath C:\ForensicArtifacts -CollectArtifacts -ExpandPaths -ElevateToSystem -Verbose -ErrorAction break
