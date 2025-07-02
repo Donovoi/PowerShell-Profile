@@ -522,6 +522,7 @@ function Copy-DirectPath {
             
             # For forensic artifacts, prefer forensic copy tools for system files
             $isSystemFile = $SourcePath -match '(\\Windows\\|\\System32\\|\\SysWOW64\\|AppCompat\\|\\config\\|\.hve$|\.dat$|\.log$)'
+            Write-Verbose "Direct path copy - Source: $SourcePath, IsSystemFile: $isSystemFile, ForensicTools count: $($ForensicTools.Count)"
             
             if ($isSystemFile -and $ForensicTools -and $ForensicTools.Count -gt 0) {
                 # Try forensic copy first for system files
@@ -633,11 +634,12 @@ function Copy-LockedFile {
     )
 
     # Try Invoke-RawCopy first if available
+    Write-Verbose "Copy-LockedFile - Available tools: $($ForensicTools | ForEach-Object { $_.Name }) (Count: $($ForensicTools.Count))"
     $rawCopyTool = $ForensicTools | Where-Object { $_.Name -eq 'Invoke-RawCopy' } | Select-Object -First 1
     if ($rawCopyTool) {
         try {
             Write-Verbose "Attempting Invoke-RawCopy for locked file: $SourceFile"
-            $result = Invoke-RawCopy -SourcePath $SourceFile -DestinationPath $DestinationFile -ErrorAction Stop
+            $result = Invoke-RawCopy -Path $SourceFile -Destination $DestinationFile -Overwrite -ErrorAction Stop
             if ($result) {
                 return $true
             }

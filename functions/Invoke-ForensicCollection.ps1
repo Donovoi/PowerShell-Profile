@@ -78,6 +78,13 @@ function Invoke-AllForensicCollection {
         }
     }
 
+    # Override with local functions if they exist (for development/debugging)
+    $localCopyForensicArtifact = Join-Path $PSScriptRoot 'Copy-ForensicArtifact.ps1'
+    if (Test-Path $localCopyForensicArtifact) {
+        Write-Verbose 'Loading local Copy-ForensicArtifact.ps1 for testing/development'
+        . $localCopyForensicArtifact
+    }
+
     $overallResult = [PSCustomObject]@{
         CollectionType      = 'All Artifacts'
         TotalArtifacts      = 0
@@ -198,8 +205,29 @@ function Invoke-AllForensicCollection {
                             $expandedPath = $expandedPath -replace '%%environ_systemroot%%', $env:SystemRoot
                             $expandedPath = $expandedPath -replace '%%environ_systemdrive%%', $env:SystemDrive
                             $expandedPath = $expandedPath -replace '%%environ_programfiles%%', $env:ProgramFiles
+                            $expandedPath = $expandedPath -replace '%%environ_programfilesx86%%', ${env:ProgramFiles(x86)}
+                            $expandedPath = $expandedPath -replace '%%environ_windir%%', $env:WINDIR
+                            $expandedPath = $expandedPath -replace '%%environ_allusersprofile%%', $env:ALLUSERSPROFILE
                             $expandedPath = $expandedPath -replace '%%users\.appdata%%', $env:APPDATA
                             $expandedPath = $expandedPath -replace '%%users\.localappdata%%', $env:LOCALAPPDATA
+                            $expandedPath = $expandedPath -replace '%%users\.userprofile%%', $env:USERPROFILE
+                            
+                            # Handle user profile path patterns - check if path starts with %%users.username%%
+                            if ($expandedPath -match '^%%users\.username%%\\') {
+                                # Replace with full user profile path
+                                $expandedPath = $expandedPath -replace '^%%users\.username%%\\', "$env:USERPROFILE\"
+                            }
+                            else {
+                                # For other occurrences, just replace with username
+                                $expandedPath = $expandedPath -replace '%%users\.username%%', $env:USERNAME
+                            }
+                            
+                            $expandedPath = $expandedPath -replace '%%users\.sid%%', '*'  # Use wildcard for SID matching
+                            
+                            # Fix known incorrect artifact paths
+                            # The official ForensicArtifacts definition has L.%%users.username%% but Windows actually uses different directory naming
+                            $expandedPath = $expandedPath -replace '\\ConnectedDevicesPlatform\\L\.([^\\]+)\\', '\ConnectedDevicesPlatform\*\'
+                            
                             $expandedPath = [Environment]::ExpandEnvironmentVariables($expandedPath)
                             $expandedPaths += $expandedPath
                         }
@@ -586,16 +614,66 @@ function Copy-ForensicArtifact {
 
         # Handle registry paths
         if ($SourcePath -match '^HK(EY_)?(LOCAL_MACHINE|CURRENT_USER|CLASSES_ROOT|USERS|CURRENT_CONFIG|LM|CU|CR|U|CC)\\') {
-            $registryResult = Copy-RegistryArtifact -RegistryPath $SourcePath -DestinationPath $DestinationPath
-            $copyResult.Success = $registryResult.Success
-            $copyResult.FilesCollected = if ($registryResult.Success) {
-                1 
+            # Check if this is a wildcard registry path (ends with *)
+            if ($SourcePath.EndsWith('\*')) {
+                # Convert to PowerShell registry provider format and recurse
+                $parentKeyPath = $SourcePath.TrimEnd('\*')
+                $psRegistryPath = ConvertTo-PowerShellRegistryPath -RegistryPath $parentKeyPath
+                if ($psRegistryPath) {
+                    Write-Verbose "Recursing registry path: $psRegistryPath"
+                    
+                    # Create directory structure based on parent key path
+                    $parentKeySanitized = $parentKeyPath -replace '[\\/:*?"<>|]', '_'
+                    $parentKeyDir = Join-Path $DestinationPath "registry_$parentKeySanitized"
+                    if (-not (Test-Path $parentKeyDir)) {
+                        New-Item -Path $parentKeyDir -ItemType Directory -Force | Out-Null
+                        Write-Verbose "Created parent registry directory: $parentKeyDir"
+                    }
+                    
+                    try {
+                        $subKeys = Get-ChildItem -Path $psRegistryPath -ErrorAction SilentlyContinue
+                        foreach ($subKey in $subKeys) {
+                            # Each subkey becomes a file in the parent directory
+                            $subKeyName = $subKey.PSChildName
+                            $subKeySanitized = $subKeyName -replace '[\\/:*?"<>|]', '_'
+                            $subKeyFile = Join-Path $parentKeyDir "$subKeySanitized.reg"
+                            
+                            # Convert back to standard format for export
+                            $subKeyFullPath = ConvertFrom-PowerShellRegistryPath -PowerShellPath $subKey.PSPath
+                            Write-Verbose "Processing registry subkey: $subKeyFullPath -> $subKeyFile"
+                            
+                            # Export this specific subkey
+                            $registryResult = Copy-RegistryArtifact -RegistryPath $subKeyFullPath -DestinationPath $parentKeyDir -OutputFileName "$subKeySanitized.reg"
+                            if ($registryResult.Success) {
+                                $copyResult.FilesCollected++
+                                $copyResult.Success = $true
+                            }
+                            else {
+                                $copyResult.Errors += $registryResult.Error
+                            }
+                        }
+                    }
+                    catch {
+                        $copyResult.Errors += "Failed to enumerate registry subkeys: $($_.Exception.Message)"
+                    }
+                }
+                else {
+                    $copyResult.Errors += "Failed to convert registry path to PowerShell format: $SourcePath"
+                }
             }
             else {
-                0 
-            }
-            if (-not $registryResult.Success) {
-                $copyResult.Errors += $registryResult.Error
+                # Single registry key export
+                $registryResult = Copy-RegistryArtifact -RegistryPath $SourcePath -DestinationPath $DestinationPath
+                $copyResult.Success = $registryResult.Success
+                $copyResult.FilesCollected = if ($registryResult.Success) {
+                    1 
+                }
+                else {
+                    0 
+                }
+                if (-not $registryResult.Success) {
+                    $copyResult.Errors += $registryResult.Error
+                }
             }
             return $copyResult
         }
@@ -614,5 +692,126 @@ function Copy-ForensicArtifact {
         return $copyResult
     }
 }
+
+function ConvertTo-PowerShellRegistryPath {
+    <#
+    .SYNOPSIS
+    Converts forensic registry paths to PowerShell registry provider format.
+
+    .DESCRIPTION
+    Converts registry paths from formats like "HKEY_LOCAL_MACHINE\Software" 
+    to PowerShell registry provider format like "HKLM:\Software".
+
+    .PARAMETER RegistryPath
+    The registry path to convert.
+
+    .EXAMPLE
+    $psPath = ConvertTo-PowerShellRegistryPath -RegistryPath "HKEY_LOCAL_MACHINE\Software"
+    # Returns: "HKLM:\Software"
+
+    .OUTPUTS
+    String containing the PowerShell registry path, or null if invalid.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryPath
+    )
+
+    if ([string]::IsNullOrEmpty($RegistryPath)) {
+        return $null
+    }
+
+    # Registry hive mappings to PowerShell providers
+    $hiveMappings = @{
+        '^HKEY_LOCAL_MACHINE\\'  = 'HKLM:\'
+        '^HKLM\\'                = 'HKLM:\'
+        '^HKEY_CURRENT_USER\\'   = 'HKCU:\'
+        '^HKCU\\'                = 'HKCU:\'
+        '^HKEY_CLASSES_ROOT\\'   = 'HKCR:\'
+        '^HKCR\\'                = 'HKCR:\'
+        '^HKEY_USERS\\'          = 'HKU:\'
+        '^HKU\\'                 = 'HKU:\'
+        '^HKEY_CURRENT_CONFIG\\' = 'HKCC:\'
+        '^HKCC\\'                = 'HKCC:\'
+    }
+
+    $psPath = $RegistryPath
+
+    # Apply hive mappings
+    foreach ($mapping in $hiveMappings.GetEnumerator()) {
+        if ($psPath -match $mapping.Key) {
+            $psPath = $psPath -replace $mapping.Key, $mapping.Value
+            break
+        }
+    }
+
+    # Validate that we have a valid PowerShell registry path
+    if ($psPath -match '^HK[LCRU][MCRU]*:') {
+        return $psPath
+    }
+
+    return $null
+}
+
+function ConvertFrom-PowerShellRegistryPath {
+    <#
+    .SYNOPSIS
+    Converts PowerShell registry provider paths back to standard registry format.
+
+    .DESCRIPTION
+    Converts registry paths from PowerShell provider format like "HKLM:\Software" 
+    back to standard format like "HKEY_LOCAL_MACHINE\Software".
+
+    .PARAMETER PowerShellPath
+    The PowerShell registry path to convert.
+
+    .EXAMPLE
+    $stdPath = ConvertFrom-PowerShellRegistryPath -PowerShellPath "HKLM:\Software"
+    # Returns: "HKEY_LOCAL_MACHINE\Software"
+
+    .OUTPUTS
+    String containing the standard registry path.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$PowerShellPath
+    )
+
+    if ([string]::IsNullOrEmpty($PowerShellPath)) {
+        return $null
+    }
+
+    # Handle Microsoft.PowerShell.Core\Registry:: prefix
+    $cleanPath = $PowerShellPath -replace '^Microsoft\.PowerShell\.Core\\Registry::', ''
+
+    # Registry hive mappings from PowerShell providers
+    $hiveMappings = @{
+        '^HKLM:' = 'HKEY_LOCAL_MACHINE'
+        '^HKCU:' = 'HKEY_CURRENT_USER'
+        '^HKCR:' = 'HKEY_CLASSES_ROOT'
+        '^HKU:'  = 'HKEY_USERS'
+        '^HKCC:' = 'HKEY_CURRENT_CONFIG'
+    }
+
+    $stdPath = $cleanPath
+
+    # Apply hive mappings
+    foreach ($mapping in $hiveMappings.GetEnumerator()) {
+        if ($stdPath -match $mapping.Key) {
+            $stdPath = $stdPath -replace $mapping.Key, $mapping.Value
+            break
+        }
+    }
+
+    # Convert forward slashes to backslashes if any
+    $stdPath = $stdPath -replace '/', '\'
+
+    return $stdPath
+}
+
 # Example usage - collect all forensic artifacts
-# Invoke-ForensicCollection -CollectionPath 'C:\ForensicCollection' -Verbose
+#Invoke-ForensicCollection -CollectionPath 'C:\ForensicCollection' -Verbose
