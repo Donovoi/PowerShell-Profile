@@ -28,7 +28,7 @@ function Invoke-AllForensicCollection {
         [Parameter(Mandatory)]
         [string]$CollectionPath,
         
-        [string]$ToolsPath = (Join-Path $PSScriptRoot 'Tools'),
+        [string]$ToolsPath = (Join-Path $PWD 'Tools'),
         
         [switch]$SkipToolDownload,
         
@@ -340,7 +340,7 @@ function Invoke-ForensicCollection {
         [Parameter(Mandatory)]
         [string]$CollectionPath,
         
-        [string]$ToolsPath = (Join-Path $PSScriptRoot 'Tools'),
+        [string]$ToolsPath = (Join-Path $PWD 'Tools'),
         
         [switch]$SkipToolDownload,
         
