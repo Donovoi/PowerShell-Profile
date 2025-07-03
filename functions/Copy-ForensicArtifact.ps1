@@ -633,6 +633,13 @@ function Copy-LockedFile {
         [PSCustomObject[]]$ForensicTools = @()
     )
 
+    # Check if file should be skipped (temporary files, transaction logs)
+    $fileName = Split-Path $SourceFile -Leaf
+    if ($fileName -match '\.(LOG\d*|TMP|TEMP)$') {
+        Write-Verbose "Skipping temporary/transaction log file: $SourceFile"
+        return $false
+    }
+
     # Try Invoke-RawCopy first if available
     Write-Verbose "Copy-LockedFile - Available tools: $($ForensicTools | ForEach-Object { $_.Name }) (Count: $($ForensicTools.Count))"
     $rawCopyTool = $ForensicTools | Where-Object { $_.Name -eq 'Invoke-RawCopy' } | Select-Object -First 1
@@ -641,11 +648,17 @@ function Copy-LockedFile {
             Write-Verbose "Attempting Invoke-RawCopy for locked file: $SourceFile"
             $result = Invoke-RawCopy -Path $SourceFile -Destination $DestinationFile -Overwrite -ErrorAction Stop
             if ($result) {
+                Write-Verbose "Forensic copied system file: $SourceFile"
                 return $true
             }
         }
         catch {
             Write-Verbose "Invoke-RawCopy failed for '$SourceFile': $($_.Exception.Message)"
+            # For certain types of failures, skip fallback to avoid infinite loops
+            if ($_.Exception.Message -match "file length was too large|SetLength") {
+                Write-Verbose "Skipping fallback tools due to file size/length issue: $SourceFile"
+                return $false
+            }
         }
     }
 
@@ -658,11 +671,17 @@ function Copy-LockedFile {
                     $fileName = Split-Path $SourceFile -Leaf
                     $destDir = Split-Path $DestinationFile -Parent
                     
-                    $robocopyArgs = @($sourceDir, $destDir, $fileName, '/B', '/NP', '/NJH', '/NJS')
+                    # Use explicit no-retry, no-wait parameters to prevent infinite loops
+                    $robocopyArgs = @("`"$sourceDir`"", "`"$destDir`"", "`"$fileName`"", '/B', '/NP', '/NJH', '/NJS', '/R:0', '/W:0')
+                    Write-Verbose "Robocopy command: robocopy $($robocopyArgs -join ' ')"
                     $process = Start-Process -FilePath $tool.Path -ArgumentList $robocopyArgs -Wait -NoNewWindow -PassThru
                     
                     if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 1) {
+                        Write-Verbose "Robocopy succeeded for: $SourceFile"
                         return $true
+                    }
+                    else {
+                        Write-Verbose "Robocopy failed with exit code $($process.ExitCode) for: $SourceFile"
                     }
                 }
             }
