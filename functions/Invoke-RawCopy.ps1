@@ -207,6 +207,22 @@ function Invoke-RawCopy {
     $srcFile = Get-NtFile -Win32Path $srcPath -Access ReadData -ShareMode All
     $extents = Get-NtfsExtents $srcFile
     $total = ($extents | Measure-Object ClusterCount -Sum).Sum * $clusterSize
+    
+    # Validate total size calculation is reasonable
+    if ($total -gt 2TB) {
+        Write-Warning "Calculated total size ($total bytes) seems unreasonably large. File may have sparse regions or calculation error."
+        # Try to get actual file size for comparison
+        try {
+            $realSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
+            if ($realSize -lt $total) {
+                Write-Verbose "Using actual file size ($realSize) instead of calculated size ($total)"
+                $total = $realSize
+            }
+        }
+        catch {
+            Write-Verbose "Could not get actual file size for validation"
+        }
+    }
 
     $bufSize = $BufferSizeKB * 1KB
     if ($bufSize % $sectorSize) {
@@ -225,11 +241,23 @@ function Invoke-RawCopy {
         # Get the actual file size to avoid setting length too large
         try {
             $actualFileSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
+            Write-Verbose "Actual file size for '$Path': $actualFileSize bytes"
         }
         catch {
             Write-Verbose "Could not get file size for '$Path': $($_.Exception.Message)"
             # Use a reasonable default or calculate from extents
             $actualFileSize = $extents | ForEach-Object { [UInt64]$_.ClusterCount * [UInt64]$clusterSize } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+            Write-Verbose "Calculated file size from extents: $actualFileSize bytes"
+        }
+        
+        # Validate the file size is reasonable for the file system
+        $maxFileSize = [Math]::Min([Int64]::MaxValue, 2TB)  # 2TB limit for safety
+        if ($actualFileSize -gt $maxFileSize) {
+            Write-Warning "File size ($actualFileSize bytes) exceeds safe limit. Using extent-based calculation instead."
+            $actualFileSize = $total
+            if ($actualFileSize -gt $maxFileSize) {
+                throw "File size calculation resulted in unreasonably large size: $actualFileSize bytes"
+            }
         }
         
         foreach ($e in $extents) {
@@ -268,8 +296,21 @@ function Invoke-RawCopy {
             }
         }
         
-        # Set the final file length to match the original file
-        $dest.SetLength([Int64]$actualFileSize)
+        # Set the final file length to match the original file, with safety checks
+        try {
+            if ($actualFileSize -le [Int32]::MaxValue) {
+                $dest.SetLength([Int64]$actualFileSize)
+                Write-Verbose "Set destination file length to $actualFileSize bytes"
+            }
+            else {
+                Write-Warning "File size too large for SetLength, keeping current size: $($dest.Length) bytes"
+            }
+        }
+        catch {
+            Write-Warning "Failed to set file length to $actualFileSize`: $($_.Exception.Message)"
+            Write-Verbose "Destination file will keep its current length: $($dest.Length) bytes"
+        }
+        
         Write-Progress -Activity 'RawCopy' -Completed -Status 'Copy complete' -PercentComplete 100
         Write-Output 'Copy complete'
         Write-Output "Destination File is: $Destination"
