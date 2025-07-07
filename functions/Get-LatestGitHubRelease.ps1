@@ -171,7 +171,7 @@ function Get-LatestGitHubRelease {
             $retry = 0
             do {
                 try {
-                    return , (Invoke-RestMethod -Uri $Uri -Headers $script:__ghHeaders -EA Stop)
+                    return , (Invoke-RestMethod -Uri $Uri -Headers $script:__ghHeaders)
                 }
                 catch [System.Net.Http.HttpRequestException] {
                     $s = $_.Exception.Response.StatusCode.value__
