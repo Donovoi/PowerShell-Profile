@@ -40,8 +40,13 @@ function Install-Dependencies {
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
             }
             Write-Verbose -Message "Importing cmdlet: $_"
-            $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
-            $Cmdletstoinvoke | Import-Module -Force
+            $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_ -Force
+            if ($Cmdletstoinvoke) {
+                $Cmdletstoinvoke | Import-Module -Force
+            }
+            else {
+                continue
+            }
         }
     }
 
