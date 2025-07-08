@@ -13,7 +13,7 @@ function Install-NugetDeps {
         $neededcmdlets = @(
             'Write-Logg'
         )
-                foreach ($cmd in $neededcmdlets) {
+        foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -111,12 +111,12 @@ function Install-NugetDeps {
 
                 if ($installed) {
                     Write-Logg -Message "Package '$dep' version '$version' is already installed. Skipping..." -Level Verbose
+                    continue
                 }
                 else {
                     Write-Logg -Message "Package '$dep' version '$version' not found locally. Installing..." -Level Verbose
-                    Add-NuGetDependencies -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } `
-                        -SaveLocally:$SaveLocally `
-                        -LocalNugetDirectory:$LocalNugetDirectory
+                    Add-NuGetDependencies -NugetPackage @{$dep = @{ Name = $dep; Version = $version } } -SaveLocally:$SaveLocally -LocalNugetDirectory:$LocalNugetDirectory
+                    continue
                 }
             }
         }
