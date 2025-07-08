@@ -11,7 +11,7 @@ function Install-PSModule {
         $neededcmdlets = @(
             'Write-Logg'
         )
-                foreach ($cmd in $neededcmdlets) {
+        foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
