@@ -85,14 +85,11 @@ function Install-NugetDeps {
                 $dep = $entry.Value.Name
                 $version = $entry.Value.Version
 
-                # Write-Progress `
-                #     -Activity 'Installing NuGet Packages' `
-                #     -Status "Installing $dep ($count of $total)`n" `
-                #     -PercentComplete $percent
+                Write-Progress -Activity 'Installing NuGet Packages' -Status "Installing $dep ($count of $total)`n" -PercentComplete $percent
 
-                # if ($percent -eq 100) {
-                #     Clear-Host
-                # }
+                if ($percent -eq 100) {
+                    Clear-Host
+                }
 
                 # Check if exact package name + version is installed
                 $installed = Get-Package -Name $dep -RequiredVersion $version -ProviderName NuGet -ErrorAction SilentlyContinue
