@@ -8,7 +8,7 @@ function Install-PackageProviders {
             'Write-Logg'
 
         )
-                foreach ($cmd in $neededcmdlets) {
+        foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -38,39 +38,6 @@ function Install-PackageProviders {
                 }
             }
         }
-        # Ensure NuGet package provider is installed and registered
-        if (-not(Get-Module -Name 'PackageManagement' -ListAvailable -ErrorAction SilentlyContinue)) {
-            # Define the URL for the latest PackageManagement nupkg
-            $nugetUrl = 'https://www.powershellgallery.com/api/v2/package/PackageManagement'
-            $downloadPath = Join-Path $env:TEMP 'PackageManagement.zip'
-            $extractPath = Join-Path $env:TEMP 'PackageManagement'
-
-            # Download the nupkg file
-            Invoke-WebRequest -Uri $nugetUrl -OutFile $downloadPath
-
-            # Clean up existing extraction path
-            if (Test-Path $extractPath) {
-                Remove-Item -Path $extractPath -Recurse -Force
-            }
-            New-Item -Path $extractPath -ItemType Directory | Out-Null
-
-            # Extract the nupkg (zip file)
-            Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
-
-            # Find the DLL path
-            $dllBasePath = Get-ChildItem -Path $extractPath -Recurse -Filter 'PackageManagement.dll' |
-                Select-Object -First 1 -ExpandProperty FullName
-
-            Import-Module $dllBasePath
-
-            # Test to see if it's working
-            Get-Command -Module PackageManagement | Out-Null
-
-            # Clean up
-            Remove-Item -Path $downloadPath -ErrorAction SilentlyContinue
-            Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
-        }
-
         # Check if the NuGet package provider is installed
         if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
             Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
@@ -100,10 +67,6 @@ function Install-PackageProviders {
         }
 
         # Ensure AnyPackage module is installed
-        if (-not(Get-Module -ListAvailable AnyPackage -ErrorAction SilentlyContinue)) {
-            # For PSv5/5.1
-            Install-Module AnyPackage -AllowClobber -Force -SkipPublisherCheck | Out-Null
-        }
         if ($PSVersionTable.PSVersion.Major -ge 7) {
             if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
                 Install-PSResource AnyPackage | Out-Null
