@@ -102,22 +102,6 @@ function Install-PackageProviders {
             }
             Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
-
-        # # -- (B) Bootstrap NuGet provider -------------------------------------------
-        # if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Out-Null)) {
-        #     Install-PackageProvider NuGet -ForceBootstrap -Scope CurrentUser -Force -ErrorAction SilentlyContinue | Out-Null
-        # }
-        Import-PackageProvider -Name NuGet -Force -ErrorAction SilentlyContinue | Out-Null
-        # if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Out-Null)) {
-        #     Write-Logg -Message 'NuGet provider still missing after bootstrap.' -Level Error
-        # }
-
-        # -- (C) Register trusted sources -------------------------------------------
-        # if (-not(Get-PackageSource NuGet -ErrorAction SilentlyContinue | Out-Null)) {
-        #     Register-PackageSource -Name NuGet `
-        #         -Location 'https://api.nuget.org/v3/index.json' `
-        #         -ProviderName NuGet -Trusted -Force -ForceBootstrap -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-        # }
         if ((Get-PSRepository PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
             Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
         }
