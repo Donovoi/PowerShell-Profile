@@ -117,7 +117,7 @@ function Install-PackageProviders {
         # Trust PSGallery
         $psGallery = Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
         if ($psGallery -and $psGallery.InstallationPolicy -ne 'Trusted') {
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
     }
     catch {
