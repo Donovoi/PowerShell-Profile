@@ -1,8 +1,8 @@
 function Install-NugetDeps {
     [CmdletBinding()]
     param(
-        [bool]$SaveLocally,
-        [bool]$InstallDefaultNugetPackage,
+        [switch]$SaveLocally = $false,
+        [switch]$InstallDefaultNugetPackage = $false,
         [hashtable]$NugetPackage,
         [string]$LocalNugetDirectory
     )
@@ -12,6 +12,7 @@ function Install-NugetDeps {
         # (1) Import required cmdlets if missing
         $neededcmdlets = @(
             'Write-Logg'
+            'Install-PackageProviders'
         )
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
@@ -90,9 +91,12 @@ function Install-NugetDeps {
                 if ($percent -eq 100) {
                     Clear-Host
                 }
+                if (-not (Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
+                    Install-PackageProviders
+                }
 
                 # Check if exact package name + version is installed
-                $installed = Get-Package -Name $dep -RequiredVersion $version -ProviderName NuGet -ErrorAction SilentlyContinue
+                $installed = Get-Package -Name $dep -RequiredVersion $version -Provider NuGet -ErrorAction SilentlyContinue
 
                 if ($SaveLocally -and (-not [string]::IsNullOrEmpty($LocalNugetDirectory))) {
                     $LocalNugetPackage = Join-Path -Path $LocalNugetDirectory -ChildPath "$dep.$version"
