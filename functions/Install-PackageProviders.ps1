@@ -95,7 +95,13 @@ function Install-PackageProviders {
             Write-Logg -Message "Removed old PackageManagement module: $($packageManagementModule.Version)" -Level Verbose
         }
 
-
+        # -- (D) Bring in AnyPackage for PS 7+ --------------------------------------
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            if (-not (Get-Module -ListAvailable AnyPackage)) {
+                Install-PSResource AnyPackage -TrustRepository -AcceptLicense -SkipDependencyCheck -Quiet -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            }
+            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
+        }
 
         # -- (B) Bootstrap NuGet provider -------------------------------------------
         if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Out-Null)) {
@@ -114,14 +120,6 @@ function Install-PackageProviders {
         }
         if ((Get-PSRepository PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
             Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
-        }
-
-        # -- (D) Bring in AnyPackage for PS 7+ --------------------------------------
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            if (-not (Get-Module -ListAvailable AnyPackage)) {
-                Install-PSResource AnyPackage -TrustRepository -AcceptLicense -SkipDependencyCheck -Quiet -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            }
-            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
     }
