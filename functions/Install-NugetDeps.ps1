@@ -122,9 +122,7 @@ function Install-NugetDeps {
                     -PercentComplete $percent
 
                 # Ensure NuGet provider is present
-                if (-not (Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
-                    Install-PackageProviders
-                }
+                Install-PackageProviders
 
                 # Check if already installed (locally or system-wide)
                 $installed = Get-Package -Name $dep -RequiredVersion $version -Provider NuGet -ErrorAction SilentlyContinue
