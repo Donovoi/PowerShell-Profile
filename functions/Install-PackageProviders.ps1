@@ -1,3 +1,42 @@
+<#
+.SYNOPSIS
+    Bootstraps and configures all package providers and repositories required
+    for reliable package management in both Windows PowerShell and PowerShell (Core).
+
+.DESCRIPTION
+    Install-PackageProviders performs the following actions:
+      • Dynamically installs any missing helper cmdlets (e.g. Write-Logg).  
+      • Removes deprecated versions of the PackageManagement module.  
+      • Ensures the AnyPackage module is available and imported on PS 7+.  
+      • Bootstraps the NuGet and PowerShellGet package providers if absent.  
+      • Registers the public NuGet feed and marks it as trusted.  
+      • Trusts all existing package sources and the PSGallery repository.
+
+    The function is designed for use in a profile to guarantee a consistent
+    package-management environment across sessions and machines.
+
+.PARAMETER (none)
+    This cmdlet does not accept any parameters.
+
+.INPUTS
+    None. You cannot pipe objects to this cmdlet.
+
+.OUTPUTS
+    None. The cmdlet writes only verbose, warning, or error messages.
+
+.EXAMPLE
+    PS> Install-PackageProviders
+    Runs the cmdlet with default behaviour, installing and configuring all
+    required providers and sources.
+
+.NOTES
+    Author   : toor
+    Requires : PowerShell 5.1 or later
+    Version  : 1.0
+    Updated  : <add-date>
+    Link     : https://learn.microsoft.com/powershell/module/packagemanagement
+#>
+
 function Install-PackageProviders {
     [CmdletBinding()]
     param ()
@@ -38,6 +77,21 @@ function Install-PackageProviders {
                 }
             }
         }
+
+        #Remove deprecated module
+        Remove-Module -Name 'PackageManagement' -ErrorAction SilentlyContinue | Out-Null
+
+        # Ensure AnyPackage module is installed
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
+                Install-PSResource AnyPackage | Out-Null
+            }
+            if (-not (Get-Module -Name AnyPackage -ListAvailable -ErrorAction SilentlyContinue)) {
+                Install-Module AnyPackage -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            }
+            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+
         # Check if the NuGet package provider is installed
         if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
             Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
@@ -64,17 +118,6 @@ function Install-PackageProviders {
         $psGallery = Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
         if ($psGallery -and $psGallery.InstallationPolicy -ne 'Trusted') {
             Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
-        }
-
-        # Ensure AnyPackage module is installed
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
-                Install-PSResource AnyPackage | Out-Null
-            }
-            if (-not (Get-Module -Name AnyPackage -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Module AnyPackage -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            }
-            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
     }
     catch {
