@@ -24,19 +24,19 @@ function ConvertTo-ForensicArtifact {
     param(
         [Parameter(Mandatory)]
         [PSObject]$ArtifactData,
-        
+
         [switch]$ExpandPaths
     )
 
     try {
         $artifactType = $ArtifactData.sources.type
         $paths = Get-ArtifactPaths -ArtifactData $ArtifactData
-        
+
         # Expand paths if requested
         $expandedPaths = @()
         if ($ExpandPaths -and $paths) {
-            $expandedPaths = $paths | ForEach-Object { 
-                Expand-ForensicPath -Path $_ 
+            $expandedPaths = $paths | ForEach-Object {
+                Expand-ForensicPath -Path $_
             } | Where-Object { -not [string]::IsNullOrEmpty($_) }
         }
 
@@ -99,19 +99,19 @@ function Get-ArtifactPaths {
                 }
             }
         }
-        
+
         'REGISTRY_KEY' {
             if ($attributes.keys) {
                 $paths += $attributes.keys
             }
         }
-        
+
         'FILE' {
             if ($attributes.paths) {
                 $paths += $attributes.paths
             }
         }
-        
+
         default {
             # Handle other types or mixed attributes
             if ($attributes.paths) {
@@ -161,7 +161,7 @@ function Expand-ForensicPath {
     try {
         # Handle forensic artifact environment variables
         $expandedPath = $Path
-        
+
         # System environment variables
         $environmentMappings = @{
             '%%environ_systemroot%%' = $env:SystemRoot
@@ -239,10 +239,10 @@ function Get-ProcessedAttributes {
 
     try {
         $attributeProperties = [Ordered]@{}
-        
+
         foreach ($property in $Attributes.PSObject.Properties) {
             $value = $property.Value
-            
+
             if ($value -is [array] -and $value.Count -gt 0) {
                 # Convert arrays to comma-separated strings for better display
                 $attributeProperties[$property.Name] = ($value -join ', ')
@@ -254,7 +254,7 @@ function Get-ProcessedAttributes {
                 $attributeProperties[$property.Name] = $value
             }
         }
-        
+
         return [PSCustomObject]$attributeProperties
     }
     catch {

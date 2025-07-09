@@ -30,10 +30,10 @@ function Copy-RegistryArtifact {
     param(
         [Parameter(Mandatory)]
         [string]$RegistryPath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [Parameter()]
         [string]$OutputFileName
     )
@@ -65,9 +65,9 @@ function Copy-RegistryArtifact {
         # Execute registry export
         $exportArgs = @('export', "`"$normalizedPath`"", "`"$exportFile`"", '/y')
         Write-Verbose "Executing: reg.exe $($exportArgs -join ' ')"
-        
+
         $regProcess = Start-Process -FilePath 'reg.exe' -ArgumentList $exportArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-        
+
         if ($regProcess.ExitCode -eq 0 -and (Test-Path $exportFile)) {
             Write-Verbose "Successfully exported registry: $normalizedPath"
             $result.Success = $true
@@ -183,10 +183,10 @@ function Copy-FileSystemArtifact {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -254,10 +254,10 @@ function Copy-RecursivePattern {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -358,10 +358,10 @@ function Copy-WildcardPattern {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -398,7 +398,7 @@ function Copy-WildcardPattern {
 
                 # For forensic artifacts, prefer forensic copy tools for system files
                 $isSystemFile = $item.FullName -match '(\\Windows\\|\\System32\\|\\SysWOW64\\|AppCompat\\|\\config\\|\.hve$|\.dat$|\.log$)'
-                
+
                 if ($isSystemFile -and $ForensicTools -and $ForensicTools.Count -gt 0) {
                     # Try forensic copy first for system files
                     if (Copy-LockedFile -SourceFile $item.FullName -DestinationFile $destFile -ForensicTools $ForensicTools) {
@@ -469,10 +469,10 @@ function Copy-DirectPath {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -484,21 +484,21 @@ function Copy-DirectPath {
 
     try {
         $item = Get-Item -LiteralPath $SourcePath -Force -ErrorAction Stop
-        
+
         if ($item.PSIsContainer) {
             # Handle directory copy
             Write-Verbose "Copying directory: $SourcePath"
             $destDir = Join-Path $DestinationPath $item.Name
-            
+
             if (-not (Test-Path $destDir)) {
                 New-Item -Path $destDir -ItemType Directory -Force | Out-Null
             }
-            
+
             # Copy all files in the directory
             $files = Get-ChildItem -Path $SourcePath -Force -File -ErrorAction SilentlyContinue
             foreach ($file in $files) {
                 $destFile = Join-Path $destDir $file.Name
-                
+
                 if (Copy-StandardFile -SourceFile $file.FullName -DestinationFile $destFile) {
                     $result.FilesCollected++
                     $result.Success = $true
@@ -519,11 +519,11 @@ function Copy-DirectPath {
         else {
             # Handle single file copy
             $destFile = Join-Path $DestinationPath $item.Name
-            
+
             # For forensic artifacts, prefer forensic copy tools for system files
             $isSystemFile = $SourcePath -match '(\\Windows\\|\\System32\\|\\SysWOW64\\|AppCompat\\|\\config\\|\.hve$|\.dat$|\.log$)'
             Write-Verbose "Direct path copy - Source: $SourcePath, IsSystemFile: $isSystemFile, ForensicTools count: $($ForensicTools.Count)"
-            
+
             if ($isSystemFile -and $ForensicTools -and $ForensicTools.Count -gt 0) {
                 # Try forensic copy first for system files
                 if (Copy-LockedFile -SourceFile $SourcePath -DestinationFile $destFile -ForensicTools $ForensicTools) {
@@ -583,7 +583,7 @@ function Copy-StandardFile {
     param(
         [Parameter(Mandatory)]
         [string]$SourceFile,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationFile
     )
@@ -626,10 +626,10 @@ function Copy-LockedFile {
     param(
         [Parameter(Mandatory)]
         [string]$SourceFile,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationFile,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -670,12 +670,12 @@ function Copy-LockedFile {
                     $sourceDir = Split-Path $SourceFile -Parent
                     $fileName = Split-Path $SourceFile -Leaf
                     $destDir = Split-Path $DestinationFile -Parent
-                    
+
                     # Use explicit no-retry, no-wait parameters to prevent infinite loops
                     $robocopyArgs = @("`"$sourceDir`"", "`"$destDir`"", "`"$fileName`"", '/B', '/NP', '/NJH', '/NJS', '/R:0', '/W:0')
                     Write-Verbose "Robocopy command: robocopy $($robocopyArgs -join ' ')"
                     $process = Start-Process -FilePath $tool.Path -ArgumentList $robocopyArgs -Wait -NoNewWindow -PassThru
-                    
+
                     if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 1) {
                         Write-Verbose "Robocopy succeeded for: $SourceFile"
                         return $true

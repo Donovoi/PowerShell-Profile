@@ -24,10 +24,10 @@ function Copy-WildcardPattern {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -50,8 +50,8 @@ function Copy-WildcardPattern {
         }
 
         # Find matching items
-        $items = Get-ChildItem -Path $basePath -Force -ErrorAction SilentlyContinue | Where-Object { 
-            $_.Name -like $fileName 
+        $items = Get-ChildItem -Path $basePath -Force -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like $fileName
         }
 
         Write-Verbose "Found $($items.Count) items matching wildcard pattern"
@@ -130,10 +130,10 @@ function Copy-DirectPath {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -209,7 +209,7 @@ function Copy-StandardFile {
     param(
         [Parameter(Mandatory)]
         [string]$SourceFile,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationFile
     )
@@ -267,10 +267,10 @@ function Copy-LockedFile {
     param(
         [Parameter(Mandatory)]
         [string]$SourceFile,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationFile,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -287,7 +287,7 @@ function Copy-LockedFile {
 
     # Try tools in order of preference: Function > Executable > BuiltIn
     $sortedTools = $ForensicTools | Sort-Object @{
-        Expression = { 
+        Expression = {
             switch ($_.Type) {
                 'Function' { 1 }
                 'Executable' { 2 }
@@ -300,7 +300,7 @@ function Copy-LockedFile {
     foreach ($tool in $sortedTools) {
         try {
             Write-Verbose "Attempting forensic copy with $($tool.Name): $SourceFile"
-            
+
             $success = switch ($tool.Name) {
                 'Invoke-RawCopy' {
                     # Use our advanced Invoke-RawCopy function with VSS support
@@ -319,7 +319,7 @@ function Copy-LockedFile {
                         $false
                     }
                 }
-                
+
                 'RawCopy' {
                     # Use RawCopy executable (legacy fallback)
                     try {
@@ -332,14 +332,14 @@ function Copy-LockedFile {
                         $false
                     }
                 }
-                
+
                 'Robocopy' {
                     # Use Robocopy for locked files
                     try {
                         $sourceDir = Split-Path $SourceFile -Parent
                         $sourceFileName = Split-Path $SourceFile -Leaf
                         $destDir = Split-Path $DestinationFile -Parent
-                        
+
                         # Escape special characters for Robocopy
                         $robocopyArgs = @("`"$sourceDir`"", "`"$destDir`"", "`"$sourceFileName`"", '/B', '/NP', '/R:0', '/W:0')
                         $process = Start-Process -FilePath $tool.Path -ArgumentList $robocopyArgs -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
@@ -350,7 +350,7 @@ function Copy-LockedFile {
                         $false
                     }
                 }
-                
+
                 'XCopy' {
                     # Use XCopy for basic file copying
                     try {
@@ -363,7 +363,7 @@ function Copy-LockedFile {
                         $false
                     }
                 }
-                
+
                 default {
                     Write-Verbose "Unknown tool type: $($tool.Name)"
                     $false
@@ -411,10 +411,10 @@ function Copy-DirectoryRecursive {
     param(
         [Parameter(Mandatory)]
         [string]$SourceDir,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationDir,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 

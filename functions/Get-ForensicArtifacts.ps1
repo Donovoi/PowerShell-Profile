@@ -6,7 +6,7 @@ function Get-ForensicArtifacts {
     .DESCRIPTION
     This function downloads forensic artifact definitions from the ForensicArtifacts GitHub repository,
     processes them according to specified parameters, and optionally collects artifacts from the local system.
-    
+
     The function follows SOLID principles with modular design for maintainability and testability.
     It supports privilege elevation, comprehensive error handling, and provides detailed collection reports.
 
@@ -34,28 +34,28 @@ function Get-ForensicArtifacts {
 
     .EXAMPLE
     Get-ForensicArtifacts
-    
+
     Lists all available forensic artifacts without collecting them.
 
     .EXAMPLE
     Get-ForensicArtifacts -CollectArtifacts -CollectionPath "C:\Investigation" -Verbose
-    
+
     Collects all forensic artifacts to the specified path with verbose output.
 
     .EXAMPLE
     Get-ForensicArtifacts -ArtifactFilter @("Browser", "Registry") -ExpandPaths
-    
+
     Lists only browser and registry artifacts with expanded paths.
 
     .EXAMPLE
     Get-ForensicArtifacts -CollectArtifacts -ElevateToSystem -Verbose
-    
+
     Collects artifacts with SYSTEM privileges for maximum access.
 
     .NOTES
     Author: PowerShell Profile Enhancement
     Version: 2.0.0
-    
+
     This function requires internet connectivity to download artifact definitions.
     Administrative privileges are recommended for comprehensive artifact collection.
     SYSTEM privileges provide access to the most protected artifacts.
@@ -77,14 +77,14 @@ function Get-ForensicArtifacts {
             ParameterSetName = 'Collect',
             HelpMessage = 'Path where collected artifacts will be stored'
         )]
-        [ValidateScript({ 
+        [ValidateScript({
                 if ($_ -and -not [string]::IsNullOrWhiteSpace($_)) {
                     $parentDir = Split-Path $_ -Parent
                     if (-not (Test-Path $parentDir -PathType Container)) {
                         throw "Parent directory '$parentDir' must exist"
                     }
                 }
-                $true 
+                $true
             })]
         [string]$CollectionPath,
 
@@ -120,7 +120,7 @@ function Get-ForensicArtifacts {
         # Initialize constants
         $script:ArtifactsSourceUrl = 'https://raw.githubusercontent.com/ForensicArtifacts/artifacts/main/artifacts/data/windows.yaml'
         $script:CollectionDirPrefix = 'ForensicArtifacts_'
-        
+
         # Import needed cmdlets if not already available
         $neededcmdlets = @(
             'Install-Dependencies'     # For installing dependencies
@@ -156,7 +156,7 @@ function Get-ForensicArtifacts {
             }
 
         }
-        
+
         # Initialize forensic dependencies locally
         try {
             # Check for YAML parsing capability
@@ -175,7 +175,7 @@ function Get-ForensicArtifacts {
         catch {
             Write-Error "Failed to initialize dependencies: $($_.Exception.Message)" -ErrorAction Stop
         }
-        
+
         # Initialize collection configuration
         if ($CollectArtifacts) {
             # Generate collection path if not provided
@@ -216,14 +216,14 @@ function Get-ForensicArtifacts {
     process {
         try {
             Write-Verbose 'Downloading forensic artifacts definitions...'
-            
+
             # Download artifacts data
             $yamlContent = Invoke-RestMethod -Uri $script:ArtifactsSourceUrl -ErrorAction Stop
             $artifactsData = ConvertFrom-Yaml -AllDocuments $yamlContent
-            
+
             Write-Verbose "Processing $($artifactsData.Count) artifact definitions..."
             $results = @()
-            
+
             foreach ($artifact in $artifactsData) {
                 # Apply artifact filter if specified
                 $includeArtifact = $true
@@ -236,12 +236,12 @@ function Get-ForensicArtifacts {
                         }
                     }
                 }
-                
+
                 if ($includeArtifact) {
                     # Process artifact data
                     $artifactType = $artifact.sources.type
                     $paths = @()
-                    
+
                     # Extract paths based on artifact type
                     switch ($artifactType) {
                         'REGISTRY_VALUE' {
@@ -249,7 +249,7 @@ function Get-ForensicArtifacts {
                                 foreach ($pair in $artifact.sources.attributes.key_value_pairs) {
                                     $regPath = $pair.registry_path ?? $pair.path
                                     if ($regPath) {
-                                        $paths += $regPath 
+                                        $paths += $regPath
                                     }
                                 }
                             }
@@ -273,7 +273,7 @@ function Get-ForensicArtifacts {
                             }
                         }
                     }
-                    
+
                     # Expand paths if requested
                     $expandedPaths = @()
                     if ($ExpandPaths -and $paths) {
@@ -291,7 +291,7 @@ function Get-ForensicArtifacts {
                             }
                         }
                     }
-                    
+
                     # Create artifact object
                     $processedArtifact = [PSCustomObject][Ordered]@{
                         Name           = $artifact.name
@@ -300,30 +300,30 @@ function Get-ForensicArtifacts {
                         References     = $artifact.urls
                         Paths          = $paths
                         ExpandedPaths  = if ($ExpandPaths) {
-                            $expandedPaths 
+                            $expandedPaths
                         }
                         else {
-                            $null 
+                            $null
                         }
                         ProcessingDate = Get-Date
                     }
-                    
+
                     # Add collection result if collecting
                     if ($CollectArtifacts) {
                         Write-Warning 'Collection functionality requires the full refactored modular version.'
                         Write-Warning 'Please use: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1 to load the complete module.'
                         $processedArtifact | Add-Member -NotePropertyName 'CollectionResult' -NotePropertyValue 'Not available in simplified version' -Force
                     }
-                    
+
                     $results += $processedArtifact
                 }
             }
-            
+
             if ($CollectArtifacts) {
                 Write-Information 'For full collection functionality, please use the refactored modular version.' -InformationAction Continue
                 Write-Information 'Load with: . .\ForensicArtifacts\Load-ForensicArtifacts.ps1' -InformationAction Continue
             }
-            
+
             return $results
         }
         catch {

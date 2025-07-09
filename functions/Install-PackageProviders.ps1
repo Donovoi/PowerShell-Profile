@@ -5,11 +5,11 @@
 
 .DESCRIPTION
     Install-PackageProviders performs the following actions:
-      • Dynamically installs any missing helper cmdlets (e.g. Write-Logg).  
-      • Removes deprecated versions of the PackageManagement module.  
-      • Ensures the AnyPackage module is available and imported on PS 7+.  
-      • Bootstraps the NuGet and PowerShellGet package providers if absent.  
-      • Registers the public NuGet feed and marks it as trusted.  
+      • Dynamically installs any missing helper cmdlets (e.g. Write-Logg).
+      • Removes deprecated versions of the PackageManagement module.
+      • Ensures the AnyPackage module is available and imported on PS 7+.
+      • Bootstraps the NuGet and PowerShellGet package providers if absent.
+      • Registers the public NuGet feed and marks it as trusted.
       • Trusts all existing package sources and the PSGallery repository.
 
     The function is designed for use in a profile to guarantee a consistent
@@ -97,9 +97,16 @@ function Install-PackageProviders {
             Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
             Install-PackageProvider -Name 'NuGet' -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
             Import-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue | Out-Null
-            Register-PackageSource -Name 'NuGet' -Location 'https://api.nuget.org/v3/index.json' `
-                -Provider 'NuGet' -ForceBootstrap -Trusted -Force -Confirm:$false `
-                -ErrorAction SilentlyContinue | Out-Null
+            try {
+                Register-PackageSource -Name 'NuGet' -Location 'https://api.nuget.org/v3/index.json' `
+                    -Provider 'NuGet' -ForceBootstrap -Trusted -Force -Confirm:$false `
+                    -ErrorAction SilentlyContinue | Out-Null
+            }
+            catch {
+                Write-Logg -Message 'Failed to register NuGet package source.' -Level Error
+                Write-Logg -Message "$_.Exception.Message" -Level Error
+            }
+
         }
 
         # Ensure PowerShellGet package provider is installed

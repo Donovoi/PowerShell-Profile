@@ -9,7 +9,7 @@ function Initialize-ForensicDependencies {
 
     .EXAMPLE
     Initialize-ForensicDependencies
-    
+
     Checks and installs all required dependencies for forensic operations.
 
     .NOTES
@@ -204,10 +204,10 @@ function Get-ForensicArtifactsData {
     try {
         Write-Verbose "Downloading artifacts from: $SourceUrl"
         $yamlContent = Invoke-RestMethod -Uri $SourceUrl -ErrorAction Stop
-        
+
         Write-Verbose 'Parsing YAML content...'
         $artifacts = ConvertFrom-Yaml -AllDocuments $yamlContent
-        
+
         Write-Verbose "Successfully parsed $($artifacts.Count) artifact definitions"
         return $artifacts
     }
@@ -242,7 +242,7 @@ function Test-ArtifactFilter {
     param(
         [Parameter(Mandatory)]
         [PSObject]$Artifact,
-        
+
         [string[]]$Filter = @()
     )
 

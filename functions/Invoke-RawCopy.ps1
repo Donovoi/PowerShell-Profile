@@ -5,25 +5,25 @@ directly and writing them to a destination file.
 
 .DESCRIPTION
 Invoke-RawCopy is intended for low-level forensics, backup, or migration
-scenarios where a byte-for-byte clone of a file is required.  
+scenarios where a byte-for-byte clone of a file is required.
 It uses NtObjectManager to enumerate NTFS retrieval pointers, can create a
 VSS snapshot to avoid “file in use” issues, and supports sparse regions so
 holes are preserved without allocating unnecessary disk space.
 
 The cmdlet:
-• Validates parameters and loads NtObjectManager on demand.  
-• Optionally creates a VSS snapshot of the source volume (default).  
+• Validates parameters and loads NtObjectManager on demand.
+• Optionally creates a VSS snapshot of the source volume (default).
 • Reads each logical cluster (LCN) run with un-buffered IO respecting physical
-  sector size.  
-• Writes to the destination file, optionally overwriting an existing file.  
-• Displays real-time progress, ETA, and enforces a user-selectable buffer size.  
+  sector size.
+• Writes to the destination file, optionally overwriting an existing file.
+• Displays real-time progress, ETA, and enforces a user-selectable buffer size.
 
 .PARAMETER Path
-Absolute path to the source file.  
+Absolute path to the source file.
 Must exist and reference a regular file.
 
 .PARAMETER Destination
-Absolute path (including filename) for the output file.  
+Absolute path (including filename) for the output file.
 If the file exists, specify ‑Overwrite to replace it.
 
 .PARAMETER Overwrite
@@ -57,8 +57,8 @@ None. Parameters are provided by value.
 None. Produces a file at the destination path and progress output.
 
 .NOTES
-Author : Unknown (profile function)  
-Requires: NtObjectManager 2.0.1 or later, Windows Vista+ with PowerShell 5.1+.  
+Author : Unknown (profile function)
+Requires: NtObjectManager 2.0.1 or later, Windows Vista+ with PowerShell 5.1+.
 The cmdlet must run with sufficient privileges to create VSS snapshots and
 perform raw disk reads.
 
@@ -92,13 +92,13 @@ function Invoke-RawCopy {
         $cl = [wmiclass]'Win32_ShadowCopy'
         $r = $cl.Create($VolumeRoot, 'ClientAccessible')
         if ($r.ReturnValue) {
-            throw "VSS create failed: $($r.ReturnValue)" 
+            throw "VSS create failed: $($r.ReturnValue)"
         }
         Get-CimInstance Win32_ShadowCopy -Filter "ID='$($r.ShadowID)'"
     }
     function Remove-VssSnapshot($Shadow) {
         if ($Shadow) {
-            $Shadow | Remove-CimInstance 
+            $Shadow | Remove-CimInstance
         }
     }
     function Get-NtfsExtents([NtCoreLib.NtFile]$File) {
@@ -122,17 +122,17 @@ function Invoke-RawCopy {
                     break
                 }
                 else {
-                    throw 
+                    throw
                 }
             }
             if (-not $out) {
-                break 
+                break
             }
             $pin = [Runtime.InteropServices.GCHandle]::Alloc($out, 'Pinned')
             try {
                 $count = [BitConverter]::ToUInt32($out, 0)
                 if (-not $count) {
-                    break 
+                    break
                 }
                 $start = [BitConverter]::ToUInt64($out, 4)
                 $ofs = 12
@@ -147,8 +147,8 @@ function Invoke-RawCopy {
             }
             finally {
                 if ($pin.IsAllocated) {
-                    $pin.Free() 
-                } 
+                    $pin.Free()
+                }
             }
         } while ($status -eq $STATUS_BUFFER_OVERFLOW)
         return $ext
@@ -171,7 +171,7 @@ function Invoke-RawCopy {
             Get-CimAssociatedInstance -ResultClassName Win32_DiskPartition |
                 Get-CimAssociatedInstance -ResultClassName Win32_DiskDrive | Select-Object -First 1
         if ($disk -and $disk.BytesPerSector) {
-            $sectorSize = [int]$disk.BytesPerSector 
+            $sectorSize = [int]$disk.BytesPerSector
         }
         else {
             # Fallback to using Get-PhysicalDisk if available (Windows 8+)
@@ -190,7 +190,7 @@ function Invoke-RawCopy {
         }
     }
     catch {
-        Write-Warning "Failed to determine physical sector size for $volRoot. Using default $sectorSize bytes." 
+        Write-Warning "Failed to determine physical sector size for $volRoot. Using default $sectorSize bytes."
         Write-Warning "$_.Exception.Message"
     }
 
@@ -207,7 +207,7 @@ function Invoke-RawCopy {
     $srcFile = Get-NtFile -Win32Path $srcPath -Access ReadData -ShareMode All
     $extents = Get-NtfsExtents $srcFile
     $total = ($extents | Measure-Object ClusterCount -Sum).Sum * $clusterSize
-    
+
     # Validate total size calculation is reasonable
     if ($total -gt 2TB) {
         Write-Warning "Calculated total size ($total bytes) seems unreasonably large. File may have sparse regions or calculation error."
@@ -226,7 +226,7 @@ function Invoke-RawCopy {
 
     $bufSize = $BufferSizeKB * 1KB
     if ($bufSize % $sectorSize) {
-        throw "BufferSizeKB must be a multiple of $sectorSize bytes." 
+        throw "BufferSizeKB must be a multiple of $sectorSize bytes."
     }
 
     $buffer = [byte[]]::new($bufSize)
@@ -237,7 +237,7 @@ function Invoke-RawCopy {
     try {
         [UInt64]$copied = 0
         $sw = [Diagnostics.Stopwatch]::StartNew()
-        
+
         # Get the actual file size to avoid setting length too large
         try {
             $actualFileSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
@@ -249,7 +249,7 @@ function Invoke-RawCopy {
             $actualFileSize = $extents | ForEach-Object { [UInt64]$_.ClusterCount * [UInt64]$clusterSize } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
             Write-Verbose "Calculated file size from extents: $actualFileSize bytes"
         }
-        
+
         # Validate the file size is reasonable for the file system
         $maxFileSize = [Math]::Min([Int64]::MaxValue, 2TB)  # 2TB limit for safety
         if ($actualFileSize -gt $maxFileSize) {
@@ -259,7 +259,7 @@ function Invoke-RawCopy {
                 throw "File size calculation resulted in unreasonably large size: $actualFileSize bytes"
             }
         }
-        
+
         foreach ($e in $extents) {
             # skip sparse run or nonsense extents beyond disk size
             $extentBytes = [UInt64]$e.ClusterCount * [UInt64]$clusterSize
@@ -277,25 +277,25 @@ function Invoke-RawCopy {
             while ($remaining -gt 0) {
                 $chunk = [UInt64][Math]::Min($bufSize, ($remaining / $sectorSize) * $sectorSize)
                 if ($chunk -eq 0) {
-                    $chunk = $sectorSize 
+                    $chunk = $sectorSize
                 }
                 $r = $vol.Read($buffer, 0, [int]$chunk)
                 if ($r -eq 0) {
-                    throw "Unexpected EOF at LCN $($e.Lcn)" 
+                    throw "Unexpected EOF at LCN $($e.Lcn)"
                 }
                 $dest.Write($buffer, 0, $r)
                 $copied += $r; $remaining -= [UInt64]$r
                 $pct = [Math]::Round(($copied / $total) * 100, 2)
                 $eta = if ($copied) {
-                    ($total - $copied) / ($copied / $sw.Elapsed.TotalSeconds) 
+                    ($total - $copied) / ($copied / $sw.Elapsed.TotalSeconds)
                 }
                 else {
-                    0 
+                    0
                 }
                 Write-Progress -Activity 'RawCopy' -Status "$pct %" -PercentComplete $pct -SecondsRemaining $eta
             }
         }
-        
+
         # Set the final file length to match the original file, with safety checks
         try {
             if ($actualFileSize -le [Int32]::MaxValue) {
@@ -310,14 +310,14 @@ function Invoke-RawCopy {
             Write-Warning "Failed to set file length to $actualFileSize`: $($_.Exception.Message)"
             Write-Verbose "Destination file will keep its current length: $($dest.Length) bytes"
         }
-        
+
         Write-Progress -Activity 'RawCopy' -Completed -Status 'Copy complete' -PercentComplete 100
         Write-Output 'Copy complete'
         Write-Output "Destination File is: $Destination"
     }
     finally {
         $dest.Dispose(); $vol.Dispose(); $srcFile.Dispose(); if ($shadow) {
-            Remove-VssSnapshot $shadow 
+            Remove-VssSnapshot $shadow
         }
     }
 }

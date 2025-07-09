@@ -69,7 +69,7 @@ function Install-NugetDeps {
                     'ScriptBlock' {
                         New-Module -Name "Dynamic_$cmd" -ScriptBlock $scriptBlock | Import-Module -Global -Force
                     }
-                    'PSModuleInfo' { 
+                    'PSModuleInfo' {
                     }
                     'FileInfo' {
                         Import-Module $scriptBlock.FullName -Global -Force
@@ -132,7 +132,7 @@ function Install-NugetDeps {
                 if ($SaveLocally -and $LocalNugetDirectory) {
                     $localPath = Join-Path $LocalNugetDirectory "$dep.$version"
                     if (Test-Path $localPath -PathType Container) {
-                        $installed = $true 
+                        $installed = $true
                     }
                 }
                 elseif ($SaveLocally) {
