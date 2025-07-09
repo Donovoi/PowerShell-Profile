@@ -98,7 +98,7 @@ function Install-PackageProviders {
             Install-PackageProvider -Name 'NuGet' -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
             Import-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue | Out-Null
             Register-PackageSource -Name 'NuGet' -Location 'https://api.nuget.org/v3/index.json' `
-                -Provider 'NuGet' -Trusted -Force -Confirm:$false `
+                -ProviderName 'NuGet' -ForceBootstrap -Trusted -Force -Confirm:$false `
                 -ErrorAction SilentlyContinue | Out-Null
         }
 
