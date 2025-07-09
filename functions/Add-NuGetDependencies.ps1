@@ -188,7 +188,7 @@ function Add-NuGetDependencies {
                 (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
 
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                $null = Install-Package -Name $dep -RequiredVersion $version -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue | Out-Null
+                $null = Install-Package -Name $dep -RequiredVersion $version -SkipDependencies -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue | Out-Null
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 $InstalledDependencies[$dep] = $version
