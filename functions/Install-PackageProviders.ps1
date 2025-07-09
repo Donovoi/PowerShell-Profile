@@ -84,10 +84,10 @@ function Install-PackageProviders {
         # Ensure AnyPackage module is installed
         if ($PSVersionTable.PSVersion.Major -ge 7) {
             if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
-                Install-PSResource AnyPackage | Out-Null
+                Install-PSResource AnyPackage -TrustRepository -Quiet -AcceptLicense -Confirm:$false | Out-Null
             }
             if (-not (Get-Module -Name AnyPackage -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Module AnyPackage -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+                Install-Module AnyPackage -Force -Confirm:$false -AllowClobber -SkipPublisherCheck -AcceptLicense -ErrorAction SilentlyContinue | Out-Null
             }
             Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
