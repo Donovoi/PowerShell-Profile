@@ -113,7 +113,7 @@ function Install-PackageProviders {
         }
 
         # -- (C) Register trusted sources -------------------------------------------
-        if (-not(Get-PackageSource NuGet -ErrorAction SilentlyContinue)) {
+        if (-not(Get-PackageSource NuGet -ErrorAction SilentlyContinue | Out-Null)) {
             Register-PackageSource -Name NuGet `
                 -Location 'https://api.nuget.org/v3/index.json' `
                 -ProviderName NuGet -Trusted -Force -ForceBootstrap -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
