@@ -77,58 +77,57 @@ function Install-PackageProviders {
                 }
             }
         }
-        # tls is required for secure connections
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-        # ── 1. Load current PackageManagement **without** trying to upgrade in-place ──
-        if (-not (Get-Module -ListAvailable PackageManagement)) {
-            Install-Module PackageManagement -Scope CurrentUser -AcceptLicense -Force
+        # -- TLS 1.2 for all outbound calls -----------------------------------------
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
         }
-        Import-Module PackageManagement -Force
-
-        # ── 2. Install & import NuGet provider first (satisfies AnyPackage later) ────
-        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 `
-                -Scope CurrentUser -Force -ErrorAction SilentlyContinue | Out-Null
+        catch {
+            Write-Logg -Message 'Failed to set TLS 1.2 for outbound calls.' -Level Error
+            Write-Logg -Message "$_.Exception.Message" -Level Error
+            return
         }
-        Import-PackageProvider -Name NuGet -Force -ErrorAction SilentlyContinue | Out-Null
 
-        
-        # ── 3. Register & trust feeds ────────────────────────────────────────────────
-        if (-not (Get-PackageSource -Name NuGet -ErrorAction SilentlyContinue)) {
+        # -- (A) Ensure newest PackageManagement is installed, remove the old one first ----------
+        $packageManagementModule = Get-Module -Name PackageManagement -ListAvailable -ErrorAction SilentlyContinue | Out-Null
+        if ($packageManagementModule) {
+            Remove-Module PackageManagement -Force -ErrorAction SilentlyContinue | Out-Null
+            Write-Logg -Message "Removed old PackageManagement module: $($packageManagementModule.Version)" -Level Verbose
+        }
+        $newPackageManagementModule = Install-Module PackageManagement -Force -AcceptLicense -AllowClobber -SkipPublisherCheck -Confirm:$false -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
+        Write-Logg -Message "Installed new PackageManagement module: $($newPackageManagementModule.Version)" -Level Verbose
+        Import-Module PackageManagement -Force -ErrorAction SilentlyContinue | Out-Null
+        if (-not (Get-Module PackageManagement)) {
+            Write-Logg -Message 'PackageManagement module is missing after installation.' -Level Error
+        }
+
+
+        # -- (B) Bootstrap NuGet provider -------------------------------------------
+        if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Out-Null)) {
+            Install-PackageProvider NuGet -ForceBootstrap -Scope CurrentUser -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Import-PackageProvider NuGet -Force -ErrorAction SilentlyContinue | Out-Null
+        if (-not (Get-PackageProvider NuGet)) {
+            Write-Logg -Message 'NuGet provider still missing after bootstrap.' -Level Error
+        }
+
+        # -- (C) Register trusted sources -------------------------------------------
+        if (-not (Get-PackageSource NuGet -ErrorAction SilentlyContinue)) {
             Register-PackageSource -Name NuGet `
                 -Location 'https://api.nuget.org/v3/index.json' `
-                -ProviderName NuGet -Trusted -Force                            
+                -ProviderName NuGet -Trusted -Force
         }
-        if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+        if ((Get-PSRepository PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
+            Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
         }
 
-        # ── 5. Only now bring in AnyPackage on PS 7+ ─────────────────────────────────
+        # -- (D) Bring in AnyPackage for PS 7+ --------------------------------------
         if ($PSVersionTable.PSVersion.Major -ge 7) {
             if (-not (Get-Module -ListAvailable AnyPackage)) {
-                Install-PSResource AnyPackage -TrustRepository -AcceptLicense
+                Install-PSResource AnyPackage -TrustRepository -AcceptLicense -SkipDependencyCheck -Quiet -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
             }
-            Import-Module AnyPackage -Force
+            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
-        # Ensure PowerShellGet package provider is installed
-        if (-not (Get-PackageProvider -Name PowerShellGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name PowerShellGet -Force -Confirm:$false -ErrorAction SilentlyContinue
-        }
-
-        # Trust all package sources
-        Get-PackageSource | ForEach-Object {
-            if (-not $_.Trusted) {
-                Set-PackageSource -Name $_.Name -Trusted -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-        }
-
-        # Trust PSGallery
-        $psGallery = Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
-        if ($psGallery -and $psGallery.InstallationPolicy -ne 'Trusted') {
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
-        }
     }
     catch {
         Write-Logg -Message 'An error occurred while setting up package providers:' -Level Error
