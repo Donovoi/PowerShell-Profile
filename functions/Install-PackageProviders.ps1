@@ -80,35 +80,36 @@ function Install-PackageProviders {
         # tls is required for secure connections
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-        Install-Module -Name @('PackageManagement', 'PowerShellGet') -Force -Scope CurrentUser -AcceptLicense -AllowClobber -SkipPublisherCheck -Confirm:$false
-        Import-Module -Name PackageManagement -Force -ErrorAction SilentlyContinue | Out-Null
+        # ── 1. Load current PackageManagement **without** trying to upgrade in-place ──
+        if (-not (Get-Module -ListAvailable PackageManagement)) {
+            Install-Module PackageManagement -Scope CurrentUser -AcceptLicense -Force
+        }
+        Import-Module PackageManagement -Force
 
-        # Ensure AnyPackage module is installed
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            if (-not(Get-PSResource -Name AnyPackage -ErrorAction SilentlyContinue)) {
-                Install-PSResource AnyPackage -TrustRepository -Quiet -AcceptLicense -Confirm:$false | Out-Null
-            }
-            if (-not (Get-Module -Name AnyPackage -ListAvailable -ErrorAction SilentlyContinue)) {
-                Install-Module AnyPackage -Force -Confirm:$false -AllowClobber -SkipPublisherCheck -AcceptLicense -ErrorAction SilentlyContinue | Out-Null
-            }
-            Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
+        # ── 2. Install & import NuGet provider first (satisfies AnyPackage later) ────
+        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 `
+                -Scope CurrentUser -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Import-PackageProvider -Name NuGet -Force -ErrorAction SilentlyContinue | Out-Null
+
+        
+        # ── 3. Register & trust feeds ────────────────────────────────────────────────
+        if (-not (Get-PackageSource -Name NuGet -ErrorAction SilentlyContinue)) {
+            Register-PackageSource -Name NuGet `
+                -Location 'https://api.nuget.org/v3/index.json' `
+                -ProviderName NuGet -Trusted -Force                            
+        }
+        if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
         }
 
-        # Check if the NuGet package provider is installed
-        if (-not(Get-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue)) {
-            Find-PackageProvider -Name 'NuGet' -ForceBootstrap -IncludeDependencies -ErrorAction SilentlyContinue | Out-Null
-            Install-PackageProvider -Name 'NuGet' -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Import-PackageProvider -Name 'NuGet' -ErrorAction SilentlyContinue | Out-Null
-            try {
-                Register-PackageSource -Name 'NuGet' -Location 'https://api.nuget.org/v3/index.json' `
-                    -Provider 'NuGet' -ForceBootstrap -Trusted -Force -Confirm:$false `
-                    -ErrorAction SilentlyContinue | Out-Null
+        # ── 5. Only now bring in AnyPackage on PS 7+ ─────────────────────────────────
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            if (-not (Get-Module -ListAvailable AnyPackage)) {
+                Install-PSResource AnyPackage -TrustRepository -AcceptLicense
             }
-            catch {
-                Write-Logg -Message 'Failed to register NuGet package source.' -Level Error
-                Write-Logg -Message "$_.Exception.Message" -Level Error
-            }
-
+            Import-Module AnyPackage -Force
         }
 
         # Ensure PowerShellGet package provider is installed
