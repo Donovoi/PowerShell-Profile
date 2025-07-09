@@ -19,7 +19,7 @@ function Add-NuGetDependencies {
             'Write-Logg',
             'Write-InformationColored'
         )
-                foreach ($cmd in $neededcmdlets) {
+        foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
@@ -274,7 +274,7 @@ function Add-NuGetDependencies {
                 if (($_.Name -match 'net(.+|\d+)\.\d+') -and ($_.Name -notmatch 'android|mac|linux|ios') ) {
                     [PSCustomObject]@{
                         Name     = $_.Name
-                        Version  = [version]($matches[0] -split 'net|coreapp|standard' | Select-Object -Last 1)
+                        Version  = [version]($matches[0] -split 'net|coreapp|standard|-windows' | Select-Object -Last 1)
                         FullName = $_.FullName
                     }
                 }
