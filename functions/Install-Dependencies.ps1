@@ -81,7 +81,7 @@ function Install-Dependencies {
     }
 
     # (6) Install PowerShell modules unless suppressed
-    if (-not $NoPSModules) {
+    if (-not $NoPSModules -and ($PSModule.Count -gt 0)) {
         $null = Install-PSModule `
             -InstallDefaultPSModules:$InstallDefaultPSModules `
             -PSModule:$PSModule `
