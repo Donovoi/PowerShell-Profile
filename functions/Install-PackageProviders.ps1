@@ -111,10 +111,10 @@ function Install-PackageProviders {
         }
 
         # -- (C) Register trusted sources -------------------------------------------
-        if (-not (Get-PackageSource NuGet -ErrorAction SilentlyContinue)) {
+        if (-not(Get-PackageSource NuGet -ErrorAction SilentlyContinue)) {
             Register-PackageSource -Name NuGet `
                 -Location 'https://api.nuget.org/v3/index.json' `
-                -ProviderName NuGet -Trusted -Force
+                -ProviderName NuGet -Trusted -Force -ForceBootstrap -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         }
         if ((Get-PSRepository PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
             Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
