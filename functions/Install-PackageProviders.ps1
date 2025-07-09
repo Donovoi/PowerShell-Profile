@@ -77,9 +77,11 @@ function Install-PackageProviders {
                 }
             }
         }
+        # tls is required for secure connections
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-        #Remove deprecated module
-        Remove-Module -Name 'PackageManagement' -ErrorAction SilentlyContinue | Out-Null
+        Install-Module -Name @('PackageManagement', 'PowerShellGet') -Force -Scope CurrentUser -AcceptLicense -AllowClobber -SkipPublisherCheck -Confirm:$false
+        Import-Module -Name PackageManagement -Force -ErrorAction SilentlyContinue | Out-Null
 
         # Ensure AnyPackage module is installed
         if ($PSVersionTable.PSVersion.Major -ge 7) {
