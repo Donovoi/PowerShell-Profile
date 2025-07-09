@@ -108,7 +108,7 @@ function Install-PackageProviders {
             Install-PackageProvider NuGet -ForceBootstrap -Scope CurrentUser -Force -ErrorAction SilentlyContinue | Out-Null
         }
         Import-PackageProvider NuGet -Force -ErrorAction SilentlyContinue | Out-Null
-        if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue -Force -ForceBootstrap | Out-Null)) {
+        if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Out-Null)) {
             Write-Logg -Message 'NuGet provider still missing after bootstrap.' -Level Error
         }
 
