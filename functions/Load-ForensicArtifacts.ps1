@@ -59,7 +59,7 @@ function Load-ForensicArtifacts {
         # Verify core functions are available
         $CoreFunctions = @(
             'Get-ForensicArtifacts',
-            'Initialize-ForensicDependencies', 
+            'Initialize-ForensicDependencies',
             'ConvertTo-ForensicArtifact',
             'Invoke-ForensicCollection'
         )

@@ -4,10 +4,10 @@
 
 .DESCRIPTION
     This function provides two modes for downloading and importing PowerShell cmdlets:
-    
+
     • URL mode: Download .ps1 files from specific URLs and create an in-memory module
     • Repository mode: Download cmdlets by name from a GitHub repository and create an in-memory module
-    
+
     By default, cmdlets are loaded into a temporary in-memory module that can be easily unloaded.
     Use -PreferLocal to save cmdlets to disk and import from the local cache instead.
 
@@ -48,28 +48,28 @@
 .OUTPUTS
     System.Management.Automation.PSModuleInfo
         When -PreferLocal is not specified, returns the in-memory module object.
-    
+
     System.IO.FileInfo
         When -PreferLocal is specified, returns the paths to downloaded .ps1 files.
 
 .EXAMPLE
     Install-Cmdlet -RepositoryCmdlets 'Get-FileDownload', 'Format-Bytes'
-    
+
     Downloads the specified cmdlets from the repository and creates an in-memory module.
 
 .EXAMPLE
     Install-Cmdlet -Urls 'https://example.com/MyFunction.ps1' -ModuleName 'MyCustomModule'
-    
+
     Downloads the script from the URL and imports it into an in-memory module named 'MyCustomModule'.
 
 .EXAMPLE
     Install-Cmdlet -RepositoryCmdlets 'Get-FileDownload' -PreferLocal
-    
+
     Downloads the cmdlet to the local cache folder and imports from disk.
 
 .EXAMPLE
     Install-Cmdlet -RepositoryCmdlets 'Get-FileDownload' -PreferLocal -Force
-    
+
     Forces re-download of the cmdlet even if it exists locally, then imports from disk.
 
 .NOTES
@@ -106,14 +106,14 @@ function Install-Cmdlet {
 
         # ------- Common switches / settings --------------------------------
         [switch]$PreferLocal,
-        [ValidateScript({ 
+        [ValidateScript({
                 if ([string]::IsNullOrWhiteSpace($_)) {
-                    throw 'LocalModuleFolder cannot be empty' 
+                    throw 'LocalModuleFolder cannot be empty'
                 }
                 if (-not [System.IO.Path]::IsPathRooted($_)) {
-                    throw 'LocalModuleFolder must be an absolute path' 
+                    throw 'LocalModuleFolder must be an absolute path'
                 }
-                $true 
+                $true
             })]
         [string]$LocalModuleFolder =
         "$ENV:USERPROFILE\PowerShellScriptsAndResources\Modules\cmdletCollection\",
@@ -212,17 +212,17 @@ Export-ModuleMember -Function * -Alias *
             try {
                 $path = Join-Path $Folder "$Name.ps1"
                 $clean = Get-CleanScriptContent $Code
-                
+
                 if ([string]::IsNullOrWhiteSpace($clean)) {
                     throw 'Script content is empty or invalid after cleaning'
                 }
-                
+
                 [IO.File]::WriteAllText($path, $clean)   # UTF-8 w/o BOM
-                
+
                 if (-not (Test-Path $path)) {
                     throw 'File was not created successfully'
                 }
-                
+
                 return $path
             }
             catch {
@@ -233,16 +233,16 @@ Export-ModuleMember -Function * -Alias *
         # -- Helper: sanitize cmdlet name to prevent path traversal -------
         function Test-SafeCmdletName {
             param([string]$Name)
-            
+
             if ([string]::IsNullOrWhiteSpace($Name)) {
                 return $false
             }
-            
+
             # Check for path traversal attempts
             if ($Name -match '\.\.[\\/]|[\\/]\.\.') {
                 return $false
             }
-            
+
             # Check for invalid filename characters
             $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
             foreach ($char in $invalidChars) {
@@ -250,12 +250,12 @@ Export-ModuleMember -Function * -Alias *
                     return $false
                 }
             }
-            
+
             # Must be a valid PowerShell identifier pattern
             if ($Name -notmatch '^[A-Za-z][\w-]*$') {
                 return $false
             }
-            
+
             return $true
         }
 
@@ -388,7 +388,7 @@ Export-ModuleMember -Function * -Alias *
                     }
 
                     $name = ([IO.Path]::GetFileNameWithoutExtension($u))
-                    
+
                     try {
                         Write-Verbose "Downloading script '$name' from '$u'"
                         $code = Invoke-RestMethod $u -TimeoutSec $TimeoutSeconds -ErrorAction Stop
@@ -420,12 +420,12 @@ Export-ModuleMember -Function * -Alias *
             try {
                 Write-Verbose "Creating in-memory module '$ModuleName' with $($sbInMemory.Length) characters of code"
                 $scriptContent = $sbInMemory.ToString().Trim()
-                
+
                 if ([string]::IsNullOrWhiteSpace($scriptContent)) {
                     Write-Warning 'No valid script content found for in-memory module'
                     return
                 }
-                
+
                 $modSB = [scriptblock]::Create($scriptContent)
                 $importResult = New-Module -Name $ModuleName -ScriptBlock $modSB -ErrorAction Stop |
                     Import-Module -Force -Global -PassThru -ErrorAction Stop
@@ -441,7 +441,7 @@ Export-ModuleMember -Function * -Alias *
                 if ($null -eq $psm1File -or -not (Test-Path $psm1File.FullName)) {
                     throw 'Module file not found or not properly initialized'
                 }
-                
+
                 Write-Verbose "Importing local module from '$($psm1File.FullName)'"
                 $importResult = Import-Module $psm1File.FullName -Force -Global -PassThru -ErrorAction Stop
                 Write-Verbose "Successfully imported local module '$($importResult.Name)'"
@@ -460,13 +460,13 @@ Export-ModuleMember -Function * -Alias *
             # Build list of expected cmdlet names based on parameter set
             $expectedNames = switch ($PSCmdlet.ParameterSetName) {
                 'Repository' {
-                    $RepositoryCmdlets 
+                    $RepositoryCmdlets
                 }
                 'Url' {
-                    $Urls | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) } 
+                    $Urls | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }
                 }
             }
-            
+
             $localPaths = Get-ChildItem $LocalModuleFolder -Filter '*.ps1' |
                 Where-Object { $_.BaseName -in $expectedNames } |
                     Select-Object -ExpandProperty FullName

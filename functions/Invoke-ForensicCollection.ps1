@@ -27,11 +27,11 @@ function Invoke-AllForensicCollection {
     param(
         [Parameter(Mandatory)]
         [string]$CollectionPath,
-        
+
         [string]$ToolsPath = (Join-Path $PWD 'Tools'),
-        
+
         [switch]$SkipToolDownload,
-        
+
         [string[]]$ArtifactFilter = @()
     )
 
@@ -132,10 +132,10 @@ function Invoke-AllForensicCollection {
         # Download and process artifacts
         Write-Verbose 'Downloading forensic artifacts definitions...'
         $artifactsSourceUrl = 'https://raw.githubusercontent.com/ForensicArtifacts/artifacts/main/artifacts/data/windows.yaml'
-        
+
         $yamlContent = Invoke-RestMethod -Uri $artifactsSourceUrl -ErrorAction Stop
         $artifactsData = ConvertFrom-Yaml -AllDocuments $yamlContent
-        
+
         $overallResult.TotalArtifacts = $artifactsData.Count
         Write-Verbose "Processing $($artifactsData.Count) artifact definitions..."
 
@@ -152,7 +152,7 @@ function Invoke-AllForensicCollection {
                         }
                     }
                 }
-                
+
                 if (-not $includeArtifact) {
                     continue
                 }
@@ -162,7 +162,7 @@ function Invoke-AllForensicCollection {
                 # Process artifact data
                 $artifactType = $artifact.sources.type
                 $paths = @()
-                
+
                 # Extract paths based on artifact type
                 switch ($artifactType) {
                     'REGISTRY_VALUE' {
@@ -170,7 +170,7 @@ function Invoke-AllForensicCollection {
                             foreach ($pair in $artifact.sources.attributes.key_value_pairs) {
                                 $regPath = $pair.registry_path ?? $pair.path
                                 if ($regPath) {
-                                    $paths += $regPath 
+                                    $paths += $regPath
                                 }
                             }
                         }
@@ -194,7 +194,7 @@ function Invoke-AllForensicCollection {
                         }
                     }
                 }
-                
+
                 # Expand paths
                 $expandedPaths = @()
                 if ($paths) {
@@ -211,7 +211,7 @@ function Invoke-AllForensicCollection {
                             $expandedPath = $expandedPath -replace '%%users\.appdata%%', $env:APPDATA
                             $expandedPath = $expandedPath -replace '%%users\.localappdata%%', $env:LOCALAPPDATA
                             $expandedPath = $expandedPath -replace '%%users\.userprofile%%', $env:USERPROFILE
-                            
+
                             # Handle user profile path patterns - check if path starts with %%users.username%%
                             if ($expandedPath -match '^%%users\.username%%\\') {
                                 # Replace with full user profile path
@@ -221,19 +221,19 @@ function Invoke-AllForensicCollection {
                                 # For other occurrences, just replace with username
                                 $expandedPath = $expandedPath -replace '%%users\.username%%', $env:USERNAME
                             }
-                            
+
                             $expandedPath = $expandedPath -replace '%%users\.sid%%', '*'  # Use wildcard for SID matching
-                            
+
                             # Fix known incorrect artifact paths
                             # The official ForensicArtifacts definition has L.%%users.username%% but Windows actually uses different directory naming
                             $expandedPath = $expandedPath -replace '\\ConnectedDevicesPlatform\\L\.([^\\]+)\\', '\ConnectedDevicesPlatform\*\'
-                            
+
                             $expandedPath = [Environment]::ExpandEnvironmentVariables($expandedPath)
                             $expandedPaths += $expandedPath
                         }
                     }
                 }
-                
+
                 # Create artifact object
                 $processedArtifact = [PSCustomObject][Ordered]@{
                     Name           = $artifact.name
@@ -248,16 +248,16 @@ function Invoke-AllForensicCollection {
                 # Collect the artifact
                 if ($processedArtifact.ExpandedPaths -and $processedArtifact.ExpandedPaths.Count -gt 0) {
                     $artifactResult = Invoke-ForensicCollection -Artifact $processedArtifact -CollectionPath $CollectionPath -ToolsPath $ToolsPath -SkipToolDownload:$SkipToolDownload
-                    
+
                     $overallResult.ArtifactResults += $artifactResult
                     $overallResult.TotalFilesCollected += $artifactResult.FilesCollected
-                    
+
                     if ($artifactResult.Success) {
                         $overallResult.SuccessfulArtifacts++
                     }
-                    
+
                     $overallResult.Errors += $artifactResult.Errors
-                    
+
                     Write-Verbose "Processed artifact '$($artifact.name)': $($artifactResult.FilesCollected) files collected"
                 }
                 else {
@@ -336,14 +336,14 @@ function Invoke-ForensicCollection {
     param(
         [Parameter()]
         [PSObject]$Artifact,
-        
+
         [Parameter(Mandatory)]
         [string]$CollectionPath,
-        
+
         [string]$ToolsPath = (Join-Path $PWD 'Tools'),
-        
+
         [switch]$SkipToolDownload,
-        
+
         [string[]]$ArtifactFilter = @()
     )
 
@@ -548,9 +548,9 @@ function Install-RawCopyTool {
     try {
         Write-Verbose 'Downloading RawCopy from GitHub...'
         $downloadUrl = 'https://github.com/jschicht/RawCopy/releases/latest/download/RawCopy.exe'
-        
+
         Invoke-WebRequest -Uri $downloadUrl -OutFile $rawCopyPath -TimeoutSec 30 -ErrorAction Stop
-        
+
         if (Test-Path $rawCopyPath) {
             Write-Verbose "Successfully downloaded RawCopy to: $rawCopyPath"
             return $true
@@ -596,10 +596,10 @@ function Copy-ForensicArtifact {
     param(
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        
+
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        
+
         [PSCustomObject[]]$ForensicTools = @()
     )
 
@@ -621,7 +621,7 @@ function Copy-ForensicArtifact {
                 $psRegistryPath = ConvertTo-PowerShellRegistryPath -RegistryPath $parentKeyPath
                 if ($psRegistryPath) {
                     Write-Verbose "Recursing registry path: $psRegistryPath"
-                    
+
                     # Create directory structure based on parent key path
                     $parentKeySanitized = $parentKeyPath -replace '[\\/:*?"<>|]', '_'
                     $parentKeyDir = Join-Path $DestinationPath "registry_$parentKeySanitized"
@@ -629,7 +629,7 @@ function Copy-ForensicArtifact {
                         New-Item -Path $parentKeyDir -ItemType Directory -Force | Out-Null
                         Write-Verbose "Created parent registry directory: $parentKeyDir"
                     }
-                    
+
                     try {
                         $subKeys = Get-ChildItem -Path $psRegistryPath -ErrorAction SilentlyContinue
                         foreach ($subKey in $subKeys) {
@@ -637,11 +637,11 @@ function Copy-ForensicArtifact {
                             $subKeyName = $subKey.PSChildName
                             $subKeySanitized = $subKeyName -replace '[\\/:*?"<>|]', '_'
                             $subKeyFile = Join-Path $parentKeyDir "$subKeySanitized.reg"
-                            
+
                             # Convert back to standard format for export
                             $subKeyFullPath = ConvertFrom-PowerShellRegistryPath -PowerShellPath $subKey.PSPath
                             Write-Verbose "Processing registry subkey: $subKeyFullPath -> $subKeyFile"
-                            
+
                             # Export this specific subkey
                             $registryResult = Copy-RegistryArtifact -RegistryPath $subKeyFullPath -DestinationPath $parentKeyDir -OutputFileName "$subKeySanitized.reg"
                             if ($registryResult.Success) {
@@ -666,10 +666,10 @@ function Copy-ForensicArtifact {
                 $registryResult = Copy-RegistryArtifact -RegistryPath $SourcePath -DestinationPath $DestinationPath
                 $copyResult.Success = $registryResult.Success
                 $copyResult.FilesCollected = if ($registryResult.Success) {
-                    1 
+                    1
                 }
                 else {
-                    0 
+                    0
                 }
                 if (-not $registryResult.Success) {
                     $copyResult.Errors += $registryResult.Error
@@ -699,7 +699,7 @@ function ConvertTo-PowerShellRegistryPath {
     Converts forensic registry paths to PowerShell registry provider format.
 
     .DESCRIPTION
-    Converts registry paths from formats like "HKEY_LOCAL_MACHINE\Software" 
+    Converts registry paths from formats like "HKEY_LOCAL_MACHINE\Software"
     to PowerShell registry provider format like "HKLM:\Software".
 
     .PARAMETER RegistryPath
@@ -761,7 +761,7 @@ function ConvertFrom-PowerShellRegistryPath {
     Converts PowerShell registry provider paths back to standard registry format.
 
     .DESCRIPTION
-    Converts registry paths from PowerShell provider format like "HKLM:\Software" 
+    Converts registry paths from PowerShell provider format like "HKLM:\Software"
     back to standard format like "HKEY_LOCAL_MACHINE\Software".
 
     .PARAMETER PowerShellPath
@@ -812,6 +812,3 @@ function ConvertFrom-PowerShellRegistryPath {
 
     return $stdPath
 }
-
-# Example usage - collect all forensic artifacts
-#Invoke-ForensicCollection -CollectionPath 'C:\ForensicCollection' -Verbose

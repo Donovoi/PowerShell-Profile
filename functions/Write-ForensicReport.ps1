@@ -43,7 +43,7 @@ function Start-ForensicSystemElevation {
         }
 
         $systemArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$($tempScript.FullName)`""
-        
+
         Write-Verbose "Executing SYSTEM elevation with: $powershellPath $systemArgs"
 
         # Execute under SYSTEM context
@@ -105,7 +105,7 @@ Start-Transcript -Path `$logFile -Append
 try {
     Write-Host "Starting forensic collection under SYSTEM privileges..."
     Write-Host "Collection Path: $CollectionPath"
-    
+
     # Install dependencies
     if (-not (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue)) {
         Write-Host "Installing powershell-yaml module..."
@@ -116,7 +116,7 @@ try {
     # Import forensic functions from the profile directory
     `$profileRoot = Split-Path '$PSScriptRoot' -Parent
     `$functionsDir = Join-Path `$profileRoot 'functions'
-    
+
     # Import the new modular forensic functions
     `$forensicModules = @(
         'ForensicArtifacts\Get-ForensicArtifacts.ps1',
@@ -126,7 +126,7 @@ try {
         'ForensicArtifacts\Copy-ForensicArtifact.ps1',
         'ForensicArtifacts\Copy-FileSystemUtilities.ps1'
     )
-    
+
     foreach (`$module in `$forensicModules) {
         `$modulePath = Join-Path `$functionsDir `$module
         if (Test-Path `$modulePath) {
@@ -136,7 +136,7 @@ try {
             Write-Warning "Module not found: `$modulePath"
         }
     }
-    
+
     # Import additional required functions
     `$additionalFunctions = @('Invoke-RawyCopy.ps1')
     foreach (`$func in `$additionalFunctions) {
@@ -150,13 +150,13 @@ try {
     # Execute forensic collection
     Write-Host "Executing forensic artifact collection..."
     `$results = Get-ForensicArtifacts -CollectArtifacts -CollectionPath '$CollectionPath' -Verbose
-    
+
     Write-Host "Collection completed. Processed `$(`$results.Count) artifacts."
-    
+
     # Create completion marker
     `$completionFile = Join-Path '$CollectionPath' 'SYSTEM_COLLECTION_COMPLETE.txt'
     "Forensic collection completed under SYSTEM privileges at `$(Get-Date)" | Out-File -FilePath `$completionFile
-    
+
     Write-Host "Collection completed successfully!"
 }
 catch {
@@ -231,7 +231,7 @@ function Write-ForensicCollectionReport {
     param(
         [Parameter(Mandatory)]
         [PSCustomObject[]]$Results,
-        
+
         [Parameter(Mandatory)]
         [string]$CollectionPath
     )
@@ -290,7 +290,7 @@ Collection Notes:
 
 Detailed Error Information:
 --------------------------
-$(($Results | Where-Object { $_.CollectionResult.Errors.Count -gt 0 } | ForEach-Object { 
+$(($Results | Where-Object { $_.CollectionResult.Errors.Count -gt 0 } | ForEach-Object {
     "$($_.Name):"
     $_.CollectionResult.Errors | ForEach-Object { "  - $_" }
 }) -join "`n")
