@@ -203,6 +203,7 @@ function Add-NuGetDependencies {
                     New-Item -Path "$destinationPath" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 AnyPackage\Save-Package -Name $dep -Version $version -Path "$destinationPath" -TrustSource -ErrorAction SilentlyContinue | Out-Null
+                AnyPackage\Install-Package -Path "$destinationPath" -ErrorAction SilentlyContinue | Out-Null
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 $InstalledDependencies[$dep] = $version
