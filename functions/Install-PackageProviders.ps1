@@ -108,7 +108,7 @@ function Install-PackageProviders {
 
         # Install the NuGet provider if not present
         if (-not (Get-PSResource -Name NuGet -ErrorAction SilentlyContinue)) {
-            Install-PSResource AnyPackage.NuGet -ErrorAction SilentlyContinue -TrustRepository -Quiet -AcceptLicense | Out-Null
+            Install-PSResource AnyPackage.NuGet -Reinstall -ErrorAction SilentlyContinue -TrustRepository -Quiet -AcceptLicense | Out-Null
             Write-Logg -Message 'Installed NuGet package provider.' -Level Verbose
         }
         Import-Module AnyPackage.NuGet
