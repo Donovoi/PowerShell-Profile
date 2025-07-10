@@ -103,8 +103,15 @@ function Install-PackageProviders {
             Import-Module AnyPackage -Force -ErrorAction SilentlyContinue | Out-Null
         }
         if ((Get-PSRepository PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
-            Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue | Out-Null
+            Set-PSRepository PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue - | Out-Null
         }
+
+        # Install the NuGet provider if not present
+        if (-not (Get-PSResource -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PSResource AnyPackage.NuGet -ErrorAction SilentlyContinue -TrustRepository -Quiet -AcceptLicense | Out-Null
+            Write-Logg -Message 'Installed NuGet package provider.' -Level Verbose
+        }
+        Import-Module AnyPackage.NuGet
 
     }
     catch {
