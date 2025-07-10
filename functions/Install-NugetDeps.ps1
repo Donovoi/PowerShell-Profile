@@ -60,23 +60,30 @@ function Install-NugetDeps {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
                     $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                    $sb = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $sb | Import-Module
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
+                Write-Verbose "Importing cmdlet: $cmd"
                 $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
 
-                switch ($scriptBlock.GetType().Name) {
-                    'ScriptBlock' {
-                        New-Module -Name "Dynamic_$cmd" -ScriptBlock $scriptBlock | Import-Module -Global -Force
-                    }
-                    'PSModuleInfo' {
-                    }
-                    'FileInfo' {
-                        Import-Module $scriptBlock.FullName -Global -Force
-                    }
-                    default {
-                        Write-Warning "Could not import $cmd`: unexpected return type."
-                    }
+                # Check if the returned value is a ScriptBlock and import it properly
+                if ($scriptBlock -is [scriptblock]) {
+                    $moduleName = "Dynamic_$cmd"
+                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
+                }
+                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+                    # If a module info was returned, it's already imported
+                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
+                }
+                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
+                    # If a file path was returned, import it
+                    Import-Module -Name $scriptBlock -Force -Global
+                    Write-Verbose "Imported $cmd from file: $scriptBlock"
+                }
+                else {
+                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+                    Write-Warning "Returned: $($scriptBlock)"
                 }
             }
         }
@@ -125,7 +132,7 @@ function Install-NugetDeps {
                 Install-PackageProviders
 
                 # Check if already installed (locally or system-wide)
-                $installed = Get-Package -Name $dep -RequiredVersion $version -Provider NuGet -ErrorAction SilentlyContinue
+                $installed = AnyPackage\Get-Package -Name $dep -Version $version -Provider NuGet -ErrorAction SilentlyContinue
 
                 if ($SaveLocally -and $LocalNugetDirectory) {
                     $localPath = Join-Path $LocalNugetDirectory "$dep.$version"
@@ -144,7 +151,7 @@ function Install-NugetDeps {
                 }
 
                 # Install / download package
-                Add-NuGetDependencies -NugetPackage @{ $dep = @{ Name = $dep; Version = $version } } `
+                Add-NuGetDependencies -NugetPackage @{ Name = $dep; Version = $version } `
                     -SaveLocally:$SaveLocally `
                     -LocalNugetDirectory:$LocalNugetDirectory
             }
