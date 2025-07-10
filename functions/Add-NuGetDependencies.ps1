@@ -39,13 +39,14 @@ function Add-NuGetDependencies {
                     # If a module info was returned, it's already imported
                     Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
                 }
-                elseif ($scriptBlock -is [System.IO.FileInfo]) {
+                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
                     # If a file path was returned, import it
-                    Import-Module -Name $scriptBlock.FullName -Force -Global
-                    Write-Verbose "Imported $cmd from file: $($scriptBlock.FullName)"
+                    Import-Module -Name $scriptBlock -Force -Global
+                    Write-Verbose "Imported $cmd from file: $scriptBlock"
                 }
                 else {
                     Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+                    Write-Warning "Returned: $($scriptBlock)"
                 }
             }
         }
@@ -73,8 +74,8 @@ function Add-NuGetDependencies {
         New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
 
         foreach ($package in $NugetPackage.GetEnumerator()) {
-            $version = $package.Value.Version
-            $dep = $package.Value.Name
+            $version = $package.Value
+            $dep = $package.Key
 
             if (-not [string]::IsNullOrEmpty($LocalNugetDirectory)) {
                 $TempWorkDir = $LocalNugetDirectory
@@ -90,7 +91,13 @@ function Add-NuGetDependencies {
 
                 if (-not (Test-Path -Path "$BasePath\lib" -PathType Container)) {
                     $dllFullPath = Get-ChildItem -Path $destinationPath -Include '*.dll' -Recurse | Select-Object -First 1
-                    $BasePath = Split-Path -Path $dllFullPath -Parent
+                    if ($dllFullPath) {
+                        $BasePath = Split-Path -Path $dllFullPath -Parent -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    else {
+                        Write-Logg -Message "No DLL found in $destinationPath" -Level Verbose
+                        Write-Logg -Message "Downloading package $dep version $version using NuGet" -Level Verbose                    
+                    }
                 }
                 else {
                     # Retrieve .NET release key
@@ -178,6 +185,10 @@ function Add-NuGetDependencies {
 
                 $DLLSplit = (Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Name
                 $DLLFolder = (Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Directory
+                if (-not $dllFolder) {
+                    Write-Logg -Message "No DLL found in $dllBasePath" -Level Error
+                    throw
+                }
                 Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
                 Add-FileToAppDomain -BasePath $DLLFolder -File $DLLSplit -ErrorAction SilentlyContinue
                 continue
@@ -188,7 +199,10 @@ function Add-NuGetDependencies {
                 (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
 
                 Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
-                $null = Install-Package -Name $dep -RequiredVersion $version -SkipDependencies -Destination "$TempWorkDir" -ProviderName NuGet -Source Nuget -Force -ErrorAction SilentlyContinue | Out-Null
+                if (-not (Test-Path -Path "$destinationPath" -PathType Container)) {
+                    New-Item -Path "$destinationPath" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                AnyPackage\Save-Package -Name $dep -Version $version -Path "$destinationPath" -TrustSource -ErrorAction SilentlyContinue | Out-Null
                 Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 $InstalledDependencies[$dep] = $version
