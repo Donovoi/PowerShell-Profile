@@ -137,7 +137,7 @@ function Write-Logg {
                     Write-Warning -Message "$logMessage`n"
                 }
                 'ERROR' {
-                    Write-Error -Exception "$logMessage`n"
+                    Write-Error -Message "$logMessage`n"
                 }
                 'VERBOSE' {
                     Write-Verbose -Message "$logMessage`n"
