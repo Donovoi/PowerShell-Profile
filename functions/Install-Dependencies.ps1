@@ -15,6 +15,7 @@ function Install-Dependencies {
         [switch]$SaveLocally
     )
 
+    $FileScriptBlock = ''
     # (1) Import required cmdlets if missing
     $neededcmdlets = @(
         'Get-FileDownload',
@@ -45,7 +46,7 @@ function Install-Dependencies {
             # Check if the returned value is a ScriptBlock and import it properly
             if ($scriptBlock -is [scriptblock]) {
                 $moduleName = "Dynamic_$cmd"
-                New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
                 Write-Verbose "Imported $cmd as dynamic module: $moduleName"
             }
             elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
@@ -54,7 +55,7 @@ function Install-Dependencies {
             }
             elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
                 # If a file path was returned, import it
-                Import-Module -Name $scriptBlock -Force -Global
+                $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
                 Write-Verbose "Imported $cmd from file: $scriptBlock"
             }
             else {
@@ -63,6 +64,8 @@ function Install-Dependencies {
             }
         }
     }
+    $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+    New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
 
     # (2) Run as admin if not already elevated
     Invoke-RunAsAdmin
@@ -107,30 +110,3 @@ function Install-Dependencies {
     # (7) Refresh environment variables once at the end
     Update-SessionEnvironment
 }
-$psmodulesToInstall = @(
-    'Microsoft.PowerShell.PSResourceGet',
-    'Microsoft.PowerShell.ConsoleGuiTools',
-    'ImportExcel',
-    'JWTDetails',
-    '7zip4powershell'
-)
-
-$nugetpackagesToInstall = @{
-    'Interop.UIAutomationClient' = '10.19041.0'
-    'FlaUI.Core'                 = '4.0.0'
-    'FlaUI.UIA3'                 = '4.0.0'
-    'HtmlAgilityPack'            = '1.11.50'
-}
-
-$assembliesToAdd = @(
-    'PresentationFramework',
-    'PresentationCore',
-    'WindowsBase',
-    'System.Windows.Forms',
-    'System.Drawing',
-    'System.Data',
-    'System.Data.DataSetExtensions',
-    'System.Xml'
-)
-
-Install-Dependencies -PSModule $psmodulesToInstall -NugetPackage $nugetpackagesToInstall -AddCustomAssemblies $assembliesToAdd -SaveLocally -LocalNugetDirectory "$Script:ModuleRoot/PowerShellScriptsAndResources/NugetPackages" -localModulesDirectory "$Script:ModuleRoot/PowerShellScriptsAndResources/Modules"
