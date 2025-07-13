@@ -74,8 +74,9 @@ function Add-NuGetDependencies {
         New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
 
         foreach ($package in $NugetPackage.GetEnumerator()) {
-            $version = $package.Value
             $dep = $package.Key
+            $version = $package.Value
+
 
             if (-not [string]::IsNullOrEmpty($LocalNugetDirectory)) {
                 $TempWorkDir = $LocalNugetDirectory
@@ -95,8 +96,8 @@ function Add-NuGetDependencies {
                         $BasePath = Split-Path -Path $dllFullPath -Parent -ErrorAction SilentlyContinue | Out-Null
                     }
                     else {
-                        Write-Logg -Message "No DLL found in $destinationPath" -Level Verbose
-                        Write-Logg -Message "Downloading package $dep version $version using NuGet" -Level Verbose                    
+                        Write-Logg -Message "No DLL found in $destinationPath" -Level Error
+
                     }
                 }
                 else {
@@ -281,7 +282,6 @@ function Add-NuGetDependencies {
                 }
 
                 Get-NugetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
-                continue
             }
 
             $dotnetfolders = Get-ChildItem -Path "$destinationPath\lib" -Directory
@@ -328,4 +328,3 @@ function Add-NuGetDependencies {
         }
     }
 }
-
