@@ -55,7 +55,7 @@ function Install-NugetDeps {
         #--------------------------------------------------------------------#
         # 1. Ensure helper cmdlets are available                             #
         #--------------------------------------------------------------------#
-        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders')
+        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies')
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -124,9 +124,9 @@ function Install-NugetDeps {
                 $dep = $entry.Value.Name
                 $version = $entry.Value.Version
 
-                Write-Progress -Activity 'Installing NuGet Packages' `
-                    -Status "Installing $dep ($i of $total)" `
-                    -PercentComplete $percent
+                # Write-Progress -Activity 'Installing NuGet Packages' `
+                #     -Status "Installing $dep ($i of $total)" `
+                #     -PercentComplete $percent
 
                 # Ensure NuGet provider is present
                 Install-PackageProviders
@@ -134,10 +134,14 @@ function Install-NugetDeps {
                 # Check if already installed (locally or system-wide)
                 $installed = AnyPackage\Get-Package -Name $dep -Version $version -Provider NuGet -ErrorAction SilentlyContinue
 
+
                 if ($SaveLocally -and $LocalNugetDirectory) {
                     $localPath = Join-Path $LocalNugetDirectory "$dep.$version"
                     if (Test-Path $localPath -PathType Container) {
                         $installed = $true
+                    }
+                    else {
+                        $installed = $false
                     }
                 }
                 elseif ($SaveLocally) {
