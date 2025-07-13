@@ -79,7 +79,7 @@ function Install-PackageProviders {
         }
         # -- TLS 1.2 for all outbound calls -----------------------------------------
         try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         }
         catch {
             Write-Logg -Message 'Failed to set TLS 1.2 for outbound calls.' -Level Error
