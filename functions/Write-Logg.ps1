@@ -162,6 +162,7 @@ function Write-Logg {
                 }
                 'ERROR' {
                     Write-Error -Message "$logMessage`n"
+                    throw
                 }
                 'VERBOSE' {
                     Write-Verbose -Message "$logMessage`n" -Verbose

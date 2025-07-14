@@ -34,13 +34,13 @@ function Get-GitPull {
                     $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
                     New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
                 }
-                # Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+                # Write-Logg -Message "Importing cmdlet: $_" -Level VERBOSE -Verbose
                 # if write-logg is not available use write-OutPut, but check first
                 if (-not (Get-Command -Name 'Write-Logg' -ErrorAction SilentlyContinue)) {
                     Write-Output "Importing cmdlet: $_"
                 }
                 else {
-                    Write-Logg -Message "Importing cmdlet: $_" -Level Verbose
+                    Write-Logg -Message "Importing cmdlet: $_" -Level VERBOSE -Verbose
                 }
                 $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
                 $Cmdletstoinvoke | Import-Module -Force
@@ -48,9 +48,9 @@ function Get-GitPull {
         }
 
         # install rust if it is not installed. Do it without any need for user input
-        Write-Logg -Message 'Checking if Rust is installed...' -Level Verbose
+        Write-Logg -Message 'Checking if Rust is installed...' -Level VERBOSE -Verbose
         if (-not (Test-Path -Path "$env:USERPROFILE\.cargo\bin\rustup.exe")) {
-            Write-Logg -Message 'Rust is not installed. Installing Rust...' -Level Verbose
+            Write-Logg -Message 'Rust is not installed. Installing Rust...' -Level VERBOSE -Verbose
             $rustInstaller = 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe'
             $rustInstallerPath = "$env:TEMP\rustup-init.exe"
             Invoke-WebRequest -Uri $rustInstaller -OutFile $rustInstallerPath
@@ -64,7 +64,7 @@ function Get-GitPull {
         }
 
         # Get all the repositories in the path specified
-        Write-Logg -Message "Searching for repositories in $script:Path, this can take a while..." -Level Verbose
+        Write-Logg -Message "Searching for repositories in $script:Path, this can take a while..." -Level VERBOSE -Verbose
 
         $rustPgm = @'
   extern crate jwalk;
@@ -224,11 +224,11 @@ function Get-GitPull {
         }
 
         # Show the elapsed time
-        Write-Logg -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run" -Level Verbose
+        Write-Logg -Message "Elapsed time: $($StopwatchENumMethod.Elapsed.TotalSeconds) seconds for the Rust GetFoundPaths function to run" -Level VERBOSE -Verbose
 
 
         #Let the user know what we are doing and how many repositories we are working with
-        Write-Logg -Message "Found $($repositories.Count) repositories to pull from." -Level Verbose
+        Write-Logg -Message "Found $($repositories.Count) repositories to pull from." -Level VERBOSE -Verbose
 
         if ($repositories.Count -gt 1) {
             $multiplerepos = $repositories.GetEnumerator()
@@ -238,7 +238,7 @@ function Get-GitPull {
         }
         #  We need to get the full path of the .git directory, then navigate to the parent directory and perform the git pull.
         $multiplerepos ? $multiplerepos : $singleRepo | ForEach-Object -Process {
-            Write-Logg -Message "Pulling from $($_)" -Level Verbose
+            Write-Logg -Message "Pulling from $($_)" -Level VERBOSE -Verbose
             $location = $(Resolve-Path -Path $_).Path
             Set-Location -Path $location
             # Set ownership to current user and grant full control to current user recursively
@@ -255,8 +255,8 @@ function Get-GitPull {
                     $lockFile = Get-ChildItem -Path $repoRootPath -Recurse -Filter 'HEAD.lock' -Force
                 }
                 catch {
-                    Write-Warning "Unable to get lock file for $($_)" -Level Verbose
-                    Write-Warning "Error is: $_.Exception.Message" -Level Verbose
+                    Write-Warning "Unable to get lock file for $($_)" -Level VERBOSE -Verbose
+                    Write-Warning "Error is: $_.Exception.Message" -Level VERBOSE -Verbose
                 }
 
 
@@ -318,7 +318,7 @@ function Get-GitPull {
                     git pull
                 }
                 catch {
-                    Write-Warning "Unable to pull from $($_)" -Level Verbose
+                    Write-Warning "Unable to pull from $($_)" -Level VERBOSE -Verbose
                 }
             }
             Write-Logg -Message "git pull complete for $($_)" -Level INFO

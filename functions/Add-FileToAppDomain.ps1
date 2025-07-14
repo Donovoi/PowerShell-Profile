@@ -36,10 +36,10 @@ function Add-FileToAppDomain {
         }
 
         if (-not ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object Location -Like $FileToLoad)) {
-            Write-Logg -Message "Loading file $FileToLoad into application domain" -Level VERBOSE
+            Write-Logg -Message "Loading file $FileToLoad into application domain" -Level VERBOSE -Verbose
             [System.Reflection.Assembly]::LoadFrom($FileToLoad) | Out-Null
             $clientVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($FileToLoad).ProductVersion
-            Write-Logg -Message "[+] File ${File} loaded with version ${clientVersion} from ${BasePath}." -Level VERBOSE
+            Write-Logg -Message "[+] File ${File} loaded with version ${clientVersion} from ${BasePath}." -Level VERBOSE -Verbose
         }
     }
     catch {
