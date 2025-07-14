@@ -3,7 +3,8 @@ function Install-PSModule {
     param(
         [bool]$InstallDefaultPSModules,
         [string[]]$PSModule,
-        [bool]$RemoveAllModules,
+        [switch]$RemoveAllLocalModules,
+        [switch]$RemoveAllInMemoryModules,
         [string]$LocalModulesDirectory = $PWD
     )
 
@@ -56,12 +57,35 @@ function Install-PSModule {
             }
 
             # Remove all modules if requested (the original code suggests this is possible)
-            if ($RemoveAllModules) {
-                Write-Verbose 'RemoveAllModules is specified. Unloading any currently loaded modules.'
+            if ($RemoveAllInMemoryModules) {
+                Write-Logg -Message 'RemoveAllInMemoryModules is specified. Unloading any currently loaded modules.' -Level VERBOSE -Verbose
                 Get-Module | ForEach-Object {
                     if ($_.Name -ne 'InstallDependencies' -and $_.Name -ne 'InstallCmdlet') {
                         Remove-Module -Name $_.Name -Force -ErrorAction SilentlyContinue
                     }
+                }
+            }
+
+            if ($RemoveAllLocalModules) {
+                Write-Logg -Message '$RemoveAllLocalModules is specified. Checking directory for safe deletion.' -Level VERBOSE -Verbose
+                if (Test-Path -Path $LocalModulesDirectory -PathType Container) {
+                    # Find any files that are NOT PowerShell module files
+                    $nonPsFiles = Get-ChildItem -Path $LocalModulesDirectory -Recurse -File | Where-Object { $_.Extension -notin '.ps1', '.psm1', '.psd1' }
+
+                    if ($nonPsFiles.Count -eq 0) {
+                        # Safe to delete
+                        Write-Logg -Message "Directory only contains PowerShell files. Removing '$LocalModulesDirectory'." -Level VERBOSE -Verbose
+                        Remove-Item -Path $LocalModulesDirectory -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                        Write-Logg -Message "Successfully removed all local modules from '$LocalModulesDirectory'." -Level VERBOSE -Verbose
+                    }
+                    else {
+                        # Found other file types, abort deletion
+                        $fileList = ($nonPsFiles | Select-Object -ExpandProperty FullName) -join "`n"
+                        Write-Error "Deletion aborted. Directory '$LocalModulesDirectory' contains non-PowerShell files:`n$fileList"
+                    }
+                }
+                else {
+                    Write-Logg -Message "Local modules directory '$LocalModulesDirectory' does not exist. Nothing to remove." -Level VERBOSE -Verbose
                 }
             }
 
@@ -112,7 +136,7 @@ function Install-PSModule {
                 }
             }
             else {
-                Write-Verbose 'No modules to install.'
+                Write-Logg -Message 'No modules to install.' -Level VERBOSE -Verbose
             }
         }
         catch {
