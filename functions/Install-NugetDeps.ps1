@@ -11,37 +11,6 @@
     Requires helper cmdlets Write‑Logg, Install‑Cmdlet, Install‑PackageProviders, Add‑NuGetDependencies.
 #>
 
-#region Console helpers
-function Clear-Deep {
-    <#
-        .SYNOPSIS
-            Clears the console viewport **and** scroll‑back buffer.
-        .PARAMETER FlushKeys
-            Also purge any buffered keyboard input (recommended after long‑running loops).
-    #>
-    [CmdletBinding()]
-    param([switch]$FlushKeys)
-
-    # Remove any lingering progress bar first
-    Write-Progress -Activity ' ' -Completed
-
-    # Fast viewport wipe via .NET
-    [Console]::Clear()
-
-    # ANSI VT: ESC[3J = erase scroll‑back, ESC[H = cursor home.
-    # Use Write-Information to stay within PSAvoidUsingWriteHost rule.
-    $esc = [char]27
-    Write-Information "$esc[3J$esc[H" -InformationAction Continue
-
-    if ($FlushKeys) {
-        $host.UI.RawUI.FlushInputBuffer()
-    }
-}
-
-# Muscle‑memory alias (override cls / clear‑host if you like)
-Set-Alias cls Clear-Deep
-#endregion
-
 function Install-NugetDeps {
     [CmdletBinding()]
     param(
@@ -55,7 +24,7 @@ function Install-NugetDeps {
         #--------------------------------------------------------------------#
         # 1. Ensure helper cmdlets are available                             #
         #--------------------------------------------------------------------#
-        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies')
+        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies', 'Clear-Console')
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -164,7 +133,7 @@ function Install-NugetDeps {
             # 4. Finish: close progress bar and deep-clear console          #
             #----------------------------------------------------------------
             Write-Progress -Activity 'Installing NuGet Packages' -Completed
-            Clear-Deep -FlushKeys
+            Clear-Console -FlushKeys
         }
         else {
             Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE -Verbose
