@@ -164,7 +164,7 @@ function Write-Logg {
                     Write-Error -Message "$logMessage`n"
                 }
                 'VERBOSE' {
-                    Write-Verbose -Message "$logMessage`n"
+                    Write-Verbose -Message "$logMessage`n" -Verbose
                 }
                 'LOLCAT' {
                     "$logMessage`n" | lolcat -a
