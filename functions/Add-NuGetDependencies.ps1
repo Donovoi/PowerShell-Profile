@@ -75,6 +75,10 @@ function Add-NuGetDependencies {
         }
 
         New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+        
+        $dllBasePath = ''
+        $dllFullPath = ''
+        $BasePath = ''
 
         foreach ($package in $NugetPackage.GetEnumerator()) {
             $dep = $package.Key
@@ -85,8 +89,8 @@ function Add-NuGetDependencies {
                 $TempWorkDir = $LocalNugetDirectory
             }
 
-            $destinationPath = Join-Path "$TempWorkDir" "${dep}.${version}"
-            $dllBasePath = ''
+            $destinationPath = Join-Path "$TempWorkDir" "$dep.$version"
+
 
             # Check if module is already downloaded locally
             if (Test-Path -Path "$destinationPath" -PathType Container -ErrorAction SilentlyContinue) {
@@ -96,7 +100,7 @@ function Add-NuGetDependencies {
                 if (-not (Test-Path -Path "$BasePath\lib" -PathType Container)) {
                     $dllFullPath = Get-ChildItem -Path $destinationPath -Include '*.dll' -Recurse | Select-Object -First 1
                     if ($dllFullPath) {
-                        $BasePath = Split-Path -Path $dllFullPath -Parent -ErrorAction SilentlyContinue | Out-Null
+                        $BasePath = Split-Path -Path $dllFullPath -Parent -ErrorAction SilentlyContinue
                     }
                     else {
                         Write-Logg -Message "No DLL found in $destinationPath" -Level Warning
@@ -106,48 +110,6 @@ function Add-NuGetDependencies {
                 else {
                     # Retrieve .NET release key
                     $releaseKey = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release
-
-                    function Get-NetFrameworkVersion {
-                        param ($releaseKey)
-                        switch ($releaseKey) {
-                            { $_ -ge 533320 } {
-                                return '4.8.1'
-                            }
-                            { $_ -ge 528040 } {
-                                return '4.8'
-                            }
-                            { $_ -ge 461808 } {
-                                return '4.7.2'
-                            }
-                            { $_ -ge 461308 } {
-                                return '4.7.1'
-                            }
-                            { $_ -ge 460798 } {
-                                return '4.7'
-                            }
-                            { $_ -ge 394802 } {
-                                return '4.6.2'
-                            }
-                            { $_ -ge 394254 } {
-                                return '4.6.1'
-                            }
-                            { $_ -ge 393295 } {
-                                return '4.6'
-                            }
-                            { $_ -ge 379893 } {
-                                return '4.5.2'
-                            }
-                            { $_ -ge 378675 } {
-                                return '4.5.1'
-                            }
-                            { $_ -ge 378389 } {
-                                return '4.5'
-                            }
-                            default {
-                                return 'Version 4.5 or later not detected'
-                            }
-                        }
-                    }
 
                     $netVersion = Get-NetFrameworkVersion -releaseKey $releaseKey
                     Write-Logg -message "Latest .NET Framework Version Detected: $netVersion" -Level VERBOSE -Verbose
@@ -232,7 +194,7 @@ function Add-NuGetDependencies {
                     $packageFile = "$PackageName.$Version.nupkg"
                     if (-not (Test-Path -Path $packageFile)) {
                         Write-Logg -Message "Downloading $PackageName $Version..." -Level VERBOSE -Verbose
-                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory . -ExcludeVersion" -NoNewWindow -Wait
+                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory $DestinationPath -Verbosity quiet -NonInteractive" -NoNewWindow -Wait
                     }
 
                     $packageDir = Join-Path -Path '.' -ChildPath $PackageName
@@ -344,6 +306,48 @@ function Add-NuGetDependencies {
                 Write-Logg -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
                 Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
             }
+        }
+    }
+}
+
+function Get-NetFrameworkVersion {
+    param ($releaseKey)
+    switch ($releaseKey) {
+        { $_ -ge 533320 } {
+            return '4.8.1'
+        }
+        { $_ -ge 528040 } {
+            return '4.8'
+        }
+        { $_ -ge 461808 } {
+            return '4.7.2'
+        }
+        { $_ -ge 461308 } {
+            return '4.7.1'
+        }
+        { $_ -ge 460798 } {
+            return '4.7'
+        }
+        { $_ -ge 394802 } {
+            return '4.6.2'
+        }
+        { $_ -ge 394254 } {
+            return '4.6.1'
+        }
+        { $_ -ge 393295 } {
+            return '4.6'
+        }
+        { $_ -ge 379893 } {
+            return '4.5.2'
+        }
+        { $_ -ge 378675 } {
+            return '4.5.1'
+        }
+        { $_ -ge 378389 } {
+            return '4.5'
+        }
+        default {
+            return 'Version 4.5 or later not detected'
         }
     }
 }
