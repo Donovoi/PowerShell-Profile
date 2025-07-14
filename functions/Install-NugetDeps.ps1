@@ -114,7 +114,7 @@ function Install-NugetDeps {
         # 3. Install each dependency                                         #
         #--------------------------------------------------------------------#
         if ($deps.Count -gt 0) {
-            Write-Logg -Message 'Installing NuGet dependencies …' -Level Verbose
+            Write-Logg -Message 'Installing NuGet dependencies …' -Level VERBOSE -Verbose
             $i = 0
             $total = $deps.Count
 
@@ -150,7 +150,7 @@ function Install-NugetDeps {
                 }
 
                 if ($installed) {
-                    Write-Logg -Message "Package '$dep' $version already installed - skipping." -Level Verbose
+                    Write-Logg -Message "Package '$dep' $version already installed - skipping." -Level VERBOSE -Verbose
                     continue
                 }
 
@@ -167,7 +167,7 @@ function Install-NugetDeps {
             Clear-Deep -FlushKeys
         }
         else {
-            Write-Logg -Message 'No NuGet packages to install.' -Level Verbose
+            Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE -Verbose
         }
     }
     catch {

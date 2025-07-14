@@ -88,16 +88,16 @@ function Install-PSModule {
 
                     # Check if module is installed
                     if (-not (Get-Module -Name $moduleName -ListAvailable -ErrorAction SilentlyContinue)) {
-                        Write-Logg -Message "Installing module $moduleName" -Level Verbose
+                        Write-Logg -Message "Installing module $moduleName" -Level VERBOSE -Verbose
 
                         if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
                             $LocalModulePath = Join-Path -Path $LocalModulesDirectory -ChildPath $moduleName
                             if (Test-Path -Path $LocalModulePath -PathType Container) {
-                                Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level Verbose
+                                Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level VERBOSE -Verbose
                                 Import-Module -Name $LocalModulePath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                             }
                             else {
-                                Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level Verbose
+                                Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level VERBOSE -Verbose
                                 Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue `
                                     -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                             }

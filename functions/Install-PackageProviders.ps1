@@ -92,7 +92,7 @@ function Install-PackageProviders {
         if ($packageManagementModule) {
             Remove-Module PackageManagement -Force -ErrorAction SilentlyContinue -Confirm:$false | Out-Null
             Uninstall-Module PackageManagement -AllVersions -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Write-Logg -Message "Removed old PackageManagement module: $($packageManagementModule.Version)" -Level Verbose
+            Write-Logg -Message "Removed old PackageManagement module: $($packageManagementModule.Version)" -Level VERBOSE -Verbose
         }
 
         # -- (D) Bring in AnyPackage for PS 7+ --------------------------------------
@@ -109,7 +109,7 @@ function Install-PackageProviders {
         # Install the NuGet provider if not present
         if (-not (Get-PSResource -Name NuGet -ErrorAction SilentlyContinue)) {
             Install-PSResource AnyPackage.NuGet -Reinstall -ErrorAction SilentlyContinue -TrustRepository -Quiet -AcceptLicense | Out-Null
-            Write-Logg -Message 'Installed NuGet package provider.' -Level Verbose
+            Write-Logg -Message 'Installed NuGet package provider.' -Level VERBOSE -Verbose
         }
         Import-Module AnyPackage.NuGet
 
