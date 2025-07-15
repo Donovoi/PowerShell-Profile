@@ -61,21 +61,28 @@ function Add-NuGetDependencies {
         $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
 
         if ($SaveLocally) {
-            $TempWorkDir = if ($LocalNugetDirectory) {
+            $TempWorkDir = if (Test-Path -Path $LocalNugetDirectory -ErrorAction SilentlyContinue) {
                 $LocalNugetDirectory
             }
             else {
-                "$PWD/PowershellscriptsandResources/NugetPackages"
+                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' does not exist. Creating it." -Level VERBOSE -Verbose
+                New-Item -Path $LocalNugetDirectory -ItemType Directory -Force | Out-Null
+                $LocalNugetDirectory
             }
             Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE -Verbose
         }
         else {
             $TempWorkDir = Join-Path "$($env:TEMP)" "$CurrentFileNameHash"
-            Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+            if (Test-Path -Path "$TempWorkDir" -PathType Container) {
+                Write-Logg -Message "Temporary directory already exists at $TempWorkDir" -Level VERBOSE -Verbose
+            }
+            else {
+                # Create the temporary directory
+                Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+                New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+            }
         }
 
-        New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
-        
         $dllBasePath = ''
         $dllFullPath = ''
         $BasePath = ''
