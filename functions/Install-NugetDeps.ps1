@@ -90,8 +90,11 @@ function Install-NugetDeps {
         # make sure $LocalNugetDirectory points to an absolute path and create it if necessary
         if ($SaveLocally -and $LocalNugetDirectory) {
             $LocalNugetDirectory = Resolve-Path -Path $LocalNugetDirectory
-            if (-not (Test-Path -Path $LocalNugetDirectory -PathType Container) -and ($LocalNugetDirectory.Contains(':\'))) {
+            if (-not (Test-Path -Path $LocalNugetDirectory -PathType Container) -and ($LocalNugetDirectory.Contains(':\') -or $LocalNugetDirectory.Contains(':/'))) {
                 New-Item -Path $LocalNugetDirectory -ItemType Directory | Out-Null
+            }
+            elseif (Test-Path -Path $LocalNugetDirectory -PathType Container) {
+                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' is a valid path." -Level VERBOSE -Verbose
             }
             else {
                 Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' is not a valid path." -Level Error
