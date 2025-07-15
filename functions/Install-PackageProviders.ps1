@@ -42,6 +42,7 @@ function Install-PackageProviders {
     param ()
 
     try {
+        $FileScriptBlock = ''
         # (1) Import required cmdlets if missing
         $neededcmdlets = @(
             'Write-Logg'

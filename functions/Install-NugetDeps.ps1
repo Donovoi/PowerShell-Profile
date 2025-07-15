@@ -52,6 +52,7 @@ function Install-NugetDeps {
     )
 
     try {
+        $FileScriptBlock = ''
         #--------------------------------------------------------------------#
         # 1. Ensure helper cmdlets are available                             #
         #--------------------------------------------------------------------#
