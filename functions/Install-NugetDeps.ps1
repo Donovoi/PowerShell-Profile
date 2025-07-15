@@ -85,14 +85,14 @@ function Install-NugetDeps {
 
         if ($NugetPackage) {
             foreach ($p in $defaultPackages.GetEnumerator()) {
-                $deps[$p.Key] = @{ $p.Key = $p.Value }
+                $deps.Add($p.Key, $p.Value)
             }
         }
         # Also add the default package if they dont exist in the hashtable
         if ($InstallDefaultNugetPackage -and $NugetPackage) {
             foreach ($p in $defaultPackages.GetEnumerator()) {
                 if (-not $deps.ContainsKey($p.Key)) {
-                    $deps[$p.Key] = @{ $p.Key = $p.Value }
+                    $deps.Add($p.Key, $p.Value)
                 }
             }
         }
