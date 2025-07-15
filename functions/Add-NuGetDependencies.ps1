@@ -1,31 +1,24 @@
-<#
-.SYNOPSIS
-    Installs NuGet packages (optionally using a local cache) and finishes with a deep console clear.
-.DESCRIPTION
-    • Uses Write‑Progress inside the dependency loop and marks it Completed only once at the end.
-    • Adds Clear‑Deep helper that wipes viewport *and* scroll‑back using ANSI + .NET while staying PSScriptAnalyzer‑clean (no Write‑Host or Console.Write).
-    • Removes all in‑loop clear logic that interfered with progress‑bar repainting.
-    • Optional -FlushKeys to discard stray keystrokes after long operations.
-    • Compatible with Win‑ConHost, Windows Terminal, VS Code, SSH, Linux/macOS.
-.NOTES
-    Requires helper cmdlets Write‑Logg, Install‑Cmdlet, Install‑PackageProviders, Add‑NuGetDependencies.
-#>
-
-function Install-NugetDeps {
+function Add-NuGetDependencies {
     [CmdletBinding()]
     param(
-        [switch]$SaveLocally = $false,
-        [switch]$InstallDefaultNugetPackage = $false,
+        [Parameter(Mandatory = $true, HelpMessage = 'The NuGet packages to load.')]
         [hashtable]$NugetPackage,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'Specify if the packages should be saved locally.')]
+        [switch]$SaveLocally,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'The local directory to save the packages to.')]
         [string]$LocalNugetDirectory
     )
 
     try {
         $FileScriptBlock = ''
-        #--------------------------------------------------------------------#
-        # 1. Ensure helper cmdlets are available                             #
-        #--------------------------------------------------------------------#
-        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies', 'Clear-Console')
+        # (1) Import required cmdlets if missing
+        $neededcmdlets = @(
+            'Add-FileToAppDomain',
+            'Write-Logg',
+            'Write-InformationColored'
+        )
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -60,90 +53,301 @@ function Install-NugetDeps {
         $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
         New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
 
-        #--------------------------------------------------------------------#
-        # 2. Build dependency table                                          #
-        #--------------------------------------------------------------------#
-        $deps = @{}
-        $defaultPackages = @{
-            'Interop.UIAutomationClient' = '10.19041.0'
-            'FlaUI.Core'                 = '4.0.0'
-            'FlaUI.UIA3'                 = '4.0.0'
-            'HtmlAgilityPack'            = '1.12.0'
-        }
+        $TempWorkDir = $null
+        $InstalledDependencies = @{}
 
-        if ($InstallDefaultNugetPackage) {
-            foreach ($p in $defaultPackages.GetEnumerator()) {
-                $deps[$p.Key] = @{ Name = $p.Key; Version = $p.Value }
+        $CurrentFileName = Split-Path $PWD -Leaf
+        $memstream = [IO.MemoryStream]::new([byte[]][char[]]$CurrentFileName)
+        $CurrentFileNameHash = (Get-FileHash -InputStream $memstream -Algorithm SHA256).Hash
+
+        if ($SaveLocally) {
+            $TempWorkDir = if ($LocalNugetDirectory) {
+                $LocalNugetDirectory
             }
-        }
-        if ($NugetPackage) {
-            foreach ($p in $NugetPackage.GetEnumerator()) {
-                $deps[$p.Key] = @{ Name = $p.Key; Version = $p.Value }
+            else {
+                "$PWD/PowershellscriptsandResources/NugetPackages"
             }
-        }
-
-        #--------------------------------------------------------------------#
-        # 3. Install each dependency                                         #
-        #--------------------------------------------------------------------#
-        if ($deps.Count -gt 0) {
-            Write-Logg -Message 'Installing NuGet dependencies …' -Level VERBOSE -Verbose
-            $i = 0
-            $total = $deps.Count
-
-            foreach ($entry in $deps.GetEnumerator()) {
-                $i++
-                $percent = [int](($i / $total) * 100)
-                $dep = $entry.Key
-                $version = $entry.Value.Version
-
-                # Write-Progress -Activity 'Installing NuGet Packages' `
-                #     -Status "Installing $dep ($i of $total)" `
-                #     -PercentComplete $percent
-
-                # Ensure NuGet provider is present
-                Install-PackageProviders
-
-                # Check if already installed (locally or system-wide)
-                $installed = AnyPackage\Get-Package -Name $dep -Version $version -Provider NuGet -ErrorAction SilentlyContinue
-
-
-                if ($SaveLocally -and $LocalNugetDirectory) {
-                    $localPath = Join-Path $LocalNugetDirectory "$dep.$version"
-                    if (Test-Path $localPath -PathType Container) {
-                        $installed = $true
-                    }
-                    else {
-                        $installed = $false
-                    }
-                }
-                elseif ($SaveLocally) {
-                    Write-Logg -Message 'LocalNugetDirectory is empty but -SaveLocally specified.' -Level Error
-                    throw
-                }
-
-                if ($installed) {
-                    Write-Logg -Message "Package '$dep' $version already installed - skipping." -Level VERBOSE -Verbose
-                    continue
-                }
-
-                # Install / download package
-                Add-NuGetDependencies -NugetPackage @{ Name = $dep; Version = $version } `
-                    -SaveLocally:$SaveLocally `
-                    -LocalNugetDirectory:$LocalNugetDirectory
-            }
-
-            #----------------------------------------------------------------
-            # 4. Finish: close progress bar and deep-clear console          #
-            #----------------------------------------------------------------
-            Write-Progress -Activity 'Installing NuGet Packages' -Completed
-            Clear-Deep -FlushKeys
+            Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE -Verbose
         }
         else {
-            Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE -Verbose
+            $TempWorkDir = Join-Path "$($env:TEMP)" "$CurrentFileNameHash"
+            Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+        }
+
+        New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+        
+        $dllBasePath = ''
+        $dllFullPath = ''
+        $BasePath = ''
+
+        foreach ($package in $NugetPackage.GetEnumerator()) {
+            $dep = $package.Key
+            $version = $package.Value
+
+
+            if (-not [string]::IsNullOrEmpty($LocalNugetDirectory)) {
+                $TempWorkDir = $LocalNugetDirectory
+            }
+
+            $destinationPath = Join-Path "$TempWorkDir" "$dep.$version"
+
+
+            # Check if module is already downloaded locally
+            if (Test-Path -Path "$destinationPath" -PathType Container -ErrorAction SilentlyContinue) {
+                # Attempt to load the DLL(s)
+                $BasePath = "$destinationPath"
+
+                if (-not (Test-Path -Path "$BasePath\lib" -PathType Container)) {
+                    $dllFullPath = Get-ChildItem -Path $destinationPath -Include '*.dll' -Recurse | Select-Object -First 1
+                    if ($dllFullPath) {
+                        $BasePath = Split-Path -Path $dllFullPath -Parent -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        Write-Logg -Message "No DLL found in $destinationPath" -Level Warning
+
+                    }
+                }
+                else {
+                    # Retrieve .NET release key
+                    $releaseKey = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release
+
+                    $netVersion = Get-NetFrameworkVersion -releaseKey $releaseKey
+                    Write-Logg -message "Latest .NET Framework Version Detected: $netVersion" -Level VERBOSE -Verbose
+
+                    $frameworkMap = @{
+                        '4.8.1' = 'net45'
+                        '4.8'   = 'net45'
+                        '4.7.2' = 'net45'
+                        '4.7.1' = 'net45'
+                        '4.7'   = 'net45'
+                        '4.6.2' = 'net45'
+                        '4.6.1' = 'net45'
+                        '4.6'   = 'net45'
+                        '4.5.2' = 'net45'
+                        '4.5.1' = 'net45'
+                        '4.5'   = 'net45'
+                        '4.0'   = 'net40'
+                        '3.5'   = 'net35'
+                    }
+
+                    $folder = $frameworkMap[$netVersion]
+                    if ($folder) {
+                        $dllBasePath = Join-Path -Path $BasePath -ChildPath "lib\$folder"
+                        if (Test-Path -Path $dllBasePath) {
+                            Write-Logg -Message "Loading DLL from: $dllBasePath" -Level VERBOSE -Verbose
+                        }
+                        else {
+                            Write-Logg -Message "DLL not found at: $dllBasePath" -Level VERBOSE -Verbose
+                        }
+                    }
+                    else {
+                        Write-Logg -Message "No corresponding DLL found for .NET Framework version: $netVersion" -Level Error
+                    }
+                }
+
+                if ([string]::IsNullOrWhiteSpace($dllBasePath)) {
+                    $dllBasePath = $BasePath
+                }
+
+                $DLLSplit = (Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Name
+                $DLLFolder = (Get-ChildItem -Path $dllBasePath -Include '*.dll' -Recurse | Select-Object -First 1).Directory
+                if (-not $dllFolder) {
+                    Write-Logg -Message "No DLL found in $dllBasePath" -Level Warning
+                }
+                else {
+                    Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE -Verbose
+                    Add-FileToAppDomain -BasePath $DLLFolder -File $DLLSplit -ErrorAction SilentlyContinue
+                    continue
+                }
+            }
+
+            # If not found locally or new version
+            if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
+
+                Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE -Verbose
+                if (-not (Test-Path -Path "$destinationPath" -PathType Container)) {
+                    New-Item -Path "$destinationPath" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                AnyPackage\Save-Package -Name $dep -Version $version -Path "$destinationPath" -TrustSource -ErrorAction SilentlyContinue | Out-Null
+                AnyPackage\Install-Package -Path "$destinationPath" -ErrorAction SilentlyContinue | Out-Null
+                Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE -Verbose
+
+                $InstalledDependencies[$dep] = $version
+            }
+
+            $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
+            if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
+                Write-Logg -Message "The lib folder does not exist in $BasePath. Downloading using Nuget.exe" -Level VERBOSE -Verbose
+                function Get-NugetPackage {
+                    param (
+                        [Parameter(Mandatory = $true)] [string]$PackageName,
+                        [Parameter(Mandatory = $true)] [string]$Version,
+                        [Parameter(Mandatory = $true)] [string]$DestinationPath
+                    )
+
+                    $nugetExe = "$ENV:TEMP\nuget.exe"
+                    if (-not (Test-Path -Path $nugetExe)) {
+                        Write-Logg -Message 'Downloading NuGet.exe...' -Level VERBOSE -Verbose
+                        Invoke-WebRequest -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nugetExe
+                    }
+
+                    $packageFile = "$PackageName.$Version.nupkg"
+                    if (-not (Test-Path -Path $packageFile)) {
+                        Write-Logg -Message "Downloading $PackageName $Version..." -Level VERBOSE -Verbose
+                        Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory $DestinationPath -Verbosity quiet -NonInteractive" -NoNewWindow -Wait
+                    }
+
+                    $packageDir = Join-Path -Path '.' -ChildPath $PackageName
+                    $libDir = Join-Path -Path $packageDir -ChildPath 'lib/netstandard2.0'
+                    if (Test-Path -Path $libDir) {
+                        Write-Logg -Message "Extracting $PackageName $Version..." -Level VERBOSE -Verbose
+                        if (-not (Test-Path -Path $DestinationPath -PathType Container)) {
+                            New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                        }
+                        Copy-Item -Path "$libDir\*" -Destination $DestinationPath -Recurse -Force
+                    }
+                    else {
+                        Write-Logg -Message "Failed to find the lib directory in the NuGet package $PackageName $Version" -level Warning
+
+                        try {
+                            Write-logg -Message 'Trying a manual install of the package by creating a temporary dotnet project' -level Warning
+                            if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                                $tempDir = New-Item -Force -Type Directory -Path $LocalModulesDirectory
+                            }
+                            else {
+                                $tempDir = New-Item -Force -Type Directory ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$PackageName" + 'Temp'))
+                            }
+                            Push-Location $tempDir.FullName
+
+                            try {
+                                dotnet new classlib --framework netstandard2.0 -n ($PackageName + 'TempProject') --force | Out-Null
+                                Set-Location (Join-Path $tempDir.FullName ($PackageName + 'TempProject'))
+                                dotnet add package $PackageName | Out-Null
+                                dotnet publish -c Release | Out-Null
+
+                                $publishDir = Join-Path (Get-Location).Path 'bin\Release\netstandard2.0\publish'
+                                $assemblies = Get-ChildItem -Path $publishDir -Filter *.dll
+                                foreach ($assembly in $assemblies) {
+                                    Write-Logg -Message "Adding assembly $($assembly.Name) to the application domain" -Level VERBOSE -Verbose
+                                    Add-FileToAppDomain -BasePath $publishDir -File $assembly.Name
+                                }
+                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -Level VERBOSE -Verbose
+                            }
+                            finally {
+                                Pop-Location
+                                if ([string]::IsNullOrEmpty($LocalModulesDirectory)) {
+                                    Remove-Item -LiteralPath $tempDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                                }
+                            }
+                        }
+                        catch {
+                            Write-Logg -Message "Failed to install the package $PackageName $Version" -level Error
+                        }
+                    }
+                }
+
+                Get-NugetPackage -PackageName $dep -Version $version -DestinationPath $destinationPath
+            }
+
+            $dotnetfolders = if (-not (Get-ChildItem -Path "$destinationPath\lib" -Directory -ErrorAction SilentlyContinue)) {
+                Write-Logg -Message "No lib directory found in $destinationPath" -Level WARNING
+                # sometimes the folder is in two levels down, so we check both
+                $destinationPathFolderName = Split-Path $destinationPath -Leaf
+                $nestedlibfolders = Get-ChildItem -Path "$destinationPath\$destinationPathFolderName\lib"
+                if ($nestedlibfolders) {
+                    Write-Logg -Message "Found nested lib directory in $destinationPath\$destinationPathFolderName\lib" -Level VERBOSE -Verbose
+                    $nestedlibfolders
+                }
+                else {
+                    Write-Logg -Message "No nested lib directory found in $destinationPath" -Level Error
+                    throw
+                }
+            }
+            else {
+                Get-ChildItem -Path "$destinationPath\lib" -Directory -ErrorAction Stop
+            }
+            $versionFolders = $dotnetfolders | ForEach-Object {
+                if (($_.Name -match 'net(.+|\d+)\.\d+') -and ($_.Name -notmatch 'android|mac|linux|ios') ) {
+                    [PSCustomObject]@{
+                        Name     = $_.Name
+                        Version  = [version]($matches[0] -split 'net|coreapp|standard|-windows' | Select-Object -Last 1)
+                        FullName = $_.FullName
+                    }
+                }
+            }
+
+            if ($versionFolders) {
+                $sortedFolders = $versionFolders | Sort-Object -Property Version -Descending
+            }
+            else {
+                Write-Logg -Message "No version folders found for $dep" -Level Error
+                throw
+            }
+
+            $BasePath = $sortedFolders | Select-Object -First 1 -ExpandProperty FullName
+            $dllBasePath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
+
+            $DLLSplit = Split-Path -Path $dllBasePath -Leaf
+            Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE -Verbose
+            Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
         }
     }
     catch {
-        Write-Logg "An error occurred while installing NuGet packages: $_" -Level Error
+        Write-Logg -Message "An error occurred: $_" -Level ERROR
+        Write-Logg -Message "Error details: $($_.Exception)" -Level ERROR
         throw
+    }
+    finally {
+        if ($TempWorkDir -and (Test-Path -Path "$TempWorkDir" -PathType Container)) {
+            if ($SaveLocally) {
+                Write-Logg -Message "Packages saved locally to $TempWorkDir" -Level VERBOSE -Verbose
+            }
+            else {
+                Write-Logg -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+                Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
+
+function Get-NetFrameworkVersion {
+    param ($releaseKey)
+    switch ($releaseKey) {
+        { $_ -ge 533320 } {
+            return '4.8.1'
+        }
+        { $_ -ge 528040 } {
+            return '4.8'
+        }
+        { $_ -ge 461808 } {
+            return '4.7.2'
+        }
+        { $_ -ge 461308 } {
+            return '4.7.1'
+        }
+        { $_ -ge 460798 } {
+            return '4.7'
+        }
+        { $_ -ge 394802 } {
+            return '4.6.2'
+        }
+        { $_ -ge 394254 } {
+            return '4.6.1'
+        }
+        { $_ -ge 393295 } {
+            return '4.6'
+        }
+        { $_ -ge 379893 } {
+            return '4.5.2'
+        }
+        { $_ -ge 378675 } {
+            return '4.5.1'
+        }
+        { $_ -ge 378389 } {
+            return '4.5'
+        }
+        default {
+            return 'Version 4.5 or later not detected'
+        }
     }
 }
