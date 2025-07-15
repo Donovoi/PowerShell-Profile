@@ -117,8 +117,7 @@ function Install-NugetDeps {
                 # Ensure NuGet provider is present
                 Install-PackageProviders
 
-                # Check if already installed (locally or system-wide)
-                $installed = AnyPackage\Get-Package -Name $dep -Version $version -Provider NuGet -ErrorAction SilentlyContinue
+                $installed = $false
 
 
                 if ($SaveLocally -and $LocalNugetDirectory) {
