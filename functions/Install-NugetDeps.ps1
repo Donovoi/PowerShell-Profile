@@ -108,7 +108,7 @@ function Install-NugetDeps {
                 $i++
                 $percent = [int](($i / $total) * 100)
                 $dep = $entry.Key
-                $version = $entry.Value.Version
+                $version = $entry.Value
 
                 # Write-Progress -Activity 'Installing NuGet Packages' `
                 #     -Status "Installing $dep ($i of $total)" `
