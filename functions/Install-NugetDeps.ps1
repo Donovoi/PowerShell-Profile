@@ -69,7 +69,7 @@ function Install-NugetDeps {
                 # Check if the returned value is a ScriptBlock and import it properly
                 if ($scriptBlock -is [scriptblock]) {
                     $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
+                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
                     Write-Verbose "Imported $cmd as dynamic module: $moduleName"
                 }
                 elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
@@ -78,7 +78,7 @@ function Install-NugetDeps {
                 }
                 elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
                     # If a file path was returned, import it
-                    Import-Module -Name $scriptBlock -Force -Global
+                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
                     Write-Verbose "Imported $cmd from file: $scriptBlock"
                 }
                 else {
@@ -87,6 +87,8 @@ function Install-NugetDeps {
                 }
             }
         }
+        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
         # make sure $LocalNugetDirectory points to an absolute path and create it if necessary
         if ($SaveLocally -and $LocalNugetDirectory) {
             $LocalNugetDirectory = Resolve-Path -Path $LocalNugetDirectory
