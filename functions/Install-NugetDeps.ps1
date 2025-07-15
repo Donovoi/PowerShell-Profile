@@ -83,17 +83,6 @@ function Install-NugetDeps {
             'HtmlAgilityPack'            = '1.12.0'
         }
 
-        if ($InstallDefaultNugetPackage) {
-            foreach ($p in $defaultPackages.GetEnumerator()) {
-                $deps[$p.Key] = @{ Name = $p.Key; Version = $p.Value }
-            }
-        }
-        if ($NugetPackage) {
-            foreach ($p in $NugetPackage.GetEnumerator()) {
-                $deps[$p.Key] = @{ Name = $p.Key; Version = $p.Value }
-            }
-        }
-
         #--------------------------------------------------------------------#
         # 3. Install each dependency                                         #
         #--------------------------------------------------------------------#
@@ -139,7 +128,7 @@ function Install-NugetDeps {
                 }
 
                 # Install / download package
-                Add-NuGetDependencies -NugetPackage @{ Name = $dep; Version = $version } `
+                Add-NuGetDependencies -NugetPackage @{ $dep = $version } `
                     -SaveLocally:$SaveLocally `
                     -LocalNugetDirectory:$LocalNugetDirectory
             }
