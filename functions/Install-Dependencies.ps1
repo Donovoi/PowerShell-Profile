@@ -1,7 +1,8 @@
 function Install-Dependencies {
     [CmdletBinding()]
     param(
-        [switch]$RemoveAllModules,
+        [switch]$RemoveAllLocalModules,
+        [switch]$RemoveAllInMemoryModules,
         [string[]]$PSModule,
         [hashtable]$NugetPackage,
         [switch]$NoPSModules,
@@ -102,8 +103,9 @@ function Install-Dependencies {
         $null = Install-PSModule `
             -InstallDefaultPSModules:$InstallDefaultPSModules `
             -PSModule:$PSModule `
-            -RemoveAllModules:$RemoveAllModules `
-            -LocalModulesDirectory:$LocalModulesDirectory
+            -LocalModulesDirectory:$LocalModulesDirectory `
+            -RemoveAllLocalModules:$RemoveAllLocalModules `
+            -RemoveAllInMemoryModules:$RemoveAllInMemoryModules
 
     }
 
