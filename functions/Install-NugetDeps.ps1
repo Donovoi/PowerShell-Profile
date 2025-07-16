@@ -149,7 +149,7 @@ function Install-NugetDeps {
             # 4. Finish: close progress bar and deep-clear console          #
             #----------------------------------------------------------------
             Write-Progress -Activity 'Installing NuGet Packages' -Completed
-            Clear-Deep -FlushKeys
+            Clear-Console -FlushKeys
         }
         else {
             Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE -Verbose
