@@ -84,7 +84,7 @@ function Install-NugetDeps {
         }
 
         if ($NugetPackage) {
-            foreach ($p in $defaultPackages.GetEnumerator()) {
+            foreach ($p in $NugetPackage.GetEnumerator()) {
                 $deps.Add($p.Key, $p.Value)
             }
         }
