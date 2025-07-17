@@ -110,42 +110,46 @@ function Get-LatestGitHubRelease {
     )
 
     begin {
+        $FileScriptBlock = ''
         # --- dynamically import helper cmdlets ----------------------------
         $neededCmdlets = @(
             'Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored',
             'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties'
         )
 
-        if (-not (Get-Command Install-Cmdlet -EA SilentlyContinue)) {
-            $script = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-            $sb = [ScriptBlock]::Create($script + "`nExport-ModuleMember -Function * -Alias *")
-            New-Module -Name InstallCmdlet -ScriptBlock $sb | Import-Module
-        }
+        foreach ($cmd in $neededcmdlets) {
+            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
+                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+                }
+                Write-Verbose "Importing cmdlet: $cmd"
+                $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
 
-        foreach ($cmd in $neededCmdlets) {
-            Write-Verbose "Importing cmdlet: $cmd"
-            $result = Install-Cmdlet -RepositoryCmdlets $cmd -Force -PreferLocal
-            if (-not $result) {
-                Write-Verbose "result for $cmd is empty, assuming it is imported"
-                continue
-            }
-            switch ($result.GetType().Name) {
-                'ScriptBlock' {
-                    New-Module -Name "Dynamic_$cmd" -ScriptBlock $result | Import-Module -Force -Global
+                # Check if the returned value is a ScriptBlock and import it properly
+                if ($scriptBlock -is [scriptblock]) {
+                    $moduleName = "Dynamic_$cmd"
+                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
+                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
                 }
-                'FileInfo' {
-                    Import-Module -Name $result -Force -Global
+                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
+                    # If a module info was returned, it's already imported
+                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
                 }
-                'String' {
-                    $sb = [ScriptBlock]::Create($result + "`nExport-ModuleMember -Function * -Alias *"); New-Module -Name $cmd -ScriptBlock $sb | Import-Module
+                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
+                    # If a file path was returned, import it
+                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
+                    Write-Verbose "Imported $cmd from file: $scriptBlock"
                 }
-                default {
-                    if (-not [string]::IsNullOrWhiteSpace($result)) {
-                        Write-Warning "Unexpected return type for $cmd`: $($result.GetType())"
-                    }
+                else {
+                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
+                    Write-Warning "Returned: $($scriptBlock)"
                 }
             }
         }
+        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
 
         # --- TLS 1.2 for Windows PowerShell 5 ------------------------------
         if ($PSVersionTable.PSVersion.Major -eq 5) {
