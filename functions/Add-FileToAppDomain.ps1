@@ -75,8 +75,7 @@ function Add-FileToAppDomain {
             Write-Logg -Message "[!] Can't find or access file ${FileToLoad}." -Level Error
         }
 
-        $assembly = [System.Reflection.Assembly]::LoadFrom($FileToLoad)
-        if (-not ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.Location -eq $assembly.Location })) {
+        if (-not ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.Location -eq $FileToLoad })) {
             Write-Logg -Message "Loading file $FileToLoad into application domain" -Level VERBOSE
             [System.Reflection.Assembly]::LoadFrom($FileToLoad) | Out-Null
             $clientVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($FileToLoad).ProductVersion
