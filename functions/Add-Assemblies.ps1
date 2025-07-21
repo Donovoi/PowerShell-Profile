@@ -36,10 +36,10 @@ function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
     foreach ($assembly in $assembliesToAdd) {
         try {
             Add-Type -AssemblyName $assembly -ErrorAction Stop
-            Write-Logg -Message "Successfully added assembly: $assembly" -Level VERBOSE -Verbose
+            Write-Logg -Message "Successfully added assembly: $assembly" -Level VERBOSE
         }
         catch {
-            Write-Logg -Message "Failed to add assembly: $assembly. Error: $_" -Level VERBOSE -Verbose
+            Write-Logg -Message "Failed to add assembly: $assembly. Error: $_" -Level VERBOSE
         }
     }
 }

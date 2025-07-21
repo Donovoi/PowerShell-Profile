@@ -40,7 +40,7 @@ function Invoke-VolatilityAnalysis {
     Runs all discovered Volatility 3 plugins against the memory.raw file and saves output to the default directory.
 
     .EXAMPLE
-    Invoke-VolatilityAnalysis -MemoryImagePath "C:\Evidence\memory.raw" -OutputDirectory "C:\Cases\Case123\MemoryAnalysis" -IncludeLsaDump -Verbose
+    Invoke-VolatilityAnalysis -MemoryImagePath "C:\Evidence\memory.raw" -OutputDirectory "C:\Cases\Case123\MemoryAnalysis" -IncludeLsaDump
 
     Runs all plugins plus the LSA dump plugin, with detailed verbose output, and saves results to a case-specific directory.
 

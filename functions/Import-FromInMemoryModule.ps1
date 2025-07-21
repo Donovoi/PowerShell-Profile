@@ -51,7 +51,7 @@ function Import-FromInMemoryModule {
 
 
                     # import the module
-                    Import-Module -Assembly $ModuleAssembly -Verbose
+                    Import-Module -Assembly $ModuleAssembly
 
                     Write-Verbose "Module '$Module' imported"
 

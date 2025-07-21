@@ -56,7 +56,7 @@ function Get-FileDownload {
         Switch to force using PowerShell's native download methods instead of aria2c.
 
     .EXAMPLE
-        Get-FileDownload -URL "https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn/view" -DestinationDirectory "C:\Downloads" -Verbose
+        Get-FileDownload -URL "https://drive.google.com/file/d/141h4BQh8f5ziZii9q4CH9bhkD9HF9Avn/view" -DestinationDirectory "C:\Downloads"
         Downloads the specified Google Drive file to the C:\Downloads folder using the most appropriate method.
 
     .EXAMPLE

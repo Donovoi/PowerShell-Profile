@@ -65,20 +65,20 @@ function Add-NuGetDependencies {
                 $LocalNugetDirectory
             }
             else {
-                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' does not exist. Creating it." -Level VERBOSE -Verbose
+                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' does not exist. Creating it." -Level VERBOSE
                 New-Item -Path $LocalNugetDirectory -ItemType Directory -Force | Out-Null
                 $LocalNugetDirectory
             }
-            Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE -Verbose
+            Write-Logg -Message "Local destination directory set to $TempWorkDir" -Level VERBOSE
         }
         else {
             $TempWorkDir = Join-Path "$($env:TEMP)" "$CurrentFileNameHash"
             if (Test-Path -Path "$TempWorkDir" -PathType Container) {
-                Write-Logg -Message "Temporary directory already exists at $TempWorkDir" -Level VERBOSE -Verbose
+                Write-Logg -Message "Temporary directory already exists at $TempWorkDir" -Level VERBOSE
             }
             else {
                 # Create the temporary directory
-                Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+                Write-Logg -Message "Creating temporary directory at $TempWorkDir" -Level VERBOSE
                 New-Item -Path "$TempWorkDir" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
             }
         }
@@ -119,7 +119,7 @@ function Add-NuGetDependencies {
                     $releaseKey = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release
 
                     $netVersion = Get-NetFrameworkVersion -releaseKey $releaseKey
-                    Write-Logg -message "Latest .NET Framework Version Detected: $netVersion" -Level VERBOSE -Verbose
+                    Write-Logg -message "Latest .NET Framework Version Detected: $netVersion" -Level VERBOSE
 
                     $frameworkMap = @{
                         '4.8.1' = 'net45'
@@ -141,10 +141,10 @@ function Add-NuGetDependencies {
                     if ($folder) {
                         $dllBasePath = Join-Path -Path $BasePath -ChildPath "lib\$folder"
                         if (Test-Path -Path $dllBasePath) {
-                            Write-Logg -Message "Loading DLL from: $dllBasePath" -Level VERBOSE -Verbose
+                            Write-Logg -Message "Loading DLL from: $dllBasePath" -Level VERBOSE
                         }
                         else {
-                            Write-Logg -Message "DLL not found at: $dllBasePath" -Level VERBOSE -Verbose
+                            Write-Logg -Message "DLL not found at: $dllBasePath" -Level VERBOSE
                         }
                     }
                     else {
@@ -162,7 +162,7 @@ function Add-NuGetDependencies {
                     Write-Logg -Message "No DLL found in $dllBasePath" -Level Warning
                 }
                 else {
-                    Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE -Verbose
+                    Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
                     Add-FileToAppDomain -BasePath $DLLFolder -File $DLLSplit -ErrorAction SilentlyContinue
                     continue
                 }
@@ -171,20 +171,20 @@ function Add-NuGetDependencies {
             # If not found locally or new version
             if (-not (Test-Path -Path "$destinationPath" -PathType Container) -or (-not $InstalledDependencies.ContainsKey($dep) -or $InstalledDependencies[$dep] -ne $version)) {
 
-                Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE -Verbose
+                Write-Logg -Message "Installing package $dep version $version" -Level VERBOSE
                 if (-not (Test-Path -Path "$destinationPath" -PathType Container)) {
                     New-Item -Path "$destinationPath" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 AnyPackage\Save-Package -Name $dep -Version $version -Path "$destinationPath" -TrustSource -ErrorAction SilentlyContinue | Out-Null
                 AnyPackage\Install-Package -Path "$destinationPath" -ErrorAction SilentlyContinue | Out-Null
-                Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE -Verbose
+                Write-Logg -Message "[+] Installed package ${dep} with version ${version} into folder ${TempWorkDir}" -Level VERBOSE
 
                 $InstalledDependencies[$dep] = $version
             }
 
             $BasePath = Join-Path "$destinationPath" -ChildPath 'lib'
             if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
-                Write-Logg -Message "The lib folder does not exist in $BasePath. Downloading using Nuget.exe" -Level VERBOSE -Verbose
+                Write-Logg -Message "The lib folder does not exist in $BasePath. Downloading using Nuget.exe" -Level VERBOSE
                 function Get-NugetPackage {
                     param (
                         [Parameter(Mandatory = $true)] [string]$PackageName,
@@ -194,20 +194,20 @@ function Add-NuGetDependencies {
 
                     $nugetExe = "$ENV:TEMP\nuget.exe"
                     if (-not (Test-Path -Path $nugetExe)) {
-                        Write-Logg -Message 'Downloading NuGet.exe...' -Level VERBOSE -Verbose
+                        Write-Logg -Message 'Downloading NuGet.exe...' -Level VERBOSE
                         Invoke-WebRequest -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nugetExe
                     }
 
                     $packageFile = "$PackageName.$Version.nupkg"
                     if (-not (Test-Path -Path $packageFile)) {
-                        Write-Logg -Message "Downloading $PackageName $Version..." -Level VERBOSE -Verbose
+                        Write-Logg -Message "Downloading $PackageName $Version..." -Level VERBOSE
                         Start-Process -FilePath $nugetExe -ArgumentList "install $PackageName -Version $Version -OutputDirectory $DestinationPath -Verbosity quiet -NonInteractive" -NoNewWindow -Wait
                     }
 
                     $packageDir = Join-Path -Path '.' -ChildPath $PackageName
                     $libDir = Join-Path -Path $packageDir -ChildPath 'lib/netstandard2.0'
                     if (Test-Path -Path $libDir) {
-                        Write-Logg -Message "Extracting $PackageName $Version..." -Level VERBOSE -Verbose
+                        Write-Logg -Message "Extracting $PackageName $Version..." -Level VERBOSE
                         if (-not (Test-Path -Path $DestinationPath -PathType Container)) {
                             New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
                         }
@@ -235,10 +235,10 @@ function Add-NuGetDependencies {
                                 $publishDir = Join-Path (Get-Location).Path 'bin\Release\netstandard2.0\publish'
                                 $assemblies = Get-ChildItem -Path $publishDir -Filter *.dll
                                 foreach ($assembly in $assemblies) {
-                                    Write-Logg -Message "Adding assembly $($assembly.Name) to the application domain" -Level VERBOSE -Verbose
+                                    Write-Logg -Message "Adding assembly $($assembly.Name) to the application domain" -Level VERBOSE
                                     Add-FileToAppDomain -BasePath $publishDir -File $assembly.Name
                                 }
-                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -Level VERBOSE -Verbose
+                                Write-Logg -Message "Successfully installed the package $PackageName $Version" -Level VERBOSE
                             }
                             finally {
                                 Pop-Location
@@ -262,7 +262,7 @@ function Add-NuGetDependencies {
                 $destinationPathFolderName = Split-Path $destinationPath -Leaf
                 $nestedlibfolders = Get-ChildItem -Path "$destinationPath\$destinationPathFolderName\lib"
                 if ($nestedlibfolders) {
-                    Write-Logg -Message "Found nested lib directory in $destinationPath\$destinationPathFolderName\lib" -Level VERBOSE -Verbose
+                    Write-Logg -Message "Found nested lib directory in $destinationPath\$destinationPathFolderName\lib" -Level VERBOSE
                     $nestedlibfolders
                 }
                 else {
@@ -295,7 +295,7 @@ function Add-NuGetDependencies {
             $dllBasePath = Get-ChildItem -Path $BasePath -Filter '*.dll' | Select-Object -First 1
 
             $DLLSplit = Split-Path -Path $dllBasePath -Leaf
-            Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE -Verbose
+            Write-Logg -Message "Adding file $DLLSplit to application domain" -Level VERBOSE
             Add-FileToAppDomain -BasePath $BasePath -File $DLLSplit
         }
     }
@@ -307,10 +307,10 @@ function Add-NuGetDependencies {
     finally {
         if ($TempWorkDir -and (Test-Path -Path "$TempWorkDir" -PathType Container)) {
             if ($SaveLocally) {
-                Write-Logg -Message "Packages saved locally to $TempWorkDir" -Level VERBOSE -Verbose
+                Write-Logg -Message "Packages saved locally to $TempWorkDir" -Level VERBOSE
             }
             else {
-                Write-Logg -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE -Verbose
+                Write-Logg -Message "Cleaning up temporary directory at $TempWorkDir" -Level VERBOSE
                 Remove-Item -Path "$TempWorkDir" -Recurse -Force -ErrorAction SilentlyContinue
             }
         }

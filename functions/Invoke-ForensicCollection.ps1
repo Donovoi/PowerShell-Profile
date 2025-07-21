@@ -321,11 +321,11 @@ function Invoke-ForensicCollection {
     $result = Invoke-ForensicCollection -Artifact $artifact -CollectionPath "C:\Investigation"
 
     .EXAMPLE
-    Invoke-ForensicCollection -CollectionPath "C:\Investigation" -Verbose
+    Invoke-ForensicCollection -CollectionPath "C:\Investigation"
     # Collects all available forensic artifacts
 
     .EXAMPLE
-    Invoke-ForensicCollection -CollectionPath "C:\Investigation" -ArtifactFilter @("Browser", "Registry") -Verbose
+    Invoke-ForensicCollection -CollectionPath "C:\Investigation" -ArtifactFilter @("Browser", "Registry")
     # Collects only browser and registry related artifacts
 
     .OUTPUTS
