@@ -149,7 +149,7 @@ try {
 
     # Execute forensic collection
     Write-Host "Executing forensic artifact collection..."
-    `$results = Get-ForensicArtifacts -CollectArtifacts -CollectionPath '$CollectionPath' -Verbose
+    `$results = Get-ForensicArtifacts -CollectArtifacts -CollectionPath '$CollectionPath'
 
     Write-Host "Collection completed. Processed `$(`$results.Count) artifacts."
 

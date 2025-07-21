@@ -67,6 +67,6 @@
     }
 
     if ($refreshEnv) {
-        Write-Logg -Message 'Finished' -Level VERBOSE -Verbose
+        Write-Logg -Message 'Finished' -Level VERBOSE
     }
 }

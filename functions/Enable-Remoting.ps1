@@ -22,7 +22,7 @@ function Enable-Remoting {
     Write-Host 'Enabling WINRM Quickconfig' -ForegroundColor Green
     Start-Process -FilePath $psexec -ArgumentList "-accepteula \\$Comp -u $($PSCreds.UserName) -p $($PSCreds.GetNetworkCredential().Password) -h -d winrm.cmd quickconfig -q"
     Write-Host 'Waiting for 60 Seconds.......' -ForegroundColor Yellow
-    Start-Sleep -Seconds 60 -Verbose
+    Start-Sleep -Seconds 60
     Start-Process -FilePath $psexec -ArgumentList "\\$Comp -u $($PSCreds.UserName) -p $($PSCreds.GetNetworkCredential().Password) -h -d powershell.exe enable-psremoting -force"
     Write-Host 'Enabling PSRemoting' -ForegroundColor Green
     Start-Process -FilePath $psexec -ArgumentList "\\$Comp -u $($PSCreds.UserName) -p $($PSCreds.GetNetworkCredential().Password) -h -d powershell.exe set-executionpolicy Bypass -force"

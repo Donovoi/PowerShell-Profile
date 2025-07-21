@@ -64,7 +64,7 @@ function Install-PSModule {
 
             # Remove all modules if requested (the original code suggests this is possible)
             if ($RemoveAllInMemoryModules) {
-                Write-Logg -Message 'RemoveAllInMemoryModules is specified. Unloading any currently loaded modules.' -Level VERBOSE -Verbose
+                Write-Logg -Message 'RemoveAllInMemoryModules is specified. Unloading any currently loaded modules.' -Level VERBOSE
                 Get-Module | ForEach-Object {
                     if ($_.Name -ne 'InstallDependencies' -and $_.Name -ne 'InstallCmdlet') {
                         Remove-Module -Name $_.Name -Force -ErrorAction SilentlyContinue
@@ -73,16 +73,16 @@ function Install-PSModule {
             }
 
             if ($RemoveAllLocalModules) {
-                Write-Logg -Message '$RemoveAllLocalModules is specified. Checking directory for safe deletion.' -Level VERBOSE -Verbose
+                Write-Logg -Message '$RemoveAllLocalModules is specified. Checking directory for safe deletion.' -Level VERBOSE
                 if (Test-Path -Path $LocalModulesDirectory -PathType Container) {
                     # Find any files that are NOT PowerShell module files
                     $nonPsFiles = Get-ChildItem -Path $LocalModulesDirectory -Recurse -File | Where-Object { $_.Extension -notin '.ps1', '.psm1', '.psd1' }
 
                     if ($nonPsFiles.Count -eq 0) {
                         # Safe to delete
-                        Write-Logg -Message "Directory only contains PowerShell files. Removing '$LocalModulesDirectory'." -Level VERBOSE -Verbose
+                        Write-Logg -Message "Directory only contains PowerShell files. Removing '$LocalModulesDirectory'." -Level VERBOSE
                         Remove-Item -Path $LocalModulesDirectory -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-                        Write-Logg -Message "Successfully removed all local modules from '$LocalModulesDirectory'." -Level VERBOSE -Verbose
+                        Write-Logg -Message "Successfully removed all local modules from '$LocalModulesDirectory'." -Level VERBOSE
                     }
                     else {
                         # Found other file types, abort deletion
@@ -91,7 +91,7 @@ function Install-PSModule {
                     }
                 }
                 else {
-                    Write-Logg -Message "Local modules directory '$LocalModulesDirectory' does not exist. Nothing to remove." -Level VERBOSE -Verbose
+                    Write-Logg -Message "Local modules directory '$LocalModulesDirectory' does not exist. Nothing to remove." -Level VERBOSE
                 }
             }
 
@@ -118,16 +118,16 @@ function Install-PSModule {
 
                     # Check if module is installed
                     if (-not (Get-Module -Name $moduleName -ListAvailable -ErrorAction SilentlyContinue)) {
-                        Write-Logg -Message "Installing module $moduleName" -Level VERBOSE -Verbose
+                        Write-Logg -Message "Installing module $moduleName" -Level VERBOSE
 
                         if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
                             $LocalModulePath = Join-Path -Path $LocalModulesDirectory -ChildPath $moduleName
                             if (Test-Path -Path $LocalModulePath -PathType Container) {
-                                Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level VERBOSE -Verbose
+                                Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level VERBOSE
                                 Import-Module -Name $LocalModulePath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                             }
                             else {
-                                Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level VERBOSE -Verbose
+                                Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level VERBOSE
                                 Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue `
                                     -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                             }
@@ -142,7 +142,7 @@ function Install-PSModule {
                 }
             }
             else {
-                Write-Logg -Message 'No modules to install.' -Level VERBOSE -Verbose
+                Write-Logg -Message 'No modules to install.' -Level VERBOSE
             }
         }
         catch {

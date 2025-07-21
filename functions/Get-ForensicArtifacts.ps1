@@ -38,7 +38,7 @@ function Get-ForensicArtifacts {
     Lists all available forensic artifacts without collecting them.
 
     .EXAMPLE
-    Get-ForensicArtifacts -CollectArtifacts -CollectionPath "C:\Investigation" -Verbose
+    Get-ForensicArtifacts -CollectArtifacts -CollectionPath "C:\Investigation"
 
     Collects all forensic artifacts to the specified path with verbose output.
 
@@ -48,7 +48,7 @@ function Get-ForensicArtifacts {
     Lists only browser and registry artifacts with expanded paths.
 
     .EXAMPLE
-    Get-ForensicArtifacts -CollectArtifacts -ElevateToSystem -Verbose
+    Get-ForensicArtifacts -CollectArtifacts -ElevateToSystem
 
     Collects artifacts with SYSTEM privileges for maximum access.
 

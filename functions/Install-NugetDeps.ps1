@@ -65,7 +65,7 @@ function Install-NugetDeps {
                 New-Item -Path $LocalNugetDirectory -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
             }
             elseif (Test-Path -Path $LocalNugetDirectory -PathType Container) {
-                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' is a valid path." -Level VERBOSE -Verbose
+                Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' is a valid path." -Level VERBOSE
             }
             else {
                 Write-Logg -Message "LocalNugetDirectory '$LocalNugetDirectory' is not a valid path." -Level Error
@@ -99,7 +99,7 @@ function Install-NugetDeps {
         # 3. Install each dependency                                         #
         #--------------------------------------------------------------------#
         if ($deps.Count -gt 0) {
-            Write-Logg -Message 'Installing NuGet dependencies …' -Level VERBOSE -Verbose
+            Write-Logg -Message 'Installing NuGet dependencies …' -Level VERBOSE
             $i = 0
             $total = $deps.Count
 
@@ -134,7 +134,7 @@ function Install-NugetDeps {
                 }
 
                 if ($installed) {
-                    Write-Logg -Message "Package '$dep' $version already installed - skipping." -Level VERBOSE -Verbose
+                    Write-Logg -Message "Package '$dep' $version already installed - skipping." -Level VERBOSE
                     continue
                 }
 
@@ -151,7 +151,7 @@ function Install-NugetDeps {
             Clear-Console -FlushKeys
         }
         else {
-            Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE -Verbose
+            Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE
         }
     }
     catch {
