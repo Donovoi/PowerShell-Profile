@@ -162,9 +162,8 @@ function Write-Logg {
             }
             'ERROR' {
                 $Exception = (New-Object System.Exception($logMessage))
-                Write-Error -Message "An Error Occurred`n" -Exception $Exception
-
-                return $Exception
+                Write-Error -Message "An Error Occurred:`n" -Exception $Exception
+                Write-Error -Message $Exception
             }
             'VERBOSE' {
                 Write-Verbose -Message "$logMessage`n" -Verbose
@@ -188,9 +187,5 @@ function Write-Logg {
 
         # Return the confirmation result
         return $confirmationResult
-    }
-
-    if ($Exception) {
-        return $Exception
     }
 }
