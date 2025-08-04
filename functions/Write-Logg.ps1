@@ -161,8 +161,7 @@ function Write-Logg {
                     Write-Warning -Message "$logMessage`n"
                 }
                 'ERROR' {
-                    Write-Error -Message "$logMessage`n"
-                    throw
+                    Write-Error -Message "An Error Occurred`n" -Exception (New-Object System.Exception($logMessage))
                 }
                 'VERBOSE' {
                     Write-Verbose -Message "$logMessage`n" -Verbose
