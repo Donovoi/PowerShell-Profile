@@ -64,7 +64,7 @@ function Add-FileToAppDomain {
         }
         $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
         New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
-    
+
         if (-not (Test-Path -Path "$BasePath" -PathType Container)) {
             Write-Logg -Message "[!] Can't find or access folder ${BasePath}." -Level Error
         }
