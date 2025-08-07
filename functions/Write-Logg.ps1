@@ -115,10 +115,10 @@ function Write-Logg {
     }
     $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
     New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
-    #if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-    #    Install-Dependencies -PSModule 'Pansies' -NoNugetPackage
-    #}
-    #Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
+    if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+        Install-Dependencies -PSModule 'Pansies' -NoNugetPackage
+    }
+    Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
 
     if ($TUIPopUpMessage) {
         if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
@@ -150,22 +150,20 @@ function Write-Logg {
         }
     }
 
-    $Exception = $null
     # Output to console if not suppressed
-    if ((-not ($NoConsoleOutput)) -or ($LEVEL -eq 'VERBOSE') -and (-not($TUIPopUpMessage))) {
+    if ((-not ($NoConsoleOutput)) -and (-not($TUIPopUpMessage))) {
         switch ($Level) {
             'INFO' {
                 Write-Host "$logMessage`n" -ForegroundColor Green
             }
             'WARNING' {
-                Write-Warning -Message "$logMessage`n"
+                Write-Host "$logMessage`n" -ForegroundColor Yellow
             }
             'ERROR' {
-                $Exception = (New-Object System.Exception($logMessage))
-                Write-Error -Message "$Exception`n" -Exception $Exception
+                Write-Host "$logMessage`n" -ForegroundColor Red
             }
             'VERBOSE' {
-                Write-Verbose -Message "$logMessage`n" -Verbose
+                Write-Host "$logMessage`n" -ForegroundColor Gray
             }
             'LOLCAT' {
                 "$logMessage`n" | lolcat -a
