@@ -162,8 +162,7 @@ function Write-Logg {
             }
             'ERROR' {
                 $Exception = (New-Object System.Exception($logMessage))
-                Write-Error -Message "An Error Occurred:`n" -Exception $Exception
-                Write-Error -Message $Exception
+                Write-Error -Message "$Exception`n" -Exception $Exception
             }
             'VERBOSE' {
                 Write-Verbose -Message "$logMessage`n" -Verbose
