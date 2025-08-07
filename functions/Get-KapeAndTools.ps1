@@ -71,10 +71,10 @@ function Get-KapeAndTools {
   }
 
   $KapeAncillaryUpdater = Get-LatestGitHubRelease @params
-  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater)", '-silent' -Wait -NoNewWindow
+  Start-Process -FilePath 'pwsh.exe' -ArgumentList '-NoProfile -NoExit -File', "$(Resolve-Path -Path $KapeAncillaryUpdater)", '-silent' -Wait
 
   # After all is done copy the KAPE folder to my fast usb
-  $fastusb = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 't9'").DriveLetter
+  $fastusb = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'ventoy'").DriveLetter
 
   $params = @{
     Path        = "$XWAYSUSBtriagefolder\kape\"
