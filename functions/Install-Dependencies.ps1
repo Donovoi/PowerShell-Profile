@@ -81,7 +81,18 @@ function Install-Dependencies {
         Write-Logg -Message 'You specified -SaveLocally but did not provide a valid -LocalModulesDirectory.' -Level Error
     }
 
-    # (4) Install NuGet dependencies unless suppressed
+    # (4) Install PowerShell modules unless suppressed
+    if (-not $NoPSModules -and ($PSModule.Count -gt 0)) {
+        $null = Install-PSModule `
+            -InstallDefaultPSModules:$InstallDefaultPSModules `
+            -PSModule:$PSModule `
+            -LocalModulesDirectory:$LocalModulesDirectory `
+            -RemoveAllLocalModules:$RemoveAllLocalModules `
+            -RemoveAllInMemoryModules:$RemoveAllInMemoryModules
+
+    }
+
+    # (5) Install NuGet dependencies unless suppressed
     if (-not $NoNugetPackage ) {
         $null = Install-NugetDeps `
             -InstallDefaultNugetPackage:$InstallDefaultNugetPackage `
@@ -90,22 +101,11 @@ function Install-Dependencies {
             -LocalNugetDirectory:$LocalNugetDirectory
     }
 
-    # (5) Add assemblies if requested
+    # (6) Add assemblies if requested
     if ($AddDefaultAssemblies -or $AddCustomAssemblies) {
         $null = Add-Assemblies `
             -UseDefault:$AddDefaultAssemblies `
             -CustomAssemblies:$AddCustomAssemblies
-
-    }
-
-    # (6) Install PowerShell modules unless suppressed
-    if (-not $NoPSModules -and ($PSModule.Count -gt 0)) {
-        $null = Install-PSModule `
-            -InstallDefaultPSModules:$InstallDefaultPSModules `
-            -PSModule:$PSModule `
-            -LocalModulesDirectory:$LocalModulesDirectory `
-            -RemoveAllLocalModules:$RemoveAllLocalModules `
-            -RemoveAllInMemoryModules:$RemoveAllInMemoryModules
 
     }
 
