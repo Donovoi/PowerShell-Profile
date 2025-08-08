@@ -49,8 +49,8 @@ function Update-DotNetSDK {
     $DotNetVersions = $availableSDKs -replace '.*Microsoft\.DotNet\.SDK\.([^\s]+).*', '$1'
 
     foreach ($DotNetVersion in $DotNetVersions) {
-        Write-Logg -Message "Installing .NET SDK version $DotNetVersion"
+        Write-Output "Installing .NET SDK version $DotNetVersion"
         winget install $('Microsoft.DotNet.SDK.' + $DotNetVersion) --force --accept-source-agreements --accept-package-agreements
-        Write-Logg -Message "Finished installing .NET SDK version $DotNetVersion"
+        Write-Output "Finished installing .NET SDK version $DotNetVersion"
     }
 }
