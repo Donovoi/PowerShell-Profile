@@ -115,10 +115,10 @@ function Write-Logg {
     }
     $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
     New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
-    if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
-        Install-Dependencies -PSModule 'Pansies' -NoNugetPackage
-    }
-    Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
+    # if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
+    #     Install-Dependencies -PSModule 'Pansies' -NoNugetPackage
+    # }
+    # Import-Module -Name 'Pansies' -Force -ErrorAction SilentlyContinue
 
     if ($TUIPopUpMessage) {
         if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
@@ -127,7 +127,6 @@ function Write-Logg {
         }
     }
 
-    # Import-Module -Name 'pansies' -Force -ErrorAction SilentlyContinue
     # Capitalize the level for WARNING and ERROR for consistency
     if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
         $Level = $Level.ToUpper()
