@@ -162,7 +162,7 @@ function Write-Logg {
                 Write-Host "$logMessage`n" -ForegroundColor Red
             }
             'VERBOSE' {
-                Write-Host "$logMessage`n" -ForegroundColor Gray
+                Write-Verbose -Message "$logMessage`n"
             }
             'LOLCAT' {
                 "$logMessage`n" | lolcat -a
