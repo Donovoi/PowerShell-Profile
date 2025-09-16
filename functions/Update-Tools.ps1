@@ -1,86 +1,119 @@
 function Update-Tools {
   [CmdletBinding()]
-  param (
+  param(
     [switch]$SingleWindow,
     [ValidateSet('Tabs', 'Panes')]
     [string]$WindowLayout = 'Panes'
   )
-  # Expose configuration to the MenuItem class via script scope
+
+  # -------------------------------
+  # Script-scoped config for MenuItem
+  # -------------------------------
   $script:UpdateTools_SingleWindow = [bool]$SingleWindow
   $script:UpdateTools_WindowLayout = $WindowLayout
 
-  # Helper: Launch a single Windows Terminal window and orchestrate tabs/panes
-  $script:UpdateTools_StartWTSequence = {
+  # -------------------------------
+  # Helpers
+  # -------------------------------
+
+  function Get-PwshPath {
+    # Prefer whatever pwsh.exe is on PATH
+    $cmd = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+    if ($cmd) {
+      return $cmd.Source 
+    }
+
+    # PowerShell 7+ writes discovery keys under InstalledVersions (MSI/MSIX)
+    # HKLM:\SOFTWARE\Microsoft\PowerShellCore\InstalledVersions\<GUID>\
+    try {
+      $inst = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\PowerShellCore\InstalledVersions' -ErrorAction Stop |
+        Get-ItemProperty -ErrorAction Stop |
+          ForEach-Object {
+            if ($_.InstallLocation) {
+              $path = Join-Path $_.InstallLocation 'pwsh.exe'
+              if (Test-Path $path) {
+                $path 
+              }
+            }
+          } |
+            Select-Object -First 1
+      if ($inst) {
+        return $inst 
+      }
+    }
+    catch {
+    }
+
+    # Last resort: Windows PowerShell 5.1
+    return (Get-Command powershell.exe -ErrorAction Stop).Source
+  }
+
+  function New-EncodedShellCommand {
     param(
-      [string[]]$Commands
+      [Parameter(Mandatory)] [string] $Command
     )
-    if (-not $Commands -or $Commands.Count -eq 0) {
+    $shellPath = Get-PwshPath
+    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Command))
+    return "`"$shellPath`" -NoExit -EncodedCommand $enc"
+  }
+
+  # One WT window, orchestrating tabs or panes
+  $script:UpdateTools_StartWTSequence = {
+    param([string[]]$Commands)
+
+    if (-not $Commands -or -not $Commands.Count) {
       return 
     }
 
-    $wt = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
+    $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
     if (-not $wt) {
       throw 'Windows Terminal (wt.exe) was not found.' 
     }
 
-    # Resolve shell path
-    $shellCmd = Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue
-    if (-not $shellCmd) {
-      $shellCmd = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue 
-    }
-    if (-not $shellCmd) {
-      throw 'Neither pwsh.exe nor powershell.exe could be located on PATH.' 
-    }
-    $shellPath = $shellCmd.Source
-
-    # Build command lines for each part using -EncodedCommand
+    # Build per-command encoded shell lines
     $encodedCmds = foreach ($c in $Commands) {
-      $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($c))
-      "`"$shellPath`" -NoExit -EncodedCommand $enc"
+      New-EncodedShellCommand -Command $c 
     }
 
-    # Compose wt sequence
+    # Build a documented, robust sequence:
+    #   -w -1         => open a brand-new window
+    #   new-tab       => first tab
+    #   split-pane    => additional panes (or new-tab for Tabs layout)
     $sequence = @()
-    # First command opens a new window
-    $sequence += 'new-window'
-    $sequence += '--'
+    $sequence += '-w -1 new-tab --'
     $sequence += $encodedCmds[0]
 
-    if ($encodedCmds.Count -gt 1) {
-      for ($i = 1; $i -lt $encodedCmds.Count; $i++) {
-        if ($script:UpdateTools_WindowLayout -eq 'Tabs') {
-          $sequence += '; new-tab -- '
-          $sequence += $encodedCmds[$i]
+    for ($i = 1; $i -lt $encodedCmds.Count; $i++) {
+      if ($script:UpdateTools_WindowLayout -eq 'Tabs') {
+        $sequence += '; new-tab --'
+        $sequence += $encodedCmds[$i]
+      }
+      else {
+        $dirFlag = if ($i % 2 -eq 0) {
+          '-H' 
         }
         else {
-          # Panes
-          # Alternate split direction for readability
-          $dirFlag = if ($i % 2 -eq 0) {
-            '-H' 
-          }
-          else {
-            '-V' 
-          }
-          $sequence += "; split-pane $dirFlag -- "
-          $sequence += $encodedCmds[$i]
+          '-V' 
         }
+        $sequence += "; split-pane $dirFlag --"
+        $sequence += $encodedCmds[$i]
       }
     }
 
-    # Join into a single argument string for wt.exe
     $argString = ($sequence -join ' ')
-
     try {
       Start-Process -FilePath $wt.Source -ArgumentList $argString -Verb RunAs -ErrorAction Stop | Out-Null
     }
     catch {
-      # Fallback: replace new-window with new-tab (opens in existing window)
-      $fallback = $argString -replace '^(\s*)new-window', '$1new-tab'
+      # Fallback: open in an existing window (use -w 0)
+      $fallback = $argString -replace '^-w\s+-1', '-w 0'
       Start-Process -FilePath $wt.Source -ArgumentList $fallback -Verb RunAs -ErrorAction Stop | Out-Null
     }
   }
 
-
+  # -------------------------------
+  # Ensure dependency cmdlets exist
+  # -------------------------------
   $neededcmdlets = @(
     'Write-Logg',
     'Get-Properties',
@@ -90,13 +123,14 @@ function Update-Tools {
     'Get-KapeAndTools',
     'Get-GitPull',
     'Update-PowerShell',
-    'Update-VScode',
+    'Update-VSCode',     # fixed casing to match later usage
     'Update-VcRedist'
   )
-  $neededcmdlets | ForEach-Object {
-    if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-      if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-        # Ensure TLS 1.2 support for GitHub requests (especially on Windows PowerShell 5.1)
+
+  foreach ($name in $neededcmdlets) {
+    if (-not (Get-Command -Name $name -ErrorAction SilentlyContinue)) {
+      if (-not (Get-Command -Name Install-Cmdlet -ErrorAction SilentlyContinue)) {
+        # Ensure TLS 1.2 when pulling raw from GitHub on WinPS5.1
         try {
           if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12))) {
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -119,56 +153,37 @@ function Update-Tools {
           return
         }
       }
-      Write-Verbose -Message "Importing cmdlet: $_"
+
       try {
-        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
-        if ($Cmdletstoinvoke) {
-          $Cmdletstoinvoke | Import-Module -Force
+        $mods = Install-Cmdlet -RepositoryCmdlets $name
+        if ($mods) {
+          $mods | Import-Module -Force 
         }
         else {
-          Write-Verbose "Install-Cmdlet returned no modules for '$_'"
+          Write-Verbose "Install-Cmdlet returned no modules for '$name'" 
         }
       }
       catch {
-        Write-Warning "Failed to install/import cmdlet '$_': $($_.Exception.Message)"
+        Write-Warning "Failed to install/import cmdlet '$name': $($_.Exception.Message)"
       }
     }
   }
 
-  #  define the menuitem class
-  <#
-.SYNOPSIS
-    Represents a menu item with a display name and an associated action.
-
-.DESCRIPTION
-    The MenuItem class is used to create menu items for the terminal GUI. Each menu item has a name that is displayed in the GUI and an action that is a script block, which gets executed when the menu item is selected.
-
-.PARAMETER Name
-    The display name of the menu item.
-
-.PARAMETER Action
-    The script block that contains the action to be executed when this menu item is selected.
-
-.EXAMPLE
-    $menuItem = [MenuItem]::new('Option 1', { Write-Host 'You selected option 1' })
-
-    This creates a new menu item with the display name 'Option 1' and an action that writes a message to the host when invoked.
-
-.NOTES
-    This class is intended to be used with the Show-TUIMenu function which handles the GUI representation and interaction.
-#>
-
+  # -------------------------------
+  # Try to set ChocolateyInstall if you use portable media ($XWAYSUSB)
+  # -------------------------------
   try {
-    Resolve-Path $XWAYSUSB -ErrorAction SilentlyContinue
+    Resolve-Path $XWAYSUSB -ErrorAction SilentlyContinue | Out-Null
     $ENV:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin' -Resolve
   }
   catch {
     Write-Verbose 'Failed to resolve Chocolatey installation path.'
   }
 
-  # create a nuget.config file in the user profile directory if it doesn't exist
+  # -------------------------------
+  # Create a minimal NuGet.Config for choco if missing/different
+  # -------------------------------
   $nugetConfigPath = Join-Path -Path $env:USERPROFILE -ChildPath '.nuget\NuGet\NuGet.Config'
-
   $nugetConfigContent = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -178,7 +193,6 @@ function Update-Tools {
    </packageSources>
 </configuration>
 '@
-  # create the folder if it doesn't exist
   $nugetConfigDir = Split-Path -Path $nugetConfigPath -Parent
   if (-not (Test-Path -Path $nugetConfigDir)) {
     New-Item -Path $nugetConfigDir -ItemType Directory -Force | Out-Null
@@ -196,14 +210,16 @@ function Update-Tools {
       Write-Verbose "NuGet.Config written to '$nugetConfigPath'"
     }
     else {
-      Write-Verbose "NuGet.Config at '$nugetConfigPath' already up-to-date. Skipping write."
+      Write-Verbose "NuGet.Config already up-to-date at '$nugetConfigPath'."
     }
   }
   catch {
     Write-Warning "Failed to write NuGet.Config at '$nugetConfigPath': $($_.Exception.Message)"
   }
 
-
+  # -------------------------------
+  # MenuItem class
+  # -------------------------------
   class MenuItem {
     [string]$Name
     [scriptblock]$Action
@@ -215,104 +231,83 @@ function Update-Tools {
 
     [void]Invoke() {
       if ($this.Name -eq 'Exit') {
-        # Execute the exit action directly in the current context
-        # This should correctly stop the Terminal.Gui application
         try {
           & $this.Action
         }
         catch {
-          # Log error if stopping fails, though Exit(0) should terminate anyway
           Write-Error "Error during exit action: $($_.Exception.Message)"
-          # Force exit if necessary
-          [System.Environment]::Exit(1)
+          [Environment]::Exit(1)
         }
+        return
+      }
+
+      # Flatten the scriptblock to plain commands, splitting on ; and newlines
+      $actionString = $this.Action.ToString().Trim()
+      if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
+        $actionString = $actionString.Substring(1, $actionString.Length - 2).Trim()
+      }
+
+      $commandParts = $actionString -split "[`r`n;]+" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+
+      if ($commandParts.Count -eq 0) {
+        Write-Verbose "No command parts to execute for action: $($this.Name)"
+        return
+      }
+
+      $modeMsg = if ($script:UpdateTools_SingleWindow) {
+        "single WT window ($script:UpdateTools_WindowLayout)"
       }
       else {
-        # Logic for other actions: either orchestrate a single WT window with tabs/panes, or spawn separate windows
-        $actionString = $this.Action.ToString().Trim()
-        # Remove surrounding braces if present
-        if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
-          $actionString = $actionString.Substring(1, $actionString.Length - 2).Trim()
-        }
+        'separate WT windows'
+      }
+      Write-Verbose "Preparing to launch $($commandParts.Count) command(s) in $modeMsg."
 
-        # Split the action string into individual command parts
-        # Filter out any empty parts that might result from multiple semicolons or trailing ones
-        $commandParts = $actionString -split "[`r`n;]+" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-
-        if ($commandParts.Count -gt 0) {
-          $modeMsg = if ($script:UpdateTools_SingleWindow) {
-            "single WT window ($script:UpdateTools_WindowLayout)" 
-          }
-          else {
-            'separate WT windows' 
-          }
-          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently in $modeMsg."
-        }
-        else {
-          Write-Verbose "No command parts to execute for action: $($this.Name)"
-          return
-        }
-
-        # If SingleWindow mode is requested and wt.exe is available, build a single orchestrated spawn
-        if ($script:UpdateTools_SingleWindow) {
-          try {
-            & $script:UpdateTools_StartWTSequence -Commands $commandParts
-          }
-          catch {
-            Write-Warning "Failed to orchestrate single-window WT launch. Falling back to separate windows. Error: $($_.Exception.Message)"
-            # fall through to separate-window behavior
-          }
+      # Try the single-window orchestrated flow first (if requested)
+      if ($script:UpdateTools_SingleWindow) {
+        try {
+          & $script:UpdateTools_StartWTSequence -Commands $commandParts
           if ($?) {
             return 
           }
         }
+        catch {
+          Write-Warning "Single-window WT launch failed, falling back to separate windows. Error: $($_.Exception.Message)"
+        }
+      }
 
-        foreach ($commandPartItem in $commandParts) {
-          try {
-            Write-Verbose "Launching Windows Terminal for action part: $commandPartItem"
-
-            # Use -EncodedCommand to avoid quoting issues
-            $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($commandPartItem))
-
-            $wt = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
-            if ($wt) {
-              # Resolve full path to pwsh.exe; fallback to Windows PowerShell if needed
-              $shellCmd = Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue
-              if (-not $shellCmd) {
-                $shellCmd = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue 
-              }
-              if (-not $shellCmd) {
-                throw 'Neither pwsh.exe nor powershell.exe could be located on PATH.' 
-              }
-
-              $shellPath = $shellCmd.Source
-              # Everything after '--' is treated as the commandline for the shell
-              $cmdLine = "`"$shellPath`" -NoExit -EncodedCommand $encoded"
-
-              try {
-                # Prefer a brand new terminal window
-                $wtArgs = @('new-window', '--', $cmdLine)
-                Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
-              }
-              catch {
-                # Fallback to a new tab if 'new-window' fails for any reason
-                $wtArgs = @('new-tab', '--', $cmdLine)
-                Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
-              }
+      # Separate windows / tabs fallback: launch each command individually
+      foreach ($command in $commandParts) {
+        try {
+          $encodedCmd = New-EncodedShellCommand -Command $command
+          $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
+          if ($wt) {
+            # Open a brand-new window for each command
+            try {
+              $args = @('-w', '-1', 'new-tab', '--', $encodedCmd)
+              Start-Process -FilePath $wt.Source -ArgumentList $args -Verb RunAs -ErrorAction Stop | Out-Null
             }
-            else {
-              # Fallback: launch elevated pwsh directly if Windows Terminal isn't available
-              Start-Process -FilePath 'pwsh.exe' -ArgumentList @('-NoExit', '-EncodedCommand', $encoded) -Verb RunAs -ErrorAction Stop | Out-Null
+            catch {
+              # Fallback: target the active window
+              $args = @('-w', '0', 'new-tab', '--', $encodedCmd)
+              Start-Process -FilePath $wt.Source -ArgumentList $args -Verb RunAs -ErrorAction Stop | Out-Null
             }
           }
-          catch {
-            Write-Warning "Failed to launch terminal for action part '$commandPartItem'. Error: $($_.Exception.Message)"
+          else {
+            # Final fallback: launch shell directly (no WT)
+            $shellPath = Get-PwshPath
+            Start-Process -FilePath $shellPath -ArgumentList @('-NoExit', '-EncodedCommand', ($encodedCmd -replace '.*EncodedCommand\s+', '')) -Verb RunAs -ErrorAction Stop | Out-Null
           }
         }
-        # After this loop, all processes are started in separate terminal windows and run concurrently.
+        catch {
+          Write-Warning "Failed to launch terminal for action part '$command'. Error: $($_.Exception.Message)"
+        }
       }
     }
   }
+
+  # -------------------------------
+  # Menu definitions
+  # -------------------------------
   $menuItem0 = [MenuItem]::new('All', {
       choco upgrade all --ignore-dependencies -y
       winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
@@ -342,22 +337,11 @@ function Update-Tools {
   $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
-  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [System.Environment]::Exit(0) })
+  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [Environment]::Exit(0) })
+
   Show-TUIMenu -MenuItems @(
-    $menuItem0,
-    $menuItem1,
-    $menuItem2,
-    $menuItem3,
-    $menuItem4,
-    $menuItem5,
-    $menuItem6,
-    $menuItem7,
-    $menuItem8,
-    $menuItem9,
-    $menuItem10,
-    $menuItem11,
-    $menuItem12,
-    $menuItem13,
-    $menuItem14
+    $menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4,
+    $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9,
+    $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14
   ) -ErrorAction SilentlyContinue
 }
