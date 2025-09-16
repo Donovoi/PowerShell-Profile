@@ -1,8 +1,85 @@
 function Update-Tools {
   [CmdletBinding()]
   param (
-
+    [switch]$SingleWindow,
+    [ValidateSet('Tabs', 'Panes')]
+    [string]$WindowLayout = 'Panes'
   )
+  # Expose configuration to the MenuItem class via script scope
+  $script:UpdateTools_SingleWindow = [bool]$SingleWindow
+  $script:UpdateTools_WindowLayout = $WindowLayout
+
+  # Helper: Launch a single Windows Terminal window and orchestrate tabs/panes
+  $script:UpdateTools_StartWTSequence = {
+    param(
+      [string[]]$Commands
+    )
+    if (-not $Commands -or $Commands.Count -eq 0) {
+      return 
+    }
+
+    $wt = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
+    if (-not $wt) {
+      throw 'Windows Terminal (wt.exe) was not found.' 
+    }
+
+    # Resolve shell path
+    $shellCmd = Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue
+    if (-not $shellCmd) {
+      $shellCmd = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue 
+    }
+    if (-not $shellCmd) {
+      throw 'Neither pwsh.exe nor powershell.exe could be located on PATH.' 
+    }
+    $shellPath = $shellCmd.Source
+
+    # Build command lines for each part using -EncodedCommand
+    $encodedCmds = foreach ($c in $Commands) {
+      $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($c))
+      "`"$shellPath`" -NoExit -EncodedCommand $enc"
+    }
+
+    # Compose wt sequence
+    $sequence = @()
+    # First command opens a new window
+    $sequence += 'new-window'
+    $sequence += '--'
+    $sequence += $encodedCmds[0]
+
+    if ($encodedCmds.Count -gt 1) {
+      for ($i = 1; $i -lt $encodedCmds.Count; $i++) {
+        if ($script:UpdateTools_WindowLayout -eq 'Tabs') {
+          $sequence += '; new-tab -- '
+          $sequence += $encodedCmds[$i]
+        }
+        else {
+          # Panes
+          # Alternate split direction for readability
+          $dirFlag = if ($i % 2 -eq 0) {
+            '-H' 
+          }
+          else {
+            '-V' 
+          }
+          $sequence += "; split-pane $dirFlag -- "
+          $sequence += $encodedCmds[$i]
+        }
+      }
+    }
+
+    # Join into a single argument string for wt.exe
+    $argString = ($sequence -join ' ')
+
+    try {
+      Start-Process -FilePath $wt.Source -ArgumentList $argString -Verb RunAs -ErrorAction Stop | Out-Null
+    }
+    catch {
+      # Fallback: replace new-window with new-tab (opens in existing window)
+      $fallback = $argString -replace '^(\s*)new-window', '$1new-tab'
+      Start-Process -FilePath $wt.Source -ArgumentList $fallback -Verb RunAs -ErrorAction Stop | Out-Null
+    }
+  }
+
 
   $neededcmdlets = @(
     'Write-Logg',
@@ -151,7 +228,7 @@ function Update-Tools {
         }
       }
       else {
-        # Logic for other actions: split and run each part in its own elevated Windows Terminal window (wt.exe)
+        # Logic for other actions: either orchestrate a single WT window with tabs/panes, or spawn separate windows
         $actionString = $this.Action.ToString().Trim()
         # Remove surrounding braces if present
         if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
@@ -163,11 +240,31 @@ function Update-Tools {
         $commandParts = $actionString -split "[`r`n;]+" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
         if ($commandParts.Count -gt 0) {
-          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently in Windows Terminal windows."
+          $modeMsg = if ($script:UpdateTools_SingleWindow) {
+            "single WT window ($script:UpdateTools_WindowLayout)" 
+          }
+          else {
+            'separate WT windows' 
+          }
+          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently in $modeMsg."
         }
         else {
           Write-Verbose "No command parts to execute for action: $($this.Name)"
           return
+        }
+
+        # If SingleWindow mode is requested and wt.exe is available, build a single orchestrated spawn
+        if ($script:UpdateTools_SingleWindow) {
+          try {
+            & $script:UpdateTools_StartWTSequence -Commands $commandParts
+          }
+          catch {
+            Write-Warning "Failed to orchestrate single-window WT launch. Falling back to separate windows. Error: $($_.Exception.Message)"
+            # fall through to separate-window behavior
+          }
+          if ($?) {
+            return 
+          }
         }
 
         foreach ($commandPartItem in $commandParts) {
@@ -179,10 +276,29 @@ function Update-Tools {
 
             $wt = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
             if ($wt) {
-              # Open a brand new elevated Windows Terminal window running pwsh with our command
-              # Prefer broadly-supported subcommand form: wt.exe new-window pwsh -NoExit -EncodedCommand <base64>
-              $wtArgs = @('new-window', 'pwsh', '-NoExit', '-EncodedCommand', $encoded)
-              Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
+              # Resolve full path to pwsh.exe; fallback to Windows PowerShell if needed
+              $shellCmd = Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue
+              if (-not $shellCmd) {
+                $shellCmd = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue 
+              }
+              if (-not $shellCmd) {
+                throw 'Neither pwsh.exe nor powershell.exe could be located on PATH.' 
+              }
+
+              $shellPath = $shellCmd.Source
+              # Everything after '--' is treated as the commandline for the shell
+              $cmdLine = "`"$shellPath`" -NoExit -EncodedCommand $encoded"
+
+              try {
+                # Prefer a brand new terminal window
+                $wtArgs = @('new-window', '--', $cmdLine)
+                Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
+              }
+              catch {
+                # Fallback to a new tab if 'new-window' fails for any reason
+                $wtArgs = @('new-tab', '--', $cmdLine)
+                Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
+              }
             }
             else {
               # Fallback: launch elevated pwsh directly if Windows Terminal isn't available
