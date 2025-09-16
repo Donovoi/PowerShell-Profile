@@ -19,13 +19,42 @@ function Update-Tools {
   $neededcmdlets | ForEach-Object {
     if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
       if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+        # Ensure TLS 1.2 support for GitHub requests (especially on Windows PowerShell 5.1)
+        try {
+          if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12))) {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+          }
+        }
+        catch {
+          Write-Verbose 'Unable to adjust SecurityProtocol for TLS 1.2. Proceeding anyway.'
+        }
+
+        try {
+          $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1' -TimeoutSec 30 -ErrorAction Stop
+          if (-not $method) {
+            throw 'Empty response for Install-Cmdlet.ps1' 
+          }
+          $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+          New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module -ErrorAction Stop
+        }
+        catch {
+          Write-Warning "Failed to retrieve/import Install-Cmdlet.ps1: $($_.Exception.Message)"
+          return
+        }
       }
       Write-Verbose -Message "Importing cmdlet: $_"
-      $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
-      $Cmdletstoinvoke | Import-Module -Force
+      try {
+        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
+        if ($Cmdletstoinvoke) {
+          $Cmdletstoinvoke | Import-Module -Force
+        }
+        else {
+          Write-Verbose "Install-Cmdlet returned no modules for '$_'"
+        }
+      }
+      catch {
+        Write-Warning "Failed to install/import cmdlet '$_': $($_.Exception.Message)"
+      }
     }
   }
 
@@ -77,7 +106,25 @@ function Update-Tools {
   if (-not (Test-Path -Path $nugetConfigDir)) {
     New-Item -Path $nugetConfigDir -ItemType Directory -Force | Out-Null
   }
-  $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
+  try {
+    $writeConfig = $true
+    if (Test-Path -LiteralPath $nugetConfigPath) {
+      $existingConfig = Get-Content -LiteralPath $nugetConfigPath -Raw -ErrorAction SilentlyContinue
+      if ($existingConfig -eq $nugetConfigContent) {
+        $writeConfig = $false 
+      }
+    }
+    if ($writeConfig) {
+      $nugetConfigContent | Out-File -FilePath $nugetConfigPath -Force -Encoding UTF8
+      Write-Verbose "NuGet.Config written to '$nugetConfigPath'"
+    }
+    else {
+      Write-Verbose "NuGet.Config at '$nugetConfigPath' already up-to-date. Skipping write."
+    }
+  }
+  catch {
+    Write-Warning "Failed to write NuGet.Config at '$nugetConfigPath': $($_.Exception.Message)"
+  }
 
 
   class MenuItem {
@@ -104,7 +151,7 @@ function Update-Tools {
         }
       }
       else {
-        # Logic for other actions: split and run in new elevated processes concurrently using jobs
+        # Logic for other actions: split and run each part in its own elevated Windows Terminal window (wt.exe)
         $actionString = $this.Action.ToString().Trim()
         # Remove surrounding braces if present
         if ($actionString.StartsWith('{') -and $actionString.EndsWith('}')) {
@@ -116,7 +163,7 @@ function Update-Tools {
         $commandParts = $actionString -split "[`r`n;]+" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
         if ($commandParts.Count -gt 0) {
-          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently via background jobs."
+          Write-Verbose "Preparing to launch $($commandParts.Count) command(s) concurrently in Windows Terminal windows."
         }
         else {
           Write-Verbose "No command parts to execute for action: $($this.Name)"
@@ -124,38 +171,29 @@ function Update-Tools {
         }
 
         foreach ($commandPartItem in $commandParts) {
-          # Renamed loop variable to avoid conflict
           try {
-            Write-Verbose "Starting job for action part: $commandPartItem"
-            # Each command part is launched in a separate background job.
-            # The job's scriptblock will execute Start-Process.
-            Start-Job -ScriptBlock {
-              # This scriptblock runs in a background PowerShell process/runspace.
-              param($CmdToExecuteInternal)
+            Write-Verbose "Launching Windows Terminal for action part: $commandPartItem"
 
-              try {
-                # Start the actual command in a new, elevated PowerShell window.
-                # -NoExit keeps the window open after the command finishes.
-                # -Verb RunAs requests elevation.
-                Start-Process -FilePath 'pwsh.exe' -ArgumentList "-NoExit -Command `"$CmdToExecuteInternal`"" -Verb RunAs -ErrorAction Stop
-                # Verbose/Warning from here goes to job's stream, not console directly.
-              }
-              catch {
-                # Catch errors from Start-Process (e.g., user cancels UAC).
-                # This error will be in the job's error stream.
-                $jobErrorMessage = "Job failed to start elevated process for '$CmdToExecuteInternal'. Error: $($_.Exception.Message)"
-                Write-Error $jobErrorMessage # Puts error into the job's error stream
-              }
-            } -ArgumentList $commandPartItem # Pass the command part to the job's scriptblock
+            # Use -EncodedCommand to avoid quoting issues
+            $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($commandPartItem))
+
+            $wt = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
+            if ($wt) {
+              # Open a brand new elevated Windows Terminal window running pwsh with our command
+              # Prefer broadly-supported subcommand form: wt.exe new-window pwsh -NoExit -EncodedCommand <base64>
+              $wtArgs = @('new-window', 'pwsh', '-NoExit', '-EncodedCommand', $encoded)
+              Start-Process -FilePath $wt.Source -ArgumentList $wtArgs -Verb RunAs -ErrorAction Stop | Out-Null
+            }
+            else {
+              # Fallback: launch elevated pwsh directly if Windows Terminal isn't available
+              Start-Process -FilePath 'pwsh.exe' -ArgumentList @('-NoExit', '-EncodedCommand', $encoded) -Verb RunAs -ErrorAction Stop | Out-Null
+            }
           }
           catch {
-            # Catch errors from Start-Job itself (e.g., job system issues).
-            Write-Warning "Failed to start job for action part '$commandPartItem'. Error: $($_.Exception.Message)"
+            Write-Warning "Failed to launch terminal for action part '$commandPartItem'. Error: $($_.Exception.Message)"
           }
         }
-        # After this loop, all jobs are started and running in the background.
-        # The Invoke method returns, and the main script continues.
-        # These are fire-and-forget jobs from the perspective of this Invoke method.
+        # After this loop, all processes are started in separate terminal windows and run concurrently.
       }
     }
   }
