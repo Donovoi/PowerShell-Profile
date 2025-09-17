@@ -1,4 +1,4 @@
-function Invoke-TronLatest {
+function Invoke-Tron {
     <#
 .SYNOPSIS
 Downloads and (optionally) runs the latest Tron .exe from the official repository.
@@ -39,15 +39,15 @@ Skip SHA-256 validation (NOT recommended).
 Base URI for the Tron repo. Defaults to https://bmrf.org/repos/tron/
 
 .EXAMPLE
-Invoke-TronLatest -Verbose
+Invoke-Tron -Verbose
 Downloads the latest Tron .exe to '$env:USERPROFILE\Downloads' and runs it, with verbose logging.
 
 .EXAMPLE
-Invoke-TronLatest -DestinationDirectory 'C:\Tools' -DownloadOnly
+Invoke-Tron -DestinationDirectory 'C:\Tools' -DownloadOnly
 Downloads the latest Tron .exe to C:\Tools but does not run it.
 
 .EXAMPLE
-Invoke-TronLatest -Elevate -Wait -AdditionalArguments '/?'
+Invoke-Tron -Elevate -Wait -AdditionalArguments '/?'
 Downloads, runs elevated, waits for completion, and passes '/?' to the executable.
 
 .OUTPUTS
