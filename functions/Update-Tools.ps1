@@ -447,7 +447,7 @@ function Update-Tools {
     $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
     $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
     $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
-    $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
+    $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait -Force })
     $menuItem15 = [MenuItem]::new('Exit', { return })
 
     # Filter menu items based on IncludeTools/ExcludeTools if specified
