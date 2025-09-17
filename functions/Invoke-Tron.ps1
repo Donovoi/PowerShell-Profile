@@ -4,21 +4,22 @@ function Invoke-Tron {
 Downloads and (optionally) runs the latest Tron .exe from the official repository.
 
 .DESCRIPTION
-Queries the official Tron repository’s checksum list to identify the newest .exe, downloads it,
-validates SHA-256, and optionally launches it (optionally elevated). Uses approved verbs, avoids
-automatic variables, and follows common PS best practices.
+Discovers the newest Tron .exe from the official directory by reading sha256sums.txt,
+verifies the SHA-256, then downloads the EXE using Get-FileDownload with aria2c in
+**non-RPC mode** for performance and reliability. Optionally launches the EXE (with
+elevation and/or waiting).
 
 .PARAMETER DestinationDirectory
-Directory where the executable will be saved. Defaults to $env:TEMP. Created if missing.
+Directory where the executable will be saved. Defaults to "$env:USERPROFILE\Downloads". Created if missing.
 
 .PARAMETER DownloadOnly
 Download but do not launch the executable.
 
 .PARAMETER Wait
-Wait for the launched process to exit and return its exit code in the output object.
+Wait for the launched process to exit and include ExitCode in the output object.
 
 .PARAMETER Elevate
-Launch the executable elevated (Start-Process -Verb RunAs). Ignored with -DownloadOnly.
+Launch the executable elevated (Start-Process -Verb RunAs).
 
 .PARAMETER AdditionalArguments
 Additional arguments to pass to the Tron executable when launching.
@@ -27,10 +28,10 @@ Additional arguments to pass to the Tron executable when launching.
 Overwrite any existing file with the same name at the destination.
 
 .PARAMETER Proxy
-HTTP/HTTPS proxy URI to use for downloads, e.g. http://proxy:8080
+HTTP/HTTPS proxy URI (sets $env:http_proxy / $env:https_proxy during download).
 
 .PARAMETER ProxyCredential
-Credentials for the proxy. Use (Get-Credential).
+(Reserved for future use.) Present for parity with earlier versions.
 
 .PARAMETER SkipHashValidation
 Skip SHA-256 validation (NOT recommended).
@@ -38,62 +39,63 @@ Skip SHA-256 validation (NOT recommended).
 .PARAMETER BaseUri
 Base URI for the Tron repo. Defaults to https://bmrf.org/repos/tron/
 
+.PARAMETER Aria2cExe
+Optional: Path to aria2c.exe (passed through to Get-FileDownload).
+
+.PARAMETER AriaConsoleLogLevel
+aria2c console log level passed to Get-FileDownload. debug|info|notice|warn|error. Default: error.
+
+.PARAMETER AriaLogToFile
+Switch: ask Get-FileDownload to log aria2c output to file.
+
+.PARAMETER LoadCookiesFromFile
+Optional cookie file path to pass to Get-FileDownload.
+
 .EXAMPLE
 Invoke-Tron -Verbose
-Downloads the latest Tron .exe to '$env:USERPROFILE\Downloads' and runs it, with verbose logging.
+Downloads (via aria2c non-RPC) the latest Tron .exe to Downloads, verifies SHA-256, then runs it.
 
 .EXAMPLE
-Invoke-Tron -DestinationDirectory 'C:\Tools' -DownloadOnly
-Downloads the latest Tron .exe to C:\Tools but does not run it.
-
-.EXAMPLE
-Invoke-Tron -Elevate -Wait -AdditionalArguments '/?'
-Downloads, runs elevated, waits for completion, and passes '/?' to the executable.
+Invoke-Tron -DownloadOnly -DestinationDirectory 'C:\Tools' -AriaLogToFile
+Downloads only (aria2c non-RPC), with aria2c logging enabled.
 
 .OUTPUTS
 [pscustomobject] with: Name, Version, ReleaseDate, Url, OutFile, HashExpected, HashActual,
 Verified, Launched, ProcessId, ExitCode (if -Wait), DownloadedBytes.
 
 .LINK
-Approved verbs: https://learn.microsoft.com/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands
-PSScriptAnalyzer rules: https://learn.microsoft.com/powershell/utility-modules/psscriptanalyzer/rules/useapprovedverbs
-Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_automatic_variables
+Repo index & checksums: https://bmrf.org/repos/tron/
+aria2c manual (non-RPC CLI): https://aria2.github.io/manual/en/html/aria2c.html
 #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     [OutputType([pscustomobject])]
     param(
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
+        [Parameter()][ValidateNotNullOrEmpty()]
         [string]$DestinationDirectory = "$env:USERPROFILE\Downloads",
 
-        [Parameter()]
-        [switch]$DownloadOnly,
+        [Parameter()][switch]$DownloadOnly,
+        [Parameter()][switch]$Wait,
+        [Parameter()][switch]$Elevate,
+        [Parameter()][string]$AdditionalArguments,
+        [Parameter()][switch]$Force,
 
-        [Parameter()]
-        [switch]$Wait,
-
-        [Parameter()]
-        [switch]$Elevate,
-
-        [Parameter()]
-        [string]$AdditionalArguments,
-
-        [Parameter()]
-        [switch]$Force,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
+        [Parameter()][ValidateNotNullOrEmpty()]
         [string]$Proxy,
 
         [Parameter()]
         [System.Management.Automation.PSCredential]$ProxyCredential,
 
-        [Parameter()]
-        [switch]$SkipHashValidation,
+        [Parameter()][switch]$SkipHashValidation,
 
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [uri]$BaseUri = 'https://bmrf.org/repos/tron/'
+        [Parameter()][ValidateNotNullOrEmpty()]
+        [uri]$BaseUri = 'https://bmrf.org/repos/tron/',
+
+        # --- aria2 / Get-FileDownload pass-throughs ---
+        [Parameter()][string]$Aria2cExe,
+        [Parameter()][ValidateSet('debug', 'info', 'notice', 'warn', 'error')]
+        [string]$AriaConsoleLogLevel = 'error',
+        [Parameter()][switch]$AriaLogToFile,
+        [Parameter()][string]$LoadCookiesFromFile
     )
 
     begin {
@@ -102,11 +104,16 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
         try {
             $tls = [Net.SecurityProtocolType]::Tls12
             if ([enum]::GetNames([Net.SecurityProtocolType]) -contains 'Tls13') {
-                $tls = $tls -bor [Net.SecurityProtocolType]::Tls13
+                $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 
             }
             [Net.ServicePointManager]::SecurityProtocol = $prevProto -bor $tls
         }
-        catch { 
+        catch {
+        }
+
+        # Soft dependency check for Get-FileDownload
+        if (-not (Get-Command -Name Get-FileDownload -ErrorAction SilentlyContinue)) {
+            throw 'Get-FileDownload is required but not found in the current session. Import/define it, then re-run.'
         }
 
         function New-DirectoryIfMissing {
@@ -121,37 +128,15 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
         function Invoke-WebRequestSafe {
             [CmdletBinding()]
             param(
-                [Parameter(Mandatory)][uri]$Uri,
-                [Parameter()][string]$OutFile
+                [Parameter(Mandatory)][uri]$Uri
             )
-            $common = @{
-                Uri             = $Uri
-                UseBasicParsing = $true
-                ErrorAction     = 'Stop'
-            }
-            if ($Proxy) {
-                $common.Proxy = $Proxy 
-            }
-            if ($ProxyCredential) {
-                $common.ProxyCredential = $ProxyCredential 
-            }
-
-            if ($PSBoundParameters.ContainsKey('OutFile') -and $OutFile) {
-                Invoke-WebRequest @common -OutFile $OutFile
-            }
-            else {
-                Invoke-WebRequest @common
-            }
+            $common = @{ Uri = $Uri; UseBasicParsing = $true; ErrorAction = 'Stop' }
+            Invoke-WebRequest @common
         }
 
         function ConvertFrom-TronSha256Sums {
-            <#
-            .SYNOPSIS
-            Converts sha256sums.txt content to objects (FileName, Sha256, Size, Version, ReleaseDate).
-            #>
             [CmdletBinding()]
             param([Parameter(Mandatory)][string]$Text)
-
             $regex = '^(?<size>\d+),(?<hash>[0-9a-f]{64}),(?<file>.+?\.exe)$'
             foreach ($line in ($Text -split "`r?`n")) {
                 $line = $line.Trim()
@@ -179,13 +164,22 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                 }
             }
         }
+
+        # Respect Proxy by environment variables for aria2c / web engines
+        $prevHttp = $env:http_proxy
+        $prevHttps = $env:https_proxy
+        if ($Proxy) {
+            $env:http_proxy = $Proxy
+            $env:https_proxy = $Proxy
+            Write-Verbose "Proxy set via environment variables for download: $Proxy"
+        }
     }
 
     process {
         try {
             New-DirectoryIfMissing -Path $DestinationDirectory
 
-            # 1) Fetch and parse sha256sums
+            # 1) Discover the latest EXE from sha256sums.txt
             Write-Verbose "Fetching sha256sums.txt from $BaseUri"
             $shaUri = [uri]::new($BaseUri, 'sha256sums.txt')
             $shaResp = Invoke-WebRequestSafe -Uri $shaUri
@@ -194,11 +188,11 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                 throw "Failed to parse sha256sums from $shaUri" 
             }
 
-            # 2) Pick “latest” by Version then ReleaseDate
             $latest = $entries | Sort-Object Version, ReleaseDate -Descending | Select-Object -First 1
             $exeName = $latest.FileName
             $exeUri = [uri]::new($BaseUri, $exeName)
-            $outFile = Join-Path -Path $DestinationDirectory -ChildPath $exeName
+            $expected = $latest.Sha256
+            $expectedOut = Join-Path -Path $DestinationDirectory -ChildPath $exeName
 
             Write-Verbose ('Latest: {0} (Version {1}{2})' -f $exeName, $latest.Version,
                 $(if ($latest.ReleaseDate) {
@@ -208,37 +202,51 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                         ''
                     }))
             Write-Verbose "Source URL: $($exeUri.AbsoluteUri)"
-            Write-Verbose "Destination: $outFile"
+            Write-Verbose "Expected destination: $expectedOut"
 
-            # 3) Download (honor ShouldProcess)
-            if (Test-Path -LiteralPath $outFile) {
-                if ($Force) {
-                    if ($PSCmdlet.ShouldProcess($outFile, 'Overwrite existing file')) {
-                        Remove-Item -LiteralPath $outFile -Force -ErrorAction Stop
-                    }
-                    else {
-                        Write-Verbose 'Skipping overwrite due to ShouldProcess'
-                    }
-                }
-                else {
-                    throw "Destination file already exists: $outFile (use -Force to overwrite)."
-                }
+            # 2) Guard existing file unless -Force
+            if ((Test-Path -LiteralPath $expectedOut) -and -not $Force) {
+                throw "Destination file already exists: $expectedOut (use -Force to overwrite)."
             }
 
-            $downloadedBytes = $null
-            if ($PSCmdlet.ShouldProcess($exeUri.AbsoluteUri, 'Download')) {
-                Invoke-WebRequestSafe -Uri $exeUri -OutFile $outFile | Out-Null
-                $downloadedBytes = (Get-Item -LiteralPath $outFile).Length
+            # 3) Download via Get-FileDownload using aria2c NON-RPC mode
+            $downloadedPath = $null
+            if ($PSCmdlet.ShouldProcess($exeUri.AbsoluteUri, 'Download via Get-FileDownload (aria2c non-RPC)')) {
+                $gfdParams = @{
+                    URL                  = $exeUri.AbsoluteUri
+                    DestinationDirectory = $DestinationDirectory
+                    UseAria2             = $true
+                    NoRPCMode            = $true          # <-- non-RPC as requested
+                    AriaConsoleLogLevel  = $AriaConsoleLogLevel
+                }
+                if ($PSBoundParameters.ContainsKey('Aria2cExe') -and $Aria2cExe) {
+                    $gfdParams['aria2cExe'] = $Aria2cExe 
+                }
+                if ($AriaLogToFile) {
+                    $gfdParams['LogToFile'] = $true 
+                }
+                if ($LoadCookiesFromFile) {
+                    $gfdParams['LoadCookiesFromFile'] = $LoadCookiesFromFile 
+                }
+
+                Write-Verbose 'Invoking Get-FileDownload with aria2c (non-RPC)…'
+                $downloadedPath = Get-FileDownload @gfdParams
+                if (-not $downloadedPath -or -not (Test-Path -LiteralPath $downloadedPath)) {
+                    throw 'Get-FileDownload did not return a valid path.'
+                }
             }
             else {
-                Write-Verbose 'WhatIf: download skipped.'
+                Write-Verbose 'WhatIf: skipping download.'
+                $downloadedPath = $expectedOut
             }
 
+            $outFile = (Resolve-Path -LiteralPath $downloadedPath -ErrorAction Stop).Path
+            $downloadedBytes = (Get-Item -LiteralPath $outFile).Length
+
             # 4) Validate SHA-256 unless skipped
-            $expected = $latest.Sha256
             $actual = $null
             $verified = $false
-            if (-not $SkipHashValidation -and (Test-Path -LiteralPath $outFile)) {
+            if (-not $SkipHashValidation) {
                 Write-Verbose 'Computing SHA-256 for downloaded file…'
                 $actual = (Get-FileHash -LiteralPath $outFile -Algorithm SHA256).Hash.ToLowerInvariant()
                 $verified = ($actual -eq $expected.ToLowerInvariant())
@@ -247,7 +255,7 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                 }
                 Write-Verbose 'SHA-256 verified.'
             }
-            elseif ($SkipHashValidation) {
+            else {
                 Write-Warning 'Skipping hash validation at user request (-SkipHashValidation).'
             }
 
@@ -286,7 +294,7 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                 }
             }
 
-            # 6) Emit result object
+            # 6) Emit result
             [pscustomobject]@{
                 Name            = $exeName
                 Version         = $latest.Version.ToString()
@@ -297,7 +305,7 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
                     $null 
                 }
                 Url             = $exeUri.AbsoluteUri
-                OutFile         = (Resolve-Path -LiteralPath $outFile -ErrorAction SilentlyContinue).Path
+                OutFile         = $outFile
                 HashExpected    = $expected
                 HashActual      = $actual
                 Verified        = $verified
@@ -311,10 +319,15 @@ Automatic variables: https://learn.microsoft.com/powershell/module/microsoft.pow
             Write-Error -ErrorAction Stop $_
         }
         finally {
+            # restore proxy env and TLS
+            if ($PSBoundParameters.ContainsKey('Proxy')) {
+                $env:http_proxy = $prevHttp
+                $env:https_proxy = $prevHttps
+            }
             try {
                 [Net.ServicePointManager]::SecurityProtocol = $prevProto 
             }
-            catch { 
+            catch {
             }
         }
     }
