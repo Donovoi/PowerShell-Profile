@@ -339,7 +339,7 @@ function Update-Tools {
   $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
   $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
-  $menuItem15 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [Environment]::Exit(0) })
+  $menuItem15 = [MenuItem]::new('Exit', { return })
 
   Show-TUIMenu -MenuItems @(
     $menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4,
