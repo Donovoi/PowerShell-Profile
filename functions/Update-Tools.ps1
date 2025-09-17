@@ -100,13 +100,13 @@ function Update-Tools {
       }
     }
 
-    $argString = ($sequence -join ' ')
+    $argumentstring = ($sequence -join ' ')
     try {
-      Start-Process -FilePath $wt.Source -ArgumentList $argString -Verb RunAs -ErrorAction Stop | Out-Null
+      Start-Process -FilePath $wt.Source -ArgumentList $argumentstring -Verb RunAs -ErrorAction Stop | Out-Null
     }
     catch {
       # Fallback: open in an existing window (use -w 0)
-      $fallback = $argString -replace '^-w\s+-1', '-w 0'
+      $fallback = $argumentstring -replace '^-w\s+-1', '-w 0'
       Start-Process -FilePath $wt.Source -ArgumentList $fallback -Verb RunAs -ErrorAction Stop | Out-Null
     }
   }
@@ -283,13 +283,13 @@ function Update-Tools {
           if ($wt) {
             # Open a brand-new window for each command
             try {
-              $args = @('-w', '-1', 'new-tab', '--', $encodedCmd)
-              Start-Process -FilePath $wt.Source -ArgumentList $args -Verb RunAs -ErrorAction Stop | Out-Null
+              $arguments = @('-w', '-1', 'new-tab', '--', $encodedCmd)
+              Start-Process -FilePath $wt.Source -ArgumentList $arguments -Verb RunAs -ErrorAction Stop | Out-Null
             }
             catch {
               # Fallback: target the active window
-              $args = @('-w', '0', 'new-tab', '--', $encodedCmd)
-              Start-Process -FilePath $wt.Source -ArgumentList $args -Verb RunAs -ErrorAction Stop | Out-Null
+              $arguments = @('-w', '0', 'new-tab', '--', $encodedCmd)
+              Start-Process -FilePath $wt.Source -ArgumentList $arguments -Verb RunAs -ErrorAction Stop | Out-Null
             }
           }
           else {
@@ -323,6 +323,7 @@ function Update-Tools {
       sfc /scannow
       Update-DotNetSDK
       Update-VcRedist
+      Invoke-Tron -Elevate -Wait
     })
   $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
   $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
@@ -337,11 +338,12 @@ function Update-Tools {
   $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
   $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
   $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
-  $menuItem14 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [Environment]::Exit(0) })
+  $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
+  $menuItem15 = [MenuItem]::new('Exit', { [Terminal.Gui.Application]::RequestStop(); [Terminal.Gui.Application]::Shutdown(); [Environment]::Exit(0) })
 
   Show-TUIMenu -MenuItems @(
     $menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4,
     $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9,
-    $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14
+    $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14, $menuItem15
   ) -ErrorAction SilentlyContinue
 }
