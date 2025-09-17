@@ -1,16 +1,90 @@
+<#
+.SYNOPSIS
+    Interactive menu for updating various development tools and system components.
+
+.DESCRIPTION
+    Provides a Terminal UI menu to selectively update tools like Chocolatey packages, 
+    Winget applications, Visual Studio, VS Code, PowerShell, and run system maintenance 
+    tasks. Can launch operations in separate Windows Terminal windows or organize them 
+    in a single window using tabs or panes.
+
+    This cmdlet requires administrative privileges for some operations like DISM, SFC, 
+    and certain package managers.
+
+.PARAMETER SingleWindow
+    Launch all selected operations in a single Windows Terminal window using the 
+    specified layout (tabs or panes) instead of separate windows.
+
+.PARAMETER WindowLayout
+    Specifies the layout when using SingleWindow. Valid values are 'Tabs' or 'Panes'.
+    Default is 'Panes'. Only used when SingleWindow is specified.
+
+.PARAMETER Force
+    Suppresses confirmation prompts where possible and forces operations to proceed.
+
+.PARAMETER WhatIf
+    Shows what would be done without actually performing the operations.
+
+.EXAMPLE
+    Update-Tools
+    
+    Launch the interactive menu with default settings (separate windows).
+
+.EXAMPLE
+    Update-Tools -SingleWindow -WindowLayout Tabs
+    
+    Launch with all operations organized in tabs within a single Windows Terminal window.
+
+.EXAMPLE
+    Update-Tools -Force
+    
+    Launch the menu and suppress confirmation prompts where possible.
+
+.NOTES
+    Author: Donovoi
+    Requires: Windows Terminal (optional but recommended), PowerShell 5.1+
+    Some operations require administrative privileges and will prompt for elevation.
+
+.LINK
+    https://github.com/Donovoi/PowerShell-Profile
+#>
 function Update-Tools {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   param(
     [switch]$SingleWindow,
+    
     [ValidateSet('Tabs', 'Panes')]
-    [string]$WindowLayout = 'Panes'
+    [string]$WindowLayout = 'Panes',
+    
+    [switch]$Force,
+    
+    [string[]]$IncludeTools,
+    
+    [string[]]$ExcludeTools
   )
 
+  # -------------------------------
+  # Constants and Configuration
+  # -------------------------------
+  $script:GITHUB_BASE_URL = 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/'
+  $script:CHOCOLATEY_COMMUNITY_URL = 'https://community.chocolatey.org/api/v2/'
+  $script:INSTALL_CMDLET_URL = "$script:GITHUB_BASE_URL/Install-Cmdlet.ps1"
+  $script:WEB_REQUEST_TIMEOUT = 30
+  $script:REGISTRY_PATH_PWSH = 'HKLM:\SOFTWARE\Microsoft\PowerShellCore\InstalledVersions'
+  
   # -------------------------------
   # Script-scoped config for MenuItem
   # -------------------------------
   $script:UpdateTools_SingleWindow = [bool]$SingleWindow
   $script:UpdateTools_WindowLayout = $WindowLayout
+  $script:UpdateTools_Force = [bool]$Force
+
+  # Validate global variables if they exist
+  if (Get-Variable -Name 'XWAYSUSB' -Scope Global -ErrorAction SilentlyContinue) {
+    if (-not (Test-Path -Path $Global:XWAYSUSB -ErrorAction SilentlyContinue)) {
+      Write-Warning "Global variable XWAYSUSB points to non-existent path: $Global:XWAYSUSB"
+    }
+  }
 
   # -------------------------------
   # Helpers
@@ -24,9 +98,8 @@ function Update-Tools {
     }
 
     # PowerShell 7+ writes discovery keys under InstalledVersions (MSI/MSIX)
-    # HKLM:\SOFTWARE\Microsoft\PowerShellCore\InstalledVersions\<GUID>\
     try {
-      $inst = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\PowerShellCore\InstalledVersions' -ErrorAction Stop |
+      $inst = Get-ChildItem $script:REGISTRY_PATH_PWSH -ErrorAction Stop |
         Get-ItemProperty -ErrorAction Stop |
           ForEach-Object {
             if ($_.InstallLocation) {
@@ -42,6 +115,7 @@ function Update-Tools {
       }
     }
     catch {
+      Write-Verbose "Failed to query PowerShell registry path: $($_.Exception.Message)"
     }
 
     # Last resort: Windows PowerShell 5.1
@@ -134,19 +208,22 @@ function Update-Tools {
         try {
           if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12))) {
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            Write-Information 'Enabled TLS 1.2 for secure web requests.' -InformationAction Continue
           }
         }
         catch {
-          Write-Verbose 'Unable to adjust SecurityProtocol for TLS 1.2. Proceeding anyway.'
+          Write-Warning "Unable to adjust SecurityProtocol for TLS 1.2: $($_.Exception.Message). Proceeding anyway."
         }
 
         try {
-          $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1' -TimeoutSec 30 -ErrorAction Stop
+          Write-Information 'Downloading Install-Cmdlet from repository...' -InformationAction Continue
+          $method = Invoke-RestMethod -Uri $script:INSTALL_CMDLET_URL -TimeoutSec $script:WEB_REQUEST_TIMEOUT -ErrorAction Stop
           if (-not $method) {
             throw 'Empty response for Install-Cmdlet.ps1' 
           }
           $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
           New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module -ErrorAction Stop
+          Write-Information 'Successfully imported Install-Cmdlet module.' -InformationAction Continue
         }
         catch {
           Write-Warning "Failed to retrieve/import Install-Cmdlet.ps1: $($_.Exception.Message)"
@@ -172,12 +249,19 @@ function Update-Tools {
   # -------------------------------
   # Try to set ChocolateyInstall if you use portable media ($XWAYSUSB)
   # -------------------------------
-  try {
-    Resolve-Path $XWAYSUSB -ErrorAction SilentlyContinue | Out-Null
-    $ENV:ChocolateyInstall = Join-Path -Path $XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin' -Resolve
-  }
-  catch {
-    Write-Verbose 'Failed to resolve Chocolatey installation path.'
+  if (Get-Variable -Name 'XWAYSUSB' -Scope Global -ErrorAction SilentlyContinue) {
+    try {
+      if (Test-Path -Path $Global:XWAYSUSB -ErrorAction SilentlyContinue) {
+        $chocoPath = Join-Path -Path $Global:XWAYSUSB -ChildPath '*\chocolatey apps\chocolatey\bin' -Resolve -ErrorAction SilentlyContinue
+        if ($chocoPath) {
+          $ENV:ChocolateyInstall = $chocoPath
+          Write-Information "Set ChocolateyInstall to: $chocoPath" -InformationAction Continue
+        }
+      }
+    }
+    catch {
+      Write-Verbose "Failed to resolve Chocolatey installation path: $($_.Exception.Message)"
+    }
   }
 
   # -------------------------------
@@ -189,7 +273,7 @@ function Update-Tools {
 <configuration>
    <packageSources>
       <clear/>
-      <add key="chocolatey" value="https://community.chocolatey.org/api/v2/"/>
+      <add key="chocolatey" value="$script:CHOCOLATEY_COMMUNITY_URL"/>
    </packageSources>
 </configuration>
 '@
@@ -223,22 +307,44 @@ function Update-Tools {
   class MenuItem {
     [string]$Name
     [scriptblock]$Action
+    [bool]$IsExitItem
+    [bool]$RequiresAdmin
 
     MenuItem([string]$Name, [scriptblock]$Action) {
+      if ([string]::IsNullOrWhiteSpace($Name)) {
+        throw [ArgumentException]::new('MenuItem name cannot be null or empty')
+      }
+      if ($null -eq $Action) {
+        throw [ArgumentNullException]::new('MenuItem action cannot be null')
+      }
+      
       $this.Name = $Name
       $this.Action = $Action
+      $this.IsExitItem = ($Name -eq 'Exit')
+      
+      # Determine if this action requires admin privileges
+      $actionString = $Action.ToString()
+      $this.RequiresAdmin = ($actionString -match 'DISM|sfc|choco|winget|Update-.*|Invoke-Tron')
     }
 
     [void]Invoke() {
-      if ($this.Name -eq 'Exit') {
+      if ($this.IsExitItem) {
         try {
           & $this.Action
         }
         catch {
           Write-Error "Error during exit action: $($_.Exception.Message)"
-          [Environment]::Exit(1)
+          return
         }
         return
+      }
+
+      # Check if we need admin privileges
+      if ($this.RequiresAdmin) {
+        $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+          Write-Warning "Action '$($this.Name)' requires administrative privileges. Some operations may fail."
+        }
       }
 
       # Flatten the scriptblock to plain commands, splitting on ; and newlines
@@ -260,7 +366,7 @@ function Update-Tools {
       else {
         'separate WT windows'
       }
-      Write-Verbose "Preparing to launch $($commandParts.Count) command(s) in $modeMsg."
+      Write-Information "Preparing to launch $($commandParts.Count) command(s) in $modeMsg." -InformationAction Continue
 
       # Try the single-window orchestrated flow first (if requested)
       if ($script:UpdateTools_SingleWindow) {
@@ -308,42 +414,65 @@ function Update-Tools {
   # -------------------------------
   # Menu definitions
   # -------------------------------
-  $menuItem0 = [MenuItem]::new('All', {
-      choco upgrade all --ignore-dependencies -y
-      winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
-      Update-VisualStudio
-      Update-VSCode
-      Get-KapeAndTools
-      Get-GitPull
-      Update-PowerShell
-      winget source reset --disable-interactivity --force
-      winget source update --disable-interactivity
-      winget upgrade --all --force --accept-source-agreements --accept-package-agreements
-      DISM /Online /Cleanup-Image /RestoreHealth
-      sfc /scannow
-      Update-DotNetSDK
-      Update-VcRedist
-      Invoke-Tron -Elevate -Wait
-    })
-  $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
-  $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
-  $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
-  $menuItem4 = [MenuItem]::new('UpdateVSCode', { Update-VSCode })
-  $menuItem5 = [MenuItem]::new('GetKapeAndTools', { Get-KapeAndTools })
-  $menuItem6 = [MenuItem]::new('GetGitPull', { Get-GitPull })
-  $menuItem7 = [MenuItem]::new('UpdatePowerShell', { Update-PowerShell })
-  $menuItem8 = [MenuItem]::new('ResetWingetSource', { winget source reset --disable-interactivity --force })
-  $menuItem9 = [MenuItem]::new('UpdateWingetSource', { winget source update --disable-interactivity })
-  $menuItem10 = [MenuItem]::new('UpgradeWingetAndTools', { winget upgrade --all --accept-source-agreements --accept-package-agreements })
-  $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
-  $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
-  $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
-  $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
-  $menuItem15 = [MenuItem]::new('Exit', { return })
+  if ($PSCmdlet.ShouldProcess('System Tools', 'Display Update Tools Menu')) {
+    Write-Information 'Initializing Update Tools menu...' -InformationAction Continue
+    
+    $menuItem0 = [MenuItem]::new('All', {
+        choco upgrade all --ignore-dependencies -y
+        winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements
+        Update-VisualStudio
+        Update-VSCode
+        Get-KapeAndTools
+        Get-GitPull
+        Update-PowerShell
+        winget source reset --disable-interactivity --force
+        winget source update --disable-interactivity
+        winget upgrade --all --force --accept-source-agreements --accept-package-agreements
+        DISM /Online /Cleanup-Image /RestoreHealth
+        sfc /scannow
+        Update-DotNetSDK
+        Update-VcRedist
+        Invoke-Tron -Elevate -Wait
+      })
+    $menuItem1 = [MenuItem]::new('UpgradeChocolateyAndTools', { choco upgrade all --ignore-dependencies })
+    $menuItem2 = [MenuItem]::new('InstallOhMyPosh', { winget install JanDeDobbeleer.OhMyPosh -s winget --force --accept-source-agreements --accept-package-agreements })
+    $menuItem3 = [MenuItem]::new('UpdateVisualStudio', { Update-VisualStudio })
+    $menuItem4 = [MenuItem]::new('UpdateVSCode', { Update-VSCode })
+    $menuItem5 = [MenuItem]::new('GetKapeAndTools', { Get-KapeAndTools })
+    $menuItem6 = [MenuItem]::new('GetGitPull', { Get-GitPull })
+    $menuItem7 = [MenuItem]::new('UpdatePowerShell', { Update-PowerShell })
+    $menuItem8 = [MenuItem]::new('ResetWingetSource', { winget source reset --disable-interactivity --force })
+    $menuItem9 = [MenuItem]::new('UpdateWingetSource', { winget source update --disable-interactivity })
+    $menuItem10 = [MenuItem]::new('UpgradeWingetAndTools', { winget upgrade --all --accept-source-agreements --accept-package-agreements })
+    $menuItem11 = [MenuItem]::new('SystemImageCleanup', { DISM /Online /Cleanup-Image /RestoreHealth; sfc /scannow })
+    $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
+    $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
+    $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
+    $menuItem15 = [MenuItem]::new('Exit', { return })
 
-  Show-TUIMenu -MenuItems @(
-    $menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4,
-    $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9,
-    $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14, $menuItem15
-  ) -ErrorAction SilentlyContinue
+    # Filter menu items based on IncludeTools/ExcludeTools if specified
+    $allMenuItems = @(
+      $menuItem0, $menuItem1, $menuItem2, $menuItem3, $menuItem4,
+      $menuItem5, $menuItem6, $menuItem7, $menuItem8, $menuItem9,
+      $menuItem10, $menuItem11, $menuItem12, $menuItem13, $menuItem14, $menuItem15
+    )
+    
+    $filteredMenuItems = $allMenuItems
+    if ($IncludeTools -and $IncludeTools.Count -gt 0) {
+      $filteredMenuItems = $allMenuItems | Where-Object { $_.Name -in $IncludeTools -or $_.Name -eq 'Exit' }
+    }
+    if ($ExcludeTools -and $ExcludeTools.Count -gt 0) {
+      $filteredMenuItems = $filteredMenuItems | Where-Object { $_.Name -notin $ExcludeTools }
+    }
+    
+    try {
+      Show-TUIMenu -MenuItems $filteredMenuItems -ErrorAction SilentlyContinue
+    }
+    catch {
+      Write-Error "Failed to display menu: $($_.Exception.Message)"
+    }
+  }
+  else {
+    Write-Information 'WhatIf: Would display Update Tools menu with 16 items' -InformationAction Continue
+  }
 }
