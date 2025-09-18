@@ -88,11 +88,37 @@ function Write-Logg {
                 $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
                 $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
                 New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-            }
-            Write-Verbose "Importing cmdlet: $cmd"
-            $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-
-            # Check if the returned value is a ScriptBlock and import it properly
+                }
+                Write-Verbose "Importing cmdlet: $cmd"
+                
+                # Retry mechanism for downloading individual cmdlets
+                $maxCmdletRetries = 20
+                $cmdletRetryCount = 0
+                $cmdletSuccess = $false
+                $scriptBlock = $null
+                
+                while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
+                    try {
+                        $cmdletRetryCount++
+                        if ($cmdletRetryCount -gt 1) {
+                            Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
+                            Start-Sleep -Seconds 5
+                        }
+                        
+                        Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
+                        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
+                        $cmdletSuccess = $true
+                        Write-Verbose "Successfully downloaded cmdlet: $cmd"
+                    }
+                    catch {
+                        Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
+                        if ($cmdletRetryCount -eq $maxCmdletRetries) {
+                            Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
+                            Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
+                            exit 1
+                        }
+                    }
+                }            # Check if the returned value is a ScriptBlock and import it properly
             if ($scriptBlock -is [scriptblock]) {
                 $moduleName = "Dynamic_$cmd"
                 New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force

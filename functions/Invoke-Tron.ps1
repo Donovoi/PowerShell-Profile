@@ -111,9 +111,56 @@ aria2c manual (non-RPC CLI): https://aria2.github.io/manual/en/html/aria2c.html
         catch {
         }
 
-        # Soft dependency check for Get-FileDownload
-        if (-not (Get-Command -Name Get-FileDownload -ErrorAction SilentlyContinue)) {
-            throw 'Get-FileDownload is required but not found in the current session. Import/define it, then re-run.'
+        # -------------------------------
+        # Ensure dependency cmdlets exist
+        # -------------------------------
+        $neededcmdlets = @(
+            'Get-FileDownload'
+        )
+
+        foreach ($name in $neededcmdlets) {
+            if (-not (Get-Command -Name $name -ErrorAction SilentlyContinue)) {
+                if (-not (Get-Command -Name Install-Cmdlet -ErrorAction SilentlyContinue)) {
+                    # Ensure TLS 1.2 when pulling raw from GitHub on WinPS5.1
+                    try {
+                        if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12))) {
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+                            Write-Information 'Enabled TLS 1.2 for secure web requests.' -InformationAction Continue
+                        }
+                    }
+                    catch {
+                        Write-Warning "Unable to adjust SecurityProtocol for TLS 1.2: $($_.Exception.Message). Proceeding anyway."
+                    }
+
+                    try {
+                        Write-Information 'Downloading Install-Cmdlet from repository...' -InformationAction Continue
+                        $method = Invoke-RestMethod -Uri $script:INSTALL_CMDLET_URL -TimeoutSec $script:WEB_REQUEST_TIMEOUT -ErrorAction Stop
+                        if (-not $method) {
+                            throw 'Empty response for Install-Cmdlet.ps1' 
+                        }
+                        $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
+                        New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module -ErrorAction Stop
+                        Write-Information 'Successfully imported Install-Cmdlet module.' -InformationAction Continue
+                    }
+                    catch {
+                        Write-Warning "Failed to retrieve/import Install-Cmdlet.ps1: $($_.Exception.Message)"
+                        return
+                    }
+                }
+
+                try {
+                    $mods = Install-Cmdlet -RepositoryCmdlets $name
+                    if ($mods) {
+                        $mods | Import-Module -Force 
+                    }
+                    else {
+                        Write-Verbose "Install-Cmdlet returned no modules for '$name'" 
+                    }
+                }
+                catch {
+                    Write-Warning "Failed to install/import cmdlet '$name': $($_.Exception.Message)"
+                }
+            }
         }
 
         function New-DirectoryIfMissing {
