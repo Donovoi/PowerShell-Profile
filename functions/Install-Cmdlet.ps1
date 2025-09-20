@@ -373,7 +373,7 @@ Export-ModuleMember -Function * -Alias *
                         }
                     }
                     catch {
-                        Write-Error "Failed to download cmdlet '$item' from '$url': $($_.Exception.Message)" -ErrorAction Continue
+                        Write-Warning "Failed to download cmdlet '$item' from '$url': $($_.Exception.Message)" -ErrorAction Continue
                         continue
                     }
                 }
