@@ -1,77 +1,142 @@
+<#
+.SYNOPSIS
+    Retrieves calendar board view data for a specific project board.
+
+.DESCRIPTION
+    This cmdlet fetches calendar view information from a project board using Microsoft Graph API.
+    It retrieves board items, their associated buckets, and tasks, then organizes them into a 
+    calendar board view format.
+
+.PARAMETER Headers
+    A hashtable containing the authorization headers required for Microsoft Graph API authentication.
+    Typically includes the Bearer token for authentication.
+
+.PARAMETER PlanId
+    The unique identifier of the Microsoft Planner plan/board to retrieve calendar data from.
+
+.OUTPUTS
+    System.Management.Automation.PSCustomObject
+    Returns a custom object containing:
+    - boardItems: Array of board items with their details
+    - boardBuckets: Array of buckets associated with the board
+    - boardTasks: Array of tasks within the board
+
+.EXAMPLE
+    $headers = @{ "Authorization" = "Bearer $accessToken" }
+    $calendarData = Get-CalendarBoardView -Headers $headers -PlanId "ABC123DEF456"
+    
+    Retrieves calendar board view data for the plan with ID "ABC123DEF456".
+
+.NOTES
+    Requires appropriate Microsoft Graph API permissions to access Planner data.
+    Specifically needs Planner.Read or Planner.ReadWrite permissions.
+
+.LINK
+    https://docs.microsoft.com/en-us/graph/api/planner-list-tasks
+    https://docs.microsoft.com/en-us/graph/api/planner-list-buckets
+#>
 function Get-Properties {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [PSObject]$Object,
+        [psobject] $Object,
 
-        [Parameter(Mandatory = $false)]
-        [Int64]$LevelsToEnumerate = 99
+        [Parameter()]
+        [int] $LevelsToEnumerate = 5
     )
 
-    # Initialize a HashSet to keep track of visited objects and prevent infinite recursion
-    $visited = New-Object 'System.Collections.Generic.HashSet[System.Object]'
+    begin {
+        # Track visited objects by *reference* to avoid infinite loops
+        $refComparer = [System.Collections.Generic.ReferenceEqualityComparer]::Instance
+        $visited = [System.Collections.Generic.HashSet[object]]::new($refComparer)
 
-    function Get-NestedProperties {
-        [CmdletBinding()]
-        param(
-            [Parameter(Mandatory = $true)]
-            [PSObject]$NestedObject,
+        $results = New-Object System.Collections.Generic.List[object]
 
-            [Parameter(Mandatory = $false)]
-            [Int64]$CurrentDepth = 0,
+        function Add-Row {
+            param(
+                [string] $Path,
+                [object] $Value,
+                [int]    $Depth
+            )
+            $typeName = if ($null -ne $Value) {
+                $Value.GetType().FullName 
+            }
+            else {
+                '[null]' 
+            }
+            $results.Add([pscustomobject]@{
+                    Path  = $Path
+                    Type  = $typeName
+                    Depth = $Depth
+                    Value = $Value
+                }) | Out-Null
+        }
 
-            [Parameter(Mandatory = $false)]
-            [System.Collections.ArrayList]$PropertyList = [System.Collections.ArrayList]::new()
-        )
+        function Walk {
+            param(
+                [object] $InputObject,
+                [string] $Path = '',
+                [int]    $Depth = 0
+            )
 
-        # Check if the object has already been visited
-        if ($visited.Add($NestedObject)) {
-            foreach ($property in $NestedObject.PSObject.Properties) {
-                $name = $property.Name
-                $type = if ($null -ne $property.Value) {
-                    $property.Value.GetType().FullName
+            if ($null -eq $InputObject) {
+                return 
+            }
+            if (-not $visited.Add($InputObject)) {
+                return 
+            }   # already seen
+            if ($Depth -gt $LevelsToEnumerate) {
+                return 
+            }
+
+            foreach ($p in $InputObject.PSObject.Properties) {
+                # Skip hidden/intrinsic if you want: if ($p.IsHidden) { continue }
+                $name = $p.Name
+                $val = $p.Value
+                $pp = if ($Path) {
+                    "$Path.$name" 
                 }
                 else {
-                    '[NULL]'
-                }
-                $value = if ($null -ne $property.Value) {
-                    $property.Value
-                }
-                else {
-                    '[NULL VALUE]'
+                    $name 
                 }
 
-                $propertyObject = [PSCustomObject]@{
-                    Name  = $name
-                    Type  = $type
-                    Value = $value
-                    Depth = $CurrentDepth
-                }
-                $PropertyList.Add($propertyObject) | Out-Null
+                Add-Row -Path $pp -Value $val -Depth $Depth
 
-                if ($null -ne $property.Value -and $property.Value -is [System.Collections.IEnumerable] -and $property.Value -isnot [String] -and $CurrentDepth -lt $LevelsToEnumerate) {
-                    if ($property.Value -is [System.Collections.IDictionary]) {
-                        foreach ($key in $property.Value.Keys) {
-                            Get-NestedProperties -NestedObject $property.Value[$key] -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
+                if ($null -ne $val -and $Depth -lt $LevelsToEnumerate) {
+                    # Dictionaries: walk values with key notation
+                    if ($val -is [System.Collections.IDictionary]) {
+                        foreach ($key in $val.Keys) {
+                            Walk -InputObject $val[$key] -Path "$pp[`"$key`"]" -Depth ($Depth + 1)
                         }
+                        continue
                     }
-                    elseif ($property.Value -is [System.Collections.ICollection]) {
-                        foreach ($item in $property.Value) {
-                            Get-NestedProperties -NestedObject $item -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
+
+                    # Enumerables (but not strings): walk items with index notation
+                    if ($val -is [System.Collections.IEnumerable] -and $val -isnot [string]) {
+                        $i = 0
+                        foreach ($item in $val) {
+                            Walk -InputObject $item -Path "$pp[$i]" -Depth ($Depth + 1)
+                            $i++
                         }
+                        continue
                     }
-                    else {
-                        Get-NestedProperties -NestedObject $property.Value -CurrentDepth ($CurrentDepth + 1) -PropertyList $PropertyList
+
+                    # Non-collection complex object: recurse if it has properties
+                    if ($val.PSObject.Properties.Count -gt 0) {
+                        Walk -InputObject $val -Path $pp -Depth ($Depth + 1)
                     }
                 }
             }
         }
-
-        # At the top level, output the results to Out-GridView
-        if ($CurrentDepth -eq 0) {
-            $PropertyList | Out-GridView
-        }
     }
 
-    Get-NestedProperties -NestedObject $Object
+    process {
+        Walk -InputObject $Object -Depth 0
+    }
+
+    end {
+        $results
+        # Pipe to grid manually if you want:
+        # if (Get-Command Out-GridView -ErrorAction SilentlyContinue) { $results | Out-GridView }
+    }
 }
