@@ -25,7 +25,7 @@ function Install-NugetDeps {
         #--------------------------------------------------------------------#
         # 1. Ensure helper cmdlets are available                             #
         #--------------------------------------------------------------------#
-        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies', 'Clear-Console')
+        $neededcmdlets = @('Write-Logg', 'Install-PackageProviders', 'Add-NuGetDependencies')
         foreach ($cmd in $neededcmdlets) {
             if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
                 if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
@@ -203,7 +203,6 @@ function Install-NugetDeps {
             # 4. Finish: close progress bar and deep-clear console          #
             #----------------------------------------------------------------
             Write-Progress -Activity 'Installing NuGet Packages' -Completed
-            Clear-Console -FlushKeys
         }
         else {
             Write-Logg -Message 'No NuGet packages to install.' -Level VERBOSE
