@@ -5,12 +5,12 @@
 
 .DESCRIPTION
     Install-PackageProviders performs the following actions:
-      â€¢ Dynamically installs any missing helper cmdlets (e.g. Write-Logg).
-      â€¢ Removes deprecated versions of the PackageManagement module.
-      â€¢ Ensures the AnyPackage module is available and imported on PS 7+.
-      â€¢ Bootstraps the NuGet and PowerShellGet package providers if absent.
-      â€¢ Registers the public NuGet feed and marks it as trusted.
-      â€¢ Trusts all existing package sources and the PSGallery repository.
+    Dynamically installs any missing helper cmdlets (e.g. Write-Logg).
+    Removes deprecated versions of the PackageManagement module.
+    Ensures the AnyPackage module is available and imported on PS 7+.
+    Bootstraps the NuGet and PowerShellGet package providers if absent.
+    Registers the public NuGet feed and marks it as trusted.
+    Trusts all existing package sources and the PSGallery repository.
 
     The function is designed for use in a profile to guarantee a consistent
     package-management environment across sessions and machines.
