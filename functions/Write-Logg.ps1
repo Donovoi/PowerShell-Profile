@@ -154,7 +154,7 @@ function Write-Logg {
     }
 
     # Capitalize the level for WARNING and ERROR for consistency
-    if (($Level -like 'WARNING') -or ($Level -like 'ERROR')) {
+    if (($Level -like 'WARNING') -or ($Level -like 'ERROR') -or ($Level -like 'VERBOSE')) {
         $Level = $Level.ToUpper()
     }
     else {
