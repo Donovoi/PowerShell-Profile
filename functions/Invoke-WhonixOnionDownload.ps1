@@ -5,13 +5,15 @@ Safely downloads a file from a v3 .onion URL via Whonix (Gateway + Workstation) 
 
 .DESCRIPTION
 Idempotently:
- 1) Ensures VirtualBox is installed (winget) and available on PATH.
- 2) Discovers the latest Whonix VirtualBox OVA and derives its checksum URL (<ova>.sha512sums); verifies SHA-512.
- 3) Imports Whonix if not already present (unified OVA creates Gateway + Workstation), explicitly accepts EULAs, and sets stable VM names.
- 4) Starts Gateway then Workstation (optionally headless) and waits for Guest Additions readiness.
- 5) Runs Tor-isolated curl INSIDE Whonix-Workstation to fetch the .onion URL.
- 6) Copies the file to a host quarantine folder, sets Mark-of-the-Web (ZoneId=3), logs SHA-256.
- 7) Optionally hardens Workstation (disable clipboard, drag-and-drop, VRDE, audio).
+ 1) Ensures VirtualBox is installed (winget).
+ 2) Discovers the latest Whonix VirtualBox OVA, derives its checksum URL (<ova>.sha512sums).
+ 3) (Optional) Verifies the checksum file’s **signature** (OpenPGP or signify).
+ 4) Verifies the OVA’s **SHA-512** against the trusted checksum.
+ 5) Imports Whonix (unified OVA -> Gateway + Workstation), accepts EULAs, sets stable names.
+ 6) Starts Gateway then Workstation (optionally headless), waits for Guest Additions.
+ 7) Inside Workstation: Tor-isolated `curl` fetch of the .onion URL.
+ 8) Copies the file to a host quarantine folder, writes Mark-of-the-Web (ZoneId=3), logs SHA-256.
+ 9) Optionally hardens Workstation (clipboard/drag&drop/VRDE/audio off), powers off both VMs.
 
 .PARAMETER Url
 A valid v3 .onion URL (56-char base32 host). Example: http://<56chars>.onion/path/file.bin
@@ -20,38 +22,47 @@ A valid v3 .onion URL (56-char base32 host). Example: http://<56chars>.onion/pat
 Host directory to store the quarantined file. Created if missing.
 
 .PARAMETER WhonixOvaUrl
-Optional explicit OVA URL. When omitted, the cmdlet auto-discovers from the official VirtualBox page.
+Optional explicit OVA URL. When omitted, the cmdlet auto-discovers from Whonix’s VirtualBox page.
 
 .PARAMETER Headless
-Start the VMs headless.
+Start VirtualBox VMs headless.
 
 .PARAMETER HardenVM
-Disable clipboard and drag & drop on the Workstation for extra isolation.
+Disable clipboard, drag & drop, VRDE and audio on the Workstation.
 
 .PARAMETER ForceReimport
 Force re-import of the OVA even if Whonix VMs already exist.
 
 .PARAMETER GuestCredential
-Optional [pscredential] for the guest (e.g., 'user'). If omitted, only --username is passed (passwordless allowed if enabled in guest).
+Optional [pscredential] for the guest (e.g., 'user'). If omitted, only --username is passed.
 
 .PARAMETER GatewayName
-Optional explicit name to assign to the Gateway VM at import (default: 'Whonix-Gateway').
+Optional VM name to assign to the Gateway at import (default: 'Whonix-Gateway').
 
 .PARAMETER WorkstationName
-Optional explicit name to assign to the Workstation VM at import (default: 'Whonix-Workstation').
+Optional VM name to assign to the Workstation at import (default: 'Whonix-Workstation').
+
+.PARAMETER VerifySignature
+If set, verify the checksum file’s signature before using it.
+OpenPGP (.asc) is attempted first (requires `gpg.exe`), then signify (.sig) if a public key is provided.
+
+.PARAMETER SignifyPubKeyPath
+Optional path to a signify public key (e.g., `whonix-signify.pub`). Required only if VerifySignature is set
+and the checksum signature available is `.sig` and you want to use `signify`.
 
 .EXAMPLE
-# Passwordless guestcontrol (many Whonix VB images allow this for user 'user'):
+# Passwordless guestcontrol (common for user 'user' in Whonix VB images):
 Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir 'D:\OnionQuarantine' -Headless -HardenVM -Verbose
 
 .EXAMPLE
-# With credentials:
+# With credentials and OpenPGP signature verification of the checksum file:
 $cred = Get-Credential -UserName 'user' -Message 'Guest (Whonix Workstation)'
-Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir 'D:\OnionQuarantine' -Headless -HardenVM -GuestCredential $cred -Verbose
+Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/tool.bin' -OutputDir 'C:\Quarantine' -Headless -HardenVM -GuestCredential $cred -VerifySignature -Verbose
 
 .NOTES
-- Requires internet access and sufficient disk/RAM for two VMs.
-- Do NOT open the downloaded file on the host; analyze offline in a separate VM.
+- To use `-VerifySignature` with OpenPGP on Windows, install GnuPG and import Whonix’s signing key per docs.
+- For signify verification, you must supply a valid `-SignifyPubKeyPath` and have `signify` available.
+- Do NOT open downloaded files directly on the host; analyze in an isolated VM or offline machine.
 #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
@@ -63,7 +74,9 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
         [switch]$ForceReimport,
         [pscredential]$GuestCredential,
         [string]$GatewayName,
-        [string]$WorkstationName
+        [string]$WorkstationName,
+        [switch]$VerifySignature,
+        [string]$SignifyPubKeyPath
     )
 
     #region Safety & utilities
@@ -86,7 +99,6 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
             if ($uri.Host -notmatch '\.onion$') {
                 return $false 
             }
-            # require a 56-char base32 label somewhere before .onion
             if ($uri.Host -notmatch '(?:^|\.)([a-z2-7]{56})\.onion$') {
                 return $false 
             }
@@ -97,7 +109,7 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
         }
     }
     if (-not (Test-OnionUrl $Url)) {
-        throw 'Url must be a valid v3 .onion URL (56-char base32 host).'
+        throw 'Url must be a valid v3 .onion URL (56-char base32 host).' 
     }
 
     # central VBoxManage wrapper (argument array -> avoids quoting issues)
@@ -127,13 +139,11 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
     function Test-VirtualBoxInstalled {
         return [bool](Get-Command VBoxManage.exe -ErrorAction SilentlyContinue) 
     }
-
     function Install-VirtualBox {
         if ($PSCmdlet.ShouldProcess('VirtualBox', 'Install via winget')) {
             & winget install --id Oracle.VirtualBox --accept-package-agreements --accept-source-agreements --silent | Out-Null
         }
     }
-
     function Initialize-VirtualBox {
         Write-Step 'Ensuring VirtualBox is installed…'
         if (-not (Test-VirtualBoxInstalled)) {
@@ -154,7 +164,7 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
         $page = Invoke-WebRequest -Uri $dlPage -UseBasicParsing -ErrorAction Stop
         $html = $page.Content
 
-        # Prefer direct .ova links from the page (Xfce or CLI)
+        # Prefer direct .ova links (Xfce or CLI)
         $ova = $null
         if ($page.Links) {
             $ova = ($page.Links |
@@ -171,7 +181,6 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
             throw "Could not find an OVA link on $dlPage." 
         }
 
-        # Normalize relative links if any
         $base = if ($page.BaseResponse -and $page.BaseResponse.ResponseUri) {
             $page.BaseResponse.ResponseUri 
         }
@@ -182,12 +191,12 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
             $ova = [Uri]::new($base, $ova).AbsoluteUri 
         }
 
-        # DERIVE checksum URL from the OVA: authoritative location
+        # authoritative checksum location is next to the OVA
         $sha = "$ova.sha512sums"
         return @{ Ova = $ova; ShaUrl = $sha }
     }
 
-    function Get-WhonixOvaAndVerify([string]$OvaUrl, [string]$ShaUrl, [string]$CacheDir) {
+    function Get-WhonixOvaAndVerify([string]$OvaUrl, [string]$ShaUrl, [string]$CacheDir, [switch]$DoSigVerify, [string]$SigPubKey) {
         New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
         $ovaName = Split-Path $OvaUrl -Leaf
         $ovaPath = Join-Path $CacheDir $ovaName
@@ -206,12 +215,65 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
             Invoke-WebRequest -UseBasicParsing -Uri $ShaUrl -OutFile $shaPath -ErrorAction Stop
         }
         catch {
-            # Fallback: try SHA512SUMS in same directory
+            # Fallback: try directory-level SHA512SUMS
             $u = [Uri]$OvaUrl
             $dir = $u.AbsoluteUri.Substring(0, $u.AbsoluteUri.LastIndexOf('/') + 1)
             $alt = $dir + 'SHA512SUMS'
             $shaPath = Join-Path $CacheDir 'SHA512SUMS'
             Invoke-WebRequest -UseBasicParsing -Uri $alt -OutFile $shaPath -ErrorAction Stop
+        }
+
+        if ($DoSigVerify) {
+            Write-Step 'Verifying checksum signature…'
+            $ascUrl = "$ShaUrl.asc"
+            $sigUrl = "$ShaUrl.sig"
+            $ascPath = Join-Path $CacheDir (Split-Path $ascUrl -Leaf)
+            $sigPath = Join-Path $CacheDir (Split-Path $sigUrl -Leaf)
+            $haveAsc = $false; $haveSig = $false
+
+            try {
+                Invoke-WebRequest -UseBasicParsing -Uri $ascUrl -OutFile $ascPath -ErrorAction Stop; $haveAsc = $true 
+            }
+            catch {
+                $haveAsc = $false 
+            }
+            if (-not $haveAsc) {
+                try {
+                    Invoke-WebRequest -UseBasicParsing -Uri $sigUrl -OutFile $sigPath -ErrorAction Stop; $haveSig = $true 
+                }
+                catch {
+                    $haveSig = $false 
+                }
+            }
+
+            if ($haveAsc) {
+                $gpg = Get-Command gpg.exe -ErrorAction SilentlyContinue
+                if (-not $gpg) {
+                    throw 'OpenPGP signature (.asc) found, but gpg.exe not present. Please install GnuPG and import the Whonix signing key.' 
+                }
+                & $gpg.Source --verify $ascPath $shaPath | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    throw "OpenPGP signature verification failed for: $ascPath" 
+                }
+                Write-Ok 'OpenPGP signature OK.'
+            }
+            elseif ($haveSig) {
+                if (-not (Test-Path $SigPubKey)) {
+                    throw 'Signify signature (.sig) found but -SignifyPubKeyPath not supplied or invalid.' 
+                }
+                $sigExe = (Get-Command signify.exe -ErrorAction SilentlyContinue) ?? (Get-Command signify-openbsd.exe -ErrorAction SilentlyContinue)
+                if (-not $sigExe) {
+                    throw 'signify not found in PATH. Install signify-openbsd to verify .sig signatures.' 
+                }
+                & $sigExe.Source -V -p $SigPubKey -x $sigPath -m $shaPath | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    throw "signify verification failed for: $sigPath" 
+                }
+                Write-Ok 'signify signature OK.'
+            }
+            else {
+                throw 'No signature file (.asc or .sig) available to verify the checksum. Aborting due to -VerifySignature.'
+            }
         }
 
         Write-Step 'Verifying SHA-512…'
@@ -253,7 +315,7 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
         }
 
         Write-Step 'Importing Whonix OVA (creates Gateway + Workstation)…'
-        # Accept EULAs & set VM names for vsys 0 and 1
+        # Accept EULAs & set VM names (vsys 0/1)
         $args = @(
             'import', $OvaPath,
             '--vsys', '0', '--eula', 'accept', '--vsys', '1', '--eula', 'accept',
@@ -383,7 +445,7 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir '
     $script:VBoxManage = Get-VBoxManagePath
 
     $links = Get-WhonixLatestOva -OverrideUrl:$WhonixOvaUrl
-    $ovaPath = Get-WhonixOvaAndVerify -OvaUrl $links.Ova -ShaUrl $links.ShaUrl -CacheDir $cache
+    $ovaPath = Get-WhonixOvaAndVerify -OvaUrl $links.Ova -ShaUrl $links.ShaUrl -CacheDir $cache -DoSigVerify:$VerifySignature -SigPubKey:$SignifyPubKeyPath
 
     Import-Whonix -OvaPath $ovaPath -Force:$ForceReimport -GWName $GatewayName -WSName $WorkstationName
 
