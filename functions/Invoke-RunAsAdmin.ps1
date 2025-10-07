@@ -31,6 +31,7 @@
     - Use with caution as elevated sessions have unrestricted system access
 #>
 function Invoke-RunAsAdmin {
+    [OutputType([void])]
     # Check if the current user is an administrator
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)

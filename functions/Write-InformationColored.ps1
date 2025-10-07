@@ -59,6 +59,7 @@
 #>
 function Write-InformationColored {
     [CmdletBinding(DefaultParameterSetName = 'DisplayMessage')]
+    [OutputType([void])]
     param (
         # Parameter set for displaying the message with colors
         [Parameter(Mandatory = $true, Position = 0, ParameterSetName = 'DisplayMessage')]
@@ -126,6 +127,7 @@ function Write-InformationColored {
 }
 
 function Clear-CurrentLine {
+    [OutputType([void])]
     # Get current vertical cursor position
     $cursorTop = [Console]::CursorTop
 

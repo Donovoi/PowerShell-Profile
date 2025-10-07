@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Refreshes environment variables in the current PowerShell session from the Windows registry.
 
@@ -61,6 +61,7 @@
     - Order matters: Process, then Machine, then User (User variables override Machine variables)
 #>
 function Update-SessionEnvironment {
+    [OutputType([void])]
     # Load shared dependency loader if not already available
     if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
         $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'

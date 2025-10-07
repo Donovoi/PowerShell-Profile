@@ -45,6 +45,8 @@
     Requires Write-Logg cmdlet for logging.
 #>
 function Add-Assemblies ([bool]$UseDefault, [string[]]$CustomAssemblies) {
+    [CmdletBinding()]
+    [OutputType([void])]
     $neededcmdlets = @(
         'Write-Logg'
 

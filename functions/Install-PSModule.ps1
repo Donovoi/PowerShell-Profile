@@ -92,27 +92,46 @@
 #>
 function Install-PSModule {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [bool]$InstallDefaultPSModules,
         [string[]]$PSModule,
         [switch]$RemoveAllLocalModules,
         [switch]$RemoveAllInMemoryModules,
-        [string]$LocalModulesDirectory = $PWD
+        [string]$LocalModulesDirectory = ''
     )
 
     process {
+        # Validate and normalize LocalModulesDirectory parameter
+        if ([string]::IsNullOrWhiteSpace($LocalModulesDirectory)) {
+            $LocalModulesDirectory = $PWD.Path
+            Write-Verbose "LocalModulesDirectory was empty, defaulting to: $LocalModulesDirectory"
+        }
         # Load shared dependency loader if not already available
         if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
-            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
-            if (Test-Path $initScript) {
-                . $initScript
+            try {
+                $callStack = Get-PSCallStack -ErrorAction SilentlyContinue | Where-Object ScriptName -ErrorAction SilentlyContinue | Select-Object -First 1 -ErrorAction SilentlyContinue
+                if ($callStack -and $callStack.ScriptName) {
+                    $cmdletRoot = (Resolve-Path (Join-Path -Path $callStack.ScriptName -ChildPath '..') -ErrorAction SilentlyContinue).Path
+                }
+                else {
+                    $cmdletRoot = $PWD.Path
+                }
+                $initScript = Join-Path $cmdletRoot 'Initialize-CmdletDependencies.ps1'
+                if (Test-Path $initScript -ErrorAction SilentlyContinue) {
+                    . $initScript
+                }
+                else {
+                    Write-Warning "Initialize-CmdletDependencies.ps1 not found in $cmdletRoot"
+                    Write-Warning 'Falling back to direct download'
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1' -ErrorAction Stop
+                    $scriptBlock = [scriptblock]::Create($method)
+                    . $scriptBlock
+                }
             }
-            else {
-                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
-                Write-Warning 'Falling back to direct download'
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
-                $scriptBlock = [scriptblock]::Create($method)
-                . $scriptBlock
+            catch {
+                Write-Warning "Failed to load Initialize-CmdletDependencies: $($_.Exception.Message)"
+                Write-Warning 'Some cmdlets may not be available'
             }
         }
         
@@ -193,23 +212,64 @@ function Install-PSModule {
 
                         if (-not [string]::IsNullOrEmpty($LocalModulesDirectory)) {
                             $LocalModulePath = Join-Path -Path $LocalModulesDirectory -ChildPath $moduleName
-                            if (Test-Path -Path $LocalModulePath -PathType Container) {
+                            if (Test-Path -Path $LocalModulePath -PathType Container -ErrorAction SilentlyContinue) {
                                 Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level VERBOSE
-                                Import-Module -Name $LocalModulePath -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                                try {
+                                    Import-Module -Name $LocalModulePath -Force -ErrorAction Stop -WarningAction SilentlyContinue
+                                }
+                                catch {
+                                    Write-Logg -Message "Failed to import local module '$moduleName': $($_.Exception.Message). Trying PSGallery..." -Level WARNING
+                                    try {
+                                        Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction Stop `
+                                            -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                                    }
+                                    catch {
+                                        Write-Logg -Message "Failed to install module '$moduleName' from PSGallery: $($_.Exception.Message)" -Level WARNING
+                                    }
+                                }
                             }
                             else {
                                 Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level VERBOSE
-                                Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction SilentlyContinue `
-                                    -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                                try {
+                                    Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction Stop `
+                                        -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                                }
+                                catch {
+                                    Write-Logg -Message "Failed to install module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                                }
                             }
                         }
                         else {
-                            Write-Logg -Message 'Local destination directory not set. Exiting script...' -Level Error
-                            throw
+                            Write-Logg -Message "Module '$moduleName' not found locally. Installing from PSGallery..." -Level VERBOSE
+                            try {
+                                Install-Module -Name $moduleName -Force -Confirm:$false -ErrorAction Stop `
+                                    -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
+                            }
+                            catch {
+                                Write-Logg -Message "Failed to install module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                            }
                         }
                     }
 
-                    Import-Module -Name $moduleName -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                    # Try to import the module, but don't fail if assembly is already loaded
+                    try {
+                        Import-Module -Name $moduleName -Force -ErrorAction Stop -WarningAction SilentlyContinue
+                    }
+                    catch {
+                        # If it's an assembly conflict, check if module is actually available
+                        if ($_.Exception.Message -match 'Assembly with same name is already loaded') {
+                            Write-Logg -Message "Module '$moduleName' assembly already loaded, checking if commands are available..." -Level VERBOSE
+                            if (Get-Module -Name $moduleName -ErrorAction SilentlyContinue) {
+                                Write-Logg -Message "Module '$moduleName' is already loaded and available" -Level VERBOSE
+                            }
+                            else {
+                                Write-Logg -Message "Module '$moduleName' assembly loaded but module not imported. This may cause issues." -Level WARNING
+                            }
+                        }
+                        else {
+                            Write-Logg -Message "Failed to import module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                        }
+                    }
                 }
             }
             else {

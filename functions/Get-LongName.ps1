@@ -21,6 +21,7 @@ Prerequisite : PowerShell V3
 
 function Get-LongName {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
         [ValidateNotNullOrEmpty()]

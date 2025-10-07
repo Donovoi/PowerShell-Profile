@@ -13,6 +13,7 @@
 
 function Install-NugetDeps {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [switch]$SaveLocally = $false,
         [switch]$InstallDefaultNugetPackage = $false,

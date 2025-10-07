@@ -72,6 +72,7 @@
 #>
 function Add-NuGetDependencies {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory = $true, HelpMessage = 'The NuGet packages to load.')]
         [hashtable]$NugetPackage,

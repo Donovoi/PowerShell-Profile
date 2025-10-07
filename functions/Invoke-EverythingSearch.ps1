@@ -44,6 +44,7 @@ Uses the default Everything executable path to retrieve a list of all files in t
 
 function Invoke-EverythingSearch {
   [CmdletBinding()]
+  [OutputType([PSCustomObject])]
   param(
     [Parameter(Mandatory = $false)]
     [string]
