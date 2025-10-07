@@ -48,8 +48,14 @@
     User scope accesses HKCU (current user hive).
     Process scope returns all variables currently in the process environment.
 #>
-function Get-EnvironmentVariableNames([System.EnvironmentVariableTarget] $Scope) {
+function Get-EnvironmentVariableNames {
+    [CmdletBinding()]
     [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.EnvironmentVariableTarget]$Scope
+    )
+    
     switch ($Scope) {
         'User' {
             Get-Item 'HKCU:\Environment' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property
