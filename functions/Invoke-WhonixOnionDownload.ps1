@@ -382,12 +382,15 @@ Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/tool.bin' -OutputDir 'C:\
         param(
             [string]$VM, [string]$Username, [securestring]$Password, [string]$Exe, [string[]]$CommandArgs
         )
-        $cmd = @('guestcontrol', $VM, 'run', '--username', $Username, '--exe', $Exe, '--wait-stdout', '--wait-exit', '--')
+        # VirtualBox 7.x valid flags: --wait-stdout/--wait-stderr/--timeout (no --wait-exit)
+        $cmd = @('guestcontrol', $VM, 'run', '--username', $Username,
+            '--exe', $Exe, '--wait-stdout', '--wait-stderr', '--timeout', '600000', '--')
         if ($PSBoundParameters.ContainsKey('Password') -and $Password) {
             $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
             try {
                 $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-                $cmd = @('guestcontrol', $VM, 'run', '--username', $Username, '--password', $plain, '--exe', $Exe, '--wait-stdout', '--wait-exit', '--')
+                $cmd = @('guestcontrol', $VM, 'run', '--username', $Username, '--password', $plain,
+                    '--exe', $Exe, '--wait-stdout', '--wait-stderr', '--timeout', '600000', '--')
             }
             finally {
                 if ($ptr -ne [IntPtr]::Zero) {
