@@ -110,46 +110,27 @@ function Get-LatestGitHubRelease {
     )
 
     begin {
-        $FileScriptBlock = ''
         # --- dynamically import helper cmdlets ----------------------------
-        $neededCmdlets = @(
-            'Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored',
-            'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties'
-        )
-
-        foreach ($cmd in $neededcmdlets) {
-            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-                }
-                Write-Verbose "Importing cmdlet: $cmd"
-                $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-
-                # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
-                    $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-                }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-                }
-                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                    Write-Verbose "Imported $cmd from file: $scriptBlock"
-                }
-                else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                    Write-Warning "Returned: $($scriptBlock)"
-                }
+        # Load shared dependency loader if not already available
+        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+            if (Test-Path $initScript) {
+                . $initScript
+            }
+            else {
+                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+                Write-Warning 'Falling back to direct download'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
             }
         }
-        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+        
+        # Load all required cmdlets (replaces 60+ lines of boilerplate)
+        Initialize-CmdletDependencies -RequiredCmdlets @(
+            'Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored',
+            'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties'
+        ) -PreferLocal -Force
 
         # --- TLS 1.2 for Windows PowerShell 5 ------------------------------
         if ($PSVersionTable.PSVersion.Major -eq 5) {

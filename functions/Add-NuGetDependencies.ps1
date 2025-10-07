@@ -1,3 +1,75 @@
+<#
+.SYNOPSIS
+    Loads NuGet package assemblies into the current PowerShell session.
+
+.DESCRIPTION
+    The Add-NuGetDependencies function loads .NET assemblies from NuGet packages into the current
+    PowerShell application domain. It handles:
+    
+    - Automatic detection of appropriate .NET Framework version compatibility
+    - Local package caching (either in temp directory or custom location)
+    - Intelligent DLL discovery within package structure
+    - Loading assemblies from lib\net45, lib\netstandard2.0, etc.
+    - Skipping already-loaded assemblies
+    - Detailed logging of package resolution and loading
+    
+    The function expects packages to already be downloaded/extracted. It focuses on finding and
+    loading the correct DLL files from the package structure based on your system's .NET version.
+
+.PARAMETER NugetPackage
+    A hashtable where keys are package names and values are versions.
+    Format: @{ 'PackageName' = 'Version' }
+    
+    Example: @{ 'HtmlAgilityPack' = '1.11.46'; 'Newtonsoft.Json' = '13.0.1' }
+    
+    The function will look for these packages in the working directory (or LocalNugetDirectory
+    if specified) and attempt to load their assemblies.
+
+.PARAMETER SaveLocally
+    Switch to indicate packages should be saved to a specific local directory rather than
+    the default temp directory. When specified, you must also provide LocalNugetDirectory.
+    
+    Default behavior (without this switch) is to use $env:TEMP\<hash> as the working directory.
+
+.PARAMETER LocalNugetDirectory
+    The local directory where NuGet packages are stored or should be saved.
+    Used in conjunction with -SaveLocally switch.
+    
+    If the directory doesn't exist, it will be created automatically.
+    
+    Example: "C:\NuGetPackages" or "$PWD\packages"
+
+.EXAMPLE
+    Add-NuGetDependencies -NugetPackage @{ 'HtmlAgilityPack' = '1.11.46' }
+    
+    Loads HtmlAgilityPack version 1.11.46 from the temp directory.
+
+.EXAMPLE
+    $packages = @{
+        'Newtonsoft.Json' = '13.0.1'
+        'CsvHelper' = '30.0.1'
+    }
+    Add-NuGetDependencies -NugetPackage $packages -SaveLocally -LocalNugetDirectory "C:\MyPackages"
+    
+    Loads multiple packages from a custom local directory.
+
+.EXAMPLE
+    Add-NuGetDependencies -NugetPackage @{ 'System.Data.SQLite' = '1.0.118' } -SaveLocally -LocalNugetDirectory $PWD
+    
+    Loads SQLite package from the current working directory.
+
+.OUTPUTS
+    None. Assemblies are loaded into the session and detailed information is logged via Write-Logg.
+    The function updates the $InstalledDependencies variable with loaded package information.
+
+.NOTES
+    - Automatically detects .NET Framework version and loads compatible assemblies
+    - Supports .NET Framework 3.5 through 4.8.1
+    - Packages must be already downloaded/extracted before calling this function
+    - Requires Write-Logg, Add-FileToAppDomain, and Write-InformationColored cmdlets
+    - Uses registry key HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full to detect .NET version
+    - If assembly is already loaded in AppDomain, loading is skipped
+#>
 function Add-NuGetDependencies {
     [CmdletBinding()]
     param(
@@ -12,101 +84,27 @@ function Add-NuGetDependencies {
     )
 
     try {
-        $FileScriptBlock = ''
-        # (1) Import required cmdlets if missing
-        $neededcmdlets = @(
+        # Load shared dependency loader if not already available
+        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+            if (Test-Path $initScript) {
+                . $initScript
+            }
+            else {
+                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+                Write-Warning 'Falling back to direct download'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
+            }
+        }
+        
+        # Load all required cmdlets (replaces 100+ lines of boilerplate)
+        Initialize-CmdletDependencies -RequiredCmdlets @(
             'Add-FileToAppDomain',
             'Write-Logg',
             'Write-InformationColored'
-        )
-        foreach ($cmd in $neededcmdlets) {
-            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                    # Retry mechanism for downloading Install-Cmdlet.ps1
-                    $maxRetries = 20
-                    $retryCount = 0
-                    $success = $false
-                    $method = $null
-                    
-                    while (-not $success -and $retryCount -lt $maxRetries) {
-                        try {
-                            $retryCount++
-                            if ($retryCount -gt 1) {
-                                Write-Verbose "Retrying download attempt $retryCount of $maxRetries..."
-                                Start-Sleep -Seconds 5
-                            }
-                            
-                            Write-Verbose "Downloading Install-Cmdlet.ps1 from GitHub (attempt $retryCount)..."
-                            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                            $success = $true
-                            Write-Verbose 'Successfully downloaded Install-Cmdlet.ps1'
-                        }
-                        catch {
-                            Write-Warning "Failed to download Install-Cmdlet.ps1 (attempt $retryCount): $($_.Exception.Message)"
-                            if ($retryCount -eq $maxRetries) {
-                                Write-Error "Failed to download Install-Cmdlet.ps1 after $maxRetries attempts. Please check your internet connection and try again."
-                                throw
-                            }
-                        }
-                    }
-                    
-                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-                }
-                Write-Verbose "Importing cmdlet: $cmd"
-                
-                # Retry mechanism for downloading individual cmdlets
-                $maxCmdletRetries = 20
-                $cmdletRetryCount = 0
-                $cmdletSuccess = $false
-                $scriptBlock = $null
-                
-                while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
-                    try {
-                        $cmdletRetryCount++
-                        if ($cmdletRetryCount -gt 1) {
-                            Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
-                            Start-Sleep -Seconds 5
-                        }
-                        
-                        Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
-                        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-                        $cmdletSuccess = $true
-                        Write-Verbose "Successfully downloaded cmdlet: $cmd"
-                    }
-                    catch {
-                        Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
-                        if ($cmdletRetryCount -eq $maxCmdletRetries) {
-                            Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
-                            Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
-                            exit 1
-                        }
-                    }
-                }
-
-                # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
-                    $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-                }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-                }
-                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                    Write-Verbose "Imported $cmd from file: $scriptBlock"
-                }
-                else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                    Write-Warning "Returned: $($scriptBlock)"
-                }
-            }
-        }
-        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+        ) -PreferLocal -Force
 
         $TempWorkDir = $null
         $InstalledDependencies = @{}

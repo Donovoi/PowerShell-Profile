@@ -1,45 +1,89 @@
-﻿function Update-SessionEnvironment {
-    # (1) Import required cmdlets if missing
-    $neededcmdlets = @(
-        'Write-Logg',
-        'Write-InformationColored',
-        'Get-EnvironmentVariable'
-        'Get-EnvironmentVariableNames'
-    )
-    $FileScriptBlock = ''
-    foreach ($cmd in $neededcmdlets) {
-        if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-            }
-            Write-Verbose "Importing cmdlet: $cmd"
-            $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
+﻿<#
+.SYNOPSIS
+    Refreshes environment variables in the current PowerShell session from the Windows registry.
 
-            # Check if the returned value is a ScriptBlock and import it properly
-            if ($scriptBlock -is [scriptblock]) {
-                $moduleName = "Dynamic_$cmd"
-                New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-            }
-            elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                # If a module info was returned, it's already imported
-                Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-            }
-            elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                # If a file path was returned, import it
-                $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                Write-Verbose "Imported $cmd from file: $scriptBlock"
-            }
-            else {
-                Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                Write-Warning "Returned: $($scriptBlock)"
-            }
+.DESCRIPTION
+    The Update-SessionEnvironment function (also aliased as 'refreshenv') refreshes all environment
+    variables in the current PowerShell session by reading values from the Windows registry.
+    
+    This is particularly useful after:
+    - Installing new software that modifies PATH or other environment variables
+    - Making changes to environment variables via System Properties
+    - Installing PowerShell modules that add to PSModulePath
+    - Running installers that update system configuration
+    
+    The function:
+    - Reads environment variables from Machine and User registry scopes
+    - Merges PATH entries from both scopes (removing duplicates)
+    - Updates all environment variables in the current session
+    - Preserves PSModulePath, USERNAME, and PROCESSOR_ARCHITECTURE
+    - Handles both interactive 'refreshenv' calls and programmatic usage
+    
+    Unlike starting a new PowerShell session, this updates the current session immediately.
+
+.EXAMPLE
+    Update-SessionEnvironment
+    
+    Refreshes all environment variables from the registry into the current session.
+
+.EXAMPLE
+    refreshenv
+    
+    If invoked with the alias 'refreshenv', displays a message with progress.
+    This matches Chocolatey's refreshenv command behavior.
+
+.EXAMPLE
+    Install-Package SomeApp
+    Update-SessionEnvironment
+    SomeApp.exe --version
+    
+    After installing software that adds to PATH, refresh environment so the new executable is available.
+
+.EXAMPLE
+    [Environment]::SetEnvironmentVariable('MY_VAR', 'NewValue', 'User')
+    Update-SessionEnvironment
+    $env:MY_VAR  # Now shows 'NewValue'
+    
+    After changing an environment variable programmatically, refresh to see the change in current session.
+
+.OUTPUTS
+    None. Environment variables in the current session are updated in-place.
+    Verbose messages are written via Write-Logg.
+
+.NOTES
+    - Also works when invoked as 'refreshenv' (checks $MyInvocation.InvocationName)
+    - Reads from registry scopes: Process, Machine, and User (if not SYSTEM account)
+    - PATH is specially handled: merged from Machine and User, deduplicated
+    - Preserves PSModulePath, USERNAME, and PROCESSOR_ARCHITECTURE from before refresh
+    - Does NOT require Administrator privileges (reads registry, doesn't write)
+    - Requires Write-Logg, Write-InformationColored, Get-EnvironmentVariable, Get-EnvironmentVariableNames cmdlets
+    - User scope is skipped when running as SYSTEM or COMPUTER$ account
+    - Order matters: Process, then Machine, then User (User variables override Machine variables)
+#>
+function Update-SessionEnvironment {
+    # Load shared dependency loader if not already available
+    if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+        $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+        if (Test-Path $initScript) {
+            . $initScript
+        }
+        else {
+            Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+            Write-Warning 'Falling back to direct download'
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+            $scriptBlock = [scriptblock]::Create($method)
+            . $scriptBlock
         }
     }
-    $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-    New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+    
+    # (1) Import required cmdlets if missing
+    # Load all required cmdlets (replaces 40+ lines of boilerplate)
+    Initialize-CmdletDependencies -RequiredCmdlets @(
+        'Write-Logg',
+        'Write-InformationColored',
+        'Get-EnvironmentVariable',
+        'Get-EnvironmentVariableNames'
+    ) -PreferLocal -Force
     $refreshEnv = $false
     $invocation = $MyInvocation
 

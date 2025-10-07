@@ -74,20 +74,26 @@ function Invoke-EverythingSearch {
     $EverythingPortableDownloadURL = 'https://www.voidtools.com/Everything-1.5.0.1390a.x64.zip'
   )
 
-  # Import the required cmdlets
-  $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Show-TUIConfirmationDialog')
-  $missingCmdlets = $neededcmdlets | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) }
-
-  if ($missingCmdlets) {
-    if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-      $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-      $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-      New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
+  # Load shared dependency loader if not already available
+  if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+    $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+    if (Test-Path $initScript) {
+      . $initScript
     }
-    Write-Verbose -Message "Importing missing cmdlets: $missingCmdlets"
-    $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $missingCmdlets
-    $Cmdletstoinvoke | Import-Module -Force
+    else {
+      Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+      Write-Warning 'Falling back to direct download'
+      $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+      $scriptBlock = [scriptblock]::Create($method)
+      . $scriptBlock
+    }
   }
+  
+  # Load all required cmdlets (replaces 60+ lines of boilerplate)
+  Initialize-CmdletDependencies -RequiredCmdlets @(
+    'Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 
+    'Get-LongName', 'Write-Logg', 'Show-TUIConfirmationDialog'
+  ) -PreferLocal -Force
 
   # First we need to terminate any existing everything processes
   if (Get-Process -Name 'Everything*' -ErrorAction SilentlyContinue) {

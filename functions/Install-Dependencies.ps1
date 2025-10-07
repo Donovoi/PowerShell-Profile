@@ -1,3 +1,118 @@
+<#
+.SYNOPSIS
+    Orchestrates installation of PowerShell modules, NuGet packages, and .NET assemblies with environment refresh.
+
+.DESCRIPTION
+    Install-Dependencies is a comprehensive dependency management function that handles:
+    
+    - Automatic elevation to Administrator if required
+    - Installation and configuration of package providers (NuGet, PowerShellGet)
+    - PowerShell module installation from PSGallery or local cache
+    - NuGet package installation and assembly loading
+    - .NET assembly loading (default WPF/Forms assemblies or custom)
+    - Environment variable refresh to pick up newly installed tools
+    - Optional cleanup of local module/package caches
+    
+    This function serves as a one-stop solution for setting up all dependencies required
+    by scripts or modules, eliminating the need to manually install each component.
+
+.PARAMETER RemoveAllLocalModules
+    Switch to remove all PowerShell modules from the LocalModulesDirectory.
+    Only deletes if the directory contains ONLY PowerShell files (.ps1, .psm1, .psd1).
+    Use with caution as this permanently deletes local module cache.
+
+.PARAMETER RemoveAllInMemoryModules
+    Switch to unload all currently loaded PowerShell modules from the session.
+    Does not remove InstallDependencies or InstallCmdlet modules.
+    Useful for forcing fresh module loads or troubleshooting version conflicts.
+
+.PARAMETER PSModule
+    Array of PowerShell module names to install from PSGallery.
+    Modules are installed to CurrentUser scope if not already available.
+    
+    Example: @('Pester', 'PSScriptAnalyzer', 'ImportExcel')
+
+.PARAMETER NugetPackage
+    Hashtable of NuGet packages to install, where keys are package names and values are versions.
+    Format: @{ 'PackageName' = 'Version' }
+    
+    Example: @{ 'HtmlAgilityPack' = '1.11.46'; 'Newtonsoft.Json' = '13.0.1' }
+
+.PARAMETER NoPSModules
+    Switch to skip PowerShell module installation entirely.
+    Use when you only need NuGet packages or assemblies.
+
+.PARAMETER NoNugetPackage
+    Switch to skip NuGet package installation entirely.
+    Use when you only need PowerShell modules or assemblies.
+
+.PARAMETER InstallDefaultPSModules
+    Switch to install a default set of commonly used PowerShell modules.
+    Default modules are defined in Install-PSModule cmdlet (e.g., PSReadLine).
+
+.PARAMETER InstallDefaultNugetPackage
+    Switch to install a default set of commonly used NuGet packages.
+    Default packages are defined in Install-NugetDeps cmdlet.
+
+.PARAMETER AddDefaultAssemblies
+    Switch to load default .NET assemblies including:
+    - PresentationFramework (WPF)
+    - System.Windows.Forms
+    - System.Drawing
+    And others commonly needed for GUI applications.
+
+.PARAMETER AddCustomAssemblies
+    Array of custom .NET assembly names to load.
+    These are loaded in addition to default assemblies if AddDefaultAssemblies is also specified.
+    
+    Example: @('System.Net.Http', 'System.Management.Automation')
+
+.PARAMETER LocalModulesDirectory
+    Directory path for local PowerShell module cache.
+    Defaults to current working directory ($PWD).
+    Used when SaveLocally switch is specified.
+
+.PARAMETER LocalNugetDirectory
+    Directory path for local NuGet package cache.
+    Defaults to current working directory ($PWD).
+    Used when SaveLocally switch is specified.
+
+.PARAMETER SaveLocally
+    Switch to save/load packages from local directories rather than temp directories.
+    Requires LocalModulesDirectory and LocalNugetDirectory to be specified.
+
+.EXAMPLE
+    Install-Dependencies -PSModule @('Pester', 'PSScriptAnalyzer') -AddDefaultAssemblies
+    
+    Installs Pester and PSScriptAnalyzer modules, loads default .NET assemblies, and refreshes environment.
+
+.EXAMPLE
+    Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackage -SaveLocally -LocalModulesDirectory "C:\PSModules" -LocalNugetDirectory "C:\NuGet"
+    
+    Installs default modules and packages to custom local directories.
+
+.EXAMPLE
+    Install-Dependencies -NugetPackage @{ 'HtmlAgilityPack' = '1.11.46' } -NoNugetPackage:$false
+    
+    Installs only the HtmlAgilityPack NuGet package without installing PowerShell modules.
+
+.EXAMPLE
+    Install-Dependencies -RemoveAllInMemoryModules -PSModule @('ImportExcel')
+    
+    Unloads all modules, then installs and loads ImportExcel fresh.
+
+.OUTPUTS
+    None. The function installs dependencies, loads assemblies, and refreshes the environment.
+    All actions are logged via Write-Logg.
+
+.NOTES
+    - Automatically elevates to Administrator if not already elevated (via Invoke-RunAsAdmin)
+    - Installs package providers (NuGet, PowerShellGet) if missing
+    - Refreshes environment variables at the end to pick up PATH changes
+    - Requires 14 helper cmdlets (automatically loaded via Initialize-CmdletDependencies)
+    - SaveLocally requires both LocalModulesDirectory and LocalNugetDirectory to be valid paths
+    - This is the main entry point for comprehensive dependency setup
+#>
 function Install-Dependencies {
     [CmdletBinding()]
     param(
@@ -16,9 +131,24 @@ function Install-Dependencies {
         [switch]$SaveLocally
     )
 
-    $FileScriptBlock = ''
+    # Load shared dependency loader if not already available
+    if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+        $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+        if (Test-Path $initScript) {
+            . $initScript
+        }
+        else {
+            Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+            Write-Warning 'Falling back to direct download'
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+            $scriptBlock = [scriptblock]::Create($method)
+            . $scriptBlock
+        }
+    }
+    
     # (1) Import required cmdlets if missing
-    $neededcmdlets = @(
+    # Load all required cmdlets (replaces 100+ lines of boilerplate)
+    Initialize-CmdletDependencies -RequiredCmdlets @(
         'Get-FileDownload',
         'Add-FileToAppDomain',
         'Invoke-AriaDownload',
@@ -33,93 +163,7 @@ function Install-Dependencies {
         'Get-EnvironmentVariable',
         'Get-EnvironmentVariableNames',
         'Add-NuGetDependencies'
-    )
-    foreach ($cmd in $neededcmdlets) {
-        if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-            if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                # Retry mechanism for downloading Install-Cmdlet.ps1
-                $maxRetries = 20
-                $retryCount = 0
-                $success = $false
-                $method = $null
-                
-                while (-not $success -and $retryCount -lt $maxRetries) {
-                    try {
-                        $retryCount++
-                        if ($retryCount -gt 1) {
-                            Write-Verbose "Retrying download attempt $retryCount of $maxRetries..."
-                            Start-Sleep -Seconds 5
-                        }
-                        
-                        Write-Verbose "Downloading Install-Cmdlet.ps1 from GitHub (attempt $retryCount)..."
-                        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                        $success = $true
-                        Write-Verbose 'Successfully downloaded Install-Cmdlet.ps1'
-                    }
-                    catch {
-                        Write-Warning "Failed to download Install-Cmdlet.ps1 (attempt $retryCount): $($_.Exception.Message)"
-                        if ($retryCount -eq $maxRetries) {
-                            Write-Error "Failed to download Install-Cmdlet.ps1 after $maxRetries attempts. Please check your internet connection and try again."
-                            throw
-                        }
-                    }
-                }
-                
-                $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-            }
-            Write-Verbose "Importing cmdlet: $cmd"
-            
-            # Retry mechanism for downloading individual cmdlets
-            $maxCmdletRetries = 20
-            $cmdletRetryCount = 0
-            $cmdletSuccess = $false
-            $scriptBlock = $null
-                
-            while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
-                try {
-                    $cmdletRetryCount++
-                    if ($cmdletRetryCount -gt 1) {
-                        Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
-                        Start-Sleep -Seconds 5
-                    }
-                        
-                    Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
-                    $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-                    $cmdletSuccess = $true
-                    Write-Verbose "Successfully downloaded cmdlet: $cmd"
-                }
-                catch {
-                    Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
-                    if ($cmdletRetryCount -eq $maxCmdletRetries) {
-                        Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
-                        Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
-                        exit 1
-                    }
-                }
-            }            # Check if the returned value is a ScriptBlock and import it properly
-            if ($scriptBlock -is [scriptblock]) {
-                $moduleName = "Dynamic_$cmd"
-                New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-            }
-            elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                # If a module info was returned, it's already imported
-                Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-            }
-            elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                # If a file path was returned, import it
-                $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                Write-Verbose "Imported $cmd from file: $scriptBlock"
-            }
-            else {
-                Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                Write-Warning "Returned: $($scriptBlock)"
-            }
-        }
-    }
-    $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-    New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+    ) -PreferLocal -Force
 
     # (2) Run as admin if not already elevated
     Invoke-RunAsAdmin

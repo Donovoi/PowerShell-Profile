@@ -21,36 +21,36 @@ Prerequisite : PowerShell V3
 
 function Get-LongName {
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
         [ValidateNotNullOrEmpty()]
         [string]$ShortName
     )
-    Begin {
+    begin {
         # Add the LongPath class only once at the beginning
-        Add-Type @"
+        Add-Type @'
         using System;
         using System.Runtime.InteropServices;
         public class LongPath {
             [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
             public static extern uint GetLongPathName(string lpszShortPath, [Out] System.Text.StringBuilder lpszLongPath, uint cchBuffer);
         }
-"@
+'@
     }
 
-    Process {
-        Try {
+    process {
+        try {
             $longNameBuilder = New-Object System.Text.StringBuilder(255)
             $result = [LongPath]::GetLongPathName($ShortName, $longNameBuilder, $longNameBuilder.Capacity)
 
             if ($result -eq 0) {
-                Throw "Failed to resolve long name for path '$ShortName'."
+                throw "Failed to resolve long name for path '$ShortName'."
             }
 
             $longName = $longNameBuilder.ToString()
             return $longName
         }
-        Catch {
+        catch {
             Write-Error -Message $_.Exception.Message
         }
     }

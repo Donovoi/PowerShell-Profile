@@ -5,12 +5,12 @@
 
 .DESCRIPTION
     Install-PackageProviders performs the following actions:
-    Dynamically installs any missing helper cmdlets (e.g. Write-Logg).
-    Removes deprecated versions of the PackageManagement module.
-    Ensures the AnyPackage module is available and imported on PS 7+.
-    Bootstraps the NuGet and PowerShellGet package providers if absent.
-    Registers the public NuGet feed and marks it as trusted.
-    Trusts all existing package sources and the PSGallery repository.
+      - Dynamically installs any missing helper cmdlets (e.g. Write-Logg).
+      - Removes deprecated versions of the PackageManagement module.
+      - Ensures the AnyPackage module is available and imported on PS 7+.
+      - Bootstraps the NuGet and PowerShellGet package providers if absent.
+      - Registers the public NuGet feed and marks it as trusted.
+      - Trusts all existing package sources and the PSGallery repository.
 
     The function is designed for use in a profile to guarantee a consistent
     package-management environment across sessions and machines.
@@ -42,71 +42,25 @@ function Install-PackageProviders {
     param ()
 
     try {
-        $FileScriptBlock = ''
-        # (1) Import required cmdlets if missing
-        $neededcmdlets = @(
-            'Write-Logg'
-
-        )
-        foreach ($cmd in $neededcmdlets) {
-            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-                }
-                Write-Verbose "Importing cmdlet: $cmd"
-                
-                # Retry mechanism for downloading individual cmdlets
-                $maxCmdletRetries = 20
-                $cmdletRetryCount = 0
-                $cmdletSuccess = $false
-                $scriptBlock = $null
-                
-                while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
-                    try {
-                        $cmdletRetryCount++
-                        if ($cmdletRetryCount -gt 1) {
-                            Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
-                            Start-Sleep -Seconds 5
-                        }
-                        
-                        Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
-                        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-                        $cmdletSuccess = $true
-                        Write-Verbose "Successfully downloaded cmdlet: $cmd"
-                    }
-                    catch {
-                        Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
-                        if ($cmdletRetryCount -eq $maxCmdletRetries) {
-                            Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
-                            Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
-                            exit 1
-                        }
-                    }
-                }            # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
-                    $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-                }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-                }
-                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                    Write-Verbose "Imported $cmd from file: $scriptBlock"
-                }
-                else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                    Write-Warning "Returned: $($scriptBlock)"
-                }
+        # Load shared dependency loader if not already available
+        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+            if (Test-Path $initScript) {
+                . $initScript
+            }
+            else {
+                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+                Write-Warning 'Falling back to direct download'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
             }
         }
-        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+        
+        # (1) Import required cmdlets if missing
+        # Load all required cmdlets (replaces 60+ lines of boilerplate)
+        Initialize-CmdletDependencies -RequiredCmdlets @('Write-Logg') -PreferLocal -Force
+
         # -- TLS 1.2 for all outbound calls -----------------------------------------
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
