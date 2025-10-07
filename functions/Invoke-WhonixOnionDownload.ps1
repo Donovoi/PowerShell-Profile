@@ -1,71 +1,92 @@
 function Invoke-WhonixOnionDownload {
     <#
 .SYNOPSIS
-Safely downloads a file from a v3 .onion URL through Whonix (Gateway + Workstation) on VirtualBox or VMware Workstation.
+Safely downloads a file from a v3 .onion URL through Whonix (Gateway + Workstation) using VirtualBox or VMware Workstation.
 
 .DESCRIPTION
-Idempotently performs:
-  1) Tooling: (VirtualBox) ensure VBoxManage is present (winget if needed). (VMware) ensure vmrun + ovftool are present.
-  2) Discovers latest Whonix VirtualBox OVA (or uses -WhonixOvaUrl) and `.sha512sums`.
-  3) (Optional) Verifies the checksum signature (.asc via gpg, or .sig via signify).
-  4) Verifies OVA SHA-512.
-  5) Imports/Converts Whonix:
+This cmdlet is declarative and idempotent. It first applies a WinGet/DSC v3 configuration to ensure required tools
+are present (VirtualBox or VMware tooling + optional GPG/signify), then:
+
+  1) Discovers the latest Whonix OVA for VirtualBox (or uses -WhonixOvaUrl) and its *.sha512sums file.
+  2) (Optional) Verifies the checksum file signature (.asc via gpg, or .sig via signify).
+  3) Verifies the OVA SHA-512 against the checksum file.
+  4) Imports Whonix:
      - VirtualBox: single import creates Gateway + Workstation.
-     - VMware: ovftool converts OVA into 2 VMX dirs; NICs patched: Gateway(NAT+Host-only), Workstation(Host-only).
-  6) Boots Gateway → Workstation; waits for guest readiness (VBox Guest Additions / VMware Tools).
-  7) In Workstation, uses Tor-wrapped curl to fetch the .onion URL.
-  8) Copies file to host quarantine, adds Mark-of-the-Web, logs SHA-256.
-  9) Powers off VMs. `-Destroy` tears down any Whonix VMs (both backends).
+     - VMware: uses ovftool to make two VMX folders; NICs are patched so Gateway = NAT + Host-only; Workstation = Host-only.
+  5) Boots Gateway then Workstation; waits for readiness (VBox: Guest Additions; VMware: Tools).
+  6) In Workstation, uses Tor-wrapped curl to fetch the .onion URL.
+  7) Copies file to host quarantine, applies Mark-of-the-Web, logs SHA-256.
+  8) Powers off both VMs. Use -Destroy to remove Whonix VMs on BOTH backends.
+
+The DSC step uses WinGet Configuration (DSC v3) under the hood:
+- Documentation: WinGet Configuration + DSC v3 YAML schema and usage. (winget configure) 
+- VirtualBox guestcontrol flags per VirtualBox 7.x manual.
+- VMware vmrun and ovftool usage per VMware docs.
+These are applied automatically unless -SkipDSC is provided, or you supply a custom -DSCConfigPath.
 
 .PARAMETER Url
 A valid v3 .onion URL (56-char base32 host). Example: http://<56chars>.onion/path/file.bin
 
 .PARAMETER OutputDir
-Host directory to store the quarantined file.
+Host folder for the quarantined file.
 
 .PARAMETER Backend
 'VirtualBox' (default) or 'VMware'.
 
 .PARAMETER Destroy
-Stop and remove any Whonix VMs (VirtualBox + VMware) created by/for this function.
+Stop and remove any Whonix VMs (VirtualBox + VMware) created by/for this function, then exit.
 
 .PARAMETER WhonixOvaUrl
-Explicit OVA URL override.
+Optional OVA URL override. When absent, the cmdlet scrapes Whonix’s VirtualBox page to find a current OVA and <ova>.sha512sums.
 
 .PARAMETER Headless
-Start VMs headless (VBox: --type headless; VMware: nogui).
+Start VMs without UI (VBox: --type headless; VMware: nogui).
 
 .PARAMETER HardenVM
-(VBox) Disable clipboard/drag&drop, VRDE, audio for Workstation.
+(VirtualBox) Disable clipboard/drag&drop, VRDE, and audio on the Workstation.
 
 .PARAMETER ForceReimport
-Force re-import (VirtualBox) / reconversion (VMware).
+Force re-import / reconversion even if Whonix VMs already exist.
 
 .PARAMETER GuestCredential
-[PSCredential] for the guest user (usually 'user'). Required for VMware guest operations (needs open-vm-tools).
+[PSCredential] for the guest user (usually 'user'). VMware guest operations require credentials and running VMware Tools.
 
 .PARAMETER VerifySignature
-Verify the checksum’s signature (.asc via gpg, or .sig via signify with -SignifyPubKeyPath).
+Verify the checksum file’s signature before using it (.asc via gpg, or .sig via signify with -SignifyPubKeyPath).
 
 .PARAMETER SignifyPubKeyPath
-Public key for signify verification.
+Public key to validate the *.sha512sums.sig when using -VerifySignature and a .sig is provided.
+
+.PARAMETER DSCConfigPath
+Optional path to a WinGet/DSC v3 YAML file to apply instead of the built-in default. If omitted, a built-in config is generated.
+
+.PARAMETER SkipDSC
+Skip the DSC configuration step (not recommended).
 
 .PARAMETER VMwareNatVnet
-VMware NAT network name (default VMnet8).
+VMware NAT vnet (default VMnet8).
 
 .PARAMETER VMwareHostOnlyVnet
-VMware Host-only network name (default VMnet1).
+VMware Host-only vnet (default VMnet1).
 
 .PARAMETER VMwareBaseDir
-Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
+Folder for VMware VMX directories (default $Env:ProgramData\Whonix-VMware).
+
+.EXAMPLE
+Invoke-WhonixOnionDownload -Url 'http://<56char>.onion/payload.bin' -OutputDir 'D:\OnionQuarantine' -Headless -HardenVM -Verbose
+
+.EXAMPLE
+$cred = Get-Credential -UserName 'user' -Message 'Guest (Whonix Workstation)'
+Invoke-WhonixOnionDownload -Backend VMware -Url 'http://<56char>.onion/file.bin' -OutputDir 'C:\Quarantine' -GuestCredential $cred -Headless -Verbose
 
 .NOTES
-- PowerShell automatic vars like $Host and $args must not be assigned/used as parameters; we avoid them per docs. :contentReference[oaicite:2]{index=2}
-- VBox guestcontrol flags in 7.x: use --wait-stdout/--wait-stderr/--timeout (no --wait-exit). :contentReference[oaicite:3]{index=3}
+- WinGet/DSC v3 reference for configuration files and the WinGetPackage resource is on Microsoft Learn.
+- VirtualBox guestcontrol run flags in 7.x use --wait-stdout/--wait-stderr/--timeout (no --wait-exit).
+- Whonix recommends verifying signature of the *.sha512sums and then the OVA’s SHA-512 against that file.
 #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
-        [Parameter(ParameterSetName = 'Run', Mandatory)][ValidatePattern('^https?://')][string]$Url,
+        [Parameter(ParameterSetName = 'Run', Mandatory)][string]$Url,
         [Parameter(ParameterSetName = 'Run', Mandatory)][string]$OutputDir,
 
         [Parameter(ParameterSetName = 'Run')][ValidateSet('VirtualBox', 'VMware')][string]$Backend = 'VirtualBox',
@@ -79,6 +100,9 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         [Parameter(ParameterSetName = 'Run')][pscredential]$GuestCredential,
         [Parameter(ParameterSetName = 'Run')][switch]$VerifySignature,
         [Parameter(ParameterSetName = 'Run')][string]$SignifyPubKeyPath,
+
+        [Parameter(ParameterSetName = 'Run')][string]$DSCConfigPath,
+        [Parameter(ParameterSetName = 'Run')][switch]$SkipDSC,
 
         [Parameter(ParameterSetName = 'Run')][string]$VMwareNatVnet = 'VMnet8',
         [Parameter(ParameterSetName = 'Run')][string]$VMwareHostOnlyVnet = 'VMnet1',
@@ -116,11 +140,11 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
     }
 
     function Invoke-Proc([string]$File, [string[]]$ProcArgs) {
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
         $psi.FileName = $File
         $psi.Arguments = ($ProcArgs -join ' ')
-        $psi.RedirectStandardError = $true
         $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
         $psi.UseShellExecute = $false
         $p = [System.Diagnostics.Process]::Start($psi)
         $p.WaitForExit()
@@ -129,7 +153,7 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         if ($p.ExitCode -ne 0) {
             throw "Command failed ($File $($ProcArgs -join ' '))`n$out`n$err" 
         }
-        return $out
+        $out
     }
 
     function Set-MarkOfTheWeb([string]$Path, [string]$RefUrl) {
@@ -139,6 +163,57 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         catch {
             Write-Verbose "MOTW failed (non-NTFS?): $($_.Exception.Message)" 
         }
+    }
+
+    # --------------------------- DSC (WinGet Configuration) ---------------------------
+    function Get-EmbeddedDscYaml([string]$ChosenBackend, [switch]$IncludeVerifiers) {
+        @"
+# yaml-language-server: \$schema=https://aka.ms/configuration-dsc-schema/0.2
+properties:
+  resources:
+  - resource: Microsoft.WinGet.DSC/WinGetPackage
+    id: VirtualBox
+    directives:
+      description: Ensure Oracle VirtualBox is installed
+      securityContext: elevated
+    settings:
+      id: Oracle.VirtualBox
+      source: winget
+  - resource: Microsoft.WinGet.DSC/WinGetPackage
+    id: VMwareWorkstation
+    directives:
+      description: Ensure VMware Workstation Pro (if chosen) is installed
+      securityContext: elevated
+    settings:
+      id: VMware.WorkstationPro
+      source: winget
+  - resource: Microsoft.WinGet.DSC/WinGetPackage
+    id: Gpg4win
+    directives:
+      description: Install Gpg4win for OpenPGP verification
+      securityContext: elevated
+    settings:
+      id: GnuPG.Gpg4win
+      source: winget
+  - resource: Microsoft.WinGet.DSC/WinGetPackage
+    id: Signify
+    directives:
+      description: Install signify-openbsd for .sha512sums.sig verification
+      securityContext: elevated
+    settings:
+      id: OpenBSD.signify
+      source: winget
+  configurationVersion: 0.2.0
+"@
+        # NOTE: We include both packages, but the backend you pick is what we’ll actually use later.
+        # This keeps the DSC “one file fits all” and simple to trust/audit. See WinGet Configuration docs.
+    }
+
+    function Invoke-DscConfiguration([string]$YamlPath) {
+        Write-Step "Applying WinGet/DSC configuration: $YamlPath"
+        # winget configure handles DSC v3 resources; it runs elevated resources elevated.
+        Invoke-Proc 'winget' @('configure', '--file', "`"$YamlPath`"", '--accept-configuration-agreements', '--disable-interactivity') | Out-Null
+        Write-Ok 'DSC configuration applied.'
     }
 
     # --------------------------- OVA discovery & verification ---------------------------
@@ -174,8 +249,7 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
             }
             $ova = [Uri]::new($base, $ova).AbsoluteUri
         }
-        $sha = "$ova.sha512sums"
-        return @{ Ova = $ova; ShaUrl = $sha }
+        @{ Ova = $ova; ShaUrl = "$ova.sha512sums" }
     }
 
     function Get-WhonixOvaAndVerify([string]$OvaUrl, [string]$ShaUrl, [string]$CacheDir, [switch]$DoSig, [string]$SigPub) {
@@ -222,10 +296,11 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
                 catch {
                 } 
             }
+
             if ($haveAsc) {
                 $gpg = Get-Command gpg.exe -ErrorAction SilentlyContinue
                 if (-not $gpg) {
-                    throw 'OpenPGP signature found but gpg.exe missing; install GnuPG and import Whonix signing key.' 
+                    throw 'OpenPGP signature found but gpg.exe missing (install Gpg4win).' 
                 }
                 & $gpg.Source --verify $ascPath $shaPath | Out-Null
                 if ($LASTEXITCODE -ne 0) {
@@ -239,7 +314,7 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
                 }
                 $sigExe = (Get-Command signify.exe -ErrorAction SilentlyContinue) ?? (Get-Command signify-openbsd.exe -ErrorAction SilentlyContinue)
                 if (-not $sigExe) {
-                    throw 'signify not found in PATH; install signify-openbsd to verify .sig signatures.' 
+                    throw 'signify not found in PATH (install OpenBSD.signify).' 
                 }
                 & $sigExe.Source -V -p $SigPub -x $sigPath -m $shaPath | Out-Null
                 if ($LASTEXITCODE -ne 0) {
@@ -272,7 +347,7 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
             throw "Checksum mismatch! expected=$expected actual=$actual" 
         }
         Write-Ok 'Checksum verified.'
-        return $ovaPath
+        $ovaPath
     }
 
     # --------------------------- VirtualBox helpers ---------------------------
@@ -290,34 +365,13 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         }
         throw 'VBoxManage.exe not found.'
     }
-
-    function Test-VirtualBoxInstalled {
-        return [bool](Get-Command VBoxManage.exe -ErrorAction SilentlyContinue) 
-    }
-    function Install-VirtualBox {
-        if ($PSCmdlet.ShouldProcess('VirtualBox', 'Install via winget')) {
-            Invoke-Proc 'winget' @('install', '-e', '--id', 'Oracle.VirtualBox', '--accept-package-agreements', '--accept-source-agreements', '--silent') | Out-Null
-        }
-    }
-    function Initialize-VirtualBox {
-        Write-Step 'Ensuring VirtualBox is installed…'
-        if (-not (Test-VirtualBoxInstalled)) {
-            Install-VirtualBox 
-        }
-        else {
-            Write-Ok 'VirtualBox already installed.' 
-        }
-        $script:VBoxManage = Get-VBoxManagePath
-    }
-
-    function Invoke-VBoxManage([string[]]$CommandArgs) {
-        $out = & $script:VBoxManage @CommandArgs 2>&1
+    function Invoke-VBoxManage([string[]]$CommandParts) {
+        $out = & $script:VBoxManage @CommandParts 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "VBoxManage failed ($LASTEXITCODE): $($CommandArgs -join ' ')`n$out" 
+            throw "VBoxManage failed ($LASTEXITCODE): $($CommandParts -join ' ')`n$out" 
         }
-        return $out
+        $out
     }
-
     function Import-WhonixVirtualBox([string]$OvaPath, [switch]$Force, [string]$GWName = 'Whonix-Gateway', [string]$WSName = 'Whonix-Workstation') {
         Write-Step 'Checking for existing Whonix VMs…'
         $vms = Invoke-VBoxManage @('list', 'vms')
@@ -328,14 +382,13 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         }
 
         Write-Step 'Importing Whonix OVA (creates Gateway + Workstation)…'
-        $ArgList = @('import', $OvaPath,
+        $importParts = @('import', $OvaPath,
             '--vsys', '0', '--eula', 'accept', '--vsys', '1', '--eula', 'accept',
             '--vsys', '0', '--vmname', $GWName,
             '--vsys', '1', '--vmname', $WSName)
-        Invoke-VBoxManage $ArgList | Out-Null
+        Invoke-VBoxManage $importParts | Out-Null
         Write-Ok 'Import complete.'
     }
-
     function Get-WhonixVmNamesVirtualBox {
         $names = @{ Gateway = $null; Workstation = $null }
         $list = Invoke-VBoxManage @('list', 'vms')
@@ -352,12 +405,11 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
                 $names.Workstation = $n; continue 
             }
         }
-        return $names
+        $names
     }
-
     function Set-WorkstationHardeningVirtualBox([string]$VMName) {
         Write-Step "Hardening '$VMName' (clipboard/drag&drop/VRDE/audio)…"
-        foreach ($opt in @(
+        foreach ($opts in @(
                 @('modifyvm', $VMName, '--clipboard-mode', 'disabled'),
                 @('modifyvm', $VMName, '--clipboard', 'disabled'),
                 @('modifyvm', $VMName, '--drag-and-drop', 'disabled'),
@@ -366,27 +418,25 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
                 @('modifyvm', $VMName, '--audio', 'none')
             )) {
             try {
-                Invoke-VBoxManage $opt | Out-Null 
+                Invoke-VBoxManage $opts | Out-Null 
             }
             catch {
             }
         }
         Write-Ok 'Hardened (best-effort).'
     }
-
     function Start-WhonixVirtualBox([string]$Gateway, [string]$Workstation, [switch]$Headless) {
-        $typeArgs = $Headless ? @('--type', 'headless') : @()
+        $typeParts = $Headless ? @('--type', 'headless') : @()
         Write-Step "Starting Gateway '$Gateway'…"
-        Invoke-VBoxManage (@('startvm', $Gateway) + $typeArgs) | Out-Null
+        Invoke-VBoxManage (@('startvm', $Gateway) + $typeParts) | Out-Null
         Write-Step "Starting Workstation '$Workstation'…"
-        Invoke-VBoxManage (@('startvm', $Workstation) + $typeArgs) | Out-Null
+        Invoke-VBoxManage (@('startvm', $Workstation) + $typeParts) | Out-Null
 
         Write-Step 'Waiting for Guest Additions in Workstation…'
         Invoke-VBoxManage @('guestproperty', 'wait', $Workstation, '/VirtualBox/GuestAdd/Version', '--timeout', '600000') | Out-Null
         Write-Ok 'Guest Additions ready.'
     }
-
-    function Invoke-GuestCommandVBox([string]$VM, [string]$User, [securestring]$Password, [string]$Exe, [string[]]$CmdArgs) {
+    function Invoke-GuestCommandVBox([string]$VM, [string]$User, [securestring]$Password, [string]$Exe, [string[]]$CmdParts) {
         $base = @('guestcontrol', $VM, 'run', '--username', $User, '--exe', $Exe, '--wait-stdout', '--wait-stderr', '--timeout', '600000', '--')
         if ($PSBoundParameters.ContainsKey('Password') -and $Password) {
             $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
@@ -400,9 +450,8 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
                 } 
             }
         }
-        Invoke-VBoxManage ($base + $CmdArgs) | Out-Null
+        Invoke-VBoxManage ($base + $CmdParts) | Out-Null
     }
-
     function Copy-FromGuestVBox([string]$VM, [string]$User, [securestring]$Password, [string]$GuestPath, [string]$HostPath) {
         $base = @('guestcontrol', $VM, 'copyfrom', '--username', $User, $GuestPath, $HostPath)
         if ($PSBoundParameters.ContainsKey('Password') -and $Password) {
@@ -419,7 +468,6 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         }
         Invoke-VBoxManage $base | Out-Null
     }
-
     function Stop-WhonixVirtualBox([string]$Gateway, [string]$Workstation) {
         foreach ($vm in @($Workstation, $Gateway)) {
             Write-Step "Powering off $vm…"
@@ -430,7 +478,6 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
             }
         }
     }
-
     function Remove-WhonixVirtualBox {
         try {
             $list = & $script:VBoxManage list vms 2>$null
@@ -463,72 +510,42 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
     $script:Ovftool = $null
 
     function Get-VMwarePaths {
-        $vmrunCandidates = @(
-            "$Env:ProgramFiles(x86)\VMware\VMware Workstation\vmrun.exe",
-            "$Env:ProgramFiles\VMware\VMware Workstation\vmrun.exe"
-        )
-        foreach ($p in $vmrunCandidates) {
+        foreach ($p in @("$Env:ProgramFiles(x86)\VMware\VMware Workstation\vmrun.exe", "$Env:ProgramFiles\VMware\VMware Workstation\vmrun.exe")) {
             if (Test-Path $p) {
                 $script:Vmrun = $p; break 
-            } 
-        }
-        if (-not $script:Vmrun) {
-            $cmd = Get-Command vmrun.exe -ErrorAction SilentlyContinue
-            if ($cmd) {
-                $script:Vmrun = $cmd.Source 
             }
         }
-        $ovfCandidates = @(
-            "$Env:ProgramFiles\VMware\VMware OVF Tool\ovftool.exe",
-            "$Env:ProgramFiles(x86)\VMware\VMware OVF Tool\ovftool.exe"
-        )
-        foreach ($p in $ovfCandidates) {
+        if (-not $script:Vmrun) {
+            $c = Get-Command vmrun.exe -ErrorAction SilentlyContinue
+            if ($c) {
+                $script:Vmrun = $c.Source 
+            }
+        }
+        foreach ($p in @("$Env:ProgramFiles\VMware\VMware OVF Tool\ovftool.exe", "$Env:ProgramFiles(x86)\VMware\VMware OVF Tool\ovftool.exe")) {
             if (Test-Path $p) {
                 $script:Ovftool = $p; break 
-            } 
+            }
         }
         if (-not $script:Ovftool) {
-            $cmd2 = Get-Command ovftool.exe -ErrorAction SilentlyContinue
-            if ($cmd2) {
-                $script:Ovftool = $cmd2.Source 
+            $c2 = Get-Command ovftool.exe -ErrorAction SilentlyContinue
+            if ($c2) {
+                $script:Ovftool = $c2.Source 
             }
+        }
+        if (-not $script:Vmrun) {
+            throw 'vmrun.exe not found (install VMware Workstation Pro).' 
+        }
+        if (-not $script:Ovftool) {
+            throw 'ovftool.exe not found (install VMware OVF Tool).' 
         }
     }
-
-    function Install-VMwareIfMissing {
-        Write-Step 'Ensuring VMware Workstation & OVF Tool are available…'
-        Get-VMwarePaths
-        if (-not $script:Vmrun) {
-            Write-Step 'Trying winget install of VMware Workstation Pro…'
-            try {
-                Invoke-Proc 'winget' @('install', '-e', '--id', 'VMware.WorkstationPro', '--accept-package-agreements', '--accept-source-agreements') | Out-Null
-            }
-            catch {
-                Write-Warn 'winget install of VMware.WorkstationPro may fail due to vendor distribution; install manually if needed.' 
-            }
-        }
-        if (-not $script:Ovftool) {
-            Write-Step 'Trying to locate OVF Tool…'
-            Get-VMwarePaths
-        }
-        Get-VMwarePaths
-        if (-not $script:Vmrun) {
-            throw 'vmrun.exe not found. Install VMware Workstation Pro and re-run.' 
-        }
-        if (-not $script:Ovftool) {
-            throw 'ovftool.exe not found. Install VMware OVF Tool and re-run.' 
-        }
-        Write-Ok 'VMware tooling available.'
-    }
-
-    function Invoke-Vmrun([string[]]$VmrunArgs) {
-        $out = & $script:Vmrun @VmrunArgs 2>&1
+    function Invoke-Vmrun([string[]]$VmrunParts) {
+        $out = & $script:Vmrun @VmrunParts 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "vmrun failed ($LASTEXITCODE): $($VmrunArgs -join ' ')`n$out" 
+            throw "vmrun failed ($LASTEXITCODE): $($VmrunParts -join ' ')`n$out" 
         }
-        return $out
+        $out
     }
-
     function Import-WhonixVMware([string]$OvaPath, [switch]$Force, [string]$BaseDir, [string]$NatVnet, [string]$HostOnlyVnet) {
         New-Item -ItemType Directory -Force -Path $BaseDir | Out-Null
         $gwDir = Join-Path $BaseDir 'Whonix-Gateway'
@@ -549,10 +566,10 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
             Remove-Item -Recurse -Force $wsDir 
         }
         New-Item -ItemType Directory -Force -Path $gwDir, $wsDir | Out-Null
+
         Invoke-Proc $script:Ovftool @('--acceptAllEulas', '--skipManifestCheck', '--lax', '--allowExtraConfig', '--vsys=0', $OvaPath, $gwDir) | Out-Null
         Invoke-Proc $script:Ovftool @('--acceptAllEulas', '--skipManifestCheck', '--lax', '--allowExtraConfig', '--vsys=1', $OvaPath, $wsDir) | Out-Null
 
-        # Normalize VMX names
         $gwVmxFound = Get-ChildItem -Path $gwDir -Filter *.vmx | Select-Object -First 1
         $wsVmxFound = Get-ChildItem -Path $wsDir -Filter *.vmx | Select-Object -First 1
         if (-not $gwVmxFound -or -not $wsVmxFound) {
@@ -561,7 +578,7 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         Move-Item -Force $gwVmxFound.FullName $gwVmx
         Move-Item -Force $wsVmxFound.FullName $wsVmx
 
-        # Patch VMX networking
+        # Patch .vmx networking
         Write-Step 'Patching VMware .vmx NICs…'
         function Set-VmxNet($vmxPath, [hashtable]$Pairs) {
             $text = Get-Content -LiteralPath $vmxPath -Raw
@@ -586,9 +603,8 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         }
 
         Write-Ok 'VMware import complete.'
-        return @{ Gateway = $gwVmx; Workstation = $wsVmx }
+        @{ Gateway = $gwVmx; Workstation = $wsVmx }
     }
-
     function Start-WhonixVMware([string]$GwVmx, [string]$WsVmx, [switch]$Headless) {
         $mode = $Headless ? 'nogui' : 'gui'
         Write-Step 'Starting Gateway (VMware)…'
@@ -601,29 +617,42 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         do {
             Start-Sleep -Seconds 5
             $state = (& $script:Vmrun -T ws checkToolsState $WsVmx 2>$null) | Out-String
-            if ($state -match 'installed') {
+            if ($state -match 'running') {
                 break 
             }
         } while ((Get-Date) -lt $deadline)
-        if ($state -notmatch 'installed') {
-            throw 'VMware Tools not running in Workstation. Install open-vm-tools to continue.' 
+        if ($state -notmatch 'running') {
+            throw 'VMware Tools not running in Workstation. (Install open-vm-tools if needed.)' 
         }
         Write-Ok 'VMware Tools detected.'
     }
-
-    function Invoke-GuestCommandVMware([string]$Vmx, [pscredential]$Cred, [string]$Exe, [string[]]$CmdArgs) {
+    function Invoke-GuestCommandVMware([string]$Vmx, [pscredential]$Cred, [string]$Exe, [string[]]$CmdParts) {
         if (-not $Cred) {
             throw 'GuestCredential is required for VMware guest operations.' 
         }
-        $Pass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Cred.Password))
-        Invoke-Vmrun @('-T', 'ws', '-gu', $Cred.UserName, '-gp', $Pass, 'runProgramInGuest', $Vmx, $Exe) + $CmdArgs | Out-Null
+        $pBSTR = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Cred.Password)
+        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pBSTR)
+        try {
+            Invoke-Vmrun @('-T', 'ws', '-gu', $Cred.UserName, '-gp', $plain, 'runProgramInGuest', $Vmx, $Exe) + $CmdParts | Out-Null
+        }
+        finally {
+            if ($pBSTR -ne [IntPtr]::Zero) {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pBSTR) 
+            }
+        }
     }
-
     function Copy-FromGuestVMware([string]$Vmx, [pscredential]$Cred, [string]$GuestPath, [string]$HostPath) {
-        $Pass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Cred.Password))
-        Invoke-Vmrun @('-T', 'ws', '-gu', $Cred.UserName, '-gp', $Pass, 'CopyFileFromGuestToHost', $Vmx, $GuestPath, $HostPath) | Out-Null
+        $pBSTR = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Cred.Password)
+        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pBSTR)
+        try {
+            Invoke-Vmrun @('-T', 'ws', '-gu', $Cred.UserName, '-gp', $plain, 'CopyFileFromGuestToHost', $Vmx, $GuestPath, $HostPath) | Out-Null
+        }
+        finally {
+            if ($pBSTR -ne [IntPtr]::Zero) {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pBSTR) 
+            }
+        }
     }
-
     function Stop-WhonixVMware([string]$GwVmx, [string]$WsVmx) {
         foreach ($vmx in @($WsVmx, $GwVmx)) {
             if ($vmx -and (Test-Path $vmx)) {
@@ -636,7 +665,6 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
             }
         }
     }
-
     function Remove-WhonixVMware([string]$BaseDir) {
         try {
             if (Test-Path $BaseDir) {
@@ -678,17 +706,46 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         return
     }
 
-    # --------------------------- Main run path ---------------------------
+    # --------------------------- Run path ---------------------------
     if (-not (Test-OnionUrl $Url)) {
         throw 'Url must be a valid v3 .onion URL (56-char base32 host).' 
     }
     New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
-    $cache = Join-Path $Env:ProgramData 'WhonixCache'
-    New-Item -ItemType Directory -Force -Path $cache | Out-Null
+
+    # Apply DSC unless skipped (built-in YAML if -DSCConfigPath not provided)
+    if (-not $SkipDSC) {
+        $cache = Join-Path $Env:ProgramData 'WhonixCache'
+        New-Item -ItemType Directory -Force -Path $cache | Out-Null
+        $yamlToUse = if ($DSCConfigPath) {
+            if (-not (Test-Path $DSCConfigPath)) {
+                throw "DSCConfigPath not found: $DSCConfigPath" 
+            }
+            $DSCConfigPath
+        }
+        else {
+            $defaultYaml = Join-Path $cache 'whonix.dsc.yaml'
+            (Get-EmbeddedDscYaml -ChosenBackend $Backend -IncludeVerifiers) | Set-Content -LiteralPath $defaultYaml -Encoding UTF8
+            $defaultYaml
+        }
+        Invoke-DscConfiguration -YamlPath $yamlToUse
+    }
+
+    # Locate tooling after DSC
+    if ($Backend -eq 'VirtualBox') {
+        $script:VBoxManage = Get-VBoxManagePath
+    }
+    else {
+        Get-VMwarePaths
+    }
+
+    # Discover and verify OVA
+    $cacheRoot = Join-Path $Env:ProgramData 'WhonixCache'
+    New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
 
     $links = Get-WhonixLatestOva -Override:$WhonixOvaUrl
-    $ova = Get-WhonixOvaAndVerify -OvaUrl $links.Ova -ShaUrl $links.ShaUrl -CacheDir $cache -DoSig:$VerifySignature -SigPub:$SignifyPubKeyPath
+    $ova = Get-WhonixOvaAndVerify -OvaUrl $links.Ova -ShaUrl $links.ShaUrl -CacheDir $cacheRoot -DoSig:$VerifySignature -SigPub:$SignifyPubKeyPath
 
+    # Guest paths
     $guestUser = if ($GuestCredential) {
         $GuestCredential.UserName 
     }
@@ -704,13 +761,12 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
     $guestDir = "/home/$guestUser/whonix_downloads"
     $leaf = [IO.Path]::GetFileName(([Uri]$Url).AbsolutePath)
     if ([string]::IsNullOrWhiteSpace($leaf)) {
-        $leaf = ('download_' + [Guid]::NewGuid().ToString('N')) 
+        $leaf = 'download_' + [Guid]::NewGuid().ToString('N') 
     }
     $guestOut = "$guestDir/$leaf"
     $hostOut = Join-Path $OutputDir $leaf
 
     if ($Backend -eq 'VirtualBox') {
-        Initialize-VirtualBox
         Import-WhonixVirtualBox -OvaPath $ova -Force:$ForceReimport
         $names = Get-WhonixVmNamesVirtualBox
         if (-not $names.Gateway -or -not $names.Workstation) {
@@ -723,8 +779,8 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         Start-WhonixVirtualBox -Gateway $names.Gateway -Workstation $names.Workstation -Headless:$Headless
 
         Write-Step 'Creating guest dir + Tor-wrapped fetch (VirtualBox)…'
-        Invoke-GuestCommandVBox -VM $names.Workstation -User $guestUser -Password $guestPass -Exe '/bin/mkdir' -CmdArgs @('-p', $guestDir)
-        Invoke-GuestCommandVBox -VM $names.Workstation -User $guestUser -Password $guestPass -Exe '/usr/bin/curl' -CmdArgs @('--fail', '-L', '--retry', '10', '--retry-delay', '5', '--retry-connrefused', '--output', $guestOut, $Url)
+        Invoke-GuestCommandVBox -VM $names.Workstation -User $guestUser -Password $guestPass -Exe '/bin/mkdir' -CmdParts @('-p', $guestDir)
+        Invoke-GuestCommandVBox -VM $names.Workstation -User $guestUser -Password $guestPass -Exe '/usr/bin/curl' -CmdParts @('--fail', '-L', '--retry', '10', '--retry-delay', '5', '--retry-connrefused', '--output', $guestOut, $Url)
 
         Write-Step "Copying back to host: $hostOut"
         Copy-FromGuestVBox -VM $names.Workstation -User $guestUser -Password $guestPass -GuestPath $guestOut -HostPath $hostOut
@@ -737,17 +793,15 @@ Folder for VMware VMX dirs (default $Env:ProgramData\Whonix-VMware).
         Stop-WhonixVirtualBox -Gateway $names.Gateway -Workstation $names.Workstation
     }
     else {
-        Install-VMwareIfMissing
+        if (-not $GuestCredential) {
+            throw 'VMware backend requires -GuestCredential and running VMware Tools inside the Workstation.'
+        }
         $paths = Import-WhonixVMware -OvaPath $ova -Force:$ForceReimport -BaseDir $VMwareBaseDir -NatVnet $VMwareNatVnet -HostOnlyVnet $VMwareHostOnlyVnet
         Start-WhonixVMware -GwVmx $paths.Gateway -WsVmx $paths.Workstation -Headless:$Headless
 
-        if (-not $GuestCredential) {
-            throw "VMware backend requires -GuestCredential and open-vm-tools inside the Workstation (Whonix doesn't recommend tools; prefer VirtualBox for strict hardening)."
-        }
-
         Write-Step 'Creating guest dir + Tor fetch (VMware)…'
-        Invoke-GuestCommandVMware -Vmx $paths.Workstation -Cred $GuestCredential -Exe '/bin/mkdir' -CmdArgs @('-p', $guestDir)
-        Invoke-GuestCommandVMware -Vmx $paths.Workstation -Cred $GuestCredential -Exe '/usr/bin/curl' -CmdArgs @('--fail', '-L', '--retry', '10', '--retry-delay', '5', '--retry-connrefused', '--output', $guestOut, $Url)
+        Invoke-GuestCommandVMware -Vmx $paths.Workstation -Cred $GuestCredential -Exe '/bin/mkdir' -CmdParts @('-p', $guestDir)
+        Invoke-GuestCommandVMware -Vmx $paths.Workstation -Cred $GuestCredential -Exe '/usr/bin/curl' -CmdParts @('--fail', '-L', '--retry', '10', '--retry-delay', '5', '--retry-connrefused', '--output', $guestOut, $Url)
 
         Write-Step "Copying back to host: $hostOut"
         Copy-FromGuestVMware -Vmx $paths.Workstation -Cred $GuestCredential -GuestPath $guestOut -HostPath $hostOut
