@@ -1,3 +1,95 @@
+<#
+.SYNOPSIS
+    Installs and imports PowerShell modules from PSGallery or local cache with progress tracking.
+
+.DESCRIPTION
+    The Install-PSModule function manages PowerShell module installation and loading with features including:
+    
+    - Installation of modules from PSGallery (CurrentUser scope)
+    - Loading modules from local cache directories
+    - Optional removal of all in-memory loaded modules
+    - Optional removal of all local cached modules
+    - Progress bar showing installation status
+    - Automatic fallback from local to PSGallery if not found locally
+    - Safe deletion validation (only removes directories with PowerShell files)
+    
+    The function can install a default set of modules or specific modules provided via parameter.
+    All installations use -Force and -AllowClobber to handle conflicts automatically.
+
+.PARAMETER InstallDefaultPSModules
+    Boolean value ($true/$false) to install a default set of commonly used PowerShell modules.
+    When $true, installs default modules (e.g., PSReadLine).
+    When $false or omitted, only installs modules specified in PSModule parameter.
+
+.PARAMETER PSModule
+    Array of PowerShell module names to install from PSGallery.
+    Each module will be:
+    1. Checked in local cache (LocalModulesDirectory) if specified
+    2. Installed from PSGallery if not found locally
+    3. Imported into the current session
+    
+    Example: @('Pester', 'PSScriptAnalyzer', 'ImportExcel')
+
+.PARAMETER RemoveAllLocalModules
+    Switch to remove all modules from the LocalModulesDirectory before installation.
+    Includes safety check: only deletes if directory contains ONLY PowerShell files (.ps1, .psm1, .psd1).
+    If non-PowerShell files are found, deletion is aborted with an error message.
+    Use with extreme caution as this permanently deletes the local module cache.
+
+.PARAMETER RemoveAllInMemoryModules
+    Switch to unload all currently loaded PowerShell modules before installation.
+    Does not remove 'InstallDependencies' or 'InstallCmdlet' modules.
+    Useful for forcing clean module loads or resolving version conflicts.
+
+.PARAMETER LocalModulesDirectory
+    Directory path to use for local module cache.
+    Defaults to current working directory ($PWD).
+    
+    If specified, the function will:
+    - First check this directory for existing modules
+    - Import from here if found (faster than downloading)
+    - Fall back to PSGallery if not found locally
+    
+    Example: "C:\PSModules" or "$HOME\Documents\PowerShell\Modules"
+
+.EXAMPLE
+    Install-PSModule -PSModule @('Pester', 'PSScriptAnalyzer')
+    
+    Installs and imports Pester and PSScriptAnalyzer from PSGallery.
+
+.EXAMPLE
+    Install-PSModule -InstallDefaultPSModules $true
+    
+    Installs and imports the default set of PowerShell modules (PSReadLine, etc.).
+
+.EXAMPLE
+    Install-PSModule -PSModule @('ImportExcel') -LocalModulesDirectory "C:\PSModules"
+    
+    Checks C:\PSModules for ImportExcel, imports if found, otherwise downloads from PSGallery.
+
+.EXAMPLE
+    Install-PSModule -RemoveAllInMemoryModules -PSModule @('Pester')
+    
+    Unloads all modules, then installs and imports Pester fresh.
+
+.EXAMPLE
+    Install-PSModule -RemoveAllLocalModules -LocalModulesDirectory "C:\TempModules" -PSModule @('PSReadLine')
+    
+    Deletes all cached modules in C:\TempModules (if safe), then installs PSReadLine.
+
+.OUTPUTS
+    None. Modules are installed/imported into the session and progress is displayed.
+    All actions are logged via Write-Logg.
+
+.NOTES
+    - Uses Install-Module with -Scope CurrentUser (no admin rights required)
+    - Progress bar shows installation status for multiple modules
+    - Safe deletion validation prevents accidental data loss
+    - Automatically handles module conflicts with -AllowClobber
+    - Skips publisher check validation for faster installation
+    - Suppresses warnings during installation and import
+    - Requires Write-Logg cmdlet (automatically loaded via Initialize-CmdletDependencies)
+#>
 function Install-PSModule {
     [CmdletBinding()]
     param(
@@ -9,100 +101,24 @@ function Install-PSModule {
     )
 
     process {
-        $FileScriptBlock = ''
-        # (1) Import required cmdlets if missing
-        $neededcmdlets = @(
-            'Write-Logg'
-
-        )
-        foreach ($cmd in $neededcmdlets) {
-            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                    # Retry mechanism for downloading Install-Cmdlet.ps1
-                    $maxRetries = 20
-                    $retryCount = 0
-                    $success = $false
-                    $method = $null
-                    
-                    while (-not $success -and $retryCount -lt $maxRetries) {
-                        try {
-                            $retryCount++
-                            if ($retryCount -gt 1) {
-                                Write-Verbose "Retrying download attempt $retryCount of $maxRetries..."
-                                Start-Sleep -Seconds 5
-                            }
-                            
-                            Write-Verbose "Downloading Install-Cmdlet.ps1 from GitHub (attempt $retryCount)..."
-                            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                            $success = $true
-                            Write-Verbose 'Successfully downloaded Install-Cmdlet.ps1'
-                        }
-                        catch {
-                            Write-Warning "Failed to download Install-Cmdlet.ps1 (attempt $retryCount): $($_.Exception.Message)"
-                            if ($retryCount -eq $maxRetries) {
-                                Write-Error "Failed to download Install-Cmdlet.ps1 after $maxRetries attempts. Please check your internet connection and try again."
-                                throw
-                            }
-                        }
-                    }
-                    
-                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-                }
-                Write-Verbose "Importing cmdlet: $cmd"
-                
-                # Retry mechanism for downloading individual cmdlets
-                $maxCmdletRetries = 20
-                $cmdletRetryCount = 0
-                $cmdletSuccess = $false
-                $scriptBlock = $null
-                
-                while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
-                    try {
-                        $cmdletRetryCount++
-                        if ($cmdletRetryCount -gt 1) {
-                            Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
-                            Start-Sleep -Seconds 5
-                        }
-                        
-                        Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
-                        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-                        $cmdletSuccess = $true
-                        Write-Verbose "Successfully downloaded cmdlet: $cmd"
-                    }
-                    catch {
-                        Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
-                        if ($cmdletRetryCount -eq $maxCmdletRetries) {
-                            Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
-                            Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
-                            exit 1
-                        }
-                    }
-                }
-
-                # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
-                    $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force
-                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-                }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-                }
-                elseif ($($scriptBlock | Get-Item) -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    $FileScriptBlock += $(Get-Content -Path $scriptBlock -Raw) + "`n"
-                    Write-Verbose "Imported $cmd from file: $scriptBlock"
-                }
-                else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                    Write-Warning "Returned: $($scriptBlock)"
-                }
+        # Load shared dependency loader if not already available
+        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+            if (Test-Path $initScript) {
+                . $initScript
+            }
+            else {
+                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+                Write-Warning 'Falling back to direct download'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
             }
         }
-        $finalFileScriptBlock = [scriptblock]::Create($FileScriptBlock.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-        New-Module -Name 'cmdletCollection' -ScriptBlock $finalFileScriptBlock | Import-Module -Force
+        
+        # (1) Import required cmdlets if missing
+        # Load all required cmdlets (replaces 100+ lines of boilerplate)
+        Initialize-CmdletDependencies -RequiredCmdlets @('Write-Logg') -PreferLocal -Force
 
         try {
             # Build a module list

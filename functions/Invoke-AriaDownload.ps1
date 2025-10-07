@@ -155,92 +155,24 @@ function Invoke-AriaDownload {
         $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'
     )
     begin {
-        $neededcmdlets = @('Test-InPath', 'Invoke-AriaRPCDownload')
-        foreach ($cmd in $neededcmdlets) {
-            if (-not (Get-Command -Name $cmd -ErrorAction SilentlyContinue)) {
-                if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-                    # Retry mechanism for downloading Install-Cmdlet.ps1
-                    $maxRetries = 20
-                    $retryCount = 0
-                    $success = $false
-                    $method = $null
-                    
-                    while (-not $success -and $retryCount -lt $maxRetries) {
-                        try {
-                            $retryCount++
-                            if ($retryCount -gt 1) {
-                                Write-Verbose "Retrying download attempt $retryCount of $maxRetries..."
-                                Start-Sleep -Seconds 5
-                            }
-                            
-                            Write-Verbose "Downloading Install-Cmdlet.ps1 from GitHub (attempt $retryCount)..."
-                            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-                            $success = $true
-                            Write-Verbose 'Successfully downloaded Install-Cmdlet.ps1'
-                        }
-                        catch {
-                            Write-Warning "Failed to download Install-Cmdlet.ps1 (attempt $retryCount): $($_.Exception.Message)"
-                            if ($retryCount -eq $maxRetries) {
-                                Write-Error "Failed to download Install-Cmdlet.ps1 after $maxRetries attempts. Please check your internet connection and try again."
-                                throw
-                            }
-                        }
-                    }
-                    
-                    $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-                    New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-                }
-                Write-Verbose "Importing cmdlet: $cmd"
-                
-                # Retry mechanism for downloading individual cmdlets
-                $maxCmdletRetries = 20
-                $cmdletRetryCount = 0
-                $cmdletSuccess = $false
-                $scriptBlock = $null
-                
-                while (-not $cmdletSuccess -and $cmdletRetryCount -lt $maxCmdletRetries) {
-                    try {
-                        $cmdletRetryCount++
-                        if ($cmdletRetryCount -gt 1) {
-                            Write-Verbose "Retrying cmdlet download attempt $cmdletRetryCount of $maxCmdletRetries for $cmd..."
-                            Start-Sleep -Seconds 5
-                        }
-                        
-                        Write-Verbose "Downloading cmdlet: $cmd (attempt $cmdletRetryCount)..."
-                        $scriptBlock = Install-Cmdlet -RepositoryCmdlets $cmd -PreferLocal -Force
-                        $cmdletSuccess = $true
-                        Write-Verbose "Successfully downloaded cmdlet: $cmd"
-                    }
-                    catch {
-                        Write-Warning "Failed to download cmdlet '$cmd' (attempt $cmdletRetryCount): $($_.Exception.Message)"
-                        if ($cmdletRetryCount -eq $maxCmdletRetries) {
-                            Write-Error "CRITICAL ERROR: Failed to download required dependency '$cmd' after $maxCmdletRetries attempts. This cmdlet is required for the script to function properly. Exiting script."
-                            Write-Host "Script execution terminated due to missing critical dependency: $cmd" -ForegroundColor Red
-                            exit 1
-                        }
-                    }
-                }
-
-                # Check if the returned value is a ScriptBlock and import it properly
-                if ($scriptBlock -is [scriptblock]) {
-                    $moduleName = "Dynamic_$cmd"
-                    New-Module -Name $moduleName -ScriptBlock $scriptBlock | Import-Module -Force -Global
-                    Write-Verbose "Imported $cmd as dynamic module: $moduleName"
-                }
-                elseif ($scriptBlock -is [System.Management.Automation.PSModuleInfo]) {
-                    # If a module info was returned, it's already imported
-                    Write-Verbose "Module for $cmd was already imported: $($scriptBlock.Name)"
-                }
-                elseif ($scriptBlock -is [System.IO.FileInfo]) {
-                    # If a file path was returned, import it
-                    Import-Module -Name $scriptBlock.FullName -Force -Global
-                    Write-Verbose "Imported $cmd from file: $($scriptBlock.FullName)"
-                }
-                else {
-                    Write-Warning "Could not import $cmd`: Unexpected return type from Install-Cmdlet"
-                }
+        # Load shared dependency loader if not already available
+        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
+            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+            if (Test-Path $initScript) {
+                . $initScript
+            }
+            else {
+                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
+                Write-Warning 'Falling back to direct download'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
             }
         }
+        
+        # Load all required cmdlets (replaces 80+ lines of boilerplate)
+        Initialize-CmdletDependencies -RequiredCmdlets @('Test-InPath', 'Invoke-AriaRPCDownload') -PreferLocal -Force
+
         # Ensure aria2c is in the PATH
         if (-not (Test-Path -Path $Aria2cExePath)) {
             $IsInPATH = Test-InPath -ExeName 'aria2c.exe'

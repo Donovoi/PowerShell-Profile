@@ -1,4 +1,64 @@
-﻿function Get-EnvironmentVariable {
+﻿<#
+.SYNOPSIS
+    Retrieves the value of an environment variable from a specified scope.
+
+.DESCRIPTION
+    Gets the value of an environment variable from User, Machine, or Process scope.
+    Supports variable expansion (preserving or expanding embedded variables like %PATH%).
+    Provides direct registry access for User and Machine scopes for reliability.
+
+.PARAMETER Name
+    The name of the environment variable to retrieve (e.g., 'PATH', 'TEMP', 'USERNAME').
+
+.PARAMETER Scope
+    The scope from which to retrieve the environment variable.
+    Valid values:
+    - User: Current user environment variables
+    - Machine: System-wide environment variables
+    - Process: Current process environment variables
+
+.PARAMETER PreserveVariables
+    If specified, returns the raw variable value without expanding embedded variables.
+    For example, if PATH contains '%SystemRoot%\System32', with PreserveVariables it returns
+    the literal string, without it returns 'C:\Windows\System32'.
+    Default is $false (variables are expanded).
+
+.PARAMETER ignoredArguments
+    Allows splatting with additional parameters that will be ignored.
+
+.EXAMPLE
+    Get-EnvironmentVariable -Name 'PATH' -Scope User
+    
+    Returns the PATH environment variable for the current user.
+
+.EXAMPLE
+    Get-EnvironmentVariable -Name 'TEMP' -Scope Process
+    
+    Returns the TEMP directory for the current process.
+
+.EXAMPLE
+    Get-EnvironmentVariable -Name 'PSModulePath' -Scope Machine
+    
+    Returns the system-wide PowerShell module path.
+
+.EXAMPLE
+    Get-EnvironmentVariable -Name 'PATH' -Scope User -PreserveVariables
+    
+    Returns the raw PATH value without expanding variables like %SystemRoot%.
+
+.OUTPUTS
+    System.String
+    
+    The value of the environment variable, or empty string if not found.
+
+.NOTES
+    Machine scope requires administrator privileges for write access.
+    Uses direct registry access for User and Machine scopes.
+    Registry keys:
+    - User: HKCU:\Environment
+    - Machine: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment
+#>
+function Get-EnvironmentVariable {
     [CmdletBinding()]
     [OutputType([string])]
     param(

@@ -1,3 +1,62 @@
+<#
+.SYNOPSIS
+    Writes colored information messages to the information stream.
+
+.DESCRIPTION
+    Writes messages to the PowerShell information stream with custom foreground and background colors.
+    Provides better visibility than standard Write-Information by supporting colored output.
+    Can also list all available console colors.
+
+.PARAMETER MessageData
+    The message text to display. This is the actual content that will be written.
+
+.PARAMETER ForegroundColor
+    The text color. Valid values are standard console colors (e.g., 'White', 'Green', 'Red', 'Yellow').
+    Default is 'White'.
+
+.PARAMETER BackgroundColor
+    The background color. Valid values are standard console colors.
+    Default is 'Black'.
+
+.PARAMETER NoNewline
+    If specified, does not add a newline character after the message.
+    Useful for building output on a single line.
+
+.PARAMETER ListColors
+    When specified, displays a list of all available console colors with examples.
+    This parameter belongs to a separate parameter set and cannot be used with MessageData.
+
+.EXAMPLE
+    Write-InformationColored -MessageData 'Success!' -ForegroundColor Green
+    
+    Writes 'Success!' in green text on black background.
+
+.EXAMPLE
+    Write-InformationColored -MessageData 'Warning!' -ForegroundColor Yellow -BackgroundColor Red
+    
+    Writes 'Warning!' in yellow text on red background.
+
+.EXAMPLE
+    Write-InformationColored -ListColors
+    
+    Displays all available console colors.
+
+.EXAMPLE
+    Write-InformationColored 'Processing' -NoNewline
+    # Do some work...
+    Write-InformationColored ' Complete!' -ForegroundColor Green
+    
+    Builds output on single line: 'Processing Complete!' (with 'Complete!' in green).
+
+.OUTPUTS
+    System.Management.Automation.InformationRecord
+    
+    Writes to the information stream which can be captured with -InformationVariable.
+
+.NOTES
+    Uses VT100 escape sequences for color formatting.
+    Requires PowerShell 5.1+ for information stream support.
+#>
 function Write-InformationColored {
     [CmdletBinding(DefaultParameterSetName = 'DisplayMessage')]
     param (
