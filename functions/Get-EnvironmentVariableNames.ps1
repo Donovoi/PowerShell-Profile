@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Retrieves the names of all environment variables in a specified scope.
 
@@ -49,6 +49,7 @@
     Process scope returns all variables currently in the process environment.
 #>
 function Get-EnvironmentVariableNames([System.EnvironmentVariableTarget] $Scope) {
+    [OutputType([string[]])]
     switch ($Scope) {
         'User' {
             Get-Item 'HKCU:\Environment' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property

@@ -42,6 +42,7 @@ This example writes a warning message to the specified log file but does not dis
 #>
 function Write-Logg {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory = $true)]
         [string]

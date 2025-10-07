@@ -1,6 +1,95 @@
 function Initialize-CmdletDependencies {
     <#
     .SYNOPSIS
+        Loads required cmdlets from the Cmdlets folder.
+    
+    .DESCRIPTION
+        This function loads specified cmdlets if they are not already available in the session.
+        It searches for cmdlet files in the same directory as the calling script.
+    
+    .PARAMETER RequiredCmdlets
+        Array of cmdlet names to load (without .ps1 extension).
+    
+    .PARAMETER PreferLocal
+        If specified, prefers loading from local files over already-loaded functions.
+    
+    .PARAMETER Force
+        If specified, forces reload of cmdlets even if already loaded.
+    
+    .EXAMPLE
+        Initialize-CmdletDependencies -RequiredCmdlets @('Write-Logg', 'Get-FileDownload')
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$RequiredCmdlets,
+        
+        [switch]$PreferLocal,
+        
+        [switch]$Force
+    )
+    
+    try {
+        # Determine the Cmdlets folder path using call stack
+        $callStack = Get-PSCallStack -ErrorAction SilentlyContinue | Where-Object ScriptName -ErrorAction SilentlyContinue | Select-Object -First 1 -ErrorAction SilentlyContinue
+        
+        if ($callStack -and $callStack.ScriptName) {
+            # Get the directory of the calling script
+            $callerDir = Split-Path -Path $callStack.ScriptName -Parent
+            # If we're in the Cmdlets folder, use it; otherwise try to find it
+            if ($callerDir -like '*\Cmdlets') {
+                $cmdletsFolder = $callerDir
+            }
+            else {
+                # Try to find Cmdlets folder relative to caller
+                $cmdletsFolder = Join-Path (Split-Path $callerDir -Parent) 'Cmdlets' -ErrorAction SilentlyContinue
+                if (-not (Test-Path $cmdletsFolder -ErrorAction SilentlyContinue)) {
+                    $cmdletsFolder = Join-Path $callerDir 'Cmdlets' -ErrorAction SilentlyContinue
+                }
+            }
+        }
+        else {
+            # Fallback: assume we're being called from within Cmdlets folder
+            $cmdletsFolder = $PSScriptRoot
+            if (-not $cmdletsFolder) {
+                $cmdletsFolder = $PWD.Path
+            }
+        }
+        
+        Write-Verbose "Initialize-CmdletDependencies: Using cmdlets folder: $cmdletsFolder"
+        
+        foreach ($cmdletName in $RequiredCmdlets) {
+            # Skip if already loaded and not forcing reload
+            if (-not $Force -and (Get-Command -Name $cmdletName -ErrorAction SilentlyContinue)) {
+                Write-Verbose "Cmdlet '$cmdletName' already loaded, skipping"
+                continue
+            }
+            
+            # Build the expected file path
+            $cmdletFile = Join-Path $cmdletsFolder "$cmdletName.ps1"
+            
+            if (Test-Path $cmdletFile -ErrorAction SilentlyContinue) {
+                Write-Verbose "Loading cmdlet from: $cmdletFile"
+                try {
+                    . $cmdletFile
+                    Write-Verbose "Successfully loaded cmdlet: $cmdletName"
+                }
+                catch {
+                    Write-Warning "Failed to load cmdlet '$cmdletName' from '$cmdletFile': $($_.Exception.Message)"
+                }
+            }
+            else {
+                Write-Warning "Cmdlet file not found: $cmdletFile"
+            }
+        }
+    }
+    catch {
+        Write-Warning "Initialize-CmdletDependencies failed: $($_.Exception.Message)"
+    }
+}
+function Initialize-CmdletDependencies {
+    <#
+    .SYNOPSIS
         Loads required cmdlets for PowerShell scripts with automatic download and retry logic.
     
     .DESCRIPTION

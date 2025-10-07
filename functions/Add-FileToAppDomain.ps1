@@ -61,6 +61,7 @@
 #>
 function Add-FileToAppDomain {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory = $true, HelpMessage = 'The base path to load files from.')]
         [ValidateNotNull()]

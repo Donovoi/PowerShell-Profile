@@ -37,7 +37,8 @@
 
 
 function Show-TUIConfirmationDialog {
-    [cmdletbinding()]
+    [CmdletBinding()]
+    [OutputType([bool])]
     param (
         [string]$Title,
         [string]$Question,
