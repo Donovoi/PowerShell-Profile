@@ -131,7 +131,7 @@ Oracle VBoxManage manual (guestcontrol/guestproperty): https://www.virtualbox.or
             & winget install --id Oracle.VirtualBox --accept-package-agreements --accept-source-agreements --silent | Out-Null
         }
     }
-    function Ensure-VirtualBoxInstalled {
+    function Initialize-VirtualBox {
         Write-Step 'Ensuring VirtualBox is installed…'
         if (-not (Test-VirtualBoxInstalled)) {
             Install-VirtualBox 
@@ -344,7 +344,7 @@ Oracle VBoxManage manual (guestcontrol/guestproperty): https://www.virtualbox.or
     $cache = Join-Path $env:ProgramData 'WhonixCache'
     New-Item -ItemType Directory -Force -Path $cache | Out-Null
 
-    Ensure-VirtualBoxInstalled
+    Initialize-VirtualBox
     $script:VBoxManage = Get-VBoxManagePath
 
     $links = Get-WhonixLatestOva -OverrideUrl:$WhonixOvaUrl  # discovery from Whonix page
