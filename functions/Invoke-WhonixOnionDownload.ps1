@@ -102,30 +102,63 @@ function Invoke-WhonixOnionDownload {
         }
 
         function Resolve-WhonixOva {
+            # First, check if we already have cached files
+            $CachedOva = Get-ChildItem -LiteralPath $CacheDir -Filter 'Whonix-*.ova' -ErrorAction SilentlyContinue | 
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            $CachedSha = Get-ChildItem -LiteralPath $CacheDir -Filter 'Whonix-*.ova.sha512sums' -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            
+            if ($CachedOva -and $CachedSha) {
+                V "[OK] Using cached OVA and SHA file: $($CachedOva.Name)"
+                # Return fake URLs since we'll use cached files
+                [pscustomobject]@{ 
+                    OvaUrl = "file:///$($CachedOva.FullName -replace '\\','/')"
+                    ShaUrl = "file:///$($CachedSha.FullName -replace '\\','/')"
+                    Cached = $true
+                }
+                return
+            }
+            
             $Pages = @('https://www.whonix.org/wiki/VirtualBox/OVA', 'https://www.whonix.org/wiki/Downloads')
             $OvaUrl = $null; $ShaUrl = $null
             foreach ($p in $Pages) {
                 try {
-                    $Tmp = Join-Path $CacheDir ('index_' + [IO.Path]::GetFileNameWithoutExtension([Uri]$p) + '.html')
+                    $Tmp = Join-Path $CacheDir ('index_' + [IO.Path]::GetFileNameWithoutExtension([Uri]$p.AbsolutePath) + '.html')
                     Invoke-Download -Uri $p -OutFile $Tmp | Out-Null
                     $Html = Get-Content -LiteralPath $Tmp -Raw
+                    
+                    # Try multiple regex patterns to match various URL formats
                     if (-not $OvaUrl) {
-                        $OvaUrl = [regex]::Match($Html, 'https?://\S+?Whonix-(?:Xfce|CLI)-\d[\w\.\-]*\.ova').Value 
+                        # Pattern 1: Standard https://domain/path/Whonix-*.ova
+                        $OvaUrl = [regex]::Match($Html, 'https?://[^\s"''<>]+?Whonix-(?:Xfce|CLI)-[\d\.]+\.(?:Intel_)?AMD64\.ova(?=\s|"|''|<|$)').Value
+                        if (-not $OvaUrl) {
+                            # Pattern 2: Any .ova link with Whonix in the name
+                            $OvaUrl = [regex]::Matches($Html, 'https?://[^\s"''<>]+?Whonix[^\s"''<>]*?\.ova(?=\s|"|''|<|$)') | 
+                                Where-Object { $_.Value -match '(?:Xfce|CLI)' } | 
+                                    Select-Object -First 1 -ExpandProperty Value
+                        }
                     }
                     if (-not $ShaUrl) {
-                        $ShaUrl = [regex]::Match($Html, 'https?://\S+?Whonix-(?:Xfce|CLI)-\d[\w\.\-]*\.ova\.sha512sums').Value 
+                        # Pattern 1: Standard .ova.sha512sums
+                        $ShaUrl = [regex]::Match($Html, 'https?://[^\s"''<>]+?Whonix-(?:Xfce|CLI)-[\d\.]+\.(?:Intel_)?AMD64\.ova\.sha512sums(?=\s|"|''|<|$)').Value
+                        if (-not $ShaUrl) {
+                            # Pattern 2: Any .sha512sums with Whonix
+                            $ShaUrl = [regex]::Matches($Html, 'https?://[^\s"''<>]+?Whonix[^\s"''<>]*?\.sha512sums(?=\s|"|''|<|$)') |
+                                Select-Object -First 1 -ExpandProperty Value
+                        }
                     }
                     if ($OvaUrl -and $ShaUrl) {
                         break 
                     }
                 }
                 catch {
+                    V "[WARN] Failed to scrape $p : $_"
                 }
             }
             if (-not $OvaUrl -or -not $ShaUrl) {
-                throw 'Failed to locate Whonix OVA + .sha512sums.' 
+                throw 'Failed to locate Whonix OVA + .sha512sums URLs. Try manually downloading from https://www.whonix.org/wiki/Download and placing in cache directory.' 
             }
-            [pscustomobject]@{ OvaUrl = $OvaUrl; ShaUrl = $ShaUrl }
+            [pscustomobject]@{ OvaUrl = $OvaUrl; ShaUrl = $ShaUrl; Cached = $false }
         }
 
         function Test-FileSha512 {
@@ -339,15 +372,32 @@ fi
         # 1) Resolve/cached OVA and verify
         V '[*] Locating latest Whonix OVA…'
         $Links = Resolve-WhonixOva
-        $OvaPath = Join-Path $CacheDir (Split-Path -Leaf $Links.OvaUrl)
-        $ShaPath = Join-Path $CacheDir (Split-Path -Leaf $Links.ShaUrl)
-        if (-not (Test-Path $OvaPath)) {
-            Invoke-Download -Uri $Links.OvaUrl -OutFile $OvaPath | Out-Null 
+        
+        if ($Links.Cached) {
+            # Using cached files
+            $OvaPath = $Links.OvaUrl -replace '^file:////', '' -replace '/', '\'
+            $ShaPath = $Links.ShaUrl -replace '^file:////', '' -replace '/', '\'
         }
         else {
-            V "[OK] Using cached OVA: $OvaPath" 
+            # Download from URLs
+            $OvaPath = Join-Path $CacheDir (Split-Path -Leaf ([Uri]$Links.OvaUrl).AbsolutePath)
+            $ShaPath = Join-Path $CacheDir (Split-Path -Leaf ([Uri]$Links.ShaUrl).AbsolutePath)
+            
+            if (-not (Test-Path $OvaPath)) {
+                Invoke-Download -Uri $Links.OvaUrl -OutFile $OvaPath | Out-Null 
+            }
+            else {
+                V "[OK] Using cached OVA: $OvaPath" 
+            }
+            
+            if (-not (Test-Path $ShaPath)) {
+                Invoke-Download -Uri $Links.ShaUrl -OutFile $ShaPath | Out-Null
+            }
+            else {
+                V "[OK] Using cached SHA file: $ShaPath"
+            }
         }
-        Invoke-Download -Uri $Links.ShaUrl -OutFile $ShaPath | Out-Null
+        
         Test-FileSha512 -File $OvaPath -ShaFile $ShaPath
 
         $User = $GuestCredential.UserName
