@@ -2,9 +2,10 @@ function Invoke-WinGetConfiguration {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateSet('VirtualBox', 'VMware')] [string]$Backend,
-        [string]$ConfigFile,
-        [int]$TimeoutSec = 900,
-        [switch]$SkipApplyForVMware # default behavior: do NOT apply for VMware
+        [string]$ConfigFile,                     # optional override
+        [int]$TimeoutSec = 900,                  # hard stop at 15 min default
+        [switch]$WhatIfOnly,                     # dry-run
+        [switch]$SkipApplyForVMware              # <-- if present, skip apply for VMware
     )
     $ErrorActionPreference = 'Stop'
     $cache = Join-Path $env:ProgramData 'WhonixCache'
@@ -17,34 +18,33 @@ function Invoke-WinGetConfiguration {
 # yaml-language-server: \$schema=https://aka.ms/configuration-dsc-schema/0.2
 properties:
   resources:
-    - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: OracleVirtualBox
-      directives:
-        description: Ensure Oracle VirtualBox is installed
-        securityContext: elevated
-      settings:
-        id: Oracle.VirtualBox
-        source: winget
+  - resource: Microsoft.WinGet.DSC/WinGetPackage
+    id: VirtualBox
+    directives:
+      description: Ensure Oracle VirtualBox is installed
+      securityContext: elevated
+    settings:
+      id: Oracle.VirtualBox
+      source: winget
   configurationVersion: 0.2.0
-"@ | Set-Content -LiteralPath $ConfigFile -Encoding UTF8
+"@ | Set-Content -Encoding UTF8 -Path $ConfigFile
         }
         else {
-            # VMware: validate & test only (no apply). Script resource only asserts presence.
             $ConfigFile = Join-Path $cache 'whonix.vmware.dsc.yaml'
             @"
 # yaml-language-server: \$schema=https://aka.ms/configuration-dsc-schema/0.2
 properties:
   resources:
-    - resource: PSDscResources/Script
-      id: CheckVmwareTooling
-      directives:
-        description: Assert vmrun.exe and ovftool.exe are present on PATH
-      settings:
-        GetScript:  '@{ Vmrun = (Get-Command vmrun -EA SilentlyContinue | % Source); OvfTool = (Get-Command ovftool -EA SilentlyContinue | % Source) }'
-        TestScript: '(Get-Command vmrun -EA SilentlyContinue) -and (Get-Command ovftool -EA SilentlyContinue)'
-        SetScript:  'Write-Verbose "Nothing to set; install VMware Workstation/Player and VMware OVF Tool from vendor sources if missing."'
+  - resource: PSDscResources/Script
+    id: CheckVmwareTooling
+    directives:
+      description: Assert vmrun.exe and ovftool.exe are present on PATH
+    settings:
+      TestScript:  '(Get-Command vmrun -EA SilentlyContinue) -and (Get-Command ovftool -EA SilentlyContinue)'
+      GetScript:   '@{ Vmrun = (Get-Command vmrun -EA SilentlyContinue | % Source); OvfTool = (Get-Command ovftool -EA SilentlyContinue | % Source) }'
+      SetScript:   'Write-Verbose "Nothing to set; install VMware Workstation/Player and VMware OVF Tool from vendor sources if missing."'
   configurationVersion: 0.2.0
-"@ | Set-Content -LiteralPath $ConfigFile -Encoding UTF8
+"@ | Set-Content -Encoding UTF8 -Path $ConfigFile
         }
     }
 
@@ -56,22 +56,18 @@ properties:
 
     Write-Verbose '[*] Testing DSC (drift is OK)…'
     & winget configure test -f $ConfigFile --disable-interactivity --verbose-logs | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        # On VMware we only *check* tools; treat test!=0 as an informative failure and continue to tool probing.
-        if ($Backend -eq 'VMware') {
-            Write-Verbose "[!] DSC test reported drift for VMware tooling (vmrun/ovftool not found on PATH). We'll probe known install paths next."
-        }
-        else {
-            throw 'winget configure test indicates drift or an error.'
-        }
+    # Do NOT throw on test drift; we’ll handle probing ourselves.
+
+    if ($WhatIfOnly) {
+        return 
     }
 
-    if ($Backend -eq 'VMware' -and -not $SkipApplyForVMware.IsPresent) {
+    # Skip apply for VMware when requested (this was backwards before)
+    if ($Backend -eq 'VMware' -and $SkipApplyForVMware.IsPresent) {
         Write-Verbose '[*] Skipping DSC apply for VMware (intentional).'
         return
     }
 
-    # Apply (VirtualBox only, unless user explicitly opts in for VMware)
     Write-Verbose "[*] Applying WinGet/DSC configuration: $ConfigFile"
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = 'winget.exe'
@@ -87,7 +83,7 @@ properties:
         }
         catch {
         }
-        throw "winget configure timed out after $TimeoutSec seconds."
+        throw "winget configure timed out after $TimeoutSec s."
     }
     if ($p.ExitCode -ne 0) {
         $out = $p.StandardOutput.ReadToEnd()
@@ -96,6 +92,7 @@ properties:
     }
     Write-Verbose '[OK] DSC apply completed.'
 }
+
 
 function Invoke-WhonixOnionDownload {
     <#
@@ -510,44 +507,83 @@ Folder for VMware VMX directories (default $Env:ProgramData\Whonix-VMware).
     $script:Vmrun = $null
     $script:Ovftool = $null
     function Resolve-VMwareTooling {
-        # First, PATH
-        $vmr = Get-Command vmrun.exe -ErrorAction SilentlyContinue
-        $ovf = Get-Command ovftool.exe -ErrorAction SilentlyContinue
+        [CmdletBinding()]
+        param()
 
-        # If ovftool missing, check common Workstation subfolder (OVFTool)
+        Write-Verbose '[*] Resolving vmrun.exe & ovftool.exe…'
+
+        $vmrun = (Get-Command vmrun.exe -EA SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
+        $ovf = (Get-Command ovftool.exe -EA SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
+
+        # Probe common install roots (both 64-bit and 32-bit program files)
+        $roots = @(${env:ProgramFiles}, ${env:ProgramFiles(x86)}) | Where-Object { $_ -and (Test-Path $_) }
+
+        $vmrunCandidates = foreach ($r in $roots) {
+            Join-Path $r 'VMware\VMware Workstation\vmrun.exe'
+        }
+        $ovfCandidates = foreach ($r in $roots) {
+            Join-Path $r 'VMware\VMware OVF Tool\ovftool.exe'
+            Join-Path $r 'VMware\VMware Workstation\OVFTool\ovftool.exe'
+        }
+
+        if (-not $vmrun) {
+            $vmrun = ($vmrunCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1)
+        }
         if (-not $ovf) {
-            $candidates = @(
-                "$Env:ProgramFiles\VMware\VMware OVF Tool\ovftool.exe",
-                "$Env:ProgramFiles(x86)\VMware\VMware OVF Tool\ovftool.exe",
-                "$Env:ProgramFiles\VMware\VMware Workstation\OVFTool\ovftool.exe",
-                "$Env:ProgramFiles(x86)\VMware\VMware Workstation\OVFTool\ovftool.exe"
-            )
-            foreach ($p in $candidates) {
-                if (Test-Path $p) {
-                    $ovf = Get-Item $p; break 
-                } 
+            $ovf = ($ovfCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1)
+        }
+
+        # Registry fallbacks for InstallPath
+        if (-not $vmrun) {
+            foreach ($k in @(
+                    'HKLM:\SOFTWARE\WOW6432Node\VMware, Inc.\VMware Workstation',
+                    'HKLM:\SOFTWARE\VMware, Inc.\VMware Workstation'
+                )) {
+                try {
+                    $ip = (Get-ItemProperty -Path $k -Name InstallPath -EA Stop).InstallPath
+                    $probe = Join-Path $ip 'vmrun.exe'
+                    if (Test-Path $probe) {
+                        $vmrun = $probe; break 
+                    }
+                }
+                catch {
+                }
             }
-            if ($ovf) {
-                $env:Path += ';' + (Split-Path -Parent $ovf.FullName) 
+        }
+        if (-not $ovf) {
+            foreach ($k in @(
+                    'HKLM:\SOFTWARE\WOW6432Node\VMware, Inc.\VMware OVF Tool',
+                    'HKLM:\SOFTWARE\VMware, Inc.\VMware OVF Tool'
+                )) {
+                try {
+                    $ip = (Get-ItemProperty -Path $k -Name InstallPath -EA Stop).InstallPath
+                    $probe = Join-Path $ip 'ovftool.exe'
+                    if (Test-Path $probe) {
+                        $ovf = $probe; break 
+                    }
+                }
+                catch {
+                }
             }
         }
 
-        if (-not $vmr) {
-            $vmr = Get-Command "$Env:ProgramFiles(x86)\VMware\VMware Workstation\vmrun.exe" -ErrorAction SilentlyContinue 
-        }
-        if (-not $vmr) {
-            $vmr = Get-Command "$Env:ProgramFiles\VMware\VMware Workstation\vmrun.exe" -ErrorAction SilentlyContinue 
+        if (-not $vmrun -or -not $ovf) {
+            throw "VMware tooling missing. vmrun: '$vmrun' ovftool: '$ovf'. Install VMware Workstation/Player and VMware OVF Tool, or add their folders to PATH."
         }
 
-        if (-not $vmr -or -not $ovf) {
-            throw 'VMware tooling missing. Ensure vmrun.exe and ovftool.exe are installed and on PATH.' 
+        # Put their folders on PATH for child processes this session
+        foreach ($full in @($vmrun, $ovf)) {
+            $dir = Split-Path -Parent $full
+            if (-not ($env:Path -split ';' | Where-Object { $_ -ieq $dir })) {
+                $env:Path += ';' + $dir
+            }
         }
 
-        $script:Vmrun = $vmr.Source
-        $script:Ovftool = $ovf.FullName
-        Write-Ok "vmrun:  $($script:Vmrun)"
-        Write-Ok "ovftool: $($script:Ovftool)"
+        $script:Vmrun = $vmrun
+        $script:Ovftool = $ovf
+        Write-Verbose ("[OK] vmrun: {0}`n[OK] ovftool: {1}" -f $vmrun, $ovf)
     }
+
     function Invoke-Vmrun([string[]]$Parts) {
         $out = & $script:Vmrun @Parts 2>&1
         if ($LASTEXITCODE -ne 0) {
