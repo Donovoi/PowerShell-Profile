@@ -1,57 +1,45 @@
 function Invoke-WhonixOnionDownload {
     <#
 .SYNOPSIS
-    Fetch Whonix OVA (including via an .onion landing page), verify SHA-512, and import for VMware or VirtualBox.
+  Provision Whonix (Gateway + Workstation), then download a target URL *from inside the Workstation over Tor* and copy it back to the host.
 
 .DESCRIPTION
-    - If -Url points to a landing page (HTML), the function scrapes the first .ova and matching .sha512sums link.
-    - Downloads to a shared cache (defaults to C:\ProgramData\WhonixCache).
-    - Verifies the OVA against the published SHA-512.
-    - Backend 'VMware': tries ovftool (direct OVA→VMX). On failure, falls back to a *VBox extract → VMX synthesize* path.
-    - Backend 'VirtualBox': imports both VSYS with explicit basefolders and disk filenames (idempotent / collision-proof).
+  - Finds the latest Whonix OVA & .sha512sums on whonix.org, caches them, verifies SHA-512.
+  - Imports the unified OVA:
+      * VirtualBox: dual-VSYS import with per-VSYS EULA, unique basefolders, explicit disk names,
+        and enforced NIC topology (GW: NAT + intnet; WS: intnet) so WS routes via GW → Tor.
+      * VMware: ovftool OVA→VMX (argument array, --lax). Requires open-vm-tools in the Workstation for guest exec/copy.
+  - Boots Gateway then Workstation, waits for guest tools on WS.
+  - Runs a Tor-aware fetch inside WS (prefers scurl → torsocks curl → curl).
+  - Copies the downloaded file back to OutputDir.
+  - Powers off VMs unless -KeepRunning is set.
 
 .PARAMETER Url
-    Either the direct OVA URL or a landing page that contains links to the .ova and .sha512sums.
+  The URL to fetch *inside* Whonix-Workstation (supports .onion or clearnet).
 
 .PARAMETER OutputDir
-    Destination folder for created VMs / artifacts (VMware .vmx folders or VirtualBox basefolders). Created if needed.
+  Local directory (host) for result file and default VM folders.
 
 .PARAMETER Backend
-    'VMware' or 'VirtualBox'. Defaults to 'VMware'.
-
-.PARAMETER Proxy
-    Optional HTTP proxy (e.g., http://127.0.0.1:8118) for .onion access via Privoxy/Tor or other proxies.
+  'VirtualBox' or 'VMware'. Default: 'VMware'.
 
 .PARAMETER CacheDir
-    Download/cache directory. Defaults to C:\ProgramData\WhonixCache.
+  Cache directory for OVA and artifacts. Default: C:\ProgramData\WhonixCache
 
 .PARAMETER GuestCredential
-    Reserved for future automation steps inside the guest(s). Not used by this importer.
+  Linux credentials for guest operations (e.g., 'user' / your password).
 
-.EXAMPLE
-    Invoke-WhonixOnionDownload -Url 'http://example.onion/' -OutputDir 'C:\VMs' -Verbose -Backend VMware
-
-.NOTES
-    Requires: PowerShell 5.1+ or 7+, VirtualBox (if using VBox path), VMware Workstation (if using VMware path).
+.PARAMETER KeepRunning
+  Leave VMs running after completion.
 #>
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param(
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Url,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$OutputDir,
-
-        [ValidateSet('VMware', 'VirtualBox')]
-        [string]$Backend = 'VMware',
-
-        [string]$Proxy,
-
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Url,
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OutputDir,
+        [ValidateSet('VMware', 'VirtualBox')][string]$Backend = 'VMware',
         [string]$CacheDir = 'C:\ProgramData\WhonixCache',
-
-        [System.Management.Automation.PSCredential]$GuestCredential
+        [Parameter(Mandatory)][System.Management.Automation.PSCredential]$GuestCredential,
+        [switch]$KeepRunning
     )
 
     begin {
@@ -62,358 +50,371 @@ function Invoke-WhonixOnionDownload {
         if (-not (Test-Path $CacheDir)) {
             New-Item -ItemType Directory -Path $CacheDir | Out-Null 
         }
-
-        function Write-Log([string]$msg) {
-            Write-Verbose $msg 
+        function V([string]$m) {
+            Write-Verbose $m 
         }
 
-        function Get-ToolPath {
-            param([Parameter(Mandatory)][ValidateSet('VBoxManage', 'Ovftool', 'Vmrun')]$Name)
+        function Get-Tool {
+            param([ValidateSet('VBoxManage', 'Ovftool', 'Vmrun')]$Name)
             switch ($Name) {
                 'VBoxManage' {
-                    # VirtualBox sets VBOX_MSI_INSTALL_PATH
-                    $p = Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe'
-                    if (-not $p -or -not (Test-Path $p)) {
-                        # Fall back to standard Program Files locations
-                        $cands = @(
-                            "$env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe",
-                            "$env:ProgramFiles(x86)\Oracle\VirtualBox\VBoxManage.exe"
-                        )
-                        $p = $cands | Where-Object { Test-Path $_ } | Select-Object -First 1
+                    $Candidate = @(
+                        Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe',
+                        "$env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe",
+                        "$env:ProgramFiles(x86)\Oracle\VirtualBox\VBoxManage.exe"
+                    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+                    if (-not $Candidate) {
+                        throw 'VBoxManage.exe not found (install VirtualBox).' 
                     }
-                    if (-not $p) {
-                        throw 'VBoxManage.exe not found. Please install VirtualBox.' 
-                    }
-                    return $p
+                    $Candidate
                 }
                 'Ovftool' {
-                    $cands = @(
+                    $Candidate = @(
                         "$env:ProgramFiles(x86)\VMware\VMware Workstation\OVFTool\ovftool.exe",
                         "$env:ProgramFiles\VMware\VMware Workstation\OVFTool\ovftool.exe"
-                    )
-                    $p = $cands | Where-Object { Test-Path $_ } | Select-Object -First 1
-                    if (-not $p) {
-                        throw 'ovftool.exe not found. Install VMware Workstation (OVF Tool).' 
+                    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+                    if (-not $Candidate) {
+                        throw 'ovftool.exe not found (install VMware Workstation / OVF Tool).' 
                     }
-                    return $p
+                    $Candidate
                 }
                 'Vmrun' {
-                    $cands = @(
+                    $Candidate = @(
                         "$env:ProgramFiles(x86)\VMware\VMware Workstation\vmrun.exe",
                         "$env:ProgramFiles\VMware\VMware Workstation\vmrun.exe"
-                    )
-                    $p = $cands | Where-Object { Test-Path $_ } | Select-Object -First 1
-                    if (-not $p) {
-                        throw 'vmrun.exe not found. Install VMware Workstation.' 
+                    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+                    if (-not $Candidate) {
+                        throw 'vmrun.exe not found (install VMware Workstation).' 
                     }
-                    return $p
+                    $Candidate
                 }
             }
         }
 
         function Invoke-Download {
-            param(
-                [Parameter(Mandatory)][string]$Uri,
-                [Parameter(Mandatory)][string]$OutFile
-            )
-            Write-Log "[*] Downloading: $Uri"
-            $params = @{
-                Uri                = $Uri
-                OutFile            = $OutFile
-                UseBasicParsing    = $true
-                MaximumRedirection = 5
-            }
-            if ($Proxy) {
-                $params['Proxy'] = $Proxy 
-            }
-            Invoke-WebRequest @params | Out-Null
+            param([Parameter(Mandatory)][string]$Uri, [Parameter(Mandatory)][string]$OutFile)
+            V "[*] Downloading: $Uri"
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -MaximumRedirection 10 | Out-Null
             if (-not (Test-Path $OutFile)) {
                 throw "Download failed: $Uri" 
             }
-            return $OutFile
+            $OutFile
         }
 
-        function Get-LinksFromPage {
-            param([Parameter(Mandatory)][string]$PageUrl)
-            $tmp = Join-Path $CacheDir 'index.html'
-            Invoke-Download -Uri $PageUrl -OutFile $tmp | Out-Null
-            $html = Get-Content -LiteralPath $tmp -Raw -ErrorAction Stop
-            # Very lightweight scrape for first .ova and .sha512sums
-            $ova = [regex]::Match($html, '(https?://\S+?\.ova)').Value
-            if (-not $ova) {
-                $ova = [regex]::Match($html, '(http://\S+?\.ova)').Value 
-            } # allow http for onion proxies
-            $sha = [regex]::Match($html, '(https?://\S+?\.sha512sums)').Value
-            if (-not $sha) {
-                $sha = [regex]::Match($html, '(http://\S+?\.sha512sums)').Value 
-            }
-            if (-not $ova -or -not $sha) {
-                throw "Could not locate .ova and .sha512sums links on page: $PageUrl" 
-            }
-            [pscustomobject]@{ OvaUrl = $ova; ShaUrl = $sha }
-        }
-
-        function Resolve-OvaAndSha {
-            param([Parameter(Mandatory)][string]$InputUrl)
-            if ($InputUrl -match '\.ova($|\?)') {
-                # Direct OVA link; try to guess sha512sums by same directory listing
-                $base = Split-Path -Path $InputUrl -Parent
-                [pscustomobject]@{
-                    OvaUrl = $InputUrl
-                    ShaUrl = "$base/$(Split-Path -Leaf $InputUrl).sha512sums"
+        function Resolve-WhonixOva {
+            $Pages = @('https://www.whonix.org/wiki/VirtualBox/OVA', 'https://www.whonix.org/wiki/Downloads')
+            $OvaUrl = $null; $ShaUrl = $null
+            foreach ($p in $Pages) {
+                try {
+                    $Tmp = Join-Path $CacheDir ('index_' + [IO.Path]::GetFileNameWithoutExtension([Uri]$p) + '.html')
+                    Invoke-Download -Uri $p -OutFile $Tmp | Out-Null
+                    $Html = Get-Content -LiteralPath $Tmp -Raw
+                    if (-not $OvaUrl) {
+                        $OvaUrl = [regex]::Match($Html, 'https?://\S+?Whonix-(?:Xfce|CLI)-\d[\w\.\-]*\.ova').Value 
+                    }
+                    if (-not $ShaUrl) {
+                        $ShaUrl = [regex]::Match($Html, 'https?://\S+?Whonix-(?:Xfce|CLI)-\d[\w\.\-]*\.ova\.sha512sums').Value 
+                    }
+                    if ($OvaUrl -and $ShaUrl) {
+                        break 
+                    }
+                }
+                catch {
                 }
             }
-            else {
-                Get-LinksFromPage -PageUrl $InputUrl
+            if (-not $OvaUrl -or -not $ShaUrl) {
+                throw 'Failed to locate Whonix OVA + .sha512sums.' 
             }
+            [pscustomobject]@{ OvaUrl = $OvaUrl; ShaUrl = $ShaUrl }
         }
 
-        function Test-Sha512 {
-            param(
-                [Parameter(Mandatory)][string]$File,
-                [Parameter(Mandatory)][string]$ShaFile
-            )
-            Write-Log '[*] Verifying SHA-512…'
-            $have = (Get-FileHash -Algorithm SHA512 -LiteralPath $File).Hash.ToLowerInvariant()
-            $lines = Get-Content -LiteralPath $ShaFile -ErrorAction Stop
-            # Accept common formats: "<hash>  filename" or "SHA512 (filename) = hash"
-            $expected = $null
-            $name = Split-Path -Leaf $File
-            foreach ($ln in $lines) {
+        function Test-FileSha512 {
+            param([string]$File, [string]$ShaFile)
+            V '[*] Verifying SHA-512…'
+            $Have = (Get-FileHash -Algorithm SHA512 -LiteralPath $File).Hash.ToLowerInvariant()
+            $Name = Split-Path -Leaf $File
+            $Expected = $null
+            foreach ($ln in (Get-Content -LiteralPath $ShaFile)) {
                 if ($ln -match '^[0-9a-fA-F]{128}\s+(\*|\s)?(.+)$') {
-                    $h = $matches[0].Split()[0]
-                    $f = ($matches[0] -replace '^[0-9a-fA-F]{128}\s+(\*|\s)?', '').Trim()
-                    if ($f -eq $name) {
-                        $expected = $h; break 
+                    $h = $ln.Split()[0]
+                    $f = ($ln -replace '^[0-9a-fA-F]{128}\s+(\*|\s)?', '').Trim()
+                    if ($f -eq $Name) {
+                        $Expected = $h; break 
                     }
                 }
                 elseif ($ln -match '^SHA512\s*\((.+)\)\s*=\s*([0-9a-fA-F]{128})') {
-                    if ($matches[1] -eq $name) {
-                        $expected = $matches[2]; break 
+                    if ($matches[1] -eq $Name) {
+                        $Expected = $matches[2]; break 
                     }
                 }
             }
-            if (-not $expected) {
-                throw "No matching entry for $name in $ShaFile" 
+            if (-not $Expected) {
+                throw "No matching SHA512 line for $Name" 
             }
-            if ($have.ToLowerInvariant() -ne $expected.ToLowerInvariant()) {
-                throw "SHA-512 mismatch for $name"
+            if ($Have -ne $Expected.ToLowerInvariant()) {
+                throw "SHA-512 mismatch for $Name" 
             }
-            Write-Log '[OK] Checksum verified.'
+            V '[OK] Checksum verified.'
         }
 
-        function New-UniqueName {
-            param([Parameter(Mandatory)][string]$Base)
-            # Avoid VirtualBox name collisions
-            $name = $Base
-            $i = 1
-            $existing = @()
+        function New-UniqueName([string]$Base) {
+            $Existing = @()
             try {
-                $vb = Get-ToolPath -Name VBoxManage
-                $existing = (& $vb list vms 2>$null) -replace '".*"$', '' | ForEach-Object {
-                    ($_ -replace '^"', '') -replace '"{.*}$', ''
-                }
+                $VBox = Get-Tool 'VBoxManage'; $Existing = (& $VBox list vms 2>$null) -replace '^"(.+?)".*$', '$1' 
             }
             catch {
             }
-            while ($existing -contains $name) {
-                $name = "$Base-$i"; $i++ 
-            }
-            return $name
+            $n = $Base; $i = 1; while ($Existing -contains $n) {
+                $n = "$Base-$i"; $i++ 
+            }; $n
         }
 
-        function Import-With-VBox {
-            param(
-                [Parameter(Mandatory)][string]$OvaPath,
-                [Parameter(Mandatory)][string]$DestRoot
-            )
-            # Map from the Whonix unified OVA:
-            #   VSYS 0 (Gateway) uses unit 18 for the disk
-            #   VSYS 1 (Workstation) uses unit 16 for the disk
-            # See VBoxManage import docs. :contentReference[oaicite:1]{index=1}
-            $vb = Get-ToolPath -Name VBoxManage
-
-            $gwName = New-UniqueName -Base 'Whonix-Gateway'
-            $wsName = New-UniqueName -Base 'Whonix-Workstation'
-            $gwBase = Join-Path $DestRoot ('GW-' + ([guid]::NewGuid().ToString('N')))
-            $wsBase = Join-Path $DestRoot ('WS-' + ([guid]::NewGuid().ToString('N')))
-            New-Item -ItemType Directory -Path $gwBase, $wsBase | Out-Null
-
-            $gwDisk = Join-Path $gwBase 'gateway-disk1.vmdk'
-            $wsDisk = Join-Path $wsBase 'workstation-disk1.vmdk'
-
-            Write-Log '[*] VBox import (Gateway)…'
-            & $vb import "$OvaPath" `
-                --vsys 0 --eula accept `
-                --vmname "$gwName" `
-                --basefolder "$gwBase" `
-                --unit 18 --disk "$gwDisk"
-
-            Write-Log '[*] VBox import (Workstation)…'
-            & $vb import "$OvaPath" `
-                --vsys 1 --eula accept `
-                --vmname "$wsName" `
-                --basefolder "$wsBase" `
-                --unit 16 --disk "$wsDisk"
-
-            return [pscustomobject]@{
-                Gateway     = [pscustomobject]@{
-                    Name = $gwName; Base = $gwBase; Disk = $gwDisk
-                }
-                Workstation = [pscustomobject]@{
-                    Name = $wsName; Base = $wsBase; Disk = $wsDisk
-                }
-            }
+        function Import-VBoxWhonix {
+            param([string]$Ova, [string]$DestinationRoot)
+            $VBox = Get-Tool 'VBoxManage'
+            $GwName = New-UniqueName 'Whonix-Gateway'
+            $WsName = New-UniqueName 'Whonix-Workstation'
+            $GwBase = Join-Path $DestinationRoot ('GW-' + [guid]::NewGuid().ToString('N'))
+            $WsBase = Join-Path $DestinationRoot ('WS-' + [guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $GwBase, $WsBase | Out-Null
+            $GwDisk = Join-Path $GwBase 'gateway-disk1.vmdk'
+            $WsDisk = Join-Path $WsBase 'workstation-disk1.vmdk'
+            V '[*] Importing Whonix into VirtualBox…'
+            & $VBox import "$Ova" `
+                --vsys 0 --eula accept --vmname "$GwName" --basefolder "$GwBase" --unit 18 --disk "$GwDisk" `
+                --vsys 1 --eula accept --vmname "$WsName" --basefolder "$WsBase" --unit 16 --disk "$WsDisk"
+            # Enforce Whonix NIC topology
+            & $VBox modifyvm "$GwName" --nic1 nat --cableconnected1 on
+            & $VBox modifyvm "$GwName" --nic2 intnet --intnet2 'Whonix' --cableconnected2 on
+            & $VBox modifyvm "$WsName" --nic1 intnet --intnet1 'Whonix' --cableconnected1 on
+            [pscustomobject]@{ Gateway = $GwName; Workstation = $WsName }
         }
 
-        function New-MinimalVmx {
+        function Start-VBoxVM([string]$Name) {
+            (& (Get-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
+        }
+        function Wait-VBoxGuestAdditions([string]$Name, [int]$TimeoutSec = 900) {
+            & (Get-Tool 'VBoxManage') guestproperty wait "$Name" '/VirtualBox/GuestAdd/Version' --timeout ($TimeoutSec * 1000) | Out-Null
+        }
+        function Invoke-VBoxGuest {
             param(
-                [Parameter(Mandatory)][string]$Dir,
-                [Parameter(Mandatory)][string]$VmName,
-                [Parameter(Mandatory)][string]$VmdkName,   # file name only
-                [int]$MemMB = 2048,
-                [int]$Cpu = 2
+                [string]$Name,
+                [System.Management.Automation.PSCredential]$Credential,
+                [string]$CommandLine,
+                [int]$TimeoutSec = 3600
             )
-            if (-not (Test-Path $Dir)) {
-                New-Item -ItemType Directory -Path $Dir | Out-Null 
+            $VBox = Get-Tool 'VBoxManage'
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            & $VBox guestcontrol "$Name" run --exe '/bin/bash' `
+                --username "$User" --password "$Plain" --timeout ($TimeoutSec * 1000) --wait-exit --wait-stdout --wait-stderr -- -lc "$CommandLine"
+        }
+        function Copy-VBoxGuestItemFrom {
+            param(
+                [string]$Name,
+                [System.Management.Automation.PSCredential]$Credential,
+                [string]$GuestPath,
+                [string]$HostPath
+            )
+            $VBox = Get-Tool 'VBoxManage'
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            $HostDir = Split-Path -Parent $HostPath
+            if (-not (Test-Path $HostDir)) {
+                New-Item -ItemType Directory -Path $HostDir | Out-Null 
             }
-            $vmxPath = Join-Path $Dir "$VmName.vmx"
-            $vmx = @"
-.encoding = "UTF-8"
-config.version = "8"
-virtualHW.version = "16"
-displayName = "$VmName"
-guestOS = "debian12-64"
-memsize = "$MemMB"
-numvcpus = "$Cpu"
+            & $VBox guestcontrol "$Name" copyfrom --username "$User" --password "$Plain" -- "$GuestPath" "$HostPath"
+        }
+        function Stop-VBoxVM([string]$Name) {
+            (& (Get-Tool 'VBoxManage') controlvm "$Name" acpipowerbutton) | Out-Null 
+        }
 
-scsi0.present = "TRUE"
-scsi0.virtualDev = "lsilogic"
-scsi0:0.present = "TRUE"
-scsi0:0.fileName = "$VmdkName"
+        function Import-VMwareWhonix([string]$Ova, [string]$DestinationDir) {
+            $Ovftool = Get-Tool 'Ovftool'
+            if (-not (Test-Path $DestinationDir)) {
+                New-Item -ItemType Directory -Path $DestinationDir | Out-Null 
+            }
+            $Arguments = @('--acceptAllEulas', '--lax', '--skipManifestCheck', '--allowAllExtraConfig', $Ova, $DestinationDir)
+            V '[*] ovftool: OVA → VMX (relaxed)…'
+            $Proc = Start-Process -FilePath $Ovftool -ArgumentList $Arguments -NoNewWindow -PassThru -Wait
+            if ($Proc.ExitCode -ne 0) {
+                throw "ovftool failed with exit code $($Proc.ExitCode)" 
+            }
+            # Identify Gateway/Workstation VMX paths
+            $VmxItems = Get-ChildItem -LiteralPath $DestinationDir -Recurse -Filter *.vmx
+            $WsVmx = ($VmxItems | Where-Object { $_.Name -match 'Workstation' } | Select-Object -First 1).FullName
+            $GwVmx = ($VmxItems | Where-Object { $_.Name -match 'Gateway' } | Select-Object -First 1).FullName
+            if (-not $WsVmx -or -not $GwVmx) {
+                $Dirs = $VmxItems | ForEach-Object { [pscustomobject]@{ Vmx = $_.FullName; Size = (Get-ChildItem $_.Directory -Recurse -File | Measure-Object Length -Sum).Sum } }
+                $Top2 = $Dirs | Sort-Object Size -Descending | Select-Object -First 2
+                if ($Top2.Count -lt 2) {
+                    throw 'Could not identify both Gateway and Workstation VMX files.' 
+                }
+                $WsVmx = $Top2[0].Vmx; $GwVmx = $Top2[1].Vmx
+            }
+            [pscustomobject]@{ Gateway = $GwVmx; Workstation = $WsVmx }
+        }
+        function Start-VMwareVM([string]$Vmx) {
+            (& (Get-Tool 'Vmrun') -T ws start "$Vmx" nogui) | Out-Null 
+        }
+        function Test-VMwareGuestReady {
+            param(
+                [string]$Vmx,
+                [System.Management.Automation.PSCredential]$Credential,
+                [int]$TimeoutSec = 900
+            )
+            $Vmrun = Get-Tool 'Vmrun'
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            $Sw = [Diagnostics.Stopwatch]::StartNew()
+            do {
+                try {
+                    $Proc = Start-Process -FilePath $Vmrun -ArgumentList @('-T', 'ws', '-gu', $User, '-gp', $Plain, 'runProgramInGuest', "$Vmx", '/bin/true') -NoNewWindow -PassThru -Wait
+                    if ($Proc.ExitCode -eq 0) {
+                        return $true 
+                    }
+                }
+                catch {
+                }
+                Start-Sleep 5
+            }while ($Sw.Elapsed.TotalSeconds -lt $TimeoutSec)
+            return $false
+        }
+        function Invoke-VMwareGuest {
+            param(
+                [string]$Vmx,
+                [System.Management.Automation.PSCredential]$Credential,
+                [string]$Bash,
+                [int]$TimeoutSec = 3600
+            )
+            $Vmrun = Get-Tool 'Vmrun'
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            $Arguments = @('-T', 'ws', '-gu', $User, '-gp', $Plain, 'runProgramInGuest', "$Vmx", '/bin/bash', '-lc', $Bash)
+            $Proc = Start-Process -FilePath $Vmrun -ArgumentList $Arguments -NoNewWindow -PassThru -Wait
+            if ($Proc.ExitCode -ne 0) {
+                throw "vmrun runProgramInGuest failed with exit $($Proc.ExitCode)" 
+            }
+        }
+        function Copy-VMwareGuestItemFrom {
+            param(
+                [string]$Vmx,
+                [System.Management.Automation.PSCredential]$Credential,
+                [string]$GuestPath,
+                [string]$HostPath
+            )
+            $Vmrun = Get-Tool 'Vmrun'
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            $HostDir = Split-Path -Parent $HostPath
+            if (-not (Test-Path $HostDir)) {
+                New-Item -ItemType Directory -Path $HostDir | Out-Null 
+            }
+            $Arguments = @('-T', 'ws', '-gu', $User, '-gp', $Plain, 'CopyFileFromGuestToHost', "$Vmx", $GuestPath, $HostPath)
+            $Proc = Start-Process -FilePath $Vmrun -ArgumentList $Arguments -NoNewWindow -PassThru -Wait
+            if ($Proc.ExitCode -ne 0) {
+                throw "vmrun CopyFileFromGuestToHost failed with exit $($Proc.ExitCode)" 
+            }
+        }
+        function Stop-VMwareVM([string]$Vmx) {
+            (& (Get-Tool 'Vmrun') -T ws stop "$Vmx" soft) | Out-Null 
+        }
 
-ethernet0.present = "TRUE"
-ethernet0.connectionType = "nat"
-ethernet0.virtualDev = "e1000e"
-
-usb.present = "TRUE"
-sound.present = "FALSE"
-firmware = "bios"
+        function New-GuestFetchScript([string]$Target, [string]$OutDir, [string]$OutFile) {
+            @"
+set -euo pipefail
+mkdir -p '$OutDir'
+if command -v scurl >/dev/null 2>&1; then
+  scurl -fsSL '$Target' -o '$OutFile'
+elif command -v torsocks >/dev/null 2>&1; then
+  torsocks curl -fsSL '$Target' -o '$OutFile'
+else
+  curl -fsSL '$Target' -o '$OutFile'
+fi
 "@
-            Set-Content -LiteralPath $vmxPath -Value $vmx -Encoding ASCII
-            return $vmxPath
-        }
-
-        function Invoke-OvfToolDirect {
-            param(
-                [Parameter(Mandatory)][string]$OvaPath,
-                [Parameter(Mandatory)][string]$DestDir
-            )
-            $ovf = Get-ToolPath -Name Ovftool
-            if (-not (Test-Path $DestDir)) {
-                New-Item -ItemType Directory -Path $DestDir | Out-Null 
-            }
-            # Use an **argument array**; DO NOT concatenate strings that include 'and' etc.
-            # Examples: OVA→VMX and --lax in VMware docs. :contentReference[oaicite:2]{index=2}
-            $Arguments = @(
-                '--acceptAllEulas',
-                '--lax',
-                '--skipManifestCheck',
-                '--allowAllExtraConfig',
-                $OvaPath,
-                $DestDir  # Let ovftool decide naming; it will create VMX/VMDK(s) under this directory
-            )
-            Write-Log '[*] ovftool: converting OVA → VMX (relaxed)…'
-            $p = Start-Process -FilePath $ovf -ArgumentList $Arguments -NoNewWindow -PassThru -Wait
-            return $p.ExitCode
-        }
-
-        function Invoke-ConvertVBoxToVMware {
-            param(
-                [Parameter(Mandatory)][pscustomobject]$VBoxResult,
-                [Parameter(Mandatory)][string]$DestRoot
-            )
-            # Copy disks to VMware folders and create minimal .vmx files. VMware KB confirms
-            # you can create a VM from existing VMDKs. :contentReference[oaicite:3]{index=3}
-            $gwDst = Join-Path $DestRoot 'Whonix-Gateway'
-            $wsDst = Join-Path $DestRoot 'Whonix-Workstation'
-            New-Item -ItemType Directory -Path $gwDst, $wsDst -ErrorAction SilentlyContinue | Out-Null
-
-            $gwDiskName = Split-Path -Leaf $VBoxResult.Gateway.Disk
-            $wsDiskName = Split-Path -Leaf $VBoxResult.Workstation.Disk
-
-            Copy-Item -LiteralPath $VBoxResult.Gateway.Disk -Destination (Join-Path $gwDst $gwDiskName) -Force
-            Copy-Item -LiteralPath $VBoxResult.Workstation.Disk -Destination (Join-Path $wsDst $wsDiskName) -Force
-
-            $gwVmx = New-MinimalVmx -Dir $gwDst -VmName 'Whonix-Gateway' -VmdkName $gwDiskName -MemMB 1280 -Cpu 3
-            $wsVmx = New-MinimalVmx -Dir $wsDst -VmName 'Whonix-Workstation' -VmdkName $wsDiskName -MemMB 2048 -Cpu 3
-
-            [pscustomobject]@{ GatewayVmx = $gwVmx; WorkstationVmx = $wsVmx }
         }
     }
 
     process {
-        Write-Log '[*] Resolving OVA + SHA512 links…'
-        $links = Resolve-OvaAndSha -InputUrl $Url
-
-        $ovaName = Split-Path -Leaf $links.OvaUrl
-        $shaName = Split-Path -Leaf $links.ShaUrl
-        $ovaPath = Join-Path $CacheDir $ovaName
-        $shaPath = Join-Path $CacheDir $shaName
-
-        if (-not (Test-Path $ovaPath)) {
-            Invoke-Download -Uri $links.OvaUrl -OutFile $ovaPath | Out-Null
+        # 1) Resolve/cached OVA and verify
+        V '[*] Locating latest Whonix OVA…'
+        $Links = Resolve-WhonixOva
+        $OvaPath = Join-Path $CacheDir (Split-Path -Leaf $Links.OvaUrl)
+        $ShaPath = Join-Path $CacheDir (Split-Path -Leaf $Links.ShaUrl)
+        if (-not (Test-Path $OvaPath)) {
+            Invoke-Download -Uri $Links.OvaUrl -OutFile $OvaPath | Out-Null 
         }
         else {
-            Write-Log "[OK] OVA already cached: $ovaPath"
+            V "[OK] Using cached OVA: $OvaPath" 
+        }
+        Invoke-Download -Uri $Links.ShaUrl -OutFile $ShaPath | Out-Null
+        Test-FileSha512 -File $OvaPath -ShaFile $ShaPath
+
+        $User = $GuestCredential.UserName
+        $GuestHome = "/home/$User"
+        $GuestOutDir = "$GuestHome/Downloads/whonix-fetch"
+        $FileName = try {
+            [IO.Path]::GetFileName([Uri]$Url) 
+        }
+        catch {
+            '' 
+        }
+        if ([string]::IsNullOrWhiteSpace($FileName)) {
+            $FileName = 'download.bin' 
+        }
+        $GuestFile = "$GuestOutDir/$FileName"
+        $HostOutPath = Join-Path $OutputDir $FileName
+
+        if ($Backend -eq 'VirtualBox') {
+            $VBoxDest = Join-Path $OutputDir 'VirtualBox-Whonix'
+            $VmInfo = Import-VBoxWhonix -Ova $OvaPath -DestinationRoot $VBoxDest
+            Start-VBoxVM $VmInfo.Gateway
+            Start-VBoxVM $VmInfo.Workstation
+            V '[*] Waiting for Guest Additions on Workstation…'
+            Wait-VBoxGuestAdditions $VmInfo.Workstation 900
+            $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
+            $Command = @"
+cat >/tmp/fetch.sh <<'EOF'
+$FetchScript
+EOF
+chmod +x /tmp/fetch.sh
+bash -lc '/tmp/fetch.sh'
+"@
+            Invoke-VBoxGuest -Name $VmInfo.Workstation -Credential $GuestCredential -CommandLine $Command -TimeoutSec 3600
+            Copy-VBoxGuestItemFrom -Name $VmInfo.Workstation -Credential $GuestCredential -GuestPath $GuestFile -HostPath $HostOutPath
+            if (-not $KeepRunning) {
+                Stop-VBoxVM $VmInfo.Workstation; Stop-VBoxVM $VmInfo.Gateway 
+            }
+            [pscustomobject]@{ Backend = 'VirtualBox'; Gateway = $VmInfo.Gateway; Workstation = $VmInfo.Workstation; Output = $HostOutPath } | Write-Output
+            return
         }
 
-        Invoke-Download -Uri $links.ShaUrl -OutFile $shaPath | Out-Null
-        Test-Sha512 -File $ovaPath -ShaFile $shaPath
-
-        switch ($Backend) {
-            'VirtualBox' {
-                if ($PSCmdlet.ShouldProcess('VirtualBox', 'Import Whonix OVA')) {
-                    $vboxRoot = Join-Path $OutputDir 'VirtualBox-Whonix'
-                    $vx = Import-With-VBox -OvaPath $ovaPath -DestRoot $vboxRoot
-                    Write-Log '[OK] VirtualBox import complete.'
-                    Write-Output ([pscustomobject]@{
-                            Backend         = 'VirtualBox'
-                            GatewayPath     = $vx.Gateway.Base
-                            WorkstationPath = $vx.Workstation.Base
-                        })
-                }
+        # VMware path
+        $VMwareDest = Join-Path $OutputDir 'VMware-Whonix'
+        $VmPaths = Import-VMwareWhonix -Ova $OvaPath -DestinationDir $VMwareDest
+        Start-VMwareVM $VmPaths.Gateway
+        Start-VMwareVM $VmPaths.Workstation
+        V '[*] Checking for VMware Tools in Workstation…'
+        if (-not (Test-VMwareGuestReady -Vmx $VmPaths.Workstation -Credential $GuestCredential -TimeoutSec 900)) {
+            if (-not $KeepRunning) {
+                Stop-VMwareVM $VmPaths.Workstation; Stop-VMwareVM $VmPaths.Gateway 
             }
-            'VMware' {
-                if ($PSCmdlet.ShouldProcess('VMware', 'Convert/Import Whonix OVA')) {
-                    $vmwRoot = Join-Path $OutputDir 'VMware-Whonix'
-                    New-Item -ItemType Directory -Path $vmwRoot -ErrorAction SilentlyContinue | Out-Null
-
-                    $exit = Invoke-OvfToolDirect -OvaPath $ovaPath -DestDir $vmwRoot
-                    if ($exit -eq 0) {
-                        Write-Log "[OK] ovftool conversion succeeded → $vmwRoot"
-                        # Heads-up: Whonix notes VMware imports may require relaxed checks; we used --lax. :contentReference[oaicite:4]{index=4}
-                        Write-Output ([pscustomobject]@{
-                                Backend = 'VMware'
-                                Path    = $vmwRoot
-                                Note    = 'OVF Tool created one or more VMX folders under this directory.'
-                            })
-                    }
-                    else {
-                        Write-Warning "ovftool failed (exit $exit). Falling back: VBox extract → synthesize VMX."
-                        $vboxExtractRoot = Join-Path $CacheDir 'vbox-extract'
-                        $vx = Import-With-VBox -OvaPath $ovaPath -DestRoot $vboxExtractRoot
-                        $vmx = Invoke-ConvertVBoxToVMware -VBoxResult $vx -DestRoot $vmwRoot
-                        Write-Log '[OK] VMware VMX synthesized from VBox disks.'
-                        Write-Output ([pscustomobject]@{
-                                Backend        = 'VMware'
-                                GatewayVmx     = $vmx.GatewayVmx
-                                WorkstationVmx = $vmx.WorkstationVmx
-                                Note           = 'Networks are basic (NAT). Adjust vmx to match your Whonix internal link model.'
-                            })
-                    }
-                }
-            }
+            throw 'Workstation does not have VMware Tools (open-vm-tools). Install tools or use -Backend VirtualBox.'
         }
+        $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
+        $Bash = @"
+set -euo pipefail
+cat >/tmp/fetch.sh <<'EOF'
+$FetchScript
+EOF
+chmod +x /tmp/fetch.sh
+bash -lc '/tmp/fetch.sh'
+"@
+        Invoke-VMwareGuest -Vmx $VmPaths.Workstation -Credential $GuestCredential -Bash $Bash -TimeoutSec 3600
+        Copy-VMwareGuestItemFrom -Vmx $VmPaths.Workstation -Credential $GuestCredential -GuestPath $GuestFile -HostPath $HostOutPath
+        if (-not $KeepRunning) {
+            Stop-VMwareVM $VmPaths.Workstation; Stop-VMwareVM $VmPaths.Gateway 
+        }
+        [pscustomobject]@{ Backend = 'VMware'; Gateway = $VmPaths.Gateway; Workstation = $VmPaths.Workstation; Output = $HostOutPath } | Write-Output
     }
 }
