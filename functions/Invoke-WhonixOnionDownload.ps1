@@ -54,37 +54,152 @@ function Invoke-WhonixOnionDownload {
             Write-Verbose $m 
         }
 
-        function Get-Tool {
-            param([ValidateSet('VBoxManage', 'Ovftool', 'Vmrun')]$Name)
+        function Install-Tool {
+            param([ValidateSet('VBoxManage', 'Ovftool', 'Vmrun', 'VirtualBox', 'VMware')]$Name)
             switch ($Name) {
                 'VBoxManage' {
                     $Candidate = @(
-                        Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe',
+                        (Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe'),
                         "$env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe",
-                        "$env:ProgramFiles(x86)\Oracle\VirtualBox\VBoxManage.exe"
-                    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+                        "${env:ProgramFiles(x86)}\Oracle\VirtualBox\VBoxManage.exe"
+                    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } | Select-Object -First 1
+                    
                     if (-not $Candidate) {
-                        throw 'VBoxManage.exe not found (install VirtualBox).' 
+                        V '[*] VirtualBox not found, installing via winget...'
+                        try {
+                            $installResult = winget install --id Oracle.VirtualBox --silent --accept-package-agreements --accept-source-agreements 2>&1
+                            if ($LASTEXITCODE -eq 0 -or $installResult -match 'successfully installed') {
+                                # Refresh path and try again
+                                $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+                                $Candidate = @(
+                                    "$env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe",
+                                    "${env:ProgramFiles(x86)}\Oracle\VirtualBox\VBoxManage.exe"
+                                ) | Where-Object { Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+                                if ($Candidate) {
+                                    V '[OK] VirtualBox installed successfully.'
+                                }
+                            }
+                        }
+                        catch {
+                            V "[WARN] Failed to install VirtualBox: $($_.Exception.Message)"
+                        }
+                    }
+                    
+                    if (-not $Candidate) {
+                        throw 'VBoxManage.exe not found and automatic installation failed. Please install VirtualBox manually from https://www.virtualbox.org/'
                     }
                     $Candidate
                 }
                 'Ovftool' {
-                    $Candidate = @(
-                        "$env:ProgramFiles(x86)\VMware\VMware Workstation\OVFTool\ovftool.exe",
-                        "$env:ProgramFiles\VMware\VMware Workstation\OVFTool\ovftool.exe"
-                    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+                    # Try Get-Command first (checks PATH)
+                    $Candidate = (Get-Command ovftool.exe -ErrorAction SilentlyContinue)?.Source
+                    
                     if (-not $Candidate) {
-                        throw 'ovftool.exe not found (install VMware Workstation / OVF Tool).' 
+                        # Try common installation paths
+                        $Candidate = @(
+                            "${env:ProgramFiles(x86)}\VMware\VMware Workstation\OVFTool\ovftool.exe",
+                            "$env:ProgramFiles\VMware\VMware Workstation\OVFTool\ovftool.exe",
+                            "${env:ProgramFiles(x86)}\VMware\VMware Player\OVFTool\ovftool.exe",
+                            "$env:ProgramFiles\VMware\VMware Player\OVFTool\ovftool.exe",
+                            "$CacheDir\ovftool\ovftool.exe"
+                        ) | Where-Object { Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+                    }
+                    
+                    if (-not $Candidate) {
+                        # Try using where.exe
+                        try {
+                            $whereResult = where.exe ovftool.exe 2>$null
+                            if ($whereResult -and (Test-Path -LiteralPath $whereResult[0] -ErrorAction SilentlyContinue)) {
+                                $Candidate = $whereResult[0]
+                            }
+                        }
+                        catch { 
+                        }
+                    }
+                    
+                    if (-not $Candidate) {
+                        V '[*] OVF Tool not found, downloading standalone version...'
+                        try {
+                            $ovfDir = Join-Path $CacheDir 'ovftool'
+                            if (-not (Test-Path $ovfDir)) {
+                                New-Item -ItemType Directory -Path $ovfDir | Out-Null
+                            }
+                            
+                            # OVF Tool download from VMware requires account credentials
+                            # Try chocolatey as alternative instead
+                            if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
+                                V '[*] Chocolatey not found, installing...'
+                                try {
+                                    # Install Chocolatey using official method
+                                    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                                    $chocoInstallScript = Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                                    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+                                    
+                                    if (Get-Command choco.exe -ErrorAction SilentlyContinue) {
+                                        V '[OK] Chocolatey installed successfully.'
+                                    }
+                                }
+                                catch {
+                                    V "[WARN] Failed to install Chocolatey: $($_.Exception.Message)"
+                                }
+                            }
+                            
+                            if (Get-Command choco.exe -ErrorAction SilentlyContinue) {
+                                V '[*] Trying chocolatey installation of OVF Tool...'
+                                $null = choco install ovftool -y --force 2>&1
+                                if ($LASTEXITCODE -eq 0) {
+                                    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+                                    $Candidate = (Get-Command ovftool.exe -ErrorAction SilentlyContinue)?.Source
+                                    if ($Candidate) {
+                                        V '[OK] OVF Tool installed via chocolatey.'
+                                    }
+                                }
+                            }
+                        }
+                        catch {
+                            V "[WARN] Failed to install OVF Tool: $($_.Exception.Message)"
+                        }
+                    }
+                    
+                    if (-not $Candidate) {
+                        throw 'ovftool.exe not found and automatic installation failed. Please install VMware Workstation or download OVF Tool from https://developer.vmware.com/tools'
                     }
                     $Candidate
                 }
                 'Vmrun' {
-                    $Candidate = @(
-                        "$env:ProgramFiles(x86)\VMware\VMware Workstation\vmrun.exe",
-                        "$env:ProgramFiles\VMware\VMware Workstation\vmrun.exe"
-                    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+                    $Candidate = (Get-Command vmrun.exe -ErrorAction SilentlyContinue)?.Source
+                    
                     if (-not $Candidate) {
-                        throw 'vmrun.exe not found (install VMware Workstation).' 
+                        $Candidate = @(
+                            "${env:ProgramFiles(x86)}\VMware\VMware Workstation\vmrun.exe",
+                            "$env:ProgramFiles\VMware\VMware Workstation\vmrun.exe",
+                            "${env:ProgramFiles(x86)}\VMware\VMware Player\vmrun.exe",
+                            "$env:ProgramFiles\VMware\VMware Player\vmrun.exe"
+                        ) | Where-Object { Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+                    }
+                    
+                    if (-not $Candidate) {
+                        V '[*] vmrun.exe not found, attempting to install VMware Workstation Player via winget...'
+                        try {
+                            $installResult = winget install --id VMware.WorkstationPlayer --silent --accept-package-agreements --accept-source-agreements 2>&1
+                            if ($LASTEXITCODE -eq 0 -or $installResult -match 'successfully installed') {
+                                $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+                                $Candidate = @(
+                                    "${env:ProgramFiles(x86)}\VMware\VMware Player\vmrun.exe",
+                                    "$env:ProgramFiles\VMware\VMware Player\vmrun.exe"
+                                ) | Where-Object { Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+                                if ($Candidate) {
+                                    V '[OK] VMware Workstation Player installed successfully.'
+                                }
+                            }
+                        }
+                        catch {
+                            V "[WARN] Failed to install VMware: $($_.Exception.Message)"
+                        }
+                    }
+                    
+                    if (-not $Candidate) {
+                        throw 'vmrun.exe not found and automatic installation failed. Please install VMware Workstation or Player from https://www.vmware.com/'
                     }
                     $Candidate
                 }
@@ -193,7 +308,7 @@ function Invoke-WhonixOnionDownload {
         function New-UniqueName([string]$Base) {
             $Existing = @()
             try {
-                $VBox = Get-Tool 'VBoxManage'; $Existing = (& $VBox list vms 2>$null) -replace '^"(.+?)".*$', '$1' 
+                $VBox = Install-Tool 'VBoxManage'; $Existing = (& $VBox list vms 2>$null) -replace '^"(.+?)".*$', '$1' 
             }
             catch {
             }
@@ -204,7 +319,7 @@ function Invoke-WhonixOnionDownload {
 
         function Import-VBoxWhonix {
             param([string]$Ova, [string]$DestinationRoot)
-            $VBox = Get-Tool 'VBoxManage'
+            $VBox = Install-Tool 'VBoxManage'
             $GwName = New-UniqueName 'Whonix-Gateway'
             $WsName = New-UniqueName 'Whonix-Workstation'
             $GwBase = Join-Path $DestinationRoot ('GW-' + [guid]::NewGuid().ToString('N'))
@@ -224,10 +339,10 @@ function Invoke-WhonixOnionDownload {
         }
 
         function Start-VBoxVM([string]$Name) {
-            (& (Get-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
+            (& (Install-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
         }
         function Wait-VBoxGuestAdditions([string]$Name, [int]$TimeoutSec = 900) {
-            & (Get-Tool 'VBoxManage') guestproperty wait "$Name" '/VirtualBox/GuestAdd/Version' --timeout ($TimeoutSec * 1000) | Out-Null
+            & (Install-Tool 'VBoxManage') guestproperty wait "$Name" '/VirtualBox/GuestAdd/Version' --timeout ($TimeoutSec * 1000) | Out-Null
         }
         function Invoke-VBoxGuest {
             param(
@@ -236,7 +351,7 @@ function Invoke-WhonixOnionDownload {
                 [string]$CommandLine,
                 [int]$TimeoutSec = 3600
             )
-            $VBox = Get-Tool 'VBoxManage'
+            $VBox = Install-Tool 'VBoxManage'
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             & $VBox guestcontrol "$Name" run --exe '/bin/bash' `
@@ -249,7 +364,7 @@ function Invoke-WhonixOnionDownload {
                 [string]$GuestPath,
                 [string]$HostPath
             )
-            $VBox = Get-Tool 'VBoxManage'
+            $VBox = Install-Tool 'VBoxManage'
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             $HostDir = Split-Path -Parent $HostPath
@@ -259,11 +374,11 @@ function Invoke-WhonixOnionDownload {
             & $VBox guestcontrol "$Name" copyfrom --username "$User" --password "$Plain" -- "$GuestPath" "$HostPath"
         }
         function Stop-VBoxVM([string]$Name) {
-            (& (Get-Tool 'VBoxManage') controlvm "$Name" acpipowerbutton) | Out-Null 
+            (& (Install-Tool 'VBoxManage') controlvm "$Name" acpipowerbutton) | Out-Null 
         }
 
         function Import-VMwareWhonix([string]$Ova, [string]$DestinationDir) {
-            $Ovftool = Get-Tool 'Ovftool'
+            $Ovftool = Install-Tool 'Ovftool'
             if (-not (Test-Path $DestinationDir)) {
                 New-Item -ItemType Directory -Path $DestinationDir | Out-Null 
             }
@@ -288,7 +403,7 @@ function Invoke-WhonixOnionDownload {
             [pscustomobject]@{ Gateway = $GwVmx; Workstation = $WsVmx }
         }
         function Start-VMwareVM([string]$Vmx) {
-            (& (Get-Tool 'Vmrun') -T ws start "$Vmx" nogui) | Out-Null 
+            (& (Install-Tool 'Vmrun') -T ws start "$Vmx" nogui) | Out-Null 
         }
         function Test-VMwareGuestReady {
             param(
@@ -296,7 +411,7 @@ function Invoke-WhonixOnionDownload {
                 [System.Management.Automation.PSCredential]$Credential,
                 [int]$TimeoutSec = 900
             )
-            $Vmrun = Get-Tool 'Vmrun'
+            $Vmrun = Install-Tool 'Vmrun'
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             $Sw = [Diagnostics.Stopwatch]::StartNew()
@@ -320,7 +435,7 @@ function Invoke-WhonixOnionDownload {
                 [string]$Bash,
                 [int]$TimeoutSec = 3600
             )
-            $Vmrun = Get-Tool 'Vmrun'
+            $Vmrun = Install-Tool 'Vmrun'
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             $Arguments = @('-T', 'ws', '-gu', $User, '-gp', $Plain, 'runProgramInGuest', "$Vmx", '/bin/bash', '-lc', $Bash)
@@ -336,7 +451,7 @@ function Invoke-WhonixOnionDownload {
                 [string]$GuestPath,
                 [string]$HostPath
             )
-            $Vmrun = Get-Tool 'Vmrun'
+            $Vmrun = Install-Tool 'Vmrun'
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             $HostDir = Split-Path -Parent $HostPath
@@ -350,7 +465,7 @@ function Invoke-WhonixOnionDownload {
             }
         }
         function Stop-VMwareVM([string]$Vmx) {
-            (& (Get-Tool 'Vmrun') -T ws stop "$Vmx" soft) | Out-Null 
+            (& (Install-Tool 'Vmrun') -T ws stop "$Vmx" soft) | Out-Null 
         }
 
         function New-GuestFetchScript([string]$Target, [string]$OutDir, [string]$OutFile) {
