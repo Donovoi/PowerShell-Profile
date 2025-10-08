@@ -355,7 +355,7 @@ function Invoke-WhonixOnionDownload {
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             & $VBox guestcontrol "$Name" run --exe '/bin/bash' `
-                --username "$User" --password "$Plain" --timeout ($TimeoutSec * 1000) --wait-exit --wait-stdout --wait-stderr -- -lc "$CommandLine"
+                --username "$User" --password "$Plain" --timeout ($TimeoutSec * 1000) --wait-stdout --wait-stderr -- -lc "$CommandLine"
         }
         function Copy-VBoxGuestItemFrom {
             param(
@@ -554,6 +554,10 @@ fi
             Start-VBoxVM $VmInfo.Workstation
             V '[*] Waiting for Guest Additions on Workstation…'
             Wait-VBoxGuestAdditions $VmInfo.Workstation 900
+            
+            # Give the VM additional time to fully initialize before guest operations
+            V '[*] Waiting for VM to be fully ready...'
+            Start-Sleep -Seconds 30
             $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
             $Command = @"
 cat >/tmp/fetch.sh <<'EOF'
