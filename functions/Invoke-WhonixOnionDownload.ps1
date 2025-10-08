@@ -132,7 +132,7 @@ function Invoke-WhonixOnionDownload {
                                 try {
                                     # Install Chocolatey using official method
                                     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-                                    $chocoInstallScript = Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                                    $null = Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
                                     $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
                                     
                                     if (Get-Command choco.exe -ErrorAction SilentlyContinue) {
@@ -382,11 +382,28 @@ function Invoke-WhonixOnionDownload {
             if (-not (Test-Path $DestinationDir)) {
                 New-Item -ItemType Directory -Path $DestinationDir | Out-Null 
             }
-            $Arguments = @('--acceptAllEulas', '--lax', '--skipManifestCheck', '--allowAllExtraConfig', $Ova, $DestinationDir)
-            V '[*] ovftool: OVA → VMX (relaxed)…'
-            $Proc = Start-Process -FilePath $Ovftool -ArgumentList $Arguments -NoNewWindow -PassThru -Wait
+            
+            # Try with most relaxed settings first
+            $Arguments = @(
+                '--acceptAllEulas',
+                '--lax',
+                '--skipManifestCheck', 
+                '--allowAllExtraConfig',
+                '--noSSLVerify',
+                '--X:logLevel=verbose',
+                '--X:logFile=' + (Join-Path $DestinationDir 'ovftool.log'),
+                $Ova,
+                $DestinationDir
+            )
+            
+            V '[*] ovftool: OVA → VMX (relaxed mode)…'
+            $Proc = Start-Process -FilePath $Ovftool -ArgumentList $Arguments -NoNewWindow -PassThru -Wait -RedirectStandardError (Join-Path $DestinationDir 'ovftool-error.txt') -RedirectStandardOutput (Join-Path $DestinationDir 'ovftool-output.txt')
+            
             if ($Proc.ExitCode -ne 0) {
-                throw "ovftool failed with exit code $($Proc.ExitCode)" 
+                $errorLog = Get-Content (Join-Path $DestinationDir 'ovftool-error.txt') -Raw -ErrorAction SilentlyContinue
+                V "[WARN] ovftool failed with exit code $($Proc.ExitCode)"
+                V "[WARN] Error details: $errorLog"
+                throw 'ovftool failed to import Whonix OVA. This OVA may have format issues. Consider using -Backend VirtualBox instead, or manually extract the OVA and convert to VMX format.'
             }
             # Identify Gateway/Workstation VMX paths
             $VmxItems = Get-ChildItem -LiteralPath $DestinationDir -Recurse -Filter *.vmx
@@ -556,7 +573,15 @@ bash -lc '/tmp/fetch.sh'
 
         # VMware path
         $VMwareDest = Join-Path $OutputDir 'VMware-Whonix'
-        $VmPaths = Import-VMwareWhonix -Ova $OvaPath -DestinationDir $VMwareDest
+        try {
+            $VmPaths = Import-VMwareWhonix -Ova $OvaPath -DestinationDir $VMwareDest
+        }
+        catch {
+            Write-Warning "VMware import failed: $($_.Exception.Message)"
+            Write-Warning 'Whonix OVAs sometimes have format issues with ovftool.'
+            Write-Warning 'Recommendation: Use -Backend VirtualBox for more reliable imports.'
+            throw
+        }
         Start-VMwareVM $VmPaths.Gateway
         Start-VMwareVM $VmPaths.Workstation
         V '[*] Checking for VMware Tools in Workstation…'
