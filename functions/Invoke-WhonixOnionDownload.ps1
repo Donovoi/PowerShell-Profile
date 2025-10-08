@@ -374,9 +374,9 @@ fi
         $Links = Resolve-WhonixOva
         
         if ($Links.Cached) {
-            # Using cached files
-            $OvaPath = $Links.OvaUrl -replace '^file:////', '' -replace '/', '\'
-            $ShaPath = $Links.ShaUrl -replace '^file:////', '' -replace '/', '\'
+            # Using cached files - convert file:// URI back to Windows path
+            $OvaPath = ([Uri]$Links.OvaUrl).LocalPath
+            $ShaPath = ([Uri]$Links.ShaUrl).LocalPath
         }
         else {
             # Download from URLs
