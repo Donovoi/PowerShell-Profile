@@ -327,48 +327,108 @@ function Invoke-WhonixOnionDownload {
             New-Item -ItemType Directory -Path $GwBase, $WsBase | Out-Null
             $GwDisk = Join-Path $GwBase 'gateway-disk1.vmdk'
             $WsDisk = Join-Path $WsBase 'workstation-disk1.vmdk'
+            
+            # Find available SSH port for forwarding (start at 2222)
+            $SSHPort = 2222
+            while ((Get-NetTCPConnection -LocalPort $SSHPort -ErrorAction SilentlyContinue)) {
+                $SSHPort++
+            }
+            
             V '[*] Importing Whonix into VirtualBox…'
             & $VBox import "$Ova" `
                 --vsys 0 --eula accept --vmname "$GwName" --basefolder "$GwBase" --unit 18 --disk "$GwDisk" `
                 --vsys 1 --eula accept --vmname "$WsName" --basefolder "$WsBase" --unit 16 --disk "$WsDisk"
+            
             # Enforce Whonix NIC topology
             & $VBox modifyvm "$GwName" --nic1 nat --cableconnected1 on
             & $VBox modifyvm "$GwName" --nic2 intnet --intnet2 'Whonix' --cableconnected2 on
             & $VBox modifyvm "$WsName" --nic1 intnet --intnet1 'Whonix' --cableconnected1 on
-            [pscustomobject]@{ Gateway = $GwName; Workstation = $WsName }
+            
+            # Add SSH port forwarding to Workstation for host access
+            # Whonix Workstation doesn't have direct internet, but we can still SSH via Gateway's NAT
+            & $VBox modifyvm "$WsName" --nic2 nat --natpf2 "ssh,tcp,127.0.0.1,$SSHPort,,22"
+            
+            V "[OK] SSH port forwarding configured: localhost:$SSHPort -> Workstation:22"
+            
+            [pscustomobject]@{ Gateway = $GwName; Workstation = $WsName; SSHPort = $SSHPort }
         }
 
         function Start-VBoxVM([string]$Name) {
             (& (Install-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
         }
-        function Wait-VBoxSSH([string]$Name, [System.Management.Automation.PSCredential]$Credential, [int]$TimeoutSec = 900) {
-            $VBox = Install-Tool 'VBoxManage'
+        function Wait-VBoxSSH([string]$Name, [int]$SSHPort, [System.Management.Automation.PSCredential]$Credential, [int]$TimeoutSec = 900) {
             $Sw = [Diagnostics.Stopwatch]::StartNew()
-            $CheckInterval = 10
+            $CheckInterval = 5
             $User = $Credential.UserName
             $Plain = $Credential.GetNetworkCredential().Password
             
-            V '[*] Waiting for VM to boot and SSH to become available...'
+            V '[*] Waiting for SSH service to become available on VM...'
             
             do {
                 try {
-                    # Try to execute a simple command via guestcontrol
-                    $Result = & $VBox guestcontrol "$Name" run --exe '/bin/echo' `
-                        --username "$User" --password "$Plain" --timeout 5000 --wait-stdout -- 'test' 2>&1
+                    # Test TCP connection to SSH port
+                    $tcpClient = New-Object System.Net.Sockets.TcpClient
+                    $connect = $tcpClient.BeginConnect('127.0.0.1', $SSHPort, $null, $null)
+                    $wait = $connect.AsyncWaitHandle.WaitOne(3000, $false)
                     
-                    if ($LASTEXITCODE -eq 0 -or $Result -match 'test') {
-                        V '[OK] VM is ready and accepting commands.'
+                    if ($wait -and $tcpClient.Connected) {
+                        $tcpClient.Close()
+                        V '[OK] SSH port is open and responding.'
+                        # Give SSH a moment to fully initialize
+                        Start-Sleep -Seconds 5
                         return $true
                     }
-                    V "[*] VM not ready yet, waiting... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                    
+                    if ($tcpClient) {
+                        $tcpClient.Close() 
+                    }
+                    V "[*] SSH not ready yet, waiting... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
                 }
                 catch {
-                    V "[*] Checking VM readiness... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                    V "[*] Checking SSH availability... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
                 }
                 Start-Sleep -Seconds $CheckInterval
             } while ($Sw.Elapsed.TotalSeconds -lt $TimeoutSec)
             
-            throw "Timeout waiting for VM '$Name' to become ready after $TimeoutSec seconds"
+            throw "Timeout waiting for SSH on VM '$Name' (port $SSHPort) after $TimeoutSec seconds"
+        }
+        
+        function Invoke-SSHCommand {
+            param(
+                [string]$Hostname,
+                [int]$Port,
+                [System.Management.Automation.PSCredential]$Credential,
+                [string]$Command
+            )
+            
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            
+            # Use plink if available, otherwise try ssh.exe
+            $sshClient = $null
+            if (Get-Command plink.exe -ErrorAction SilentlyContinue) {
+                $sshClient = 'plink.exe'
+                $sshArgs = @('-ssh', '-batch', '-P', $Port, '-l', $User, '-pw', $Plain, $Hostname, $Command)
+            }
+            elseif (Get-Command ssh.exe -ErrorAction SilentlyContinue) {
+                # Create temp file for SSH password (sshpass alternative for Windows)
+                $tempScript = [IO.Path]::GetTempFileName() + '.sh'
+                $Command | Set-Content -Path $tempScript -NoNewline
+                $sshClient = 'ssh.exe'
+                $sshArgs = @('-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', 
+                    '-p', $Port, "$User@$Hostname", $Command)
+            }
+            else {
+                throw 'No SSH client found. Please install OpenSSH or PuTTY/plink.'
+            }
+            
+            $proc = Start-Process -FilePath $sshClient -ArgumentList $sshArgs -NoNewWindow -PassThru -Wait `
+                -RedirectStandardOutput ([IO.Path]::GetTempFileName()) `
+                -RedirectStandardError ([IO.Path]::GetTempFileName())
+            
+            if ($proc.ExitCode -ne 0) {
+                throw "SSH command failed with exit code $($proc.ExitCode)"
+            }
         }
         function Invoke-VBoxGuest {
             param(
@@ -584,20 +644,28 @@ fi
             V '[*] Starting Workstation VM...'
             Start-VBoxVM $VmInfo.Workstation
             
-            V '[*] Waiting for Workstation to boot and become ready...'
-            Wait-VBoxSSH -Name $VmInfo.Workstation -Credential $GuestCredential -TimeoutSec 900
+            V "[*] Waiting for SSH on Workstation (localhost:$($VmInfo.SSHPort))..."
+            Wait-VBoxSSH -Name $VmInfo.Workstation -SSHPort $VmInfo.SSHPort -Credential $GuestCredential -TimeoutSec 300
             
-            # Give the VM additional time to fully initialize services
-            V '[*] VM ready, waiting for all services to initialize...'
-            Start-Sleep -Seconds 30
-            
-            # Execute the download command directly without creating a temp file
-            # This avoids line ending issues with Windows CRLF vs Unix LF
+            # Execute the download command via SSH
             $Command = "mkdir -p '$GuestOutDir' && cd '$GuestOutDir' && if command -v scurl >/dev/null 2>&1; then scurl -fsSL '$Url' -o '$GuestFile'; elif command -v torsocks >/dev/null 2>&1; then torsocks curl -fsSL '$Url' -o '$GuestFile'; else curl -fsSL '$Url' -o '$GuestFile'; fi"
             
-            V '[*] Executing download command in Workstation...'
-            Invoke-VBoxGuest -Name $VmInfo.Workstation -Credential $GuestCredential -CommandLine $Command -TimeoutSec 3600
-            Copy-VBoxGuestItemFrom -Name $VmInfo.Workstation -Credential $GuestCredential -GuestPath $GuestFile -HostPath $HostOutPath
+            V '[*] Executing download command via SSH...'
+            Invoke-SSHCommand -Hostname '127.0.0.1' -Port $VmInfo.SSHPort -Credential $GuestCredential -Command $Command
+            
+            # Copy file back via SCP
+            V '[*] Copying file back to host...'
+            $User = $GuestCredential.UserName
+            if (Get-Command pscp.exe -ErrorAction SilentlyContinue) {
+                $Plain = $GuestCredential.GetNetworkCredential().Password
+                & pscp.exe -batch -P $VmInfo.SSHPort -pw $Plain "${User}@127.0.0.1:$GuestFile" $HostOutPath
+            }
+            elseif (Get-Command scp.exe -ErrorAction SilentlyContinue) {
+                & scp.exe -P $VmInfo.SSHPort -o StrictHostKeyChecking=no "${User}@127.0.0.1:$GuestFile" $HostOutPath
+            }
+            else {
+                throw 'No SCP client found. Please install OpenSSH or PuTTY/pscp.'
+            }
             if (-not $KeepRunning) {
                 Stop-VBoxVM $VmInfo.Workstation; Stop-VBoxVM $VmInfo.Gateway 
             }
