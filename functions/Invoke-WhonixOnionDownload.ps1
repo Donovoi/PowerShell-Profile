@@ -342,7 +342,27 @@ function Invoke-WhonixOnionDownload {
             (& (Install-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
         }
         function Wait-VBoxGuestAdditions([string]$Name, [int]$TimeoutSec = 900) {
-            & (Install-Tool 'VBoxManage') guestproperty wait "$Name" '/VirtualBox/GuestAdd/Version' --timeout ($TimeoutSec * 1000) | Out-Null
+            $VBox = Install-Tool 'VBoxManage'
+            $Sw = [Diagnostics.Stopwatch]::StartNew()
+            $CheckInterval = 10
+            
+            do {
+                try {
+                    # Check if Guest Additions version property exists and has a value
+                    $Result = & $VBox guestproperty get "$Name" '/VirtualBox/GuestAdd/Version' 2>&1
+                    if ($Result -match 'Value: .+' -and $Result -notmatch 'No value set') {
+                        V '[OK] Guest Additions detected and ready.'
+                        return $true
+                    }
+                    V "[*] Guest Additions not ready yet, waiting... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                }
+                catch {
+                    V "[*] Checking Guest Additions... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                }
+                Start-Sleep -Seconds $CheckInterval
+            } while ($Sw.Elapsed.TotalSeconds -lt $TimeoutSec)
+            
+            throw "Timeout waiting for Guest Additions on VM '$Name' after $TimeoutSec seconds"
         }
         function Invoke-VBoxGuest {
             param(
@@ -550,14 +570,20 @@ fi
         if ($Backend -eq 'VirtualBox') {
             $VBoxDest = Join-Path $OutputDir 'VirtualBox-Whonix'
             $VmInfo = Import-VBoxWhonix -Ova $OvaPath -DestinationRoot $VBoxDest
+            
+            V '[*] Starting Gateway VM...'
             Start-VBoxVM $VmInfo.Gateway
+            Start-Sleep -Seconds 15
+            
+            V '[*] Starting Workstation VM...'
             Start-VBoxVM $VmInfo.Workstation
+            
             V '[*] Waiting for Guest Additions on Workstation…'
             Wait-VBoxGuestAdditions $VmInfo.Workstation 900
             
             # Give the VM additional time to fully initialize before guest operations
-            V '[*] Waiting for VM to be fully ready...'
-            Start-Sleep -Seconds 30
+            V '[*] Guest Additions ready, waiting for system to fully initialize...'
+            Start-Sleep -Seconds 45
             $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
             $Command = @"
 cat >/tmp/fetch.sh <<'EOF'
