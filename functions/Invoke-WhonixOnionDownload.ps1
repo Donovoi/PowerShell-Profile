@@ -590,14 +590,12 @@ fi
             # Give the VM additional time to fully initialize services
             V '[*] VM ready, waiting for all services to initialize...'
             Start-Sleep -Seconds 30
-            $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
-            $Command = @"
-cat >/tmp/fetch.sh <<'EOF'
-$FetchScript
-EOF
-chmod +x /tmp/fetch.sh
-bash -lc '/tmp/fetch.sh'
-"@
+            
+            # Execute the download command directly without creating a temp file
+            # This avoids line ending issues with Windows CRLF vs Unix LF
+            $Command = "mkdir -p '$GuestOutDir' && cd '$GuestOutDir' && if command -v scurl >/dev/null 2>&1; then scurl -fsSL '$Url' -o '$GuestFile'; elif command -v torsocks >/dev/null 2>&1; then torsocks curl -fsSL '$Url' -o '$GuestFile'; else curl -fsSL '$Url' -o '$GuestFile'; fi"
+            
+            V '[*] Executing download command in Workstation...'
             Invoke-VBoxGuest -Name $VmInfo.Workstation -Credential $GuestCredential -CommandLine $Command -TimeoutSec 3600
             Copy-VBoxGuestItemFrom -Name $VmInfo.Workstation -Credential $GuestCredential -GuestPath $GuestFile -HostPath $HostOutPath
             if (-not $KeepRunning) {
@@ -627,15 +625,11 @@ bash -lc '/tmp/fetch.sh'
             }
             throw 'Workstation does not have VMware Tools (open-vm-tools). Install tools or use -Backend VirtualBox.'
         }
-        $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
-        $Bash = @"
-set -euo pipefail
-cat >/tmp/fetch.sh <<'EOF'
-$FetchScript
-EOF
-chmod +x /tmp/fetch.sh
-bash -lc '/tmp/fetch.sh'
-"@
+        
+        # Execute the download command directly to avoid line ending issues
+        $Bash = "set -euo pipefail; mkdir -p '$GuestOutDir' && cd '$GuestOutDir' && if command -v scurl >/dev/null 2>&1; then scurl -fsSL '$Url' -o '$GuestFile'; elif command -v torsocks >/dev/null 2>&1; then torsocks curl -fsSL '$Url' -o '$GuestFile'; else curl -fsSL '$Url' -o '$GuestFile'; fi"
+        
+        V '[*] Executing download command in Workstation...'
         Invoke-VMwareGuest -Vmx $VmPaths.Workstation -Credential $GuestCredential -Bash $Bash -TimeoutSec 3600
         Copy-VMwareGuestItemFrom -Vmx $VmPaths.Workstation -Credential $GuestCredential -GuestPath $GuestFile -HostPath $HostOutPath
         if (-not $KeepRunning) {
