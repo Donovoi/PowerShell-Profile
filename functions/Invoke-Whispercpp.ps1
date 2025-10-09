@@ -116,7 +116,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
         # VS Build Tools — we rely on CMake to locate MSVC; install if nothing found
-        $haveMSVC = Test-Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7' -or (Test-Path 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7')
+        $haveMSVC = (Test-Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7') -or (Test-Path 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7')
         if (-not $haveMSVC) {
             # Desktop C++ workload; on many machines this needs elevation / user acceptance
             Use-WingetInstall 'Microsoft.VisualStudio.2022.BuildTools' | Out-Null
