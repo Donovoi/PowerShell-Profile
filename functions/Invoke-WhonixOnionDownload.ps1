@@ -341,28 +341,34 @@ function Invoke-WhonixOnionDownload {
         function Start-VBoxVM([string]$Name) {
             (& (Install-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
         }
-        function Wait-VBoxGuestAdditions([string]$Name, [int]$TimeoutSec = 900) {
+        function Wait-VBoxSSH([string]$Name, [System.Management.Automation.PSCredential]$Credential, [int]$TimeoutSec = 900) {
             $VBox = Install-Tool 'VBoxManage'
             $Sw = [Diagnostics.Stopwatch]::StartNew()
             $CheckInterval = 10
+            $User = $Credential.UserName
+            $Plain = $Credential.GetNetworkCredential().Password
+            
+            V '[*] Waiting for VM to boot and SSH to become available...'
             
             do {
                 try {
-                    # Check if Guest Additions version property exists and has a value
-                    $Result = & $VBox guestproperty get "$Name" '/VirtualBox/GuestAdd/Version' 2>&1
-                    if ($Result -match 'Value: .+' -and $Result -notmatch 'No value set') {
-                        V '[OK] Guest Additions detected and ready.'
+                    # Try to execute a simple command via guestcontrol
+                    $Result = & $VBox guestcontrol "$Name" run --exe '/bin/echo' `
+                        --username "$User" --password "$Plain" --timeout 5000 --wait-stdout -- 'test' 2>&1
+                    
+                    if ($LASTEXITCODE -eq 0 -or $Result -match 'test') {
+                        V '[OK] VM is ready and accepting commands.'
                         return $true
                     }
-                    V "[*] Guest Additions not ready yet, waiting... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                    V "[*] VM not ready yet, waiting... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
                 }
                 catch {
-                    V "[*] Checking Guest Additions... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
+                    V "[*] Checking VM readiness... ($([int]$Sw.Elapsed.TotalSeconds)s elapsed)"
                 }
                 Start-Sleep -Seconds $CheckInterval
             } while ($Sw.Elapsed.TotalSeconds -lt $TimeoutSec)
             
-            throw "Timeout waiting for Guest Additions on VM '$Name' after $TimeoutSec seconds"
+            throw "Timeout waiting for VM '$Name' to become ready after $TimeoutSec seconds"
         }
         function Invoke-VBoxGuest {
             param(
@@ -578,12 +584,12 @@ fi
             V '[*] Starting Workstation VM...'
             Start-VBoxVM $VmInfo.Workstation
             
-            V '[*] Waiting for Guest Additions on Workstation…'
-            Wait-VBoxGuestAdditions $VmInfo.Workstation 900
+            V '[*] Waiting for Workstation to boot and become ready...'
+            Wait-VBoxSSH -Name $VmInfo.Workstation -Credential $GuestCredential -TimeoutSec 900
             
-            # Give the VM additional time to fully initialize before guest operations
-            V '[*] Guest Additions ready, waiting for system to fully initialize...'
-            Start-Sleep -Seconds 45
+            # Give the VM additional time to fully initialize services
+            V '[*] VM ready, waiting for all services to initialize...'
+            Start-Sleep -Seconds 30
             $FetchScript = New-GuestFetchScript $Url $GuestOutDir $GuestFile
             $Command = @"
 cat >/tmp/fetch.sh <<'EOF'
