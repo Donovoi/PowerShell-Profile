@@ -54,7 +54,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
     param(
         [string]$InstallDir = "$env:ProgramData\WhisperCPP",
         [ValidatePattern('^ggml-.*\.bin$')]
-        [string]$Model = 'ggml-small.bin',
+        [string]$Model = 'ggml-large-v3.bin',
         [string]$RepoUrl = 'https://github.com/ggml-org/whisper.cpp.git',
         [switch]$Update,
         [switch]$Start,
