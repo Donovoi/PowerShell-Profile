@@ -16,7 +16,7 @@ Base directory for install + models. Default: $env:ProgramData\WhisperCPP
 
 .PARAMETER Model
 Multilingual Whisper model file name (e.g., ggml-small.bin, ggml-medium.bin, ggml-large-v3.bin).
-Default: ggml-small.bin
+Default: ggml-large-v3.bin
 
 .PARAMETER RepoUrl
 Upstream repository. Default: https://github.com/ggml-org/whisper.cpp.git
@@ -543,7 +543,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                 $arguments += @('--capture', $CaptureIndex)
             }
 
-            Write-Step "Starting whisper-stream (SDL3): `"$streamExe`""
+            Write-Step "Starting whisper-stream (SDL2): `"$streamExe`""
             Write-Step "Arguments: $($arguments -join ' ')"
             Write-Step 'Speak into your microphone. Press Ctrl+C to stop.'
             
