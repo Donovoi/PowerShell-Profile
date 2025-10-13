@@ -6,8 +6,8 @@ Builds whisper.cpp from source with SDL3 and CUDA support on Windows.
 .DESCRIPTION
 Idempotently:
   1) Ensures prerequisites (git, cmake, MSVC Build Tools 2022, vcpkg).
-  2) Installs SDL3 via vcpkg.
-  3) Clones whisper.cpp and applies SDL3 migration patches.
+  2) Installs SDL2 via vcpkg.
+  3) Clones whisper.cpp.
   4) Builds with CUDA support if NVIDIA GPU detected.
   5) Starts whisper-stream with -l auto -tr (auto-detect language, translate to English).
 
@@ -37,9 +37,9 @@ Audio input device index. Omit for default device.
 Preview steps without changing system (standard PowerShell what-if).
 
 .NOTES
-- Builds from source with SDL3 (SDL2 is deprecated and in maintenance mode).
+- Builds from source with SDL2 for audio capture.
 - Automatically enables CUDA if NVIDIA GPU + CUDA Toolkit detected.
-- Requires VS Build Tools 2022 or newer for C++20 support.
+- Requires VS Build Tools 2022 or newer.
 
 .EXAMPLE
 Invoke-Whispercpp -Start
@@ -193,10 +193,13 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
         # Determine which Visual Studio version to use
         # Try vswhere.exe first (most reliable method)
         $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vs2019InstallPath = $null
+        $vs2017InstallPath = $null
+        
         if ((Test-Path $vswhere) -and -not $vs2022InstallPath) {
             Write-Step 'Using vswhere.exe to detect Visual Studio installations...'
             
-            # Look for VS 2022 with C++ tools
+            # Look for latest VS with C++ tools
             $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
             if ($vsPath -and (Test-Path $vsPath)) {
                 $vsVersionOutput = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion 2>$null
@@ -235,9 +238,22 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                 $env:Path = "$vs2022BinPath;$env:Path"
             }
         }
+        elseif ($vs2019InstallPath -and (Test-Path $vs2019InstallPath)) {
+            Write-Step "VS 2019 Build Tools found: $vs2019InstallPath"
+            $vsGenerator = 'Visual Studio 16 2019'
+            $vsVersion = '2019'
+        }
+        elseif ($vs2017InstallPath -and (Test-Path $vs2017InstallPath)) {
+            Write-Step "VS 2017 Build Tools found: $vs2017InstallPath"
+            $vsGenerator = 'Visual Studio 15 2017'
+            $vsVersion = '2017'
+            Write-Warning 'VS 2017 detected - CUDA will be disabled (requires VS 2019+).'
+            Write-Warning 'VS 2017 may also have issues with SDL3 C++20 features.'
+            Write-Warning 'For best results, install VS 2022: winget install Microsoft.VisualStudio.2022.BuildTools'
+        }
         else {
-            # Fallback: check for VS 2019 or 2017 (check both x64 and x86 registry)
-            Write-Warning 'VS 2022 not found. Checking for older Visual Studio versions...'
+            # Final fallback: check registry if vswhere didn't find anything
+            Write-Warning 'No Visual Studio found via vswhere. Checking registry...'
             
             $registryPaths = @(
                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7',
@@ -251,7 +267,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                     try {
                         $vs2019Key = Get-ItemProperty -Path $regPath -Name '16.0' -ErrorAction SilentlyContinue
                         if ($vs2019Key -and $vs2019Key.'16.0' -and (Test-Path $vs2019Key.'16.0')) {
-                            Write-Step "VS 2019 found: $($vs2019Key.'16.0')"
+                            Write-Step "Registry: VS 2019 found at $($vs2019Key.'16.0')"
                             $vsGenerator = 'Visual Studio 16 2019'
                             $vsVersion = '2019'
                             $vsFound = $true
@@ -265,11 +281,11 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                     try {
                         $vs2017Key = Get-ItemProperty -Path $regPath -Name '15.0' -ErrorAction SilentlyContinue
                         if ($vs2017Key -and $vs2017Key.'15.0' -and (Test-Path $vs2017Key.'15.0')) {
-                            Write-Step "VS 2017 found: $($vs2017Key.'15.0')"
+                            Write-Step "Registry: VS 2017 found at $($vs2017Key.'15.0')"
                             $vsGenerator = 'Visual Studio 15 2017'
                             $vsVersion = '2017'
                             $vsFound = $true
-                            Write-Warning 'VS 2017 may have issues with SDL3 C++20 features and CUDA integration.'
+                            Write-Warning 'VS 2017 detected - CUDA will be disabled (requires VS 2019+).'
                             Write-Warning 'Consider installing VS 2022: winget install Microsoft.VisualStudio.2022.BuildTools'
                             continue
                         }
@@ -302,50 +318,80 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
 
-        # Install SDL3
-        Write-Step 'Installing SDL3 via vcpkg (x64-windows)...'
-        if ($PSCmdlet.ShouldProcess('SDL3', 'Install via vcpkg')) {
-            & $vcpkgExe install sdl3:x64-windows 2>&1 | Out-Null
+        # Install SDL2
+        Write-Step 'Installing SDL2 via vcpkg (x64-windows)...'
+        if ($PSCmdlet.ShouldProcess('SDL2', 'Install via vcpkg')) {
+            & $vcpkgExe install sdl2:x64-windows 2>&1 | Out-Null
             & $vcpkgExe integrate install 2>&1 | Out-Null
         }
 
-        # Detect CUDA
+        # Detect CUDA (but disable for VS 2017 or if VS doesn't have CUDA integration)
         $cudaEnabled = $false
-        try {
-            $gpuInfo = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | 
-                Where-Object { $_.Name -like '*NVIDIA*' }
-            
-            if ($gpuInfo) {
-                Write-Step "NVIDIA GPU detected: $($gpuInfo.Name)"
+        if ($vsVersion -eq '2017') {
+            Write-Verbose 'CUDA detection skipped - VS 2017 does not support CUDA 13.0+'
+        }
+        else {
+            try {
+                $gpuInfo = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | 
+                    Where-Object { $_.Name -like '*NVIDIA*' }
                 
-                $cudaPath = $env:CUDA_PATH
-                if (-not $cudaPath) {
-                    $cudaPath = Get-ChildItem 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA' -Directory -ErrorAction SilentlyContinue | 
-                        Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
-                }
-                
-                if ($cudaPath -and (Test-Path $cudaPath)) {
-                    # Check for nvcc compiler (full CUDA SDK)
-                    $nvccPath = Join-Path $cudaPath 'bin\nvcc.exe'
-                    if (Test-Path $nvccPath) {
-                        $cudaEnabled = $true
-                        $env:CUDA_PATH = $cudaPath
-                        Write-Step "CUDA Toolkit with nvcc compiler found: $cudaPath"
+                if ($gpuInfo) {
+                    Write-Step "NVIDIA GPU detected: $($gpuInfo.Name)"
+                    
+                    $cudaPath = $env:CUDA_PATH
+                    if (-not $cudaPath) {
+                        $cudaPath = Get-ChildItem 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA' -Directory -ErrorAction SilentlyContinue | 
+                            Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+                    }
+                    
+                    if ($cudaPath -and (Test-Path $cudaPath)) {
+                        # Check for nvcc compiler (full CUDA SDK)
+                        $nvccPath = Join-Path $cudaPath 'bin\nvcc.exe'
+                        if (Test-Path $nvccPath) {
+                            # Check if VS has CUDA integration (Build Customizations)
+                            $cudaPropsPath = $null
+                            if ($vs2022InstallPath) {
+                                $cudaPropsPath = Join-Path $vs2022InstallPath 'MSBuild\Microsoft\VC\*\BuildCustomizations\CUDA*.props'
+                            }
+                            elseif ($vs2019InstallPath) {
+                                $cudaPropsPath = Join-Path $vs2019InstallPath 'MSBuild\Microsoft\VC\*\BuildCustomizations\CUDA*.props'
+                            }
+                            
+                            $hasCudaIntegration = $false
+                            if ($cudaPropsPath) {
+                                $hasCudaIntegration = (Get-ChildItem $cudaPropsPath -ErrorAction SilentlyContinue).Count -gt 0
+                            }
+                            
+                            if ($hasCudaIntegration) {
+                                $cudaEnabled = $true
+                                $env:CUDA_PATH = $cudaPath
+                                Write-Step "CUDA Toolkit with nvcc compiler found: $cudaPath"
+                            }
+                            else {
+                                Write-Warning "CUDA Toolkit found but Visual Studio $vsVersion lacks CUDA integration."
+                                Write-Warning 'To enable CUDA support, install CUDA Build Customizations:'
+                                Write-Warning '  1. Run CUDA installer again'
+                                Write-Warning '  2. Choose "Custom" installation'
+                                Write-Warning '  3. Select "Visual Studio Integration"'
+                                Write-Warning 'Or install via: winget install Nvidia.CUDA --version 13.0'
+                                Write-Warning 'Building without CUDA acceleration (CPU-only).'
+                            }
+                        }
+                        else {
+                            Write-Warning 'CUDA Toolkit found but nvcc compiler missing. Full CUDA SDK required for compilation.'
+                            Write-Warning 'Download from: https://developer.nvidia.com/cuda-downloads'
+                            Write-Warning 'Building without CUDA acceleration.'
+                        }
                     }
                     else {
-                        Write-Warning 'CUDA Toolkit found but nvcc compiler missing. Full CUDA SDK required for compilation.'
-                        Write-Warning 'Download from: https://developer.nvidia.com/cuda-downloads'
+                        Write-Warning 'NVIDIA GPU found but CUDA Toolkit missing. Download from: https://developer.nvidia.com/cuda-downloads'
                         Write-Warning 'Building without CUDA acceleration.'
                     }
                 }
-                else {
-                    Write-Warning 'NVIDIA GPU found but CUDA Toolkit missing. Download from: https://developer.nvidia.com/cuda-downloads'
-                    Write-Warning 'Building without CUDA acceleration.'
-                }
             }
-        }
-        catch {
-            Write-Verbose 'Could not detect GPU information'
+            catch {
+                Write-Verbose 'Could not detect GPU information'
+            }
         }
 
         # 2) Clone/update whisper.cpp
@@ -368,49 +414,20 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
 
-        # 3) Apply SDL3 patches
-        Write-Step 'Applying SDL3 migration patches...'
-        
-        # Patch common-sdl.cpp
-        $commonSdlPath = Join-Path $repoDir 'examples\common-sdl.cpp'
-        if (Test-Path $commonSdlPath) {
-            $content = Get-Content $commonSdlPath -Raw
-            
-            # SDL2 → SDL3 API migrations
-            $content = $content -replace '#include <SDL\.h>', '#include <SDL3/SDL.h>'
-            $content = $content -replace '#include <SDL_audio\.h>', '#include <SDL3/SDL_audio.h>'
-            $content = $content -replace 'SDL_AUDIO_S16', 'SDL_AUDIO_S16LE'
-            $content = $content -replace 'SDL_PauseAudioDevice\(([^,]+),\s*0\)', 'SDL_ResumeAudioDevice($1)'
-            $content = $content -replace 'SDL_PauseAudioDevice\(([^,]+),\s*1\)', 'SDL_PauseAudioDevice($1)'
-            $content = $content -replace 'SDL_GetNumAudioDevices\(SDL_FALSE\)', 'SDL_GetNumAudioCaptureDevices()'
-            $content = $content -replace 'SDL_GetAudioDeviceName\(([^,]+),\s*SDL_FALSE\)', 'SDL_GetAudioCaptureDeviceName($1)'
-            
-            # Add missing includes
-            if ($content -notmatch '#define _USE_MATH_DEFINES') {
-                $content = "#define _USE_MATH_DEFINES`n#include <cmath>`n#include <algorithm>`n" + $content
-            }
-            
-            Set-Content -Path $commonSdlPath -Value $content -NoNewline
-        }
-
-        # Patch stream CMakeLists.txt
-        $streamCMakePath = Join-Path $repoDir 'examples\stream\CMakeLists.txt'
-        if (Test-Path $streamCMakePath) {
-            $cmakeContent = Get-Content $streamCMakePath -Raw
-            $cmakeContent = $cmakeContent -replace 'WHISPER_SDL2', 'WHISPER_SDL3'
-            $cmakeContent = $cmakeContent -replace 'find_package\(SDL2', 'find_package(SDL3'
-            $cmakeContent = $cmakeContent -replace 'SDL2::', 'SDL3::'
-            Set-Content -Path $streamCMakePath -Value $cmakeContent -NoNewline
-        }
-
-        # Patch main CMakeLists.txt
-        $mainCMakePath = Join-Path $repoDir 'CMakeLists.txt'
-        if (Test-Path $mainCMakePath) {
-            $mainCmake = Get-Content $mainCMakePath -Raw
-            if ($mainCmake -notmatch 'WHISPER_SDL3') {
-                $mainCmake = $mainCmake -replace '(option\(WHISPER_SDL2[^\)]+\))', "`$1`noption(WHISPER_SDL3 `"whisper: support for libSDL3`" OFF)"
-            }
-            Set-Content -Path $mainCMakePath -Value $mainCmake -NoNewline
+        # 3) whisper.cpp is ready to build with SDL2 (no patches needed)
+        Write-Step 'Repository ready for SDL2 build...'        # Patch wchess CMakeLists.txt to guard all set_target_properties calls
+        $wchessCMakePath = Join-Path $repoDir 'examples\wchess\CMakeLists.txt'
+        if (Test-Path $wchessCMakePath) {
+            $wchessContent = Get-Content $wchessCMakePath -Raw
+            $nl = [Environment]::NewLine
+            # Wrap each set_target_properties in a check for target existence
+            # Replace set_target_properties(wchess-core ...) 
+            $wchessContent = $wchessContent -replace '(set_target_properties\(wchess-core\s+[^)]+\))', "if(TARGET wchess-core)$nl    `$1$nl endif()"
+            # Replace set_target_properties(wchess.wasm ...)
+            $wchessContent = $wchessContent -replace '(set_target_properties\(wchess\.wasm\s+[^)]+\))', "if(TARGET wchess.wasm)$nl    `$1$nl endif()"
+            # Replace set_target_properties(wchess ...) - must be last to not match wchess-core or wchess.wasm
+            $wchessContent = $wchessContent -replace '(?<!-)(?<!\.)(set_target_properties\(wchess\s+[^)]+\))', "if(TARGET wchess)$nl    `$1$nl endif()"
+            Set-Content -Path $wchessCMakePath -Value $wchessContent -NoNewline
         }
 
         # Patch whisper.cpp for M_PI
@@ -435,12 +452,13 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                         Remove-Item $buildDir -Recurse -Force
                     }
                     
-                    Write-Step "Configuring CMake with SDL3 (using $vsVersion)..."
+                    Write-Step "Configuring CMake with SDL2 (using $vsVersion)..."
                     $cmakeArgs = @(
                         '-B', $buildDir,
                         '-G', $vsGenerator,
                         '-A', 'x64',
-                        '-DWHISPER_SDL3=ON',
+                        '-DWHISPER_SDL2=ON',
+                        '-DWHISPER_WCHESS=OFF',
                         "-DCMAKE_TOOLCHAIN_FILE=$vcpkgDir\scripts\buildsystems\vcpkg.cmake",
                         '-DVCPKG_TARGET_TRIPLET=x64-windows'
                     )
@@ -542,6 +560,6 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             return
         }
 
-        Write-Step 'Ready. Run with -Start to begin live mic → English translation.'
+        Write-Step 'Ready! SDL2 audio capture configured. Run with -Start to begin live mic → English translation.'
     }
 }
