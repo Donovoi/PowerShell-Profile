@@ -22,7 +22,10 @@ Default: ggml-large-v3.bin
 Upstream repository. Default: https://github.com/Donovoi/whisper.cpp.git
 
 .PARAMETER Update
-Force git pull + rebuild.
+Force git pull + rebuild (incremental).
+
+.PARAMETER Clean
+Force clean rebuild instead of incremental. Use with -Update for fresh build.
 
 .PARAMETER Start
 After ensuring install, launch whisper-stream and attach to console.
@@ -55,6 +58,9 @@ Invoke-Whispercpp -Model ggml-large-v3.bin -Start -Threads 8
 
 .EXAMPLE
 Invoke-Whispercpp -Update -Start -CaptureIndex 1
+
+.EXAMPLE
+Invoke-Whispercpp -Update -Clean -Start
 #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -63,6 +69,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
         [string]$Model = 'ggml-large-v3.bin',
         [string]$RepoUrl = 'https://github.com/Donovoi/whisper.cpp.git',
         [switch]$Update,
+        [switch]$Clean,  # Force clean rebuild (slower but ensures fresh build)
         [switch]$Start,
         [int]$Threads = [Environment]::ProcessorCount,
         [int]$CaptureIndex,
@@ -153,9 +160,9 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             Initialize-Directory $modelDir
         }
 
-        # Load cache if exists
+        # Load cache if exists (always load, we'll decide per-component what to skip)
         $cache = @{}
-        if ((Test-Path $cacheFile) -and -not $Update) {
+        if (Test-Path $cacheFile) {
             try {
                 $cache = Get-Content $cacheFile -Raw | ConvertFrom-Json -AsHashtable
             }
@@ -197,23 +204,53 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             Write-Verbose 'Skipping VS detection - not needed for startup'
         }
         else {
+            # Check cache first (works even during updates - VS installation doesn't change)
             if ($cache.ContainsKey('VS2022Path') -and (Test-Path $cache['VS2022Path'])) {
                 $vs2022InstallPath = $cache['VS2022Path']
                 Write-Verbose "Using cached VS 2022 path: $vs2022InstallPath"
             }
             else {
-                try {
-                    $vs2022Key = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7' -Name '17.0' -ErrorAction SilentlyContinue
-                    if ($vs2022Key) {
-                        $vs2022InstallPath = $vs2022Key.'17.0'
+                # Try vswhere.exe first (most reliable)
+                $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+                if (Test-Path $vswhere) {
+                    $vsPath = & $vswhere -version '[17.0,18.0)' -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+                    if ($vsPath -and (Test-Path $vsPath)) {
+                        $vs2022InstallPath = $vsPath
+                        Write-Verbose "Found VS 2022 via vswhere: $vs2022InstallPath"
                     }
                 }
-                catch {
-                    # Key doesn't exist
+                
+                # Fallback: Try registry
+                if (-not $vs2022InstallPath) {
+                    try {
+                        $vs2022Key = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7' -Name '17.0' -ErrorAction SilentlyContinue
+                        if ($vs2022Key -and $vs2022Key.'17.0') {
+                            $vs2022InstallPath = $vs2022Key.'17.0'
+                            Write-Verbose "Found VS 2022 in registry: $vs2022InstallPath"
+                        }
+                    }
+                    catch {
+                        # Key doesn't exist
+                    }
+                }
+                
+                # Fallback: Try WOW6432Node registry path
+                if (-not $vs2022InstallPath) {
+                    try {
+                        $vs2022Key = Get-ItemProperty -Path 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7' -Name '17.0' -ErrorAction SilentlyContinue
+                        if ($vs2022Key -and $vs2022Key.'17.0') {
+                            $vs2022InstallPath = $vs2022Key.'17.0'
+                            Write-Verbose "Found VS 2022 in WOW6432Node registry: $vs2022InstallPath"
+                        }
+                    }
+                    catch {
+                        # Key doesn't exist
+                    }
                 }
             }
         }
         
+        # Only try to install if building and still not found
         if ($needBuild -and (-not $vs2022InstallPath -or -not (Test-Path $vs2022InstallPath))) {
             if ($skipPrereqChecks) {
                 throw 'VS Build Tools 2022 not found and build is required. Run without -SkipChecks to install.'
@@ -413,16 +450,19 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                 git clone https://github.com/microsoft/vcpkg.git $vcpkgDir 2>&1 | Out-Null
                 Push-Location $vcpkgDir
                 try {
-                    .\bootstrap-vcpkg.bat -disableMetrics 2>&1 | Out-Null
+                    .\.bootstrap-vcpkg.bat -disableMetrics 2>&1 | Out-Null
                 }
                 finally {
                     Pop-Location
                 }
             }
         }
+        else {
+            Write-Verbose 'vcpkg already bootstrapped, skipping...'
+        }
 
-        # Install SDL3 - skip if already installed
-        $sdl3Installed = $cache.ContainsKey('SDL3Installed') -or (Test-Path "$vcpkgDir\installed\x64-windows\include\SDL3\SDL.h")
+        # Install SDL3 - skip if already installed (even on updates)
+        $sdl3Installed = $cache.ContainsKey('SDL3Installed') -or (Test-Path "$vcpkgDir\\installed\\x64-windows\\include\\SDL3\\SDL.h")
         if (-not $sdl3Installed) {
             Write-Step 'Installing SDL3 via vcpkg (x64-windows)...'
             if ($PSCmdlet.ShouldProcess('SDL3', 'Install via vcpkg')) {
@@ -431,7 +471,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                 $cache['SDL3Installed'] = $true
             }
         }
-        elseif (-not $skipPrereqChecks) {
+        else {
             Write-Verbose 'SDL3 already installed, skipping...'
         }
 
@@ -440,7 +480,8 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
         if ($skipPrereqChecks -and -not $needBuild) {
             Write-Verbose 'Skipping CUDA detection - not building'
         }
-        elseif ($cache.ContainsKey('CUDAEnabled') -and -not $Update) {
+        elseif ($cache.ContainsKey('CUDAEnabled')) {
+            # Use cache even during updates - CUDA installation doesn't change
             $cudaEnabled = $cache['CUDAEnabled']
             if ($cudaEnabled -and $cache.ContainsKey('CUDAPath')) {
                 $env:CUDA_PATH = $cache['CUDAPath']
@@ -527,8 +568,14 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             if ($Update -and $PSCmdlet.ShouldProcess($repoDir, 'git pull')) {
                 Push-Location $repoDir
                 try {
-                    git fetch --all 2>&1 | Out-Null
-                    git reset --hard origin/master 2>&1 | Out-Null
+                    Write-Step 'Updating repository...'
+                    # Use pull --ff-only for faster updates (falls back to fetch+reset if needed)
+                    git pull --ff-only origin master 2>&1 | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        # Fallback to fetch + reset if fast-forward fails
+                        git fetch --all 2>&1 | Out-Null
+                        git reset --hard origin/master 2>&1 | Out-Null
+                    }
                 }
                 finally {
                     Pop-Location 
@@ -563,9 +610,13 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             if ($PSCmdlet.ShouldProcess($repoDir, 'Build whisper-stream with SDL3')) {
                 Push-Location $repoDir
                 try {
-                    # Clean build
-                    if (Test-Path $buildDir) {
+                    # Clean build only if -Clean specified, otherwise incremental
+                    if ($Clean -and (Test-Path $buildDir)) {
+                        Write-Step 'Performing clean rebuild...'
                         Remove-Item $buildDir -Recurse -Force
+                    }
+                    elseif (Test-Path $buildDir) {
+                        Write-Step 'Performing incremental build (use -Clean for full rebuild)...'
                     }
                     
                     Write-Step "Configuring CMake with SDL3 (using $vsVersion)..."
@@ -573,7 +624,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                         '-B', $buildDir,
                         '-G', $vsGenerator,
                         '-A', 'x64',
-                        '-DWHISPER_SDL3=ON',
+                        '-DWHISPER_SDL2=ON',
                         '-DWHISPER_WCHESS=OFF',
                         "-DCMAKE_TOOLCHAIN_FILE=$vcpkgDir\scripts\buildsystems\vcpkg.cmake",
                         '-DVCPKG_TARGET_TRIPLET=x64-windows'
@@ -594,7 +645,8 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                     }
                     
                     Write-Step 'Building whisper-stream (Release)...'
-                    cmake --build $buildDir --config Release --target whisper-stream -j
+                    $jobCount = [Math]::Min([Environment]::ProcessorCount, 16)  # Cap at 16 to avoid overwhelming system
+                    cmake --build $buildDir --config Release --target whisper-stream -j $jobCount
                     
                     if ($LASTEXITCODE -ne 0) {
                         throw "Build failed with exit code $LASTEXITCODE"
