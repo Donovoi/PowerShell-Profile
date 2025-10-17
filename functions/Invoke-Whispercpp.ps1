@@ -6,8 +6,8 @@ Builds whisper.cpp from source with SDL3 and CUDA support on Windows.
 .DESCRIPTION
 Idempotently:
   1) Ensures prerequisites (git, cmake, MSVC Build Tools 2022, vcpkg).
-  2) Installs SDL2 via vcpkg.
-  3) Clones whisper.cpp.
+  2) Installs SDL3 via vcpkg.
+  3) Clones whisper.cpp from Donovoi fork.
   4) Builds with CUDA support if NVIDIA GPU detected.
   5) Starts whisper-stream with -l auto -tr (auto-detect language, translate to English).
 
@@ -19,7 +19,7 @@ Multilingual Whisper model file name (e.g., ggml-small.bin, ggml-medium.bin, ggm
 Default: ggml-large-v3.bin
 
 .PARAMETER RepoUrl
-Upstream repository. Default: https://github.com/ggml-org/whisper.cpp.git
+Upstream repository. Default: https://github.com/Donovoi/whisper.cpp.git
 
 .PARAMETER Update
 Force git pull + rebuild.
@@ -40,7 +40,7 @@ Skip prerequisite checks for faster startup (use only when already installed).
 Preview steps without changing system (standard PowerShell what-if).
 
 .NOTES
-- Builds from source with SDL2 for audio capture.
+- Builds from source with SDL3 for audio capture.
 - Automatically enables CUDA if NVIDIA GPU + CUDA Toolkit detected.
 - Requires VS Build Tools 2022 or newer.
 
@@ -61,7 +61,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
         [string]$InstallDir = "$env:ProgramData\WhisperCPP",
         [ValidatePattern('^ggml-.*\.bin$')]
         [string]$Model = 'ggml-large-v3.bin',
-        [string]$RepoUrl = 'https://github.com/ggml-org/whisper.cpp.git',
+        [string]$RepoUrl = 'https://github.com/Donovoi/whisper.cpp.git',
         [switch]$Update,
         [switch]$Start,
         [int]$Threads = [Environment]::ProcessorCount,
@@ -117,17 +117,19 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
 
         # Fast path: If -Start and everything exists, skip all checks
         if ($Start -and -not $Update -and (Test-Path $streamExe) -and (Test-Path $modelPath)) {
+            # Auto-enable SkipChecks if cache exists or if user explicitly requested it
             if (-not $SkipChecks -and (Test-Path $cacheFile)) {
                 $SkipChecks = $true
             }
             
+            # If SkipChecks is set (explicitly or auto-enabled), start immediately
             if ($SkipChecks) {
                 $arguments = @('-m', $modelPath, '-t', $Threads, '-l', 'auto', '-tr')
                 if ($PSBoundParameters.ContainsKey('CaptureIndex')) {
                     $arguments += @('--capture', $CaptureIndex)
                 }
 
-                Write-Step "Starting whisper-stream (SDL2): `"$streamExe`""
+                Write-Step "Starting whisper-stream (SDL3): `"$streamExe`""
                 Write-Step "Arguments: $($arguments -join ' ')"
                 Write-Step 'Speak into your microphone. Press Ctrl+C to stop.'
                 
@@ -188,25 +190,33 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
 
         # Check for VS 2022 Build Tools - use cache if available
         $vs2022InstallPath = $null
-        if ($cache.ContainsKey('VS2022Path') -and (Test-Path $cache['VS2022Path'])) {
-            $vs2022InstallPath = $cache['VS2022Path']
-            Write-Verbose "Using cached VS 2022 path: $vs2022InstallPath"
+        
+        # Skip VS detection entirely if not building and SkipChecks is set
+        $needBuild = $Update -or -not (Test-Path $streamExe)
+        if ($skipPrereqChecks -and -not $needBuild) {
+            Write-Verbose 'Skipping VS detection - not needed for startup'
         }
         else {
-            try {
-                $vs2022Key = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7' -Name '17.0' -ErrorAction SilentlyContinue
-                if ($vs2022Key) {
-                    $vs2022InstallPath = $vs2022Key.'17.0'
-                }
+            if ($cache.ContainsKey('VS2022Path') -and (Test-Path $cache['VS2022Path'])) {
+                $vs2022InstallPath = $cache['VS2022Path']
+                Write-Verbose "Using cached VS 2022 path: $vs2022InstallPath"
             }
-            catch {
-                # Key doesn't exist
+            else {
+                try {
+                    $vs2022Key = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7' -Name '17.0' -ErrorAction SilentlyContinue
+                    if ($vs2022Key) {
+                        $vs2022InstallPath = $vs2022Key.'17.0'
+                    }
+                }
+                catch {
+                    # Key doesn't exist
+                }
             }
         }
         
-        if (-not $vs2022InstallPath -or -not (Test-Path $vs2022InstallPath)) {
+        if ($needBuild -and (-not $vs2022InstallPath -or -not (Test-Path $vs2022InstallPath))) {
             if ($skipPrereqChecks) {
-                throw 'VS Build Tools 2022 not found. Run without -SkipChecks to install.'
+                throw 'VS Build Tools 2022 not found and build is required. Run without -SkipChecks to install.'
             }
             Write-Step 'VS Build Tools 2022 not found. Installing...'
             Write-Warning 'This may take 10-15 minutes and requires ~5GB disk space.'
@@ -252,60 +262,66 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
         
-        # Determine which Visual Studio version to use
-        # Try cache first, then vswhere.exe
-        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-        $vs2019InstallPath = $null
-        $vs2017InstallPath = $null
+        # Determine which Visual Studio version to use (only if building)
+        $vsGenerator = $null
+        $vsVersion = $null
         
-        if (-not $vs2022InstallPath -and $cache.ContainsKey('VSPath') -and (Test-Path $cache['VSPath'])) {
-            $vsPath = $cache['VSPath']
-            $vsMajor = $cache['VSMajor']
-            if ($vsMajor -eq '17') {
-                $vs2022InstallPath = $vsPath
-                Write-Verbose "Using cached VS 2022: $vsPath"
-            }
-            elseif ($vsMajor -eq '16') {
-                $vs2019InstallPath = $vsPath
-                Write-Verbose "Using cached VS 2019: $vsPath"
-            }
-            elseif ($vsMajor -eq '15') {
-                $vs2017InstallPath = $vsPath
-                Write-Verbose "Using cached VS 2017: $vsPath"
-            }
+        if ($skipPrereqChecks -and -not $needBuild) {
+            Write-Verbose 'Skipping VS version detection - not building'
         }
-        
-        if ((Test-Path $vswhere) -and -not $vs2022InstallPath -and -not $vs2019InstallPath -and -not $vs2017InstallPath) {
-            Write-Step 'Using vswhere.exe to detect Visual Studio installations...'
+        else {
+            # Try cache first, then vswhere.exe
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            $vs2019InstallPath = $null
+            $vs2017InstallPath = $null
             
-            # Look for latest VS with C++ tools
-            $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
-            if ($vsPath -and (Test-Path $vsPath)) {
-                $vsVersionOutput = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion 2>$null
-                if ($vsVersionOutput -match '^(\d+)\.') {
-                    $vsMajor = $matches[1]
-                    if ($vsMajor -eq '17') {
-                        Write-Step "vswhere detected VS 2022: $vsPath"
-                        $vs2022InstallPath = $vsPath
+            if (-not $vs2022InstallPath -and $cache.ContainsKey('VSPath') -and (Test-Path $cache['VSPath'])) {
+                $vsPath = $cache['VSPath']
+                $vsMajor = $cache['VSMajor']
+                if ($vsMajor -eq '17') {
+                    $vs2022InstallPath = $vsPath
+                    Write-Verbose "Using cached VS 2022: $vsPath"
+                }
+                elseif ($vsMajor -eq '16') {
+                    $vs2019InstallPath = $vsPath
+                    Write-Verbose "Using cached VS 2019: $vsPath"
+                }
+                elseif ($vsMajor -eq '15') {
+                    $vs2017InstallPath = $vsPath
+                    Write-Verbose "Using cached VS 2017: $vsPath"
+                }
+            }
+            
+            if ((Test-Path $vswhere) -and -not $vs2022InstallPath -and -not $vs2019InstallPath -and -not $vs2017InstallPath) {
+                Write-Step 'Using vswhere.exe to detect Visual Studio installations...'
+                
+                # Look for latest VS with C++ tools
+                $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+                if ($vsPath -and (Test-Path $vsPath)) {
+                    $vsVersionOutput = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion 2>$null
+                    if ($vsVersionOutput -match '^(\d+)\.') {
+                        $vsMajor = $matches[1]
+                        if ($vsMajor -eq '17') {
+                            Write-Step "vswhere detected VS 2022: $vsPath"
+                            $vs2022InstallPath = $vsPath
+                        }
+                        elseif ($vsMajor -eq '16') {
+                            Write-Step "vswhere detected VS 2019: $vsPath"
+                            $vs2019InstallPath = $vsPath
+                        }
+                        elseif ($vsMajor -eq '15') {
+                            Write-Step "vswhere detected VS 2017: $vsPath"
+                            $vs2017InstallPath = $vsPath
+                        }
+                        # Cache the result
+                        $cache['VSPath'] = $vsPath
+                        $cache['VSMajor'] = $vsMajor
                     }
-                    elseif ($vsMajor -eq '16') {
-                        Write-Step "vswhere detected VS 2019: $vsPath"
-                        $vs2019InstallPath = $vsPath
-                    }
-                    elseif ($vsMajor -eq '15') {
-                        Write-Step "vswhere detected VS 2017: $vsPath"
-                        $vs2017InstallPath = $vsPath
-                    }
-                    # Cache the result
-                    $cache['VSPath'] = $vsPath
-                    $cache['VSMajor'] = $vsMajor
                 }
             }
         }
         
-        $vsGenerator = $null
-        $vsVersion = $null
-        
+        # Configure VS environment (only if VS was detected)
         if ($vs2022InstallPath -and (Test-Path $vs2022InstallPath)) {
             if (-not $skipPrereqChecks) {
                 Write-Step "VS 2022 Build Tools found: $vs2022InstallPath"
@@ -338,7 +354,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             Write-Warning 'VS 2017 may also have issues with SDL3 C++20 features.'
             Write-Warning 'For best results, install VS 2022: winget install Microsoft.VisualStudio.2022.BuildTools'
         }
-        else {
+        elseif ($needBuild) {
             # Final fallback: check registry if vswhere didn't find anything
             Write-Warning 'No Visual Studio found via vswhere. Checking registry...'
             
@@ -405,23 +421,26 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
 
-        # Install SDL2 - skip if already installed
-        $sdl2Installed = $cache.ContainsKey('SDL2Installed') -or (Test-Path "$vcpkgDir\installed\x64-windows\include\SDL2\SDL.h")
-        if (-not $sdl2Installed) {
-            Write-Step 'Installing SDL2 via vcpkg (x64-windows)...'
-            if ($PSCmdlet.ShouldProcess('SDL2', 'Install via vcpkg')) {
-                & $vcpkgExe install sdl2:x64-windows 2>&1 | Out-Null
+        # Install SDL3 - skip if already installed
+        $sdl3Installed = $cache.ContainsKey('SDL3Installed') -or (Test-Path "$vcpkgDir\installed\x64-windows\include\SDL3\SDL.h")
+        if (-not $sdl3Installed) {
+            Write-Step 'Installing SDL3 via vcpkg (x64-windows)...'
+            if ($PSCmdlet.ShouldProcess('SDL3', 'Install via vcpkg')) {
+                & $vcpkgExe install sdl3:x64-windows 2>&1 | Out-Null
                 & $vcpkgExe integrate install 2>&1 | Out-Null
-                $cache['SDL2Installed'] = $true
+                $cache['SDL3Installed'] = $true
             }
         }
         elseif (-not $skipPrereqChecks) {
-            Write-Verbose 'SDL2 already installed, skipping...'
+            Write-Verbose 'SDL3 already installed, skipping...'
         }
 
-        # Detect CUDA - use cache if available
+        # Detect CUDA - use cache if available (only if building)
         $cudaEnabled = $false
-        if ($cache.ContainsKey('CUDAEnabled') -and -not $Update) {
+        if ($skipPrereqChecks -and -not $needBuild) {
+            Write-Verbose 'Skipping CUDA detection - not building'
+        }
+        elseif ($cache.ContainsKey('CUDAEnabled') -and -not $Update) {
             $cudaEnabled = $cache['CUDAEnabled']
             if ($cudaEnabled -and $cache.ContainsKey('CUDAPath')) {
                 $env:CUDA_PATH = $cache['CUDAPath']
@@ -500,8 +519,11 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
 
-        # 2) Clone/update whisper.cpp
-        if (Test-Path $repoDir) {
+        # 2) Clone/update whisper.cpp (only if building)
+        if ($skipPrereqChecks -and -not $needBuild) {
+            Write-Verbose 'Skipping repository operations - not building'
+        }
+        elseif (Test-Path $repoDir) {
             if ($Update -and $PSCmdlet.ShouldProcess($repoDir, 'git pull')) {
                 Push-Location $repoDir
                 try {
@@ -520,34 +542,22 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             }
         }
 
-        # 3) whisper.cpp is ready to build with SDL2 (no patches needed)
-        Write-Step 'Repository ready for SDL2 build...'        # Patch wchess CMakeLists.txt to guard all set_target_properties calls
-        $wchessCMakePath = Join-Path $repoDir 'examples\wchess\CMakeLists.txt'
-        if (Test-Path $wchessCMakePath) {
-            $wchessContent = Get-Content $wchessCMakePath -Raw
-            $nl = [Environment]::NewLine
-            # Wrap each set_target_properties in a check for target existence
-            # Replace set_target_properties(wchess-core ...) 
-            $wchessContent = $wchessContent -replace '(set_target_properties\(wchess-core\s+[^)]+\))', "if(TARGET wchess-core)$nl    `$1$nl endif()"
-            # Replace set_target_properties(wchess.wasm ...)
-            $wchessContent = $wchessContent -replace '(set_target_properties\(wchess\.wasm\s+[^)]+\))', "if(TARGET wchess.wasm)$nl    `$1$nl endif()"
-            # Replace set_target_properties(wchess ...) - must be last to not match wchess-core or wchess.wasm
-            $wchessContent = $wchessContent -replace '(?<!-)(?<!\.)(set_target_properties\(wchess\s+[^)]+\))', "if(TARGET wchess)$nl    `$1$nl endif()"
-            Set-Content -Path $wchessCMakePath -Value $wchessContent -NoNewline
-        }
-
-        # Patch whisper.cpp for M_PI
-        $whisperCppPath = Join-Path $repoDir 'src\whisper.cpp'
-        if (Test-Path $whisperCppPath) {
-            $whisperContent = Get-Content $whisperCppPath -Raw
-            if ($whisperContent -notmatch '#define _USE_MATH_DEFINES') {
-                $whisperContent = "#define _USE_MATH_DEFINES`n" + $whisperContent
+        # 3) Patch whisper.cpp (only if building)
+        if (-not $skipPrereqChecks -or $needBuild) {
+            Write-Step 'Repository ready for SDL3 build...'
+            
+            # Patch whisper.cpp for M_PI
+            $whisperCppPath = Join-Path $repoDir 'src\whisper.cpp'
+            if (Test-Path $whisperCppPath) {
+                $whisperContent = Get-Content $whisperCppPath -Raw
+                if ($whisperContent -notmatch '#define _USE_MATH_DEFINES') {
+                    $whisperContent = "#define _USE_MATH_DEFINES`n" + $whisperContent
+                    Set-Content -Path $whisperCppPath -Value $whisperContent -NoNewline
+                }
             }
-            Set-Content -Path $whisperCppPath -Value $whisperContent -NoNewline
         }
 
         # 4) Build
-        $needBuild = $Update -or -not (Test-Path $streamExe)
         
         if ($needBuild) {
             if ($PSCmdlet.ShouldProcess($repoDir, 'Build whisper-stream with SDL3')) {
@@ -558,12 +568,12 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                         Remove-Item $buildDir -Recurse -Force
                     }
                     
-                    Write-Step "Configuring CMake with SDL2 (using $vsVersion)..."
+                    Write-Step "Configuring CMake with SDL3 (using $vsVersion)..."
                     $cmakeArgs = @(
                         '-B', $buildDir,
                         '-G', $vsGenerator,
                         '-A', 'x64',
-                        '-DWHISPER_SDL2=ON',
+                        '-DWHISPER_SDL3=ON',
                         '-DWHISPER_WCHESS=OFF',
                         "-DCMAKE_TOOLCHAIN_FILE=$vcpkgDir\scripts\buildsystems\vcpkg.cmake",
                         '-DVCPKG_TARGET_TRIPLET=x64-windows'
@@ -659,7 +669,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
                 $arguments += @('--capture', $CaptureIndex)
             }
 
-            Write-Step "Starting whisper-stream (SDL2): `"$streamExe`""
+            Write-Step "Starting whisper-stream (SDL3): `"$streamExe`""
             Write-Step "Arguments: $($arguments -join ' ')"
             Write-Step 'Speak into your microphone. Press Ctrl+C to stop.'
             
@@ -676,7 +686,7 @@ Invoke-Whispercpp -Update -Start -CaptureIndex 1
             return
         }
 
-        Write-Step 'Ready! SDL2 audio capture configured. Run with -Start to begin live mic → English translation.'
+        Write-Step 'Ready! SDL3 audio capture configured. Run with -Start to begin live mic → English translation.'
         Write-Host 'Tip: Use ' -NoNewline
         Write-Host '-SkipChecks' -ForegroundColor Yellow -NoNewline
         Write-Host ' for instant startup on subsequent runs!' -ForegroundColor Gray
