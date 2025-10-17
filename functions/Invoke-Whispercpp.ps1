@@ -36,6 +36,10 @@ Number of compute threads to pass to whisper-stream (-t). Default: [Environment]
 .PARAMETER CaptureIndex
 Audio input device index. Omit for default device.
 
+.PARAMETER LogFile
+Path to output log file for transcription text with timestamps and detected language.
+Default: <InstallDir>\logs\whisper-<timestamp>.log
+
 .PARAMETER SkipChecks
 Skip prerequisite checks for faster startup (use only when already installed).
 
@@ -46,6 +50,9 @@ Preview steps without changing system (standard PowerShell what-if).
 - Builds from source with SDL3 for audio capture.
 - Automatically enables CUDA if NVIDIA GPU + CUDA Toolkit detected.
 - Requires VS Build Tools 2022 or newer.
+- For WASM/Browser builds: Use 'examples/whisper.wasm' after building with Emscripten.
+- WASM Build: emcmake cmake -B build-wasm && cmake --build build-wasm
+- Deploy: Copy examples/whisper.wasm/*.{wasm,js,html} to web server for mobile use.
 
 .EXAMPLE
 Invoke-Whispercpp -Start
@@ -58,6 +65,9 @@ Invoke-Whispercpp -Model ggml-large-v3.bin -Start -Threads 8
 
 .EXAMPLE
 Invoke-Whispercpp -Update -Start -CaptureIndex 1
+
+.EXAMPLE
+Invoke-Whispercpp -Start -LogFile "C:\\Logs\\transcription.log"
 
 .EXAMPLE
 Invoke-Whispercpp -Update -Clean -Start
@@ -73,6 +83,7 @@ Invoke-Whispercpp -Update -Clean -Start
         [switch]$Start,
         [int]$Threads = [Environment]::ProcessorCount,
         [int]$CaptureIndex,
+        [string]$LogFile,  # Path to output log file (transcription + timestamps)
         [switch]$SkipChecks  # Skip prerequisite checks (use when already installed)
     )
 
@@ -131,12 +142,27 @@ Invoke-Whispercpp -Update -Clean -Start
             
             # If SkipChecks is set (explicitly or auto-enabled), start immediately
             if ($SkipChecks) {
-                $arguments = @('-m', $modelPath, '-t', $Threads, '-l', 'auto', '-tr')
+                # Create log directory if LogFile specified
+                if (-not $LogFile) {
+                    $logDir = Join-Path $InstallDir 'logs'
+                    Initialize-Directory $logDir
+                    $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+                    $LogFile = Join-Path $logDir "whisper-$timestamp.log"
+                }
+                else {
+                    $logDir = Split-Path $LogFile -Parent
+                    if ($logDir -and -not (Test-Path $logDir)) {
+                        Initialize-Directory $logDir
+                    }
+                }
+                
+                $arguments = @('-m', $modelPath, '-t', $Threads, '-l', 'auto', '-tr', '-f', $LogFile)
                 if ($PSBoundParameters.ContainsKey('CaptureIndex')) {
                     $arguments += @('--capture', $CaptureIndex)
                 }
 
                 Write-Step "Starting whisper-stream (SDL3): `"$streamExe`""
+                Write-Step "Log file: $LogFile"
                 Write-Step "Arguments: $($arguments -join ' ')"
                 Write-Step 'Speak into your microphone. Press Ctrl+C to stop.'
                 
@@ -149,6 +175,10 @@ Invoke-Whispercpp -Update -Clean -Start
                 $psi.UseShellExecute = $true
                 $proc = [System.Diagnostics.Process]::Start($psi)
                 $proc.WaitForExit() | Out-Null
+                
+                if (Test-Path $LogFile) {
+                    Write-Step "Transcription saved to: $LogFile"
+                }
                 return
             }
         }
@@ -466,9 +496,18 @@ Invoke-Whispercpp -Update -Clean -Start
         if (-not $sdl3Installed) {
             Write-Step 'Installing SDL3 via vcpkg (x64-windows)...'
             if ($PSCmdlet.ShouldProcess('SDL3', 'Install via vcpkg')) {
+                # Explicitly install SDL3 package (not SDL2)
                 & $vcpkgExe install sdl3:x64-windows 2>&1 | Out-Null
                 & $vcpkgExe integrate install 2>&1 | Out-Null
                 $cache['SDL3Installed'] = $true
+                
+                # Verify SDL3 was installed
+                if (Test-Path "$vcpkgDir\\installed\\x64-windows\\include\\SDL3\\SDL.h") {
+                    Write-Step 'SDL3 installation verified (SDL3/SDL.h found)'
+                }
+                else {
+                    Write-Warning 'SDL3 header not found after installation. Build may fail.'
+                }
             }
         }
         else {
@@ -716,12 +755,27 @@ Invoke-Whispercpp -Update -Clean -Start
 
         # 6) Start
         if ($Start) {
-            $arguments = @('-m', $modelPath, '-t', $Threads, '-l', 'auto', '-tr')
+            # Create log directory if LogFile specified
+            if (-not $LogFile) {
+                $logDir = Join-Path $InstallDir 'logs'
+                Initialize-Directory $logDir
+                $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+                $LogFile = Join-Path $logDir "whisper-$timestamp.log"
+            }
+            else {
+                $logDir = Split-Path $LogFile -Parent
+                if ($logDir -and -not (Test-Path $logDir)) {
+                    Initialize-Directory $logDir
+                }
+            }
+            
+            $arguments = @('-m', $modelPath, '-t', $Threads, '-l', 'auto', '-tr', '-f', $LogFile)
             if ($PSBoundParameters.ContainsKey('CaptureIndex')) {
                 $arguments += @('--capture', $CaptureIndex)
             }
 
             Write-Step "Starting whisper-stream (SDL3): `"$streamExe`""
+            Write-Step "Log file: $LogFile"
             Write-Step "Arguments: $($arguments -join ' ')"
             Write-Step 'Speak into your microphone. Press Ctrl+C to stop.'
             
@@ -735,6 +789,10 @@ Invoke-Whispercpp -Update -Clean -Start
             $psi.UseShellExecute = $true
             $proc = [System.Diagnostics.Process]::Start($psi)
             $proc.WaitForExit() | Out-Null
+            
+            if (Test-Path $LogFile) {
+                Write-Step "Transcription saved to: $LogFile"
+            }
             return
         }
 
