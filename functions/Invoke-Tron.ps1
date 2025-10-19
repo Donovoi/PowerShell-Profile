@@ -77,7 +77,6 @@ aria2c manual (non-RPC CLI): https://aria2.github.io/manual/en/html/aria2c.html
         [Parameter()][switch]$Wait,
         [Parameter()][switch]$Elevate,
         [Parameter()][string]$AdditionalArguments,
-        [Parameter()][switch]$Force,
 
         [Parameter()][ValidateNotNullOrEmpty()]
         [string]$Proxy,
@@ -251,9 +250,10 @@ aria2c manual (non-RPC CLI): https://aria2.github.io/manual/en/html/aria2c.html
             Write-Verbose "Source URL: $($exeUri.AbsoluteUri)"
             Write-Verbose "Expected destination: $expectedOut"
 
-            # 2) Guard existing file unless -Force
-            if ((Test-Path -LiteralPath $expectedOut) -and -not $Force) {
-                throw "Destination file already exists: $expectedOut (use -Force to overwrite)."
+            # 2) Remove existing file if present (always download fresh copy)
+            if (Test-Path -LiteralPath $expectedOut) {
+                Write-Verbose "Removing existing file: $expectedOut"
+                Remove-Item -LiteralPath $expectedOut -Force -ErrorAction SilentlyContinue
             }
 
             # 3) Download via Get-FileDownload using aria2c NON-RPC mode
