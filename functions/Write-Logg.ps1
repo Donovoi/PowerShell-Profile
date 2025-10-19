@@ -80,6 +80,16 @@ function Write-Logg {
         $LogToFile
     )
 
+    # Set TLS 1.2 for secure connections
+    if ($PSVersionTable.PSVersion.Major -le 5) {
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+        }
+        catch {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        }
+    }
+    
     # Load shared dependency loader if not already available
     if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
         $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
@@ -89,14 +99,27 @@ function Write-Logg {
         else {
             Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
             Write-Warning 'Falling back to direct download'
-            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
-            $scriptBlock = [scriptblock]::Create($method)
-            . $scriptBlock
+            try {
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -TimeoutSec 30 -UseBasicParsing
+                $scriptBlock = [scriptblock]::Create($method)
+                . $scriptBlock
+            }
+            catch {
+                Write-Error "Failed to load Initialize-CmdletDependencies: $($_.Exception.Message)"
+                Write-Warning 'Write-Logg will run with reduced functionality'
+                return
+            }
         }
     }
     
     # Load all required cmdlets (replaces 60+ lines of boilerplate)
-    Initialize-CmdletDependencies -RequiredCmdlets @('Install-Dependencies', 'Show-TUIConfirmationDialog') -PreferLocal -Force
+    try {
+        Initialize-CmdletDependencies -RequiredCmdlets @('Install-Dependencies', 'Show-TUIConfirmationDialog') -PreferLocal -ErrorAction Stop
+    }
+    catch {
+        Write-Warning "Failed to load some dependencies: $($_.Exception.Message)"
+        Write-Warning 'Write-Logg will continue with reduced functionality'
+    }
     # if (-not(Get-Module -Name 'Pansies' -ListAvailable -ErrorAction SilentlyContinue)) {
     #     Install-Dependencies -PSModule 'Pansies' -NoNugetPackage
     # }
@@ -104,8 +127,21 @@ function Write-Logg {
 
     if ($TUIPopUpMessage) {
         if (-not (Get-Module -Name 'Microsoft.PowerShell.ConsoleGuiTools' -ListAvailable -ErrorAction SilentlyContinue)) {
-            Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools' -NoNugetPackage
-
+            if (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue) {
+                try {
+                    Install-Dependencies -PSModule 'Microsoft.PowerShell.ConsoleGuiTools' -NoNugetPackage
+                }
+                catch {
+                    Write-Warning "Failed to install Microsoft.PowerShell.ConsoleGuiTools: $($_.Exception.Message)"
+                    Write-Warning 'TUI popup will not be available'
+                    $TUIPopUpMessage = $false
+                }
+            }
+            else {
+                Write-Warning 'Install-Dependencies not available, cannot install Microsoft.PowerShell.ConsoleGuiTools'
+                Write-Warning 'TUI popup will not be available'
+                $TUIPopUpMessage = $false
+            }
         }
     }
 
@@ -127,7 +163,21 @@ function Write-Logg {
 
     if ($level -like 'LOLCAT') {
         if (-not (Get-Command -Name 'lolcat' -ErrorAction SilentlyContinue)) {
-            Install-Dependencies -PSModule 'lolcat' -NoNugetPackage
+            if (Get-Command -Name 'Install-Dependencies' -ErrorAction SilentlyContinue) {
+                try {
+                    Install-Dependencies -PSModule 'lolcat' -NoNugetPackage
+                }
+                catch {
+                    Write-Warning "Failed to install lolcat: $($_.Exception.Message)"
+                    Write-Warning 'Falling back to standard output'
+                    $level = 'INFO'
+                }
+            }
+            else {
+                Write-Warning 'Install-Dependencies not available, cannot install lolcat'
+                Write-Warning 'Falling back to standard output'
+                $level = 'INFO'
+            }
         }
     }
 
@@ -159,11 +209,22 @@ function Write-Logg {
 
     # Show Terminal.Gui pop-up message if specified
     if ($TUIPopUpMessage) {
+        if (Get-Command -Name 'Show-TUIConfirmationDialog' -ErrorAction SilentlyContinue) {
+            try {
+                # Display the confirmation dialog
+                $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $logMessage -InfoLevel $Level
 
-        # Display the confirmation dialog
-        $confirmationResult = Show-TUIConfirmationDialog -Title $TUIPopUpTitle -Question $logMessage -InfoLevel $Level
-
-        # Return the confirmation result
-        return $confirmationResult
+                # Return the confirmation result
+                return $confirmationResult
+            }
+            catch {
+                Write-Warning "Failed to show TUI dialog: $($_.Exception.Message)"
+                Write-Host $logMessage -ForegroundColor Yellow
+            }
+        }
+        else {
+            Write-Warning 'Show-TUIConfirmationDialog not available, falling back to console output'
+            Write-Host $logMessage -ForegroundColor Yellow
+        }
     }
 }
