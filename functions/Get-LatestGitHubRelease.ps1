@@ -127,10 +127,16 @@ function Get-LatestGitHubRelease {
         }
         
         # Load all required cmdlets (replaces 60+ lines of boilerplate)
-        Initialize-CmdletDependencies -RequiredCmdlets @(
-            'Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored',
-            'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties'
-        ) -PreferLocal -Force
+        try {
+            Initialize-CmdletDependencies -RequiredCmdlets @(
+                'Install-Dependencies', 'Get-FileDownload', 'Write-InformationColored',
+                'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties'
+            ) -PreferLocal -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Failed to load some dependencies: $($_.Exception.Message)"
+            Write-Warning 'Attempting to continue with available cmdlets...'
+        }
 
         # --- TLS 1.2 for Windows PowerShell 5 ------------------------------
         if ($PSVersionTable.PSVersion.Major -eq 5) {
