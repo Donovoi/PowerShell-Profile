@@ -126,8 +126,13 @@ function Restore-ConsoleState {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
-    # Restore keyboard input handling
-    [Console]::TreatControlCAsInput = $false
+    if ($OriginalState.ContainsKey('TreatControlCAsInput')) {
+        try {
+            [Console]::TreatControlCAsInput = $OriginalState.TreatControlCAsInput
+        }
+        catch {
+        }
+    }
 
     # Clear the current line
     Write-Host (' ' * $ConsoleWidth)
@@ -145,6 +150,12 @@ function Get-ConsoleState {
     # Only add CursorVisible if the property exists
     if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
         $state.CursorVisible = $Host.UI.RawUI.CursorVisible
+    }
+
+    try {
+        $state.TreatControlCAsInput = [Console]::TreatControlCAsInput
+    }
+    catch {
     }
 
     return $state
