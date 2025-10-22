@@ -174,38 +174,18 @@ function Invoke-ConsoleNoise {
             catch {
                 [Console]::WriteLine("[DEBUG] Could not read PSReadLine options: $($_.Exception.Message)")
             }
-            [Console]::WriteLine('[DEBUG] Testing if Console.ReadKey blocks...')
-            [Console]::WriteLine('[DEBUG] Press any key within 2 seconds or this will timeout...')
-            
-            $timeout = [DateTime]::Now.AddSeconds(2)
-            $keyPressed = $false
-            while ([DateTime]::Now -lt $timeout) {
-                if ([Console]::KeyAvailable) {
-                    $key = [Console]::ReadKey($true)
-                    [Console]::WriteLine("[DEBUG] Key detected: $($key.Key) / $($key.KeyChar)")
-                    $keyPressed = $true
-                    break
-                }
-                Start-Sleep -Milliseconds 50
-            }
-            
-            if (-not $keyPressed) {
-                [Console]::WriteLine('[DEBUG] No key pressed within timeout')
-            }
         }
         
         # Force all pending output to complete
         [Console]::Out.Flush()
         Start-Sleep -Milliseconds 100
         
-        # Now clear the screen
-        if (-not $DebugCleanup) {
-            try {
-                Clear-Host
-            }
-            catch {
-                [Console]::Clear()
-            }
+        # Always clear the screen for clean user experience
+        try {
+            Clear-Host
+        }
+        catch {
+            [Console]::Clear()
         }
     }
 }
