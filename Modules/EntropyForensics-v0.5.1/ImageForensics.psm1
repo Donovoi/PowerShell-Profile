@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 
 # region ======== Classes (OOP) ========
 
-class EntropyScanOptions {
+class ImageScanOptions {
   [string]   $OutputDir
   [int]      $Window = 7
   [int]      $FrameStride = 12
@@ -17,7 +17,7 @@ class EntropyScanOptions {
   [bool]     $SaveDebugMaps = $false      # save intermediate heatmaps
 }
 
-class EntropyScanResult {
+class ImageScanResult {
   [string]         $Path
   [string]         $Kind
   [double]         $Score
@@ -25,7 +25,7 @@ class EntropyScanResult {
   [string]         $FeatureJsonPath
   [pscustomobject] $Features
 
-  EntropyScanResult(
+  ImageScanResult(
     [string]$p, [string]$k, [double]$s, [string]$ov, [string]$fj, [pscustomobject]$feat
   ) {
     $this.Path = $p
@@ -37,11 +37,11 @@ class EntropyScanResult {
   }
 }
 
-class EntropyScanner {
+class ImageScanner {
   [string] $ToolRoot
   [string] $PyPath
 
-  EntropyScanner() {
+  ImageScanner() {
     Set-StrictMode -Version Latest
     $RunningOnWindows = ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT)
     if ($RunningOnWindows) {
@@ -53,7 +53,7 @@ class EntropyScanner {
         }
         $baseLocal = Join-Path $userProfile 'AppData\Local'
       }
-      $this.ToolRoot = Join-Path $baseLocal 'EntropyForensics\tools'
+      $this.ToolRoot = Join-Path $baseLocal 'ImageForensics\tools'
     }
     else {
       $homePath = [Environment]::GetFolderPath('UserProfile')
@@ -63,11 +63,11 @@ class EntropyScanner {
       if (-not $homePath) {
         $homePath = '.' 
       }
-      $this.ToolRoot = Join-Path $homePath '.cache/EntropyForensics/tools'
+      $this.ToolRoot = Join-Path $homePath '.cache/ImageForensics/tools'
     }
     New-Item -ItemType Directory -Force -Path $this.ToolRoot | Out-Null
-    $this.PyPath = Join-Path $this.ToolRoot 'entropy_probe_ext.py'
-    [EntropyScanner]::WritePythonHelper($this.PyPath)
+    $this.PyPath = Join-Path $this.ToolRoot 'Image_probe_ext.py'
+    [ImageScanner]::WritePythonHelper($this.PyPath)
   }
 
   static [void] WritePythonHelper([string] $pyPath) {
@@ -550,7 +550,7 @@ if __name__=="__main__":
     Set-Content -Path $pyPath -Value $py -Encoding UTF8 -Force
   }
 
-  [EntropyScanResult] InvokeOne([string] $Path, [EntropyScanOptions] $opt) {
+  [ImageScanResult] InvokeOne([string] $Path, [ImageScanOptions] $opt) {
     Set-StrictMode -Version Latest
 
     if (-not (Test-Path $Path)) {
@@ -567,7 +567,7 @@ if __name__=="__main__":
       $opt.OutputDir 
     }
     else {
-      Join-Path (Split-Path -Parent $Path) 'entropy-output' 
+      Join-Path (Split-Path -Parent $Path) 'Image-output' 
     }
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
@@ -657,7 +657,7 @@ if (maj, min) >= (3,13):
       }
     }
 
-    $obj = [EntropyScanResult]::new(
+    $obj = [ImageScanResult]::new(
       $res.path, $res.kind, [double]$res.score_0_10,
       $res.overlay, $jsonPath, ($res | ConvertTo-Json -Depth 12 | ConvertFrom-Json)
     )
@@ -717,7 +717,7 @@ function Invoke-DeepfakeScan {
 .PARAMETER SaveDebugMaps
   Write intermediate anomaly map (Z) to disk.
 #>
-  [OutputType([EntropyScanResult])]
+  [OutputType([ImageScanResult])]
   [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
   param(
     [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
@@ -750,8 +750,8 @@ function Invoke-DeepfakeScan {
 
   begin {
     Set-StrictMode -Version Latest
-    $scanner = [EntropyScanner]::new()
-    $opt = [EntropyScanOptions]::new()
+    $scanner = [ImageScanner]::new()
+    $opt = [ImageScanOptions]::new()
     $opt.OutputDir = $OutputDir
     $opt.Window = $Window
     $opt.FrameStride = $FrameStride
@@ -767,7 +767,7 @@ function Invoke-DeepfakeScan {
 
   process {
     foreach ($p in $Path) {
-      if ($PSCmdlet.ShouldProcess($p, 'Entropy triage & overlay')) {
+      if ($PSCmdlet.ShouldProcess($p, 'Image triage & overlay')) {
         try {
           $r = $scanner.InvokeOne($p, $opt)
           Write-Information ("{0}`nScore: {1}/10`nOverlay: {2}" -f $r.Path, $r.Score, $r.Overlay)
