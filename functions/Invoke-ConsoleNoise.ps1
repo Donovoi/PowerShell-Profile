@@ -105,73 +105,89 @@ function Invoke-ConsoleNoise {
         Write-Error "Error: $($_.Exception.Message)"
     }
     finally {
+        # Suspend PSReadLine FIRST to prevent prompt interference
+        $psrlSuspended = $false
+        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+            try {
+                [Microsoft.PowerShell.PSConsoleReadLine]::Suspend()
+                $psrlSuspended = $true
+                if ($DebugCleanup) {
+                    [Console]::WriteLine("`n[DEBUG] PSReadLine suspended")
+                }
+            }
+            catch {
+                if ($DebugCleanup) {
+                    [Console]::WriteLine("[DEBUG] Could not suspend PSReadLine: $($_.Exception.Message)")
+                }
+            }
+        }
+        
         if ($DebugCleanup) {
-            Write-Host "`n[DEBUG] Starting cleanup process..." -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Starting cleanup process...')
         }
         
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth -DebugMode:$DebugCleanup
 
         if ($DebugCleanup) {
-            Write-Host '[DEBUG] Checking PSReadLine module...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Checking PSReadLine module...')
         }
         
         if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
             if ($DebugCleanup) {
-                Write-Host '[DEBUG] PSReadLine module found, attempting reset...' -ForegroundColor Yellow
+                [Console]::WriteLine('[DEBUG] PSReadLine module found, attempting reset...')
             }
             try {
                 if ($DebugCleanup) {
-                    Write-Host '[DEBUG] Setting EditMode to Windows...' -ForegroundColor Yellow
+                    [Console]::WriteLine('[DEBUG] Setting EditMode to Windows...')
                 }
                 Set-PSReadLineOption -EditMode Windows -ErrorAction SilentlyContinue
                 
                 if ($DebugCleanup) {
-                    Write-Host '[DEBUG] Calling RevertLine...' -ForegroundColor Yellow
+                    [Console]::WriteLine('[DEBUG] Calling RevertLine...')
                 }
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
                 
                 if ($DebugCleanup) {
-                    Write-Host '[DEBUG] PSReadLine reset complete' -ForegroundColor Green
+                    [Console]::WriteLine('[DEBUG] PSReadLine reset complete')
                 }
             }
             catch {
                 if ($DebugCleanup) {
-                    Write-Host "[DEBUG] PSReadLine reset error: $($_.Exception.Message)" -ForegroundColor Red
+                    [Console]::WriteLine("[DEBUG] PSReadLine reset error: $($_.Exception.Message)")
                 }
             }
         }
         else {
             if ($DebugCleanup) {
-                Write-Host '[DEBUG] PSReadLine module not loaded' -ForegroundColor Cyan
+                [Console]::WriteLine('[DEBUG] PSReadLine module not loaded')
             }
         }
 
         if ($DebugCleanup) {
-            Write-Host '[DEBUG] Writing new line...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Writing new line...')
         }
-        Write-Host ''
+        [Console]::WriteLine()
         
         if ($DebugCleanup) {
-            Write-Host '[DEBUG] Final buffer clear (1/2)...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Final buffer clear (1/2)...')
         }
         Clear-KeyboardBuffer -DebugMode:$DebugCleanup
         Start-Sleep -Milliseconds 100
         
         if ($DebugCleanup) {
-            Write-Host '[DEBUG] Final buffer clear (2/2)...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Final buffer clear (2/2)...')
         }
         Clear-KeyboardBuffer -DebugMode:$DebugCleanup
         
         if ($DebugCleanup) {
-            Write-Host '[DEBUG] Cleanup complete. Testing keyboard input...' -ForegroundColor Green
-            Write-Host "[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)" -ForegroundColor Cyan
-            Write-Host "[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)" -ForegroundColor Cyan
-            Write-Host '[DEBUG] Forcing output flush and clearing screen...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Cleanup complete. Testing keyboard input...')
+            [Console]::WriteLine("[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)")
+            [Console]::WriteLine("[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)")
         }
         
         # Force all pending output to complete
         [Console]::Out.Flush()
-        Start-Sleep -Milliseconds 50
+        Start-Sleep -Milliseconds 100
         
         # Now clear the screen
         if (-not $DebugCleanup) {
@@ -183,13 +199,21 @@ function Invoke-ConsoleNoise {
             }
         }
         
-        # Force PSReadLine to refresh the prompt
-        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+        # Resume PSReadLine if we suspended it
+        if ($psrlSuspended) {
             try {
-                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+                if ($DebugCleanup) {
+                    [Console]::WriteLine('[DEBUG] Resuming PSReadLine...')
+                }
+                [Microsoft.PowerShell.PSConsoleReadLine]::Resume()
+                if ($DebugCleanup) {
+                    [Console]::WriteLine('[DEBUG] PSReadLine resumed')
+                }
             }
             catch {
-                # InvokePrompt not available, just continue
+                if ($DebugCleanup) {
+                    [Console]::WriteLine("[DEBUG] Could not resume PSReadLine: $($_.Exception.Message)")
+                }
             }
         }
     }
@@ -206,20 +230,20 @@ function Restore-ConsoleState {
     )
 
     if ($DebugMode) {
-        Write-Host '[DEBUG] Restore-ConsoleState: Starting buffer flush (1/2)...' -ForegroundColor Yellow
+        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Starting buffer flush (1/2)...')
     }
     Clear-KeyboardBuffer -DebugMode:$DebugMode
     Start-Sleep -Milliseconds 150
     
     if ($DebugMode) {
-        Write-Host '[DEBUG] Restore-ConsoleState: Starting buffer flush (2/2)...' -ForegroundColor Yellow
+        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Starting buffer flush (2/2)...')
     }
     Clear-KeyboardBuffer -DebugMode:$DebugMode
 
     if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
         $OriginalState.ContainsKey('CursorVisible')) {
         if ($DebugMode) {
-            Write-Host "[DEBUG] Restore-ConsoleState: Restoring cursor visibility to $($OriginalState.CursorVisible)..." -ForegroundColor Yellow
+            [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Restoring cursor visibility to $($OriginalState.CursorVisible)...")
         }
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
@@ -227,30 +251,30 @@ function Restore-ConsoleState {
     # Don't clear screen yet - wait until all cleanup is done
 
     if ($DebugMode) {
-        Write-Host "[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))..." -ForegroundColor Yellow
+        [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))...")
     }
     $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
     $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
 
     try {
         if ($DebugMode) {
-            Write-Host '[DEBUG] Restore-ConsoleState: Calling Console.ResetColor()...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Calling Console.ResetColor()...')
         }
         [Console]::ResetColor()
     }
     catch {
         if ($DebugMode) {
-            Write-Host "[DEBUG] Restore-ConsoleState: Console.ResetColor() error: $($_.Exception.Message)" -ForegroundColor Red
+            [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Console.ResetColor() error: $($_.Exception.Message)")
         }
     }
 
     if ($DebugMode) {
-        Write-Host '[DEBUG] Restore-ConsoleState: Final buffer flush...' -ForegroundColor Yellow
+        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Final buffer flush...')
     }
     Clear-KeyboardBuffer -DebugMode:$DebugMode
     
     if ($DebugMode) {
-        Write-Host '[DEBUG] Restore-ConsoleState: Complete' -ForegroundColor Green
+        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Complete')
     }
     
     # Force output flush before returning
@@ -379,7 +403,7 @@ function Clear-KeyboardBuffer {
     
     try {
         if ($DebugMode) {
-            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 1 (Console API)...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 1 (Console API)...')
         }
         $attempts = 0
         $keysCleared = 0
@@ -389,18 +413,18 @@ function Clear-KeyboardBuffer {
             $keysCleared++
         }
         if ($DebugMode) {
-            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 1 cleared $keysCleared keys in $attempts attempts" -ForegroundColor Cyan
+            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 1 cleared $keysCleared keys in $attempts attempts")
         }
     }
     catch {
         if ($DebugMode) {
-            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 1 error: $($_.Exception.Message)" -ForegroundColor Red
+            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 1 error: $($_.Exception.Message)")
         }
     }
 
     try {
         if ($DebugMode) {
-            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 2 (RawUI)...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 2 (RawUI)...')
         }
         $rawUI = $Host.UI.RawUI
         if ($rawUI) {
@@ -413,39 +437,39 @@ function Clear-KeyboardBuffer {
                 $keysCleared++
             }
             if ($DebugMode) {
-                Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 2 cleared $keysCleared keys in $attempts attempts" -ForegroundColor Cyan
+                [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 2 cleared $keysCleared keys in $attempts attempts")
             }
         }
     }
     catch {
         if ($DebugMode) {
-            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 2 error: $($_.Exception.Message)" -ForegroundColor Red
+            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 2 error: $($_.Exception.Message)")
         }
     }
     
     try {
         if ($DebugMode) {
-            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 3 (FlushInputBuffer)...' -ForegroundColor Yellow
+            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 3 (FlushInputBuffer)...')
         }
         $method = [Console]::GetType().GetMethod('FlushInputBuffer')
         if ($method) {
             if ($DebugMode) {
-                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method found, invoking...' -ForegroundColor Cyan
+                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method found, invoking...')
             }
             [Console]::FlushInputBuffer()
             if ($DebugMode) {
-                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer successful' -ForegroundColor Green
+                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer successful')
             }
         }
         else {
             if ($DebugMode) {
-                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method not available' -ForegroundColor Cyan
+                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method not available')
             }
         }
     }
     catch {
         if ($DebugMode) {
-            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 3 error: $($_.Exception.Message)" -ForegroundColor Red
+            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 3 error: $($_.Exception.Message)")
         }
     }
 }
