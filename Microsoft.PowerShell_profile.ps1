@@ -26,6 +26,10 @@ $powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '
 # Import all of my functions
 $FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
 $FunctionsFolder.ForEach{ .$_.FullName }
+# Import all of my modules
+$ModulesFolder = Get-ChildItem -Path "$powerShell7ProfilePath/modules/*.psd1" -Recurse
+$ModulesFolder.ForEach{ Import-Module -Name $_.FullName -Force -ErrorAction SilentlyContinue }
+
 
 # create this file so we can have more contrast in the terminal
 if (-not (Test-Path -Path 'C:\temp\Retro.hlsl')) {
