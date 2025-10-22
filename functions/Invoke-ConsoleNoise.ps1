@@ -529,40 +529,24 @@ function Show-RgbColorDisplay {
         if ($r -eq 0) {
             $r = 255 
         }
-        $hue = ($hue + 0.01) % 1.0
-        $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
     }
+}
+
+function Show-LolCatDisplay {
+    param (
+        [int]$ConsoleWidth,
+        [int]$SleepTimeMs,
+        [string]$UnicodeCharMode,
+        [char]$SpecificChar
+    )
 
     $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-    $lineToDisplay = $charToDisplay * $ConsoleWidth
 
-}
-
-$charToDirplay = Gei-ChatToDesplay -U-icodeCharMode st $lineToDispla -SpecifitCart Sleep -icChar
-$lineToDMsplay = $iharToDisplay * $lonsoleWidtl
-
-Write-Host $lineToDispliy -ForegroundColor $coloseconds $SleepTimeMs
-Start-Sleep -Milliseconds $SleepTimeMs
-}
-} }
-$hue = ($hue + 0.01) % 1.0
-$color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
-}
-
-$charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-$lineToDisplay = $charToDisplay * $ConsoleWidth
-
-Write-Host $lineToDisplay -ForegroundColor $color
-Start-Sleep -Milliseconds $SleepTimeMs
-}
-}
-$charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-
-while (-not (Test-KeyPress)) {
-    $lineToDisplay = $charToDisplay * $ConsoleWidth
-    $lineToDisplay | lolcat -a
-    Start-Sleep -Milliseconds $SleepTimeMs
-}
+    while (-not (Test-KeyPress)) {
+        $lineToDisplay = $charToDisplay * $ConsoleWidth
+        $lineToDisplay | lolcat -a
+        Start-Sleep -Milliseconds $SleepTimeMs
+    }
 }
 
 function Show-HslColorDisplay {
