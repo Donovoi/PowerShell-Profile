@@ -103,21 +103,24 @@ function Invoke-ConsoleNoise {
         # Restore original console state
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth
 
-        # Reset PSReadLine if available
+        # Reset PSReadLine completely
         if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
             try {
-                # Clear PSReadLine buffer
-                [Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()
+                # Force complete reset of PSReadLine
+                Set-PSReadLineOption -EditMode Windows -ErrorAction SilentlyContinue
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
             }
             catch {
             }
         }
 
-        # Final buffer clear and small delay
+        # Force new prompt
+        Write-Host ''
+        
+        # Final aggressive buffer clear
         Clear-KeyboardBuffer
-        Start-Sleep -Milliseconds 50
+        Start-Sleep -Milliseconds 100
+        Clear-KeyboardBuffer
     }
 }
 
@@ -132,29 +135,38 @@ function Restore-ConsoleState {
         [int]$ConsoleWidth
     )
 
-    # Flush keyboard buffer to prevent input issues
+    # Aggressive keyboard buffer flush
+    Clear-KeyboardBuffer
+    Start-Sleep -Milliseconds 150
     Clear-KeyboardBuffer
 
-    # Small delay to ensure buffer is clear
-    Start-Sleep -Milliseconds 100
-
-    # Restore cursor visibility if the property exists
+    # Restore cursor visibility FIRST
     if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
         $OriginalState.ContainsKey('CursorVisible')) {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
+    }
+
+    # Clear screen completely
+    try {
+        Clear-Host
+    }
+    catch {
+        # Fallback: manual clear
+        [Console]::Clear()
     }
 
     # Restore colors
     $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
     $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
 
-    # Clear the current line
-    Write-Host (' ' * $ConsoleWidth)
+    # Reset console buffer
+    try {
+        [Console]::ResetColor()
+    }
+    catch {
+    }
 
-    # Move cursor to a clean position
-    Write-Host ''
-
-    # Flush one more time after restore
+    # Final aggressive flush
     Clear-KeyboardBuffer
 }
 
@@ -277,26 +289,42 @@ function Convert-HslToRgb {
 }
 
 function Clear-KeyboardBuffer {
-    # Flush any remaining keys from the input buffer
+    # Flush any remaining keys from the input buffer - try multiple methods
+    
+    # Method 1: Console API
     try {
-        while ([Console]::KeyAvailable) {
+        $attempts = 0
+        while ([Console]::KeyAvailable -and $attempts -lt 100) {
             [Console]::ReadKey($true) | Out-Null
+            $attempts++
         }
     }
     catch {
-        # Try RawUI method if Console is not available
-        try {
-            $rawUI = $Host.UI.RawUI
-            if ($rawUI) {
-                while ($rawUI.KeyAvailable) {
-                    $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
-                        -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
-                    $rawUI.ReadKey($options) | Out-Null
-                }
+    }
+
+    # Method 2: RawUI
+    try {
+        $rawUI = $Host.UI.RawUI
+        if ($rawUI) {
+            $attempts = 0
+            while ($rawUI.KeyAvailable -and $attempts -lt 100) {
+                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
+                    -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+                $rawUI.ReadKey($options) | Out-Null
+                $attempts++
             }
         }
-        catch {
+    }
+    catch {
+    }
+    
+    # Method 3: FlushInputBuffer if available
+    try {
+        if ([Console]::GetType().GetMethod('FlushInputBuffer')) {
+            [Console]::FlushInputBuffer()
         }
+    }
+    catch {
     }
 }
 
