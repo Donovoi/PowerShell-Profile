@@ -7,7 +7,7 @@
   PowerShellVersion    = '5.1'
   CompatiblePSEditions = @('Desktop', 'Core')
   Description          = 'Image-based deepfake triage with pixel/byte Image, MediaPipe/Haar face ROI, JPEG DCT/Benford, overlays, and CSV logging.'
-  FunctionsToExport    = @('Invoke-ImageDeepfakeScan')
+  FunctionsToExport    = @('Invoke-DeepfakeScan')
   CmdletsToExport      = @()
   AliasesToExport      = @()
   PrivateData          = @{
