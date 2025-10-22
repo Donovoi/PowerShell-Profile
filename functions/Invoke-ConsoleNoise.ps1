@@ -166,6 +166,31 @@ function Invoke-ConsoleNoise {
             Write-Host '[DEBUG] Cleanup complete. Testing keyboard input...' -ForegroundColor Green
             Write-Host "[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)" -ForegroundColor Cyan
             Write-Host "[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)" -ForegroundColor Cyan
+            Write-Host '[DEBUG] Forcing output flush and clearing screen...' -ForegroundColor Yellow
+        }
+        
+        # Force all pending output to complete
+        [Console]::Out.Flush()
+        Start-Sleep -Milliseconds 50
+        
+        # Now clear the screen
+        if (-not $DebugCleanup) {
+            try {
+                Clear-Host
+            }
+            catch {
+                [Console]::Clear()
+            }
+        }
+        
+        # Force PSReadLine to refresh the prompt
+        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+            try {
+                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+            }
+            catch {
+                # InvokePrompt not available, just continue
+            }
         }
     }
 }
@@ -199,21 +224,7 @@ function Restore-ConsoleState {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
-    try {
-        if ($DebugMode) {
-            Write-Host '[DEBUG] Restore-ConsoleState: Calling Clear-Host...' -ForegroundColor Yellow
-        }
-        Clear-Host
-        if ($DebugMode) {
-            Write-Host '[DEBUG] Restore-ConsoleState: Clear-Host successful' -ForegroundColor Green
-        }
-    }
-    catch {
-        if ($DebugMode) {
-            Write-Host '[DEBUG] Restore-ConsoleState: Clear-Host failed, trying Console.Clear()...' -ForegroundColor Red
-        }
-        [Console]::Clear()
-    }
+    # Don't clear screen yet - wait until all cleanup is done
 
     if ($DebugMode) {
         Write-Host "[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))..." -ForegroundColor Yellow
@@ -241,6 +252,9 @@ function Restore-ConsoleState {
     if ($DebugMode) {
         Write-Host '[DEBUG] Restore-ConsoleState: Complete' -ForegroundColor Green
     }
+    
+    # Force output flush before returning
+    [Console]::Out.Flush()
 }
 
 function Get-ConsoleState {
