@@ -102,6 +102,14 @@ function Invoke-ConsoleNoise {
     finally {
         # Restore original console state
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth
+
+        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+            try {
+                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+            }
+            catch {
+            }
+        }
     }
 }
 
@@ -126,14 +134,6 @@ function Restore-ConsoleState {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
-    if ($OriginalState.ContainsKey('TreatControlCAsInput')) {
-        try {
-            [Console]::TreatControlCAsInput = $OriginalState.TreatControlCAsInput
-        }
-        catch {
-        }
-    }
-
     # Clear the current line
     Write-Host (' ' * $ConsoleWidth)
 
@@ -152,12 +152,6 @@ function Get-ConsoleState {
         $state.CursorVisible = $Host.UI.RawUI.CursorVisible
     }
 
-    try {
-        $state.TreatControlCAsInput = [Console]::TreatControlCAsInput
-    }
-    catch {
-    }
-
     return $state
 }
 
@@ -172,9 +166,6 @@ function Initialize-Console {
     if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
         $Host.UI.RawUI.CursorVisible = $false
     }
-
-    # Enable key monitoring
-    [Console]::TreatControlCAsInput = $true
 }
 
 function Import-RequiredModule {
@@ -283,12 +274,49 @@ function Get-CharToDisplay {
 }
 
 function Test-KeyPress {
-    if ([Console]::KeyAvailable) {
-        $key = [Console]::ReadKey($true)
-        if ($key.KeyChar -eq 'q') {
+    $rawUI = $Host.UI.RawUI
+    $checkKey = {
+        param($character, $virtualKey, $controlState)
+
+        if ($character -eq 'q' -or $character -eq 'Q') {
             return $true
         }
+
+        $ctrlPressed = ($controlState -band `
+            ([System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed `
+             -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
+
+        if ($ctrlPressed -and $virtualKey -eq 67) {
+            return $true
+        }
+        return $false
     }
+
+    if ($rawUI -and $rawUI.KeyAvailable) {
+        try {
+            $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
+                     -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+            $keyInfo = $rawUI.ReadKey($options)
+            if (&$checkKey $keyInfo.Character $keyInfo.VirtualKeyCode $keyInfo.ControlKeyState) {
+                return $true
+            }
+        }
+        catch {
+        }
+    }
+
+    try {
+        if ([Console]::KeyAvailable) {
+            $key = [Console]::ReadKey($true)
+            if (&$checkKey $key.KeyChar ([int]$key.Key) 0) {
+                return $true
+            }
+        }
+    }
+    catch {
+        # Ignore environments without a console (e.g. background/hosted runs)
+    }
+
     return $false
 }
 
