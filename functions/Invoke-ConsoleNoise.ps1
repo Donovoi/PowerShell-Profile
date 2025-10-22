@@ -6,36 +6,11 @@
     The Invoke-ConsoleNoise function generates a visual display of Unicode characters with a
     color gradient in the console. The display continues until the user presses 'q'.
 
-    Three color gradient modes are supported:
-    - Rainbow: A full spectrum of colors
-    - Greyscale: Shades of grey
-    - Custom: A smooth custom gradient
-    - LolCat: Colorful rainbow effect using the lolcat module
-
-    The function can display either random Unicode characters or a specific character.
-
 .PARAMETER ColorGradient
     Specifies the type of color gradient to display (Rainbow, Greyscale, Custom, LolCat).
 
-.PARAMETER UseRgbColor
-    Switch to indicate that the full RGB loop should be used instead of HSL-based gradient.
-
-.PARAMETER UnicodeCharMode
-    Specifies the mode for displaying characters (Random or Specific).
-
-.PARAMETER SpecificChar
-    The character to display when UnicodeCharMode is set to 'Specific'.
-
 .PARAMETER DebugCleanup
     Shows detailed debug output during cleanup to diagnose terminal input issues.
-
-.EXAMPLE
-    Invoke-ConsoleNoise -ColorGradient "Rainbow" -UnicodeCharMode "Random"
-    Displays a rainbow gradient with random Unicode characters.
-
-.EXAMPLE
-    Invoke-ConsoleNoise -ColorGradient "Greyscale" -UnicodeCharMode "Specific" -SpecificChar '★'
-    Displays a greyscale gradient with the '★' character.
 
 .EXAMPLE
     Invoke-ConsoleNoise -DebugCleanup
@@ -44,7 +19,6 @@
 .NOTES
     Press 'q' to exit the function at any time.
     Requires the Pansies module for RGB color rendering.
-    LolCat mode requires the lolcat module.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
@@ -67,14 +41,11 @@ function Invoke-ConsoleNoise {
         [switch]$DebugCleanup
     )
 
-    # Save original console state
     $originalState = Get-ConsoleState
 
     try {
-        # Initialize console settings
         Initialize-Console
 
-        # Ensure required modules are loaded
         $requiredModules = @('Pansies')
         if ($ColorGradient -eq 'LolCat') {
             $requiredModules += 'lolcat'
@@ -84,12 +55,10 @@ function Invoke-ConsoleNoise {
             Import-RequiredModule -ModuleName $module
         }
 
-        # Get display settings
         $displaySettings = Get-DisplayConfiguration
         $consoleWidth = $displaySettings.Width
         $sleepTimeMs = $displaySettings.SleepTimeMs
 
-        # Choose and execute the appropriate display mode
         $displayFunctions = @{
             'RGB'    = { Show-RgbColorDisplay -ConsoleWidth $consoleWidth -SleepTimeMs $sleepTimeMs -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar }
             'LolCat' = { Show-LolCatDisplay -ConsoleWidth $consoleWidth -SleepTimeMs $sleepTimeMs -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar }
@@ -114,20 +83,17 @@ function Invoke-ConsoleNoise {
             Write-Host "`n[DEBUG] Starting cleanup process..." -ForegroundColor Yellow
         }
         
-        # Restore original console state
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth -Debug:$DebugCleanup
 
         if ($DebugCleanup) {
             Write-Host '[DEBUG] Checking PSReadLine module...' -ForegroundColor Yellow
         }
         
-        # Reset PSReadLine completely
         if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
             if ($DebugCleanup) {
                 Write-Host '[DEBUG] PSReadLine module found, attempting reset...' -ForegroundColor Yellow
             }
             try {
-                # Force complete reset of PSReadLine
                 if ($DebugCleanup) {
                     Write-Host '[DEBUG] Setting EditMode to Windows...' -ForegroundColor Yellow
                 }
@@ -178,16 +144,12 @@ function Invoke-ConsoleNoise {
     }
 }
 
-#region Helper Functions
-
 function Restore-ConsoleState {
     param (
         [Parameter(Mandatory = $true)]
         [hashtable]$OriginalState,
-
         [Parameter()]
         [int]$ConsoleWidth,
-
         [Parameter()]
         [switch]$Debug
     )
@@ -203,7 +165,6 @@ function Restore-ConsoleState {
     }
     Clear-KeyboardBuffer -Debug:$Debug
 
-    # Restore cursor visibility FIRST
     if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
         $OriginalState.ContainsKey('CursorVisible')) {
         if ($Debug) {
@@ -212,7 +173,6 @@ function Restore-ConsoleState {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
-    # Clear screen completely
     try {
         if ($Debug) {
             Write-Host '[DEBUG] Restore-ConsoleState: Calling Clear-Host...' -ForegroundColor Yellow
@@ -226,18 +186,15 @@ function Restore-ConsoleState {
         if ($Debug) {
             Write-Host '[DEBUG] Restore-ConsoleState: Clear-Host failed, trying Console.Clear()...' -ForegroundColor Red
         }
-        # Fallback: manual clear
         [Console]::Clear()
     }
 
-    # Restore colors
     if ($Debug) {
         Write-Host "[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))..." -ForegroundColor Yellow
     }
     $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
     $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
 
-    # Reset console buffer
     try {
         if ($Debug) {
             Write-Host '[DEBUG] Restore-ConsoleState: Calling Console.ResetColor()...' -ForegroundColor Yellow
@@ -250,7 +207,6 @@ function Restore-ConsoleState {
         }
     }
 
-    # Final aggressive flush
     if ($Debug) {
         Write-Host '[DEBUG] Restore-ConsoleState: Final buffer flush...' -ForegroundColor Yellow
     }
@@ -267,7 +223,6 @@ function Get-ConsoleState {
         BgColor = $Host.UI.RawUI.BackgroundColor
     }
 
-    # Only add CursorVisible if the property exists
     if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
         $state.CursorVisible = $Host.UI.RawUI.CursorVisible
     }
@@ -276,13 +231,11 @@ function Get-ConsoleState {
 }
 
 function Initialize-Console {
-    # Make sure terminal supports unicode characters
     if ($env:TERM_PROGRAM -eq 'vscode') {
         Write-Information 'vscode terminal detected, setting codepage to UTF-8.' -InformationAction Continue
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     }
 
-    # Make the cursor invisible during the animation if possible
     if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
         $Host.UI.RawUI.CursorVisible = $false
     }
@@ -308,7 +261,7 @@ function Import-RequiredModule {
 function Get-DisplayConfiguration {
     $width = $Host.UI.RawUI.WindowSize.Width
     $videoControllers = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
-    $refreshRate = 60  # default
+    $refreshRate = 60
     if ($videoControllers -and $videoControllers.CurrentRefreshRate) {
         $refreshRate = ($videoControllers.CurrentRefreshRate | Where-Object { $_ -gt 0 } | Select-Object -First 1) -as [int]
         if (-not $refreshRate) {
@@ -342,19 +295,19 @@ function Convert-HslToRgb {
         $hue2rgb = {
             param($p, $q, $t)
             if ($t -lt 0) {
-                $t += 1
+                $t += 1 
             }
             if ($t -gt 1) {
-                $t -= 1
+                $t -= 1 
             }
             if ($t -lt 1 / 6) {
-                return $p + ($q - $p) * 6 * $t
+                return $p + ($q - $p) * 6 * $t 
             }
             if ($t -lt 1 / 2) {
-                return $q
+                return $q 
             }
             if ($t -lt 2 / 3) {
-                return $p + ($q - $p) * (2 / 3 - $t) * 6
+                return $p + ($q - $p) * (2 / 3 - $t) * 6 
             }
             return $p
         }
@@ -385,9 +338,6 @@ function Clear-KeyboardBuffer {
         [switch]$Debug
     )
     
-    # Flush any remaining keys from the input buffer - try multiple methods
-    
-    # Method 1: Console API
     try {
         if ($Debug) {
             Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 1 (Console API)...' -ForegroundColor Yellow
@@ -409,7 +359,6 @@ function Clear-KeyboardBuffer {
         }
     }
 
-    # Method 2: RawUI
     try {
         if ($Debug) {
             Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 2 (RawUI)...' -ForegroundColor Yellow
@@ -419,8 +368,7 @@ function Clear-KeyboardBuffer {
             $attempts = 0
             $keysCleared = 0
             while ($rawUI.KeyAvailable -and $attempts -lt 100) {
-                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
-                    -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
                 $rawUI.ReadKey($options) | Out-Null
                 $attempts++
                 $keysCleared++
@@ -436,7 +384,6 @@ function Clear-KeyboardBuffer {
         }
     }
     
-    # Method 3: FlushInputBuffer if available
     try {
         if ($Debug) {
             Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 3 (FlushInputBuffer)...' -ForegroundColor Yellow
@@ -486,9 +433,7 @@ function Test-KeyPress {
             return $true
         }
 
-        $ctrlPressed = ($controlState -band `
-            ([System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed `
-                    -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
+        $ctrlPressed = ($controlState -band ([System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
 
         if ($ctrlPressed -and $virtualKey -eq 67) {
             return $true
@@ -496,7 +441,6 @@ function Test-KeyPress {
         return $false
     }
 
-    # Try Console.KeyAvailable first (more reliable)
     try {
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
@@ -506,12 +450,10 @@ function Test-KeyPress {
         }
     }
     catch {
-        # Fall back to RawUI if Console is not available
         $rawUI = $Host.UI.RawUI
         if ($rawUI -and $rawUI.KeyAvailable) {
             try {
-                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
-                    -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
                 $keyInfo = $rawUI.ReadKey($options)
                 if (&$checkKey $keyInfo.Character $keyInfo.VirtualKeyCode $keyInfo.ControlKeyState) {
                     return $true
@@ -545,23 +487,22 @@ function Show-RgbColorDisplay {
         $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
         $lineToDisplay = $charToDisplay * $ConsoleWidth
 
-        # Only use Write-Host with -ForegroundColor parameter
         Write-Host $lineToDisplay -ForegroundColor $color
         Start-Sleep -Milliseconds $SleepTimeMs
 
         $g += $gstep
         if ($g -eq 255) {
-            $g = 0
+            $g = 0 
         }
 
         $b += $bstep
         if ($b -eq 255) {
-            $b = 0
+            $b = 0 
         }
 
         $r -= $rstep
         if ($r -eq 0) {
-            $r = 255
+            $r = 255 
         }
     }
 }
@@ -602,30 +543,14 @@ function Show-HslColorDisplay {
             $color = Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $light
         }
         else {
-            else {
-                $hue = ($hue + 0.01) % 1.0            $hue = ($hue + 0.01) % 1.0
-                $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $lightslToRgb -Hue $hue -Saturation $sat -Lightness $light
-            }
-
-            $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-            $lineToDisplay = $charToDisplay * $ConsoleWidth
-
-            # Only use Write-Host with -ForegroundColor parameter, don't set console properties directly
-            Write-Host $lineToDisplay -ForegroundColor $color
-            Start-Sleep -Milliseconds $SleepTimeMs
+            $hue = ($hue + 0.01) % 1.0
+            $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
         }
+
+        $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
+        $lineToDisplay = $charToDisplay * $ConsoleWidth
+
+        Write-Host $lineToDisplay -ForegroundColor $color
+        Start-Sleep -Milliseconds $SleepTimeMs
     }
-
-    #endregion
 }
-
-$charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-$lineToDisplay = $charToDisplay * $ConsoleWidth
-
-# Only use Write-Host with -ForegroundColor parameter, don't set console properties directly
-Write-Host $lineToDisplay -ForegroundColor $color
-Start-Sleep -Milliseconds $SleepTimeMs
-}
-}
-
-#endregion
