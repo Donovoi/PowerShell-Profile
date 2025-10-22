@@ -103,13 +103,21 @@ function Invoke-ConsoleNoise {
         # Restore original console state
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth
 
+        # Reset PSReadLine if available
         if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
             try {
+                # Clear PSReadLine buffer
+                [Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()
+                [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
                 [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
             }
             catch {
             }
         }
+
+        # Final buffer clear and small delay
+        Clear-KeyboardBuffer
+        Start-Sleep -Milliseconds 50
     }
 }
 
@@ -124,9 +132,11 @@ function Restore-ConsoleState {
         [int]$ConsoleWidth
     )
 
-    # Restore colors
-    $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
-    $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
+    # Flush keyboard buffer to prevent input issues
+    Clear-KeyboardBuffer
+
+    # Small delay to ensure buffer is clear
+    Start-Sleep -Milliseconds 100
 
     # Restore cursor visibility if the property exists
     if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
@@ -134,11 +144,18 @@ function Restore-ConsoleState {
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
+    # Restore colors
+    $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
+    $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
+
     # Clear the current line
     Write-Host (' ' * $ConsoleWidth)
 
     # Move cursor to a clean position
     Write-Host ''
+
+    # Flush one more time after restore
+    Clear-KeyboardBuffer
 }
 
 function Get-ConsoleState {
@@ -259,6 +276,30 @@ function Convert-HslToRgb {
     return [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
 }
 
+function Clear-KeyboardBuffer {
+    # Flush any remaining keys from the input buffer
+    try {
+        while ([Console]::KeyAvailable) {
+            [Console]::ReadKey($true) | Out-Null
+        }
+    }
+    catch {
+        # Try RawUI method if Console is not available
+        try {
+            $rawUI = $Host.UI.RawUI
+            if ($rawUI) {
+                while ($rawUI.KeyAvailable) {
+                    $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
+                        -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+                    $rawUI.ReadKey($options) | Out-Null
+                }
+            }
+        }
+        catch {
+        }
+    }
+}
+
 function Get-CharToDisplay {
     param (
         [string]$UnicodeCharMode,
@@ -274,7 +315,6 @@ function Get-CharToDisplay {
 }
 
 function Test-KeyPress {
-    $rawUI = $Host.UI.RawUI
     $checkKey = {
         param($character, $virtualKey, $controlState)
 
@@ -284,7 +324,7 @@ function Test-KeyPress {
 
         $ctrlPressed = ($controlState -band `
             ([System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed `
-             -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
+                    -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
 
         if ($ctrlPressed -and $virtualKey -eq 67) {
             return $true
@@ -292,19 +332,7 @@ function Test-KeyPress {
         return $false
     }
 
-    if ($rawUI -and $rawUI.KeyAvailable) {
-        try {
-            $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
-                     -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
-            $keyInfo = $rawUI.ReadKey($options)
-            if (&$checkKey $keyInfo.Character $keyInfo.VirtualKeyCode $keyInfo.ControlKeyState) {
-                return $true
-            }
-        }
-        catch {
-        }
-    }
-
+    # Try Console.KeyAvailable first (more reliable)
     try {
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
@@ -314,7 +342,20 @@ function Test-KeyPress {
         }
     }
     catch {
-        # Ignore environments without a console (e.g. background/hosted runs)
+        # Fall back to RawUI if Console is not available
+        $rawUI = $Host.UI.RawUI
+        if ($rawUI -and $rawUI.KeyAvailable) {
+            try {
+                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
+                    -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+                $keyInfo = $rawUI.ReadKey($options)
+                if (&$checkKey $keyInfo.Character $keyInfo.VirtualKeyCode $keyInfo.ControlKeyState) {
+                    return $true
+                }
+            }
+            catch {
+            }
+        }
     }
 
     return $false
