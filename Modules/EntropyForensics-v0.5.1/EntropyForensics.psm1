@@ -1,18 +1,21 @@
-
 using namespace System.Collections.Generic
+
+Set-StrictMode -Version Latest
+
+
 
 # region ======== Classes (OOP) ========
 
 class EntropyScanOptions {
   [string]   $OutputDir
-  [int]      $Window        = 7
-  [int]      $FrameStride   = 12
-  [double]   $OverlayTopP   = 0.02
-  [bool]     $FaceROI       = $true
-  [bool]     $JPEGAnalysis  = $true
-  [int]      $DownscaleMax  = 0       # 0 = no downscale; else max(H,W)
+  [int]      $Window = 7
+  [int]      $FrameStride = 12
+  [double]   $OverlayTopP = 0.02
+  [bool]     $FaceROI = $true
+  [bool]     $JPEGAnalysis = $true
+  [int]      $DownscaleMax = 0       # 0 = no downscale; else clamp max(H,W)
   [string]   $CsvPath
-  [bool]     $InstallDeps   = $false
+  [bool]     $InstallDeps = $false
 }
 
 class EntropyScanResult {
@@ -22,29 +25,63 @@ class EntropyScanResult {
   [string]         $Overlay
   [string]         $FeatureJsonPath
   [pscustomobject] $Features
-  EntropyScanResult([string]$p,[string]$k,[double]$s,[string]$ov,[string]$fj,[pscustomobject]$feat){
-    $this.Path=$p; $this.Kind=$k; $this.Score=$s; $this.Overlay=$ov; $this.FeatureJsonPath=$fj; $this.Features=$feat
+
+  EntropyScanResult(
+    [string]$p,
+    [string]$k,
+    [double]$s,
+    [string]$ov,
+    [string]$fj,
+    [pscustomobject]$feat
+  ) {
+    $this.Path = $p
+    $this.Kind = $k
+    $this.Score = $s
+    $this.Overlay = $ov
+    $this.FeatureJsonPath = $fj
+    $this.Features = $feat
   }
 }
 
 class EntropyScanner {
   [string] $ToolRoot
   [string] $PyPath
+
   EntropyScanner() {
-    # Write helper to user-writable cache
-    if ($IsWindows) {
+    Set-StrictMode -Version Latest
+
+    # OS detection via .NET (avoid automatic vars in class scope)
+    $RunningOnWindows = ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT)
+
+    if ($RunningOnWindows) {
       $baseLocal = [Environment]::GetFolderPath('LocalApplicationData')
-      if (-not $baseLocal) { $baseLocal = Join-Path $env:USERPROFILE 'AppData\Local' }
+      if (-not $baseLocal -or [string]::IsNullOrWhiteSpace($baseLocal)) {
+        $userProfile = [Environment]::GetFolderPath('UserProfile')
+        if (-not $userProfile -or [string]::IsNullOrWhiteSpace($userProfile)) {
+          $userProfile = [Environment]::GetEnvironmentVariable('USERPROFILE', 'Process')
+        }
+        $baseLocal = Join-Path $userProfile 'AppData\Local'
+      }
       $this.ToolRoot = Join-Path $baseLocal 'EntropyForensics\tools'
-    } else {
-      $homePath = $HOME   # do not reassign automatic variable
+    }
+    else {
+      $homePath = [Environment]::GetFolderPath('UserProfile')
+      if (-not $homePath -or [string]::IsNullOrWhiteSpace($homePath)) {
+        $homePath = [Environment]::GetEnvironmentVariable('HOME', 'Process')
+      }
+      if (-not $homePath) {
+        $homePath = '.' 
+      }
       $this.ToolRoot = Join-Path $homePath '.cache/EntropyForensics/tools'
     }
+
     New-Item -ItemType Directory -Force -Path $this.ToolRoot | Out-Null
     $this.PyPath = Join-Path $this.ToolRoot 'entropy_probe_ext.py'
     [EntropyScanner]::WritePythonHelper($this.PyPath)
   }
+
   static [void] WritePythonHelper([string] $pyPath) {
+    # Literal here-string (no variable expansion) so Python source stays intact
     $py = @'
 import os, sys, argparse, json, math, mimetypes, hashlib
 import numpy as np
@@ -56,7 +93,7 @@ from skimage.color import rgb2ycbcr
 
 # Try MediaPipe; fallback to Haar if unavailable
 try:
-    import mediapipe as mp  # MediaPipe Face Detection
+    import mediapipe as mp
     MP_AVAILABLE = True
 except Exception:
     MP_AVAILABLE = False
@@ -118,7 +155,6 @@ def dct_block_features(gray_u8):
         for x in range(0, W8, 8):
             blocks.append(cv2.dct(img[y:y+8, x:x+8]))
     D = np.stack(blocks)  # [N,8,8]
-    # bands (simple rings)
     idx = np.arange(64).reshape(8,8)
     bands = [
         [(0,1),(1,0),(1,1)],
@@ -221,7 +257,7 @@ def frame_entropy_features(frame_bgr, radius, face_roi=False, min_ring_px=10):
             exp = 0.3
             rx0=max(0,int(x - exp*w)); ry0=max(0,int(y - exp*h))
             rx1=min(Ey.shape[1], int(x+w*(1+exp))); ry1=min(Ey.shape[0], int(y+h*(1+exp)))
-            # enforce a minimal ring width
+            # enforce a minimal ring width (downscale-safe)
             rx0 = max(0, min(rx0, x - min_ring_px)); ry0 = max(0, min(ry0, y - min_ring_px))
             rx1 = min(Ey.shape[1], max(rx1, x+w + min_ring_px)); ry1 = min(Ey.shape[0], max(ry1, y+h + min_ring_px))
             ring = np.zeros_like(Ey, bool)
@@ -255,7 +291,7 @@ def draw_overlay_native(orig_bgr, Ey_work, faces_work, scale_to_orig, out_path, 
     Zn = (np.clip(Z,0,5)/5.0*255).astype(np.uint8)
     heat = cv2.applyColorMap(Zn, cv2.COLORMAP_JET)
     overlay = cv2.addWeighted(orig_bgr, 0.65, heat, 0.35, 0)
-    for (x,y,w,h) in faces_work or []:
+    for (x,y,w,h) in (faces_work or []):
         xs=int(x/scale_to_orig); ys=int(y/scale_to_orig); ws=int(w/scale_to_orig); hs=int(h/scale_to_orig)
         cv2.rectangle(overlay,(xs,ys),(xs+ws,ys+hs),(0,255,0),2)
     cv2.drawContours(overlay, cnts, -1, (0,0,255), 2)
@@ -263,10 +299,11 @@ def draw_overlay_native(orig_bgr, Ey_work, faces_work, scale_to_orig, out_path, 
     return len(cnts)
 
 def byte_entropy_features(path, w=2048, s=1024):
-    try: data = np.fromfile(path, dtype=np.uint8)
-    except Exception: 
+    try:
+        data = np.fromfile(path, dtype=np.uint8)
+    except Exception:
         return {'byte_meanH':0.0,'byte_stdH':0.0,'byte_p95H':0.0,'byte_high_frac':0.0,'window':w,'stride':s}
-    if data.size==0: 
+    if data.size==0:
         return {'byte_meanH':0.0,'byte_stdH':0.0,'byte_p95H':0.0,'byte_high_frac':0.0,'window':w,'stride':s}
     Hs=[]
     for i in range(0, len(data)-w+1, s):
@@ -274,7 +311,9 @@ def byte_entropy_features(path, w=2048, s=1024):
         hist,_ = np.histogram(window, bins=256, range=(0,256))
         Hs.append(shannon_from_hist(hist))
     Hs = np.array(Hs) if Hs else np.array([0.0])
-    return {'byte_meanH': float(Hs.mean()), 'byte_stdH': float(Hs.std()), 'byte_p95H': float(np.percentile(Hs,95)), 'byte_high_frac': float((Hs>7.5).mean()), 'window':w, 'stride':s}
+    return {'byte_meanH': float(Hs.mean()), 'byte_stdH': float(Hs.std()),
+            'byte_p95H': float(np.percentile(Hs,95)), 'byte_high_frac': float((Hs>7.5).mean()),
+            'window':w, 'stride':s}
 
 def is_video(path):
     mt,_ = mimetypes.guess_type(path); return (mt or '').startswith('video')
@@ -293,9 +332,14 @@ def main():
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
-    res = {'path': args.input, 'params': {'radius':args.radius, 'frame_stride':args.frame_stride, 'overlay_top_p':args.overlay_top_p, 'downscale_max':args.downscale_max, 'face_roi':bool(args.face_roi), 'jpeg_analysis':bool(args.jpeg_analysis)}, 'byte': byte_entropy_features(args.input)}
+    res = {
+        'path': args.input,
+        'params': {'radius':args.radius, 'frame_stride':args.frame_stride,
+                   'overlay_top_p':args.overlay_top_p, 'downscale_max':args.downscale_max,
+                   'face_roi':bool(args.face_roi), 'jpeg_analysis':bool(args.jpeg_analysis)},
+        'byte': byte_entropy_features(args.input)
+    }
     kind = 'video' if is_video(args.input) else 'image'; res['kind']=kind
-
     detector_tag = None
 
     if kind=='image':
@@ -331,10 +375,9 @@ def main():
             f += 1
         cap.release()
         if not spatial: raise SystemExit("No frames sampled. Try smaller --frame_stride.")
-        # aggregate scalars
         agg={}
         first=spatial[0]
-        for k,v in first.items():
+        for k in first.keys():
             if k.endswith('_hist') or k=='roi': continue
             agg[k]=float(np.mean([s[k] for s in spatial]))
         for c in ['Y','Cb','Cr']:
@@ -392,85 +435,118 @@ if __name__=="__main__":
   }
 
   [EntropyScanResult] InvokeOne([string] $Path, [EntropyScanOptions] $opt) {
+    Set-StrictMode -Version Latest
+
     if (-not (Test-Path $Path)) {
       $err = New-Object System.Management.Automation.ErrorRecord (
         (New-Object System.IO.FileNotFoundException "File not found: $Path"),
-        "FileNotFound",
+        'FileNotFound',
         [System.Management.Automation.ErrorCategory]::ObjectNotFound,
-        $Path)
+        $Path
+      )
       throw $err
     }
-    $outDir = if ($opt.OutputDir) { $opt.OutputDir } else { Join-Path (Split-Path -Parent $Path) "entropy-output" }
+
+    $outDir = if ($opt.OutputDir) {
+      $opt.OutputDir 
+    }
+    else {
+      Join-Path (Split-Path -Parent $Path) 'entropy-output' 
+    }
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
     # Dependencies
     $pyCmd = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $pyCmd) { throw "Python 3 not found in PATH." }
-    if ($opt.InstallDeps) {
-      Write-Verbose "Installing/validating Python deps (user scope)…"
+    if (-not $pyCmd) {
+      throw 'Python 3 not found in PATH.' 
+    }
 
-      $depScript = @"
+    if ($opt.InstallDeps) {
+      Write-Verbose 'Installing/validating Python deps (user scope)…'
+
+      $depScript = @'
 import sys, subprocess
 pkgs = ["numpy","opencv-python-headless","scikit-image","pillow","mediapipe"]
 try:
     subprocess.check_call([sys.executable,"-m","pip","install","--user","--upgrade",*pkgs])
 except Exception as e:
     print("WARN: Failed installing some packages. MediaPipe may be unavailable. "+str(e), file=sys.stderr)
-"@
+'@
       & python -c $depScript
-      if ($LASTEXITCODE -ne 0) { Write-Warning "Dependency install reported issues; proceeding." }
+      if ($global:LASTEXITCODE -ne 0) {
+        Write-Warning 'Dependency install reported issues; proceeding.' 
+      }
 
-      $warnScript = @"
+      $warnScript = @'
 import sys
 maj,min = sys.version_info[:2]
 if (maj, min) >= (3,13):
     print("WARN: mediapipe wheels may not support Python 3.13 yet; prefer 3.10-3.12.", file=sys.stderr)
-"@
+'@
       & python -c $warnScript
     }
 
     $pyArgs = @(
-      "--input", $Path, "--outdir", $outDir,
-      "--radius", $opt.Window, "--frame_stride", $opt.FrameStride,
-      "--overlay_top_p", $opt.OverlayTopP,
-      "--downscale_max", $opt.DownscaleMax
+      '--input', $Path, '--outdir', $outDir,
+      '--radius', $opt.Window, '--frame_stride', $opt.FrameStride,
+      '--overlay_top_p', $opt.OverlayTopP,
+      '--downscale_max', $opt.DownscaleMax
     )
-    if ($opt.FaceROI)      { $pyArgs += @("--face_roi") }
-    if ($opt.JPEGAnalysis) { $pyArgs += @("--jpeg_analysis") }
+    if ($opt.FaceROI) {
+      $pyArgs += @('--face_roi') 
+    }
+    if ($opt.JPEGAnalysis) {
+      $pyArgs += @('--jpeg_analysis') 
+    }
 
     Write-Verbose "Probing '$Path'…"
     $jsonPath = & python $this.PyPath @pyArgs
-    if ($LASTEXITCODE -ne 0) { throw "Probe failed for $Path" }
+    if ($global:LASTEXITCODE -ne 0) {
+      throw "Probe failed for $Path" 
+    }
     $jsonPath = $jsonPath.Trim()
-    if (-not (Test-Path $jsonPath)) { throw "Missing output: $jsonPath" }
+    if (-not (Test-Path $jsonPath)) {
+      throw "Missing output: $jsonPath" 
+    }
 
     $res = Get-Content $jsonPath -Raw | ConvertFrom-Json
 
     # CSV append (safe)
     if ($opt.CsvPath) {
       $row = [pscustomobject]@{
-        Path        = $res.path
-        Kind        = $res.kind
-        Score       = $res.score_0_10
-        Overlay     = $res.overlay
-        FeatureJson = $jsonPath
-        HotspotFrac = ($res.spatial.hotspot_frac  | ForEach-Object { $_ }) 
-        JSmax       = [Math]::Max($res.spatial.JS_Y_Cb, $res.spatial.JS_Y_Cr)
-        ByteHighFrac= $res.byte.byte_high_frac
-        FlickerFrac = $res.temporal.flicker_frac
-        FaceDetector= $res.face_detector
+        Path         = $res.path
+        Kind         = $res.kind
+        Score        = $res.score_0_10
+        Overlay      = $res.overlay
+        FeatureJson  = $jsonPath
+        HotspotFrac  = ($res.spatial.hotspot_frac | ForEach-Object { $_ })
+        JSmax        = [Math]::Max($res.spatial.JS_Y_Cb, $res.spatial.JS_Y_Cr)
+        ByteHighFrac = $res.byte.byte_high_frac
+        FlickerFrac  = $res.temporal.flicker_frac
+        FaceDetector = $res.face_detector
       }
       $exists = Test-Path $opt.CsvPath
       try {
-        if ($exists) { $row | Export-Csv -Path $opt.CsvPath -NoTypeInformation -Append }
-        else         { $row | Export-Csv -Path $opt.CsvPath -NoTypeInformation }
-      } catch {
+        if ($exists) {
+          $row | Export-Csv -Path $opt.CsvPath -NoTypeInformation -Append 
+        }
+        else {
+          $row | Export-Csv -Path $opt.CsvPath -NoTypeInformation 
+        }
+      }
+      catch {
         Write-Warning "Failed to write CSV '$($opt.CsvPath)': $($_.Exception.Message)"
       }
     }
 
-    # Always return a result object
-    $obj = [EntropyScanResult]::new($res.path, $res.kind, [double]$res.score_0_10, $res.overlay, $jsonPath, ($res | ConvertTo-Json -Depth 10 | ConvertFrom-Json))
+    $obj = [EntropyScanResult]::new(
+      $res.path,
+      $res.kind,
+      [double]$res.score_0_10,
+      $res.overlay,
+      $jsonPath,
+      ($res | ConvertTo-Json -Depth 10 | ConvertFrom-Json)
+    )
     return $obj
   }
 }
@@ -478,14 +554,14 @@ if (maj, min) >= (3,13):
 # endregion ======== Classes ========
 
 function Invoke-EntropyDeepfakeScan {
-<#
+  <#
 .SYNOPSIS
   Compute pixel/temporal/byte entropy, MediaPipe (fallback Haar) face ROI, JPEG DCT/Benford/QT features, overlay, and a 0–10 triage score.
 
 .DESCRIPTION
   Uses scikit-image local entropy (rank.entropy, base-2) and MediaPipe Face Detection for ROI (falls back to Haar if MediaPipe unavailable).
   For JPEGs, adds DCT sub-band entropy, Benford deviation, and quantization-table fingerprinting.
-  Outputs an overlay at native resolution and a JSON with raw features and per-term score components.
+  Emits result objects and writes an overlay PNG + JSON with raw features and per-term score components.
 
 .PARAMETER Path
   One or more files (image/video). Accepts pipeline.
@@ -503,10 +579,10 @@ function Invoke-EntropyDeepfakeScan {
   Top fraction (0–0.2) of z-scores to draw as hotspots. Default 0.02.
 
 .PARAMETER FaceROI
-  Enable face-vs-background entropy deltas and face boxes in overlay. Default: On.
+  Enable face-vs-background entropy deltas and face boxes in overlay. Off unless specified.
 
 .PARAMETER JPEGAnalysis
-  Enable JPEG DCT/Benford/QT analysis on stills. Default: On.
+  Enable JPEG DCT/Benford/QT analysis on stills. Off unless specified.
 
 .PARAMETER DownscaleMax
   Max dimension for processing (e.g., 1080). 0 = no downscale. Overlay is rendered at native res.
@@ -518,16 +594,10 @@ function Invoke-EntropyDeepfakeScan {
   Install/upgrade Python deps: numpy, opencv-python-headless, scikit-image, pillow, mediapipe.
 
 .PARAMETER PassThru
-  Emit [EntropyScanResult] objects.
-
-.INPUTS
-  System.String
-
-.OUTPUTS
-  EntropyScanResult
+  Emit [EntropyScanResult] objects (objects are emitted by default).
 #>
   [OutputType([EntropyScanResult])]
-  [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='Low')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
   param(
     [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
     [Alias('FullName')]
@@ -535,13 +605,13 @@ function Invoke-EntropyDeepfakeScan {
 
     [string]$OutputDir,
 
-    [ValidateRange(3,31)]
+    [ValidateRange(3, 31)]
     [int]$Window = 7,
 
-    [ValidateRange(1,60)]
+    [ValidateRange(1, 60)]
     [int]$FrameStride = 12,
 
-    [ValidateRange(0.001,0.2)]
+    [ValidateRange(0.001, 0.2)]
     [double]$OverlayTopP = 0.02,
 
     [switch]$FaceROI,
@@ -556,29 +626,32 @@ function Invoke-EntropyDeepfakeScan {
   )
 
   begin {
+    Set-StrictMode -Version Latest
+
     $scanner = [EntropyScanner]::new()
     $opt = [EntropyScanOptions]::new()
-    $opt.OutputDir     = $OutputDir
-    $opt.Window        = $Window
-    $opt.FrameStride   = $FrameStride
-    $opt.OverlayTopP   = $OverlayTopP
-    $opt.FaceROI       = [bool]$FaceROI
-    $opt.JPEGAnalysis  = [bool]$JPEGAnalysis
-    $opt.DownscaleMax  = $DownscaleMax
-    $opt.CsvPath       = $CsvPath
-    $opt.InstallDeps   = [bool]$InstallDependencies
+    $opt.OutputDir = $OutputDir
+    $opt.Window = $Window
+    $opt.FrameStride = $FrameStride
+    $opt.OverlayTopP = $OverlayTopP
+    $opt.FaceROI = [bool]$FaceROI
+    $opt.JPEGAnalysis = [bool]$JPEGAnalysis
+    $opt.DownscaleMax = $DownscaleMax
+    $opt.CsvPath = $CsvPath
+    $opt.InstallDeps = [bool]$InstallDependencies
   }
 
   process {
     foreach ($p in $Path) {
-      if ($PSCmdlet.ShouldProcess($p, "Entropy triage & overlay")) {
+      if ($PSCmdlet.ShouldProcess($p, 'Entropy triage & overlay')) {
         try {
           $r = $scanner.InvokeOne($p, $opt)
-          # Information stream for human-friendly output
+          # Information stream for human-friendly output (no Write-Host)
           Write-Information ("{0}`nScore: {1}/10`nOverlay: {2}" -f $r.Path, $r.Score, $r.Overlay)
-          # Return objects
+          # Return objects (PowerShell best practice)
           $r
-        } catch {
+        }
+        catch {
           Write-Error -Category InvalidOperation -TargetObject $p -Message $_.Exception.Message
         }
       }
