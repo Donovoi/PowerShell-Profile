@@ -26,6 +26,9 @@
 .PARAMETER SpecificChar
     The character to display when UnicodeCharMode is set to 'Specific'.
 
+.PARAMETER DebugCleanup
+    Shows detailed debug output during cleanup to diagnose terminal input issues.
+
 .EXAMPLE
     Invoke-ConsoleNoise -ColorGradient "Rainbow" -UnicodeCharMode "Random"
     Displays a rainbow gradient with random Unicode characters.
@@ -33,6 +36,10 @@
 .EXAMPLE
     Invoke-ConsoleNoise -ColorGradient "Greyscale" -UnicodeCharMode "Specific" -SpecificChar '★'
     Displays a greyscale gradient with the '★' character.
+
+.EXAMPLE
+    Invoke-ConsoleNoise -DebugCleanup
+    Run with debug output to troubleshoot terminal input issues after exit.
 
 .NOTES
     Press 'q' to exit the function at any time.
@@ -54,7 +61,10 @@ function Invoke-ConsoleNoise {
         [string]$UnicodeCharMode = 'Specific',
 
         [Parameter()]
-        [char]$SpecificChar = [char]0x2588
+        [char]$SpecificChar = [char]0x2588,
+
+        [Parameter()]
+        [switch]$DebugCleanup
     )
 
     # Save original console state
@@ -100,27 +110,71 @@ function Invoke-ConsoleNoise {
         Write-Error "Error: $($_.Exception.Message)"
     }
     finally {
+        if ($DebugCleanup) {
+            Write-Host "`n[DEBUG] Starting cleanup process..." -ForegroundColor Yellow
+        }
+        
         # Restore original console state
-        Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth
+        Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth -Debug:$DebugCleanup
 
+        if ($DebugCleanup) {
+            Write-Host '[DEBUG] Checking PSReadLine module...' -ForegroundColor Yellow
+        }
+        
         # Reset PSReadLine completely
         if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+            if ($DebugCleanup) {
+                Write-Host '[DEBUG] PSReadLine module found, attempting reset...' -ForegroundColor Yellow
+            }
             try {
                 # Force complete reset of PSReadLine
+                if ($DebugCleanup) {
+                    Write-Host '[DEBUG] Setting EditMode to Windows...' -ForegroundColor Yellow
+                }
                 Set-PSReadLineOption -EditMode Windows -ErrorAction SilentlyContinue
+                
+                if ($DebugCleanup) {
+                    Write-Host '[DEBUG] Calling RevertLine...' -ForegroundColor Yellow
+                }
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+                
+                if ($DebugCleanup) {
+                    Write-Host '[DEBUG] PSReadLine reset complete' -ForegroundColor Green
+                }
             }
             catch {
+                if ($DebugCleanup) {
+                    Write-Host "[DEBUG] PSReadLine reset error: $($_.Exception.Message)" -ForegroundColor Red
+                }
+            }
+        }
+        else {
+            if ($DebugCleanup) {
+                Write-Host '[DEBUG] PSReadLine module not loaded' -ForegroundColor Cyan
             }
         }
 
-        # Force new prompt
+        if ($DebugCleanup) {
+            Write-Host '[DEBUG] Writing new line...' -ForegroundColor Yellow
+        }
         Write-Host ''
         
-        # Final aggressive buffer clear
-        Clear-KeyboardBuffer
+        if ($DebugCleanup) {
+            Write-Host '[DEBUG] Final buffer clear (1/2)...' -ForegroundColor Yellow
+        }
+        Clear-KeyboardBuffer -Debug:$DebugCleanup
         Start-Sleep -Milliseconds 100
-        Clear-KeyboardBuffer
+        
+        if ($DebugCleanup) {
+            Write-Host '[DEBUG] Final buffer clear (2/2)...' -ForegroundColor Yellow
+        }
+        Clear-KeyboardBuffer -Debug:$DebugCleanup
+        
+        if ($DebugCleanup) {
+            Write-Host '[DEBUG] Cleanup complete. Testing keyboard input...' -ForegroundColor Green
+            Write-Host "[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)" -ForegroundColor Cyan
+            Write-Host "[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)" -ForegroundColor Cyan
+        }
     }
 }
 
@@ -132,42 +186,79 @@ function Restore-ConsoleState {
         [hashtable]$OriginalState,
 
         [Parameter()]
-        [int]$ConsoleWidth
+        [int]$ConsoleWidth,
+
+        [Parameter()]
+        [switch]$Debug
     )
 
-    # Aggressive keyboard buffer flush
-    Clear-KeyboardBuffer
+    if ($Debug) {
+        Write-Host '[DEBUG] Restore-ConsoleState: Starting buffer flush (1/2)...' -ForegroundColor Yellow
+    }
+    Clear-KeyboardBuffer -Debug:$Debug
     Start-Sleep -Milliseconds 150
-    Clear-KeyboardBuffer
+    
+    if ($Debug) {
+        Write-Host '[DEBUG] Restore-ConsoleState: Starting buffer flush (2/2)...' -ForegroundColor Yellow
+    }
+    Clear-KeyboardBuffer -Debug:$Debug
 
     # Restore cursor visibility FIRST
     if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
         $OriginalState.ContainsKey('CursorVisible')) {
+        if ($Debug) {
+            Write-Host "[DEBUG] Restore-ConsoleState: Restoring cursor visibility to $($OriginalState.CursorVisible)..." -ForegroundColor Yellow
+        }
         $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
     }
 
     # Clear screen completely
     try {
+        if ($Debug) {
+            Write-Host '[DEBUG] Restore-ConsoleState: Calling Clear-Host...' -ForegroundColor Yellow
+        }
         Clear-Host
+        if ($Debug) {
+            Write-Host '[DEBUG] Restore-ConsoleState: Clear-Host successful' -ForegroundColor Green
+        }
     }
     catch {
+        if ($Debug) {
+            Write-Host '[DEBUG] Restore-ConsoleState: Clear-Host failed, trying Console.Clear()...' -ForegroundColor Red
+        }
         # Fallback: manual clear
         [Console]::Clear()
     }
 
     # Restore colors
+    if ($Debug) {
+        Write-Host "[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))..." -ForegroundColor Yellow
+    }
     $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
     $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
 
     # Reset console buffer
     try {
+        if ($Debug) {
+            Write-Host '[DEBUG] Restore-ConsoleState: Calling Console.ResetColor()...' -ForegroundColor Yellow
+        }
         [Console]::ResetColor()
     }
     catch {
+        if ($Debug) {
+            Write-Host "[DEBUG] Restore-ConsoleState: Console.ResetColor() error: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 
     # Final aggressive flush
-    Clear-KeyboardBuffer
+    if ($Debug) {
+        Write-Host '[DEBUG] Restore-ConsoleState: Final buffer flush...' -ForegroundColor Yellow
+    }
+    Clear-KeyboardBuffer -Debug:$Debug
+    
+    if ($Debug) {
+        Write-Host '[DEBUG] Restore-ConsoleState: Complete' -ForegroundColor Green
+    }
 }
 
 function Get-ConsoleState {
@@ -289,42 +380,87 @@ function Convert-HslToRgb {
 }
 
 function Clear-KeyboardBuffer {
+    param (
+        [Parameter()]
+        [switch]$Debug
+    )
+    
     # Flush any remaining keys from the input buffer - try multiple methods
     
     # Method 1: Console API
     try {
+        if ($Debug) {
+            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 1 (Console API)...' -ForegroundColor Yellow
+        }
         $attempts = 0
+        $keysCleared = 0
         while ([Console]::KeyAvailable -and $attempts -lt 100) {
             [Console]::ReadKey($true) | Out-Null
             $attempts++
+            $keysCleared++
+        }
+        if ($Debug) {
+            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 1 cleared $keysCleared keys in $attempts attempts" -ForegroundColor Cyan
         }
     }
     catch {
+        if ($Debug) {
+            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 1 error: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 
     # Method 2: RawUI
     try {
+        if ($Debug) {
+            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 2 (RawUI)...' -ForegroundColor Yellow
+        }
         $rawUI = $Host.UI.RawUI
         if ($rawUI) {
             $attempts = 0
+            $keysCleared = 0
             while ($rawUI.KeyAvailable -and $attempts -lt 100) {
                 $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho `
                     -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
                 $rawUI.ReadKey($options) | Out-Null
                 $attempts++
+                $keysCleared++
+            }
+            if ($Debug) {
+                Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 2 cleared $keysCleared keys in $attempts attempts" -ForegroundColor Cyan
             }
         }
     }
     catch {
+        if ($Debug) {
+            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 2 error: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
     
     # Method 3: FlushInputBuffer if available
     try {
-        if ([Console]::GetType().GetMethod('FlushInputBuffer')) {
+        if ($Debug) {
+            Write-Host '[DEBUG] Clear-KeyboardBuffer: Method 3 (FlushInputBuffer)...' -ForegroundColor Yellow
+        }
+        $method = [Console]::GetType().GetMethod('FlushInputBuffer')
+        if ($method) {
+            if ($Debug) {
+                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method found, invoking...' -ForegroundColor Cyan
+            }
             [Console]::FlushInputBuffer()
+            if ($Debug) {
+                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer successful' -ForegroundColor Green
+            }
+        }
+        else {
+            if ($Debug) {
+                Write-Host '[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method not available' -ForegroundColor Cyan
+            }
         }
     }
     catch {
+        if ($Debug) {
+            Write-Host "[DEBUG] Clear-KeyboardBuffer: Method 3 error: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 }
 
@@ -466,18 +602,30 @@ function Show-HslColorDisplay {
             $color = Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $light
         }
         else {
-            $hue = ($hue + 0.01) % 1.0
-            $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
+            else {
+                $hue = ($hue + 0.01) % 1.0            $hue = ($hue + 0.01) % 1.0
+                $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $lightslToRgb -Hue $hue -Saturation $sat -Lightness $light
+            }
+
+            $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
+            $lineToDisplay = $charToDisplay * $ConsoleWidth
+
+            # Only use Write-Host with -ForegroundColor parameter, don't set console properties directly
+            Write-Host $lineToDisplay -ForegroundColor $color
+            Start-Sleep -Milliseconds $SleepTimeMs
         }
-
-        $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-        $lineToDisplay = $charToDisplay * $ConsoleWidth
-
-        # Only use Write-Host with -ForegroundColor parameter, don't set console properties directly
-        Write-Host $lineToDisplay -ForegroundColor $color
-        Start-Sleep -Milliseconds $SleepTimeMs
     }
+
+    #endregion
 }
 
+$charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
+$lineToDisplay = $charToDisplay * $ConsoleWidth
+
+# Only use Write-Host with -ForegroundColor parameter, don't set console properties directly
+Write-Host $lineToDisplay -ForegroundColor $color
+Start-Sleep -Milliseconds $SleepTimeMs
+}
+}
 
 #endregion
