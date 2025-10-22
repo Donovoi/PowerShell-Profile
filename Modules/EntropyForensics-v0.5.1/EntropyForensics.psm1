@@ -33,12 +33,12 @@ class EntropyScanner {
   EntropyScanner() {
     # Write helper to user-writable cache
     if ($IsWindows) {
-      $base = [Environment]::GetFolderPath('LocalApplicationData')
-      if (-not $base) { $base = Join-Path $env:USERPROFILE 'AppData\Local' }
-      $this.ToolRoot = Join-Path $base 'EntropyForensics\tools'
+      $baseLocal = [Environment]::GetFolderPath('LocalApplicationData')
+      if (-not $baseLocal) { $baseLocal = Join-Path $env:USERPROFILE 'AppData\Local' }
+      $this.ToolRoot = Join-Path $baseLocal 'EntropyForensics\tools'
     } else {
-      $home = $env:HOME
-      $this.ToolRoot = Join-Path $home '.cache/EntropyForensics/tools'
+      $homePath = $HOME   # do not reassign automatic variable
+      $this.ToolRoot = Join-Path $homePath '.cache/EntropyForensics/tools'
     }
     New-Item -ItemType Directory -Force -Path $this.ToolRoot | Out-Null
     $this.PyPath = Join-Path $this.ToolRoot 'entropy_probe_ext.py'
@@ -379,11 +379,7 @@ def main():
     score = round(10.0*max(0.0, min(1.0, score01)), 1)
     res['score_0_10'] = score
     res['score_components'] = {'weights':weights, 'components':comps}
-
-    if detector_tag:
-        res['face_detector'] = detector_tag
-    else:
-        res['face_detector'] = 'none'
+    res['face_detector'] = detector_tag if detector_tag else 'none'
 
     out_json = os.path.join(args.outdir, os.path.basename(args.input) + "_features.json")
     with open(out_json,'w') as f: json.dump(res, f, indent=2)
@@ -408,38 +404,42 @@ if __name__=="__main__":
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
     # Dependencies
-    $py = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $py) { throw "Python 3 not found in PATH." }
+    $pyCmd = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pyCmd) { throw "Python 3 not found in PATH." }
     if ($opt.InstallDeps) {
       Write-Verbose "Installing/validating Python deps (user scope)…"
-      & python - <<'PY'
+
+      $depScript = @"
 import sys, subprocess
 pkgs = ["numpy","opencv-python-headless","scikit-image","pillow","mediapipe"]
 try:
-    subprocess.check_call([sys.executable,"-m","pip","install","--user","--upgrade"]+pkgs)
+    subprocess.check_call([sys.executable,"-m","pip","install","--user","--upgrade",*pkgs])
 except Exception as e:
     print("WARN: Failed installing some packages. MediaPipe may be unavailable. "+str(e), file=sys.stderr)
-PY
+"@
+      & python -c $depScript
       if ($LASTEXITCODE -ne 0) { Write-Warning "Dependency install reported issues; proceeding." }
-      & python - <<'PY'
+
+      $warnScript = @"
 import sys
 maj,min = sys.version_info[:2]
 if (maj, min) >= (3,13):
     print("WARN: mediapipe wheels may not support Python 3.13 yet; prefer 3.10-3.12.", file=sys.stderr)
-PY
+"@
+      & python -c $warnScript
     }
 
-    $args = @(
+    $pyArgs = @(
       "--input", $Path, "--outdir", $outDir,
       "--radius", $opt.Window, "--frame_stride", $opt.FrameStride,
       "--overlay_top_p", $opt.OverlayTopP,
       "--downscale_max", $opt.DownscaleMax
     )
-    if ($opt.FaceROI)      { $args += @("--face_roi") }
-    if ($opt.JPEGAnalysis) { $args += @("--jpeg_analysis") }
+    if ($opt.FaceROI)      { $pyArgs += @("--face_roi") }
+    if ($opt.JPEGAnalysis) { $pyArgs += @("--jpeg_analysis") }
 
     Write-Verbose "Probing '$Path'…"
-    $jsonPath = & python $this.PyPath @args
+    $jsonPath = & python $this.PyPath @pyArgs
     if ($LASTEXITCODE -ne 0) { throw "Probe failed for $Path" }
     $jsonPath = $jsonPath.Trim()
     if (-not (Test-Path $jsonPath)) { throw "Missing output: $jsonPath" }
@@ -468,7 +468,10 @@ PY
         Write-Warning "Failed to write CSV '$($opt.CsvPath)': $($_.Exception.Message)"
       }
     }
-    return [EntropyScanResult]::new($res.path, $res.kind, [double]$res.score_0_10, $res.overlay, $jsonPath, ($res | ConvertTo-Json -Depth 10 | ConvertFrom-Json))
+
+    # Always return a result object
+    $obj = [EntropyScanResult]::new($res.path, $res.kind, [double]$res.score_0_10, $res.overlay, $jsonPath, ($res | ConvertTo-Json -Depth 10 | ConvertFrom-Json))
+    return $obj
   }
 }
 
@@ -571,10 +574,10 @@ function Invoke-EntropyDeepfakeScan {
       if ($PSCmdlet.ShouldProcess($p, "Entropy triage & overlay")) {
         try {
           $r = $scanner.InvokeOne($p, $opt)
-          # Use information stream for human-friendly output
+          # Information stream for human-friendly output
           Write-Information ("{0}`nScore: {1}/10`nOverlay: {2}" -f $r.Path, $r.Score, $r.Overlay)
-          # Return objects (PowerShell best practice)
-          if ($PassThru) { $r } else { $r }
+          # Return objects
+          $r
         } catch {
           Write-Error -Category InvalidOperation -TargetObject $p -Message $_.Exception.Message
         }
