@@ -105,25 +105,8 @@ function Invoke-ConsoleNoise {
         Write-Error "Error: $($_.Exception.Message)"
     }
     finally {
-        # Suspend PSReadLine FIRST to prevent prompt interference
-        $psrlSuspended = $false
-        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
-            try {
-                [Microsoft.PowerShell.PSConsoleReadLine]::Suspend()
-                $psrlSuspended = $true
-                if ($DebugCleanup) {
-                    [Console]::WriteLine("`n[DEBUG] PSReadLine suspended")
-                }
-            }
-            catch {
-                if ($DebugCleanup) {
-                    [Console]::WriteLine("[DEBUG] Could not suspend PSReadLine: $($_.Exception.Message)")
-                }
-            }
-        }
-        
         if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Starting cleanup process...')
+            [Console]::WriteLine('`n[DEBUG] Starting cleanup process...')
         }
         
         Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth -DebugMode:$DebugCleanup
@@ -183,6 +166,32 @@ function Invoke-ConsoleNoise {
             [Console]::WriteLine('[DEBUG] Cleanup complete. Testing keyboard input...')
             [Console]::WriteLine("[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)")
             [Console]::WriteLine("[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)")
+            [Console]::WriteLine('[DEBUG] Attempting to read PSReadLine state...')
+            try {
+                $editMode = (Get-PSReadLineOption).EditMode
+                [Console]::WriteLine("[DEBUG] PSReadLine EditMode: $editMode")
+            }
+            catch {
+                [Console]::WriteLine("[DEBUG] Could not read PSReadLine options: $($_.Exception.Message)")
+            }
+            [Console]::WriteLine('[DEBUG] Testing if Console.ReadKey blocks...')
+            [Console]::WriteLine('[DEBUG] Press any key within 2 seconds or this will timeout...')
+            
+            $timeout = [DateTime]::Now.AddSeconds(2)
+            $keyPressed = $false
+            while ([DateTime]::Now -lt $timeout) {
+                if ([Console]::KeyAvailable) {
+                    $key = [Console]::ReadKey($true)
+                    [Console]::WriteLine("[DEBUG] Key detected: $($key.Key) / $($key.KeyChar)")
+                    $keyPressed = $true
+                    break
+                }
+                Start-Sleep -Milliseconds 50
+            }
+            
+            if (-not $keyPressed) {
+                [Console]::WriteLine('[DEBUG] No key pressed within timeout')
+            }
         }
         
         # Force all pending output to complete
@@ -196,24 +205,6 @@ function Invoke-ConsoleNoise {
             }
             catch {
                 [Console]::Clear()
-            }
-        }
-        
-        # Resume PSReadLine if we suspended it
-        if ($psrlSuspended) {
-            try {
-                if ($DebugCleanup) {
-                    [Console]::WriteLine('[DEBUG] Resuming PSReadLine...')
-                }
-                [Microsoft.PowerShell.PSConsoleReadLine]::Resume()
-                if ($DebugCleanup) {
-                    [Console]::WriteLine('[DEBUG] PSReadLine resumed')
-                }
-            }
-            catch {
-                if ($DebugCleanup) {
-                    [Console]::WriteLine("[DEBUG] Could not resume PSReadLine: $($_.Exception.Message)")
-                }
             }
         }
     }
