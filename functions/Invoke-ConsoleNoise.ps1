@@ -174,19 +174,27 @@ function Invoke-ConsoleNoise {
             catch {
                 [Console]::WriteLine("[DEBUG] Could not read PSReadLine options: $($_.Exception.Message)")
             }
+            [Console]::WriteLine('')
+            [Console]::WriteLine('[DEBUG] Press ENTER to clear screen and return to prompt...')
+            [Console]::ReadLine() | Out-Null
         }
         
         # Force all pending output to complete
         [Console]::Out.Flush()
         Start-Sleep -Milliseconds 100
         
-        # Always clear the screen for clean user experience
+        # Clear the screen for clean user experience
         try {
             Clear-Host
         }
         catch {
             [Console]::Clear()
         }
+        
+        # Clear any remaining keys in the buffer after screen clear
+        Clear-KeyboardBuffer -DebugMode:$false
+        Start-Sleep -Milliseconds 50
+        Clear-KeyboardBuffer -DebugMode:$false
     }
 }
 
