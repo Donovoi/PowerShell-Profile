@@ -1,47 +1,4 @@
 function Convert-PdfToMusicXml {
-    <#
-    .SYNOPSIS
-    Convert a sheet-music PDF to MusicXML using Audiveris (CLI).
-
-    .DESCRIPTION
-    Uses Audiveris' command-line interface to transcribe (-transcribe) and export (-export)
-    MusicXML. By default exports compressed .MXL; use -UncompressedXml to force plain .musicxml.
-    Optionally enable Book/Opus export to one file with -UseOpus. Supports selecting specific pages.
-
-    .PARAMETER Path
-    Input PDF (or image) file path.
-
-    .PARAMETER OutDir
-    Output directory for .mxl/.musicxml and .omr project files (created if missing).
-
-    .PARAMETER AudiverisPath
-    Full path to Audiveris launcher (e.g., "C:\Program Files\Audiveris\Audiveris.exe").
-    If omitted, the function tries common defaults and PATH.
-
-    .PARAMETER UncompressedXml
-    Export plain MusicXML (.musicxml) rather than compressed .mxl.
-
-    .PARAMETER UseOpus
-    Export a single MusicXML file representing a multi-movement “opus” rather than one per movement.
-
-    .PARAMETER Sheets
-    One or more 1-based page numbers; ranges allowed (e.g., 1, 3, 5..8).
-
-    .PARAMETER TessDataPath
-    Optional path to Tesseract traineddata (sets TESSDATA_PREFIX) to improve text/lyrics OCR.
-
-    .PARAMETER Force
-    Force reprocessing even if outputs exist.
-
-    .PARAMETER PassThru
-    Return the output file path(s).
-
-    .EXAMPLE
-    Convert-PdfToMusicXml -Path "C:\scores\WhiteWinterHymnal.pdf" -OutDir "C:\scores\xml"
-
-    .EXAMPLE
-    Convert-PdfToMusicXml -Path .\score.pdf -UncompressedXml -UseOpus -Sheets 1,3,5..7 -PassThru
-    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, Position = 0)]
@@ -53,115 +10,125 @@ function Convert-PdfToMusicXml {
 
         [string]$AudiverisPath,
 
-        [switch]$UncompressedXml,
-        [switch]$UseOpus,
-        [Parameter()]
-        [Alias('Page', 'PageNumbers')]
-        [object[]]$Sheets,
-
-        [string]$TessDataPath,
+        [switch]$UncompressedXml,   # emit .xml instead of .mxl
+        [switch]$UseOpus,           # single "opus" file for multi-movement scores
+        [object[]]$Sheets,          # 1,3..5 etc
         [switch]$Force,
         [switch]$PassThru
     )
 
-    begin {
-        # Resolve Audiveris location
-        $candidatePaths = @(
-            $AudiverisPath,
-            'C:\Program Files\Audiveris\Audiveris.exe',
-            'C:\Program Files (x86)\Audiveris\Audiveris.exe',
-            'Audiveris.exe',
-            'Audiveris.bat',
-            'audiveris' # on PATH (Linux/WSL/macOS)
-        ) | Where-Object { $_ }  # drop nulls
+    # region Resolve Audiveris binary
+    $candidatePaths = @(
+        $AudiverisPath,
+        'C:\Program Files\Audiveris\Audiveris.exe',
+        'C:\Program Files (x86)\Audiveris\Audiveris.exe',
+        'Audiveris.exe',
+        'Audiveris.bat',
+        'audiveris'
+    ) | Where-Object { $_ }
 
-        $launcher = $null
-        foreach ($p in $candidatePaths) {
-            try {
-                $resolved = (Get-Command $p -ErrorAction Stop).Source
-                if ($resolved) {
-                    $launcher = $resolved; break 
-                }
-            }
-            catch { 
+    $launcher = $null
+    foreach ($p in $candidatePaths) {
+        try {
+            $resolved = (Get-Command $p -ErrorAction Stop).Source
+            if ($resolved) {
+                $launcher = $resolved; break 
             }
         }
-        if (-not $launcher) {
-            throw 'Audiveris launcher not found. Install Audiveris 5.5+ or provide -AudiverisPath.'
+        catch { 
         }
+    }
+    if (-not $launcher) {
+        throw 'Audiveris not found. Install it or provide -AudiverisPath.'
+    }
+    # endregion
 
-        # Prepare output directory
-        if (-not (Test-Path $OutDir)) {
-            New-Item -ItemType Directory -Path $OutDir | Out-Null 
-        }
+    # region Prep dirs and names
+    $null = New-Item -ItemType Directory -Force -Path $OutDir
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($Path)
+    $logFile = Join-Path $OutDir "$baseName.audiveris.log"
 
-        # Optional OCR traineddata for lyrics/text
-        if ($TessDataPath) {
-            if (-not (Test-Path $TessDataPath -PathType Container)) {
-                throw "TessDataPath '$TessDataPath' does not exist."
+    # We'll ask Audiveris to:
+    #   -batch (no GUI)
+    #   -export (MusicXML)
+    #   -save   (persist .omr so we can debug/fix later)
+    #   -output $OutDir (where to dump stuff)
+    #   -force if requested
+    $args = @('-batch', '-export', '-save', '-output', $OutDir)
+    if ($Force) {
+        $args += '-force' 
+    }
+
+    # format tweaks
+    if ($UseOpus) {
+        $args += @('-constant', 'org.audiveris.omr.sheet.BookManager.useOpus=true')
+    }
+    if ($UncompressedXml) {
+        $args += @('-constant', 'org.audiveris.omr.sheet.BookManager.useCompression=false')
+    }
+
+    # page selection (Sheets param like 1,3..5 -> "1 3-5")
+    if ($Sheets) {
+        $sheetTokens = foreach ($s in $Sheets) {
+            if ($s -is [string] -and $s -match '^\s*(\d+)\s*\.\.\s*(\d+)\s*$') {
+                "$($Matches[1])-$($Matches[2])"
             }
-            $env:TESSDATA_PREFIX = $TessDataPath
-        }
-
-        # Build CLI args
-        $args = @(
-            '-batch',
-            '-transcribe',     # make pipeline explicit before export
-            '-export',
-            '-output', $OutDir
-        )
-
-        if ($Force) {
-            $args += '-force' 
-        }
-        if ($UseOpus) {
-            $args += @('-constant', 'org.audiveris.omr.sheet.BookManager.useOpus=true') 
-        }
-        if ($UncompressedXml) {
-            # Export plain .xml instead of compressed .mxl
-            $args += @('-constant', 'org.audiveris.omr.sheet.BookManager.useCompression=false')
-        }
-
-        # Sheets handling (convert 5..8 to "5-8", keep integers as-is)
-        if ($Sheets) {
-            $sheetTokens = foreach ($s in $Sheets) {
-                if ($s -is [string] -and $s -match '^\s*(\d+)\s*\.\.\s*(\d+)\s*$') {
-                    "$($Matches[1])-$($Matches[2])"
-                }
-                else {
-                    "$s" 
-                }
+            else {
+                "$s" 
             }
-            $args += @('-sheets', ($sheetTokens -join ' '))
         }
+        $args += @('-sheets', ($sheetTokens -join ' '))
+    }
 
-        $args += @('--', $Path)
+    $args += @('--', $Path)
 
-        Write-Verbose ("[Audiveris] {0} `nArgs: {1}" -f $launcher, ($args -join ' '))
-        & $launcher @args
-        $exit = $LASTEXITCODE
-        if ($exit -ne 0) {
-            throw "Audiveris exited with code $exit. Check logs in '$OutDir' or try -Force."
-        }
+    Write-Verbose "Launching Audiveris:`n$launcher `n$args"
+    # run Audiveris and tee ALL output (stdout+stderr) to log
+    & $launcher @args *> $logFile
+    $exit = $LASTEXITCODE
+    Write-Verbose "Audiveris exit code: $exit (log: $logFile)"
 
-        # Collect outputs
-        $pattern = if ($UncompressedXml) {
-            '*.xml' 
-        }
-        else {
-            '*.mxl' 
-        }
-        $files = Get-ChildItem -LiteralPath $OutDir -Filter $pattern -Recurse | Sort-Object LastWriteTime -Descending
+    # region Collect candidates
+    $candidates = @()
 
-        if (-not $files) {
-            throw "No MusicXML files found in '$OutDir'. Ensure the PDF is legible and try -Force or different Sheets."
-        }
+    # 1. flat files in OutDir
+    $candidates += Get-ChildItem -LiteralPath $OutDir -Filter "$baseName*.mxl" -ErrorAction SilentlyContinue
+    $candidates += Get-ChildItem -LiteralPath $OutDir -Filter "$baseName*.xml" -ErrorAction SilentlyContinue
+    $candidates += Get-ChildItem -LiteralPath $OutDir -Filter "$baseName*.omr" -ErrorAction SilentlyContinue
 
-        if ($PassThru) {
-            $files.FullName 
+    # 2. subfolder named after the score (Audiveris "book folder")
+    $bookDir = Join-Path $OutDir $baseName
+    if (Test-Path $bookDir) {
+        $candidates += Get-ChildItem -LiteralPath $bookDir -Filter "$baseName*.mxl" -ErrorAction SilentlyContinue
+        $candidates += Get-ChildItem -LiteralPath $bookDir -Filter "$baseName*.xml" -ErrorAction SilentlyContinue
+        $candidates += Get-ChildItem -LiteralPath $bookDir -Filter "$baseName*.omr" -ErrorAction SilentlyContinue
+    }
+
+    # 3. legacy default under Documents\Audiveris (in case -output got ignored)
+    $docsAud = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Audiveris'
+    if (Test-Path $docsAud) {
+        $legacyBookDir = Join-Path $docsAud $baseName
+        if (Test-Path $legacyBookDir) {
+            $candidates += Get-ChildItem -LiteralPath $legacyBookDir -Filter "$baseName*.mxl" -ErrorAction SilentlyContinue
+            $candidates += Get-ChildItem -LiteralPath $legacyBookDir -Filter "$baseName*.xml" -ErrorAction SilentlyContinue
+            $candidates += Get-ChildItem -LiteralPath $legacyBookDir -Filter "$baseName*.omr" -ErrorAction SilentlyContinue
         }
-        else {
-            Write-Host ('Exported {0} file(s) to: {1}' -f $files.Count, $OutDir)
+    }
+
+    $candidates = $candidates | Sort-Object LastWriteTime -Descending -Unique
+
+    if (-not $candidates) {
+        throw "Audiveris ran (exit $exit) but I can't find $baseName.{mxl,xml,omr}. Check $logFile for recognition/export errors, rhythmic conflicts, or filename/path issues. See Audiveris GUI if needed."
+    }
+
+    if ($PassThru) {
+        return $candidates.FullName
+    }
+    else {
+        Write-Host 'Artifacts:'
+        $candidates | ForEach-Object {
+            Write-Host " - $($_.FullName)"
         }
+        Write-Host "`nFull log: $logFile"
     }
 }
