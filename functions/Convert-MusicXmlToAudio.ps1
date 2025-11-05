@@ -89,7 +89,7 @@ function Convert-MusicXmlToAudio {
                 $argList += @('-b', $Bitrate) 
             }   # MP3 bitrate
             $argList += @('-o', $outFile, $inFile)                                # converter mode
-            # Docs: -o/--export-to selects format by extension; -b sets MP3 bitrate. :contentReference[oaicite:1]{index=1}
+            # Docs: -o/--export-to selects format by extension; -b sets MP3 bitrate. 
 
             Write-Verbose ('[MuseScore] {0}' -f $MuseScorePath)
             Write-Verbose ('Args: {0}' -f ($argList -join ' '))
