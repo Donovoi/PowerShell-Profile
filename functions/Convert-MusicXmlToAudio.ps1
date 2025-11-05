@@ -2,116 +2,128 @@ function Convert-MusicXmlToAudio {
     [CmdletBinding()]
     param(
         # Path to .mxl / .musicxml / .xml / .mscz / etc.
-        [Parameter(Mandatory=$true,
-                   ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
+        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName, Position = 0)]
         [Alias('FullName')]
         [string]$Path,
 
         # Where to drop the rendered audio/MIDI
-        [Parameter()]
         [string]$OutDir = (Join-Path (Split-Path -Parent $Path) 'audio-out'),
 
-        # What to make: wav, mp3, flac, ogg, mid, midi
-        [Parameter()]
-        [ValidateSet('wav','mp3','flac','ogg','mid','midi')]
-        [string]$Format = 'wav',
+        # One or more targets: wav, mp3, flac, ogg, mid, midi
+        [ValidateSet('wav', 'mp3', 'flac', 'ogg', 'mid', 'midi')]
+        [string[]]$Format = @('wav'),
 
-        # Explicit path to MuseScore4.exe / MuseScore3.exe / mscore.exe
-        [Parameter()]
+        # Explicit path to MuseScore4/Studio/3 executable (if not on PATH)
         [string]$MuseScorePath,
 
-        # Overwrite existing output?
+        # MP3 bitrate (MuseScore supports -b/--bitrate)
+        [ValidateRange(32, 320)]
+        [int]$Bitrate = 192,
+
+        # Overwrite existing outputs
         [switch]$Force,
 
-        # Return info object at the end
+        # Return objects (paths, exe, logs, codes)
         [switch]$PassThru
     )
 
     begin {
-        # Try to auto-discover MuseScore if not provided.
+        # Auto-discover MuseScore if not provided
         if (-not $MuseScorePath) {
             $candidates = @(
-                "C:\Program Files\MuseScore 4\bin\MuseScore4.exe",
-                "C:\Program Files\MuseScore 4\MuseScore4.exe",
-                "C:\Program Files\MuseScore 4\MuseScoreStudio.exe",
-                "C:\Program Files\MuseScore 3\bin\MuseScore3.exe",
-                "C:\Program Files\MuseScore 3\MuseScore3.exe",
-                "C:\Program Files\MuseScore\MuseScore.exe",
-                "C:\Program Files\MuseScore\bin\MuseScore.exe",
-                "mscore.exe"  # if it's already on PATH
+                'C:\Program Files\MuseScore 4\bin\MuseScore4.exe',
+                'C:\Program Files\MuseScore 4\MuseScoreStudio.exe',
+                'C:\Program Files\MuseScore 4\MuseScore4.exe',
+                'C:\Program Files\MuseScore 3\bin\MuseScore3.exe',
+                'C:\Program Files\MuseScore 3\MuseScore3.exe',
+                'C:\Program Files\MuseScore\MuseScore.exe',
+                'C:\Program Files\MuseScore\bin\MuseScore.exe',
+                'mscore.exe',   # on PATH (Linux/mac), still fine on Win if present
+                'musescore'     # on PATH
             )
-            $MuseScorePath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+            $MuseScorePath = $candidates | Where-Object { $_ -and (Get-Command $_ -ErrorAction SilentlyContinue) } | Select-Object -First 1
         }
-
-        if (-not $MuseScorePath -or -not (Test-Path $MuseScorePath)) {
-            throw "Could not find MuseScore. Set -MuseScorePath 'C:\Program Files\MuseScore 4\bin\MuseScore4.exe'."
+        if (-not $MuseScorePath) {
+            throw "Could not find MuseScore. Set -MuseScorePath (e.g. 'C:\Program Files\MuseScore 4\bin\MuseScore4.exe')." 
         }
     }
 
     process {
         $inFile = (Resolve-Path $Path).Path
         if (-not (Test-Path $inFile)) {
-            throw "Input file '$inFile' not found."
+            throw "Input file '$inFile' not found." 
         }
 
         if (-not (Test-Path $OutDir)) {
-            New-Item -ItemType Directory -Path $OutDir | Out-Null
+            New-Item -ItemType Directory -Path $OutDir | Out-Null 
         }
 
-        # Normalize extension: treat "midi" as "mid"
-        $targetExt = if ($Format -ieq 'midi') { 'mid' } else { $Format.ToLower() }
-        $baseName  = [System.IO.Path]::GetFileNameWithoutExtension($inFile)
-        $outFile   = Join-Path $OutDir "$baseName.$targetExt"
-        $logFile   = Join-Path $OutDir "$baseName.musescore-export.log"
+        $baseName = [IO.Path]::GetFileNameWithoutExtension($inFile)
 
-        if ((Test-Path $outFile) -and -not $Force) {
-            throw "Output '$outFile' already exists. Use -Force to overwrite."
+        # Flatten formats in case someone passes "midi,mp3" as a single token
+        $fmtList = @()
+        foreach ($f in $Format) {
+            $fmtList += ($f -split '\s*,\s*') 
         }
+        $fmtList = $fmtList | Where-Object { $_ }
 
-        # Build MuseScore args.
-        # MuseScore CLI supports "-o / --export-to <outfile>" and will infer format from extension.
-        # Then we pass the input file.
-        $argList = @('-o', $outFile, $inFile)
+        $results = @()
 
-        Write-Verbose ("[MuseScore] {0}`nArgs: {1}" -f $MuseScorePath, ($argList -join ' '))
+        foreach ($fmt in $fmtList) {
+            $ext = if ($fmt -ieq 'midi') {
+                'mid' 
+            }
+            else {
+                $fmt.ToLower() 
+            }
+            $outFile = Join-Path $OutDir "$baseName.$ext"
+            $logFile = Join-Path $OutDir "$baseName.musescore-export.$ext.log"
 
-        # Launch MuseScore in "converter mode" (no GUI) and capture stdout/stderr.
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = $MuseScorePath
-        foreach ($a in $argList) { [void]$psi.ArgumentList.Add($a) }
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError  = $true
-        $psi.UseShellExecute        = $false
-        $psi.CreateNoWindow         = $true
+            if ((Test-Path $outFile) -and -not $Force) {
+                throw "Output exists: $outFile. Use -Force to overwrite."
+            }
 
-        $proc = [System.Diagnostics.Process]::Start($psi)
-        $proc.WaitForExit()
+            # Build argument list. MuseScore infers type from the -o filename’s extension.
+            $argList = @()
+            if ($ext -eq 'mp3' -and $Bitrate) {
+                $argList += @('-b', $Bitrate) 
+            }   # MP3 bitrate
+            $argList += @('-o', $outFile, $inFile)                                # converter mode
+            # Docs: -o/--export-to selects format by extension; -b sets MP3 bitrate. :contentReference[oaicite:1]{index=1}
 
-        $stdout = $proc.StandardOutput.ReadToEnd()
-        $stderr = $proc.StandardError.ReadToEnd()
-        $logContent = "STDOUT:`r`n$stdout`r`n`r`nSTDERR:`r`n$stderr"
-        Set-Content -Path $logFile -Value $logContent
+            Write-Verbose ('[MuseScore] {0}' -f $MuseScorePath)
+            Write-Verbose ('Args: {0}' -f ($argList -join ' '))
 
-        $exitCode = $proc.ExitCode
-        if ($exitCode -ne 0) {
-            throw "MuseScore export failed with exit code $exitCode. See $logFile"
-        }
+            # Run and tee output to per-format log
+            $output = & $MuseScorePath @argList *>&1
+            $exitCode = $LASTEXITCODE
+            $output | Out-File -FilePath $logFile -Encoding UTF8
 
-        if (-not (Test-Path $outFile) -or ((Get-Item $outFile).Length -eq 0)) {
-            throw "MuseScore reported success but '$outFile' is missing or empty. Check $logFile"
+            if ($exitCode -ne 0) {
+                throw "MuseScore export to .$ext failed with exit code $exitCode. See $logFile" 
+            }
+            if (-not (Test-Path $outFile) -or ((Get-Item $outFile).Length -eq 0)) {
+                throw "MuseScore reported success but '$outFile' is missing/empty. See $logFile"
+            }
+
+            if ($PassThru) {
+                $results += [PSCustomObject]@{
+                    InputScore   = $inFile
+                    OutputFile   = $outFile
+                    Format       = $ext
+                    Log          = $logFile
+                    ExitCode     = $exitCode
+                    MuseScoreExe = $MuseScorePath
+                }
+            }
+            else {
+                Write-Host ('Created: {0}' -f $outFile)
+                Write-Host ('  Log  : {0}' -f $logFile)
+            }
         }
 
         if ($PassThru) {
-            [PSCustomObject]@{
-                InputScore   = $inFile
-                OutputFile   = $outFile
-                Format       = $targetExt
-                Log          = $logFile
-                ExitCode     = $exitCode
-                MuseScoreExe = $MuseScorePath
-            }
+            return $results 
         }
     }
 }
