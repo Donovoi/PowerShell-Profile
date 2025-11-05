@@ -1,55 +1,32 @@
 function Convert-PdfToMusicXml {
     <#
     .SYNOPSIS
-    Run Audiveris OMR headlessly on a PDF (or .omr) and export MusicXML.
-
-    .DESCRIPTION
-    - Uses documented CLI flags:
-        -batch   : headless
-        -export  : export MusicXML
-        -save    : persist .omr project
-        -output  : base output folder (parent of a score-named subfolder)
-        -option  : set options (e.g., useOpus/useCompression)
-        -sheets  : restrict pages
-        --       : delimiter before file list
-      (See citations after the code.)
-
-    - Captures stdout+stderr to a per-score log.
-    - Gathers artifacts from:
-        1) the requested -OutDir,
-        2) the score-named subfolder under -OutDir,
-        3) the default Documents\Audiveris\{Score} fallback,
-        4) any absolute paths found in the log.
-      Returns the newest files first.
+    Headless Audiveris OMR for PDF/.omr → MusicXML (.mxl or .xml), with robust artifact discovery.
 
     .PARAMETER Path
-    Input score file (.pdf or .omr).
+    Input score (.pdf or .omr).
 
     .PARAMETER OutDir
-    Base output folder (created if missing). Audiveris will still nest a
-    {ScoreName}\ subfolder under this base; this cmdlet handles both locations.
+    Base output directory (created if missing). Audiveris still nests a score-named
+    “book folder” under this path; we search both. (See Audiveris handbook.) 
 
     .PARAMETER AudiverisPath
-    Explicit path to Audiveris.exe (or "audiveris" on PATH).
+    Path to Audiveris launcher (Audiveris.exe / audiveris).
 
     .PARAMETER UncompressedXml
-    Export plain .xml MusicXML (instead of compressed .mxl).
+    Emit plain .xml (set useCompression=false). 
 
     .PARAMETER UseOpus
-    Export multi-movement books as a single opus .mxl/.xml.
+    Export multi-movement “opus” as a single file (useOpus=true).
 
     .PARAMETER Sheets
-    Page selection (accepts ints, "1,3..5", or "1-3").
+    Page selection: accepts ints and ranges like 1,3..5 or 1-3, mapped to “-sheets '1 3-5'”.
 
     .PARAMETER Force
     Force reprocessing.
 
     .PARAMETER PassThru
-    Return artifact paths (string[]) instead of printing.
-
-    .EXAMPLE
-    Convert-PdfToMusicXml -Path C:\scores\song.pdf -OutDir C:\scores\omr `
-                          -UseOpus -Verbose -PassThru
+    Return artifact paths instead of printing.
     #>
     [CmdletBinding()]
     param(
@@ -61,7 +38,6 @@ function Convert-PdfToMusicXml {
         [string]$OutDir = (Join-Path (Split-Path -Path $Path -Parent) 'audiveris-export'),
 
         [string]$AudiverisPath,
-
         [switch]$UncompressedXml,
         [switch]$UseOpus,
         [object[]]$Sheets,
@@ -70,16 +46,16 @@ function Convert-PdfToMusicXml {
     )
 
     # 1) Locate Audiveris launcher
-    $candidatePaths = @($AudiverisPath,
+    $candidate = @($AudiverisPath,
         'C:\Program Files\Audiveris\Audiveris.exe',
         'C:\Program Files (x86)\Audiveris\Audiveris.exe',
         'Audiveris.exe', 'Audiveris.bat', 'audiveris') | Where-Object { $_ }
 
     $launcher = $null
-    foreach ($p in $candidatePaths) {
+    foreach ($p in $candidate) {
         try {
-            $got = (Get-Command $p -ErrorAction Stop).Source; if ($got) {
-                $launcher = $got; break 
+            $src = (Get-Command $p -ErrorAction Stop).Source; if ($src) {
+                $launcher = $src; break 
             } 
         }
         catch {
@@ -89,7 +65,7 @@ function Convert-PdfToMusicXml {
         throw 'Audiveris not found. Install it or pass -AudiverisPath.' 
     }
 
-    # 2) Normalize paths, filenames, and log file
+    # 2) Normalize paths & log
     if (-not (Test-Path $OutDir)) {
         New-Item -ItemType Directory -Force -Path $OutDir | Out-Null 
     }
@@ -97,20 +73,19 @@ function Convert-PdfToMusicXml {
     $baseName = [IO.Path]::GetFileNameWithoutExtension($resolvedInput)
     $logFile = Join-Path $OutDir ('{0}.audiveris.log' -f $baseName)
 
-    # 3) Build CLI args per docs
+    # 3) Build CLI args (per Audiveris CLI & issues)
     $args = @('-batch', '-export', '-save', '-output', $OutDir)
     if ($Force) {
         $args += '-force' 
     }
     if ($UseOpus) {
         $args += @('-option', 'org.audiveris.omr.sheet.BookManager.useOpus=true') 
-    }
+    }       # single opus file
     if ($UncompressedXml) {
         $args += @('-option', 'org.audiveris.omr.sheet.BookManager.useCompression=false') 
-    }
+    }# .xml instead of .mxl
 
     if ($Sheets) {
-        # Accept 1,3..5 or 1-3 or plain ints, output "1 3-5" as one argument after -sheets
         $tokens = foreach ($s in $Sheets) {
             $t = "$s"
             if ($t -match '^\s*(\d+)\s*\.\.\s*(\d+)\s*$') {
@@ -123,68 +98,70 @@ function Convert-PdfToMusicXml {
                 $t.Trim() 
             }
         }
-        # Audiveris expects one string with spaces between numbers / ranges
         $args += @('-sheets', ($tokens -join ' '))
     }
 
-    # '--' delimiter before filename list (per CLI help)
+    # '--' before file list (CLI delimiter)
     $args += @('--', $resolvedInput)
 
     Write-Verbose ('[Audiveris] {0}' -f $launcher)
     Write-Verbose ('Args: {0}' -f ($args -join ' '))
 
-    # 4) Run process, tee stdout+stderr to the log
-    #    Using pipeline avoids Start-Process redirection quirks.
+    # 4) Run & tee output to log
     $null = (& $launcher @args *>&1) | Tee-Object -FilePath $logFile
     $exit = $LASTEXITCODE
     Write-Verbose ('Audiveris exit code: {0} (log: {1})' -f $exit, $logFile)
 
-    # 5) Collect artifacts robustly
-    #    Use a case-insensitive hash set of full paths to avoid the op_Addition trap.
-    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    # 5) Collect artifacts (dictionary for de-dupe; no .ToArray anywhere)
+    $found = @{}  # key = full path, value = $true
+
     function Add-IfFile([string]$p) {
         if ([string]::IsNullOrWhiteSpace($p)) {
             return 
         }
         if (Test-Path -LiteralPath $p -PathType Leaf) {
-            [void]$seen.Add((Resolve-Path -LiteralPath $p).Path)
+            $rp = (Resolve-Path -LiteralPath $p).Path
+            $found[$rp] = $true
         }
     }
 
     $filters = @("$baseName*.mxl", "$baseName*.xml", "$baseName*.musicxml", "$baseName*.omr")
-    # 5a) Directly in OutDir
+
+    # OutDir directly
     foreach ($f in $filters) {
-        Get-ChildItem -LiteralPath $OutDir -File -Filter $f -ErrorAction SilentlyContinue | ForEach-Object { Add-IfFile $_.FullName }
+        Get-ChildItem -LiteralPath $OutDir -File -Filter $f -ErrorAction SilentlyContinue |
+            ForEach-Object { Add-IfFile $_.FullName }
     }
-    # 5b) Score-named subfolder (expected by CLI: OutDir\{Score}\{Score}.mxl)
+    # Score-named "book folder" under OutDir (typical)
     $bookDir = Join-Path $OutDir $baseName
     if (Test-Path $bookDir -PathType Container) {
         foreach ($f in $filters) {
-            Get-ChildItem -LiteralPath $bookDir -File -Filter $f -ErrorAction SilentlyContinue | ForEach-Object { Add-IfFile $_.FullName }
+            Get-ChildItem -LiteralPath $bookDir -File -Filter $f -ErrorAction SilentlyContinue |
+                ForEach-Object { Add-IfFile $_.FullName }
         }
     }
-    # 5c) Legacy/default Windows location: Documents\Audiveris\{Score}\*
+    # Legacy default: Documents\Audiveris\<ScoreName>\*
     $docsAud = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Audiveris'
     $legacyDir = Join-Path $docsAud $baseName
     if (Test-Path $legacyDir -PathType Container) {
         foreach ($f in $filters) {
-            Get-ChildItem -LiteralPath $legacyDir -File -Filter $f -ErrorAction SilentlyContinue | ForEach-Object { Add-IfFile $_.FullName }
+            Get-ChildItem -LiteralPath $legacyDir -File -Filter $f -ErrorAction SilentlyContinue |
+                ForEach-Object { Add-IfFile $_.FullName }
         }
     }
-    # 5d) Parse the log for absolute file paths the app claims to have written
+    # Parse the log for absolute paths Audiveris says it wrote
     if (Test-Path $logFile -PathType Leaf) {
         $logText = Get-Content -LiteralPath $logFile -ErrorAction SilentlyContinue
-        $rx = '(?:[A-Za-z]:\\|/)[^\r\n<>:"|?*]+?\.(?:mxl|xml|musicxml|omr)'
         if ($logText) {
-            [Text.RegularExpressions.Regex]::Matches($logText -join "`n", $rx) | ForEach-Object {
-                Add-IfFile $_.Value
-            }
+            $rx = '(?:[A-Za-z]:\\|/)[^\r\n<>:"|?*]+?\.(?:mxl|xml|musicxml|omr)'
+            [Text.RegularExpressions.Regex]::Matches(($logText -join "`n"), $rx) |
+                ForEach-Object { Add-IfFile $_.Value }
         }
     }
 
     $artifacts = @()
-    if ($seen.Count -gt 0) {
-        $artifacts = $seen.ToArray() | Get-Item | Sort-Object LastWriteTime -Descending
+    if ($found.Count -gt 0) {
+        $artifacts = $found.Keys | Get-Item | Sort-Object LastWriteTime -Descending
     }
 
     if (-not $artifacts -or $artifacts.Count -eq 0) {
