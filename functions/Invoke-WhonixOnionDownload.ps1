@@ -54,6 +54,100 @@ function Invoke-WhonixOnionDownload {
             Write-Verbose $m 
         }
 
+        $DeploymentStatePath = Join-Path $OutputDir 'WhonixDeployment.json'
+
+        function Get-DeploymentState {
+            param()
+            if (-not (Test-Path -LiteralPath $DeploymentStatePath)) {
+                return [pscustomobject]@{}
+            }
+            try {
+                $raw = Get-Content -LiteralPath $DeploymentStatePath -Raw
+                if ([string]::IsNullOrWhiteSpace($raw)) {
+                    return [pscustomobject]@{}
+                }
+                return $raw | ConvertFrom-Json -Depth 6
+            }
+            catch {
+                V "[WARN] Failed to parse deployment state file '$DeploymentStatePath': $($_.Exception.Message)"
+                return [pscustomobject]@{}
+            }
+        }
+
+        function Save-DeploymentState([System.Management.Automation.PSCustomObject]$StateObject) {
+            if (-not $StateObject -or $StateObject.PSObject.Properties.Count -eq 0) {
+                if (Test-Path -LiteralPath $DeploymentStatePath) {
+                    Remove-Item -LiteralPath $DeploymentStatePath -Force
+                }
+                return
+            }
+            $StateObject | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $DeploymentStatePath
+        }
+
+        function Set-DeploymentBackendState([string]$BackendKey, [System.Management.Automation.PSCustomObject]$Payload) {
+            $state = Get-DeploymentState
+            if ($state.PSObject.Properties.Name -contains $BackendKey) {
+                $state.PSObject.Properties.Remove($BackendKey) | Out-Null
+            }
+            $state | Add-Member -NotePropertyName $BackendKey -NotePropertyValue $Payload
+            Save-DeploymentState $state
+        }
+
+        function Remove-DeploymentBackendState([string]$BackendKey) {
+            if (-not (Test-Path -LiteralPath $DeploymentStatePath)) {
+                return
+            }
+            $state = Get-DeploymentState
+            if (-not ($state.PSObject.Properties.Name -contains $BackendKey)) {
+                return
+            }
+            $state.PSObject.Properties.Remove($BackendKey) | Out-Null
+            Save-DeploymentState $state
+        }
+
+        function Ensure-OpenSSHClient {
+            if (Get-Command ssh.exe -ErrorAction SilentlyContinue) {
+                return
+            }
+            V '[*] OpenSSH.Client not detected, attempting installation...'
+            $capabilityCmd = Get-Command Add-WindowsCapability -ErrorAction SilentlyContinue
+            if (-not $capabilityCmd) {
+                V '[WARN] Add-WindowsCapability cmdlet unavailable. Please install OpenSSH.Client manually.'
+                return
+            }
+            try {
+                Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null
+            }
+            catch {
+                V "[WARN] Failed to install OpenSSH.Client: $($_.Exception.Message)"
+            }
+            if (Get-Command ssh.exe -ErrorAction SilentlyContinue) {
+                V '[OK] OpenSSH.Client installed.'
+            }
+            else {
+                V '[WARN] OpenSSH.Client still missing after installation attempt.'
+            }
+        }
+
+        function Get-AvailableHostPort {
+            param([int]$Preferred = 2222)
+            $port = if ($Preferred -gt 0) {
+                $Preferred 
+            }
+            else {
+                2222 
+            }
+            try {
+                while (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) {
+                    $port++
+                }
+            }
+            catch {
+                return $Preferred
+            }
+            return $port
+        }
+
         function Install-Tool {
             param([ValidateSet('VBoxManage', 'Ovftool', 'Vmrun', 'VirtualBox', 'VMware')]$Name)
             switch ($Name) {
@@ -339,32 +433,70 @@ function Invoke-WhonixOnionDownload {
             $WsDisk = Join-Path $WsBase 'workstation-disk1.vmdk'
             
             # Find available SSH port for forwarding (start at 2222)
-            $SSHPort = 2222
-            while ((Get-NetTCPConnection -LocalPort $SSHPort -ErrorAction SilentlyContinue)) {
-                $SSHPort++
-            }
+            $SSHPort = Get-AvailableHostPort -Preferred 2222
             
             V '[*] Importing Whonix into VirtualBox…'
             & $VBox import "$Ova" `
                 --vsys 0 --eula accept --vmname "$GwName" --basefolder "$GwBase" --unit 18 --disk "$GwDisk" `
                 --vsys 1 --eula accept --vmname "$WsName" --basefolder "$WsBase" --unit 16 --disk "$WsDisk"
             
-            # Enforce Whonix NIC topology
-            & $VBox modifyvm "$GwName" --nic1 nat --cableconnected1 on
-            & $VBox modifyvm "$GwName" --nic2 intnet --intnet2 'Whonix' --cableconnected2 on
-            & $VBox modifyvm "$WsName" --nic1 intnet --intnet1 'Whonix' --cableconnected1 on
+            Ensure-VBoxNetworking -GatewayName $GwName -WorkstationName $WsName -HostPort $SSHPort
             
-            # Add SSH port forwarding to Workstation for host access
-            # Whonix Workstation doesn't have direct internet, but we can still SSH via Gateway's NAT
-            & $VBox modifyvm "$WsName" --nic2 nat --natpf2 "ssh,tcp,127.0.0.1,$SSHPort,,22"
-            
-            V "[OK] SSH port forwarding configured: localhost:$SSHPort -> Workstation:22"
-            
-            [pscustomobject]@{ Gateway = $GwName; Workstation = $WsName; SSHPort = $SSHPort }
+            [pscustomobject]@{ 
+                Gateway         = $GwName
+                Workstation     = $WsName
+                SSHPort         = $SSHPort
+                GatewayBase     = $GwBase
+                WorkstationBase = $WsBase
+            }
+        }
+
+        function Test-VBoxVMExists {
+            param([string]$Name)
+            if ([string]::IsNullOrWhiteSpace($Name)) {
+                return $false
+            }
+            try {
+                & (Install-Tool 'VBoxManage') showvminfo "$Name" --machinereadable 2>$null | Out-Null
+                return $true
+            }
+            catch {
+                return $false
+            }
+        }
+
+        function Ensure-VBoxNetworking {
+            param(
+                [string]$GatewayName,
+                [string]$WorkstationName,
+                [int]$HostPort = 2222
+            )
+            $VBox = Install-Tool 'VBoxManage'
+            if ($GatewayName) {
+                & $VBox modifyvm "$GatewayName" --nic1 nat --cableconnected1 on
+                & $VBox modifyvm "$GatewayName" --nic2 intnet --intnet2 'Whonix' --cableconnected2 on
+            }
+            if ($WorkstationName) {
+                & $VBox modifyvm "$WorkstationName" --nic1 intnet --intnet1 'Whonix' --cableconnected1 on
+                & $VBox modifyvm "$WorkstationName" --nic2 nat --cableconnected2 on
+                try {
+                    & $VBox modifyvm "$WorkstationName" --natpf2 delete ssh 2>$null
+                }
+                catch {
+                }
+                & $VBox modifyvm "$WorkstationName" --natpf2 "ssh,tcp,127.0.0.1,$HostPort,,22"
+                V "[OK] SSH port forwarding configured: localhost:$HostPort -> Workstation:22"
+            }
         }
 
         function Start-VBoxVM([string]$Name) {
-            (& (Install-Tool 'VBoxManage') startvm "$Name" --type headless) | Out-Null 
+            $VBox = Install-Tool 'VBoxManage'
+            $info = & $VBox showvminfo "$Name" --machinereadable 2>$null
+            if ($info -match 'VMState="running"') {
+                V "[OK] VirtualBox VM '$Name' already running."
+                return
+            }
+            (& $VBox startvm "$Name" --type headless) | Out-Null 
         }
         function Wait-VBoxSSH([string]$Name, [int]$SSHPort, [System.Management.Automation.PSCredential]$Credential, [int]$TimeoutSec = 900) {
             $Sw = [Diagnostics.Stopwatch]::StartNew()
@@ -513,10 +645,20 @@ function Invoke-WhonixOnionDownload {
                 }
                 $WsVmx = $Top2[0].Vmx; $GwVmx = $Top2[1].Vmx
             }
-            [pscustomobject]@{ Gateway = $GwVmx; Workstation = $WsVmx }
+            [pscustomobject]@{ Gateway = $GwVmx; Workstation = $WsVmx; Destination = $DestinationDir }
         }
         function Start-VMwareVM([string]$Vmx) {
-            (& (Install-Tool 'Vmrun') -T ws start "$Vmx" nogui) | Out-Null 
+            $Vmrun = Install-Tool 'Vmrun'
+            try {
+                $runningList = & $Vmrun -T ws list 2>$null
+                if ($runningList -and ($runningList -match [regex]::Escape($Vmx))) {
+                    V "[OK] VMware VM already running: $Vmx"
+                    return
+                }
+            }
+            catch {
+            }
+            (& $Vmrun -T ws start "$Vmx" nogui) | Out-Null 
         }
         function Test-VMwareGuestReady {
             param(
@@ -628,6 +770,8 @@ fi
         
         Test-FileSha512 -File $OvaPath -ShaFile $ShaPath
 
+        Ensure-OpenSSHClient
+
         $User = $GuestCredential.UserName
         $GuestHome = "/home/$User"
         $GuestOutDir = "$GuestHome/Downloads/whonix-fetch"
@@ -643,10 +787,59 @@ fi
         $GuestFile = "$GuestOutDir/$FileName"
         $HostOutPath = Join-Path $OutputDir $FileName
 
+        $DeploymentState = Get-DeploymentState
+
         if ($Backend -eq 'VirtualBox') {
             $VBoxDest = Join-Path $OutputDir 'VirtualBox-Whonix'
-            $VmInfo = Import-VBoxWhonix -Ova $OvaPath -DestinationRoot $VBoxDest
-            
+            $VmInfo = $null
+            $VBoxState = $DeploymentState.VirtualBox
+            if ($VBoxState -and (Test-VBoxVMExists -Name $VBoxState.Gateway) -and (Test-VBoxVMExists -Name $VBoxState.Workstation)) {
+                V "[OK] Reusing existing VirtualBox Whonix deployment ($($VBoxState.Gateway), $($VBoxState.Workstation))."
+                $VmInfo = [pscustomobject]@{
+                    Gateway     = $VBoxState.Gateway
+                    Workstation = $VBoxState.Workstation
+                    SSHPort     = if ($VBoxState.SSHPort) {
+                        [int]$VBoxState.SSHPort 
+                    }
+                    else {
+                        0 
+                    }
+                }
+            }
+            elseif ($VBoxState) {
+                V '[WARN] Stored VirtualBox deployment metadata is stale. Re-importing.'
+                Remove-DeploymentBackendState 'VirtualBox'
+                $VBoxState = $null
+            }
+
+            if (-not $VmInfo) {
+                $VmInfo = Import-VBoxWhonix -Ova $OvaPath -DestinationRoot $VBoxDest
+                $VBoxState = [pscustomobject]@{
+                    Version     = $Links.Version
+                    UpdatedUtc  = (Get-Date).ToUniversalTime().ToString('o')
+                    Gateway     = $VmInfo.Gateway
+                    Workstation = $VmInfo.Workstation
+                    SSHPort     = $VmInfo.SSHPort
+                }
+                Set-DeploymentBackendState 'VirtualBox' $VBoxState
+            }
+
+            if (-not $VmInfo.SSHPort -or $VmInfo.SSHPort -lt 1) {
+                $VmInfo.SSHPort = 2222
+            }
+            $AvailablePort = Get-AvailableHostPort -Preferred $VmInfo.SSHPort
+            if ($AvailablePort -ne $VmInfo.SSHPort) {
+                V "[*] Host port $($VmInfo.SSHPort) unavailable, switching to $AvailablePort."
+                $VmInfo.SSHPort = $AvailablePort
+                if ($VBoxState) {
+                    $VBoxState.SSHPort = $AvailablePort
+                    $VBoxState.UpdatedUtc = (Get-Date).ToUniversalTime().ToString('o')
+                    Set-DeploymentBackendState 'VirtualBox' $VBoxState
+                }
+            }
+
+            Ensure-VBoxNetworking -GatewayName $VmInfo.Gateway -WorkstationName $VmInfo.Workstation -HostPort $VmInfo.SSHPort
+
             V '[*] Starting Gateway VM...'
             Start-VBoxVM $VmInfo.Gateway
             Start-Sleep -Seconds 15
@@ -685,16 +878,44 @@ fi
 
         # VMware path
         $VMwareDest = Join-Path $OutputDir 'VMware-Whonix'
-        try {
-            $VmPaths = Import-VMwareWhonix -Ova $OvaPath -DestinationDir $VMwareDest
+        $VmPaths = $null
+        $VMwareState = $DeploymentState.VMware
+        if ($VMwareState -and (Test-Path -LiteralPath $VMwareState.GatewayVmx) -and (Test-Path -LiteralPath $VMwareState.WorkstationVmx)) {
+            V "[OK] Reusing existing VMware Whonix deployment at $($VMwareState.DestinationDir)."
+            $VmPaths = [pscustomobject]@{
+                Gateway     = $VMwareState.GatewayVmx
+                Workstation = $VMwareState.WorkstationVmx
+                Destination = $VMwareState.DestinationDir
+            }
         }
-        catch {
-            Write-Warning "VMware import failed: $($_.Exception.Message)"
-            Write-Warning 'Whonix OVAs sometimes have format issues with ovftool.'
-            Write-Warning 'Recommendation: Use -Backend VirtualBox for more reliable imports.'
-            throw
+        elseif ($VMwareState) {
+            V '[WARN] Stored VMware deployment metadata is stale. Re-importing.'
+            Remove-DeploymentBackendState 'VMware'
+            $VMwareState = $null
         }
+
+        if (-not $VmPaths) {
+            try {
+                $VmPaths = Import-VMwareWhonix -Ova $OvaPath -DestinationDir $VMwareDest
+            }
+            catch {
+                Write-Warning "VMware import failed: $($_.Exception.Message)"
+                Write-Warning 'Whonix OVAs sometimes have format issues with ovftool.'
+                Write-Warning 'Recommendation: Use -Backend VirtualBox for more reliable imports.'
+                throw
+            }
+            $VMwareState = [pscustomobject]@{
+                Version        = $Links.Version
+                UpdatedUtc     = (Get-Date).ToUniversalTime().ToString('o')
+                GatewayVmx     = $VmPaths.Gateway
+                WorkstationVmx = $VmPaths.Workstation
+                DestinationDir = $VmPaths.Destination
+            }
+            Set-DeploymentBackendState 'VMware' $VMwareState
+        }
+        V '[*] Starting VMware Gateway VM...'
         Start-VMwareVM $VmPaths.Gateway
+        V '[*] Starting VMware Workstation VM...'
         Start-VMwareVM $VmPaths.Workstation
         V '[*] Checking for VMware Tools in Workstation…'
         if (-not (Test-VMwareGuestReady -Vmx $VmPaths.Workstation -Credential $GuestCredential -TimeoutSec 900)) {
