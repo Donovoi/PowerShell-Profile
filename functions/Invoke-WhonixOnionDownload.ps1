@@ -58,11 +58,17 @@ function Invoke-WhonixOnionDownload {
             param([ValidateSet('VBoxManage', 'Ovftool', 'Vmrun', 'VirtualBox', 'VMware')]$Name)
             switch ($Name) {
                 'VBoxManage' {
-                    $Candidate = @(
-                        (Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe'),
+                    $CandidatePaths = @()
+                    if ($env:VBOX_MSI_INSTALL_PATH) {
+                        $CandidatePaths += (Join-Path $env:VBOX_MSI_INSTALL_PATH 'VBoxManage.exe')
+                    }
+                    $CandidatePaths += @(
                         "$env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe",
                         "${env:ProgramFiles(x86)}\Oracle\VirtualBox\VBoxManage.exe"
-                    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } | Select-Object -First 1
+                    )
+                    $Candidate = $CandidatePaths |
+                        Where-Object { $_ -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } |
+                            Select-Object -First 1
                     
                     if (-not $Candidate) {
                         V '[*] VirtualBox not found, installing via winget...'
