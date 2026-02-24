@@ -13,15 +13,40 @@ function Invoke-OhMyPoshRandomTheme {
         }
     }
 
-    # Specify a default theme configuration to prevent the banner
-    $null = oh-my-posh init pwsh | Invoke-Expression | Out-Null
+    # Try local themes first, then fall back to GitHub
+    $themes = $null
+    if (-not [string]::IsNullOrEmpty($env:POSH_THEMES_PATH)) {
+        $themes = Get-ChildItem -Path "$env:POSH_THEMES_PATH\*.omp.json" -ErrorAction SilentlyContinue
+    }
 
-    # Get the list of themes
-    $themes = Get-ChildItem -Path "$env:POSH_THEMES_PATH\*.omp.json" | Select-Object -Property FullName
+    if (-not $themes) {
+        # Check common install location
+        $localThemesPath = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes"
+        $themes = Get-ChildItem -Path "$localThemesPath\*.omp.json" -ErrorAction SilentlyContinue
+    }
 
-    # Select a random theme
-    $theme = Get-Random -InputObject $themes
+    if ($themes) {
+        $theme = (Get-Random -InputObject $themes).FullName
+    }
+    else {
+        # Fetch theme list from GitHub
+        $baseUrl = 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes'
+        try {
+            $listing = Invoke-RestMethod 'https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/contents/themes' -ErrorAction Stop
+            $themeNames = ($listing | Where-Object { $_.name -like '*.omp.json' }).name
+        }
+        catch {
+            Write-Warning "Failed to fetch oh-my-posh themes from GitHub: $_"
+            return
+        }
+        if (-not $themeNames) {
+            Write-Warning 'No oh-my-posh themes found.'
+            return
+        }
+        $themeName = Get-Random -InputObject $themeNames
+        $theme = "$baseUrl/$themeName"
+    }
 
-    # Initialize Oh My Posh with the random theme
-    oh-my-posh init pwsh --config $theme.FullName | Invoke-Expression | Out-Null
+    # Initialize Oh My Posh with the selected theme
+    oh-my-posh init pwsh --config $theme | Invoke-Expression
 }
