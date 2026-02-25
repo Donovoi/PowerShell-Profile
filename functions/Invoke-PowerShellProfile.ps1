@@ -544,5 +544,3 @@ Set-InvalidHandle -Path "C:\Path\To\File.txt"
         }
     }
 }
-
-Install-Profile
