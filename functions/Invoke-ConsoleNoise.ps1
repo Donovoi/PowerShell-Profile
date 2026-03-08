@@ -1,60 +1,122 @@
 <#
 .SYNOPSIS
-    Displays a color gradient with Unicode characters in the console.
+    Renders an in-place animated Unicode gradient in the console.
 
 .DESCRIPTION
-    The Invoke-ConsoleNoise function generates a visual display of Unicode characters with a
-    color gradient in the console. The display continues until the user presses 'q'.
+    Invoke-ConsoleNoise renders a full-frame console animation without
+    scrolling the viewport. Each frame is drawn in place by moving the cursor
+    back to the top-left corner and writing a buffered frame, which produces a
+    smoother and more visually pleasing result than repeatedly writing new
+    lines.
 
-    Three color gradient modes are supported:
-    - Rainbow: A full spectrum of colors
-    - Greyscale: Shades of grey
-    - Custom: A smooth custom gradient
-    - LolCat: Colorful rainbow effect using the lolcat module
+    The default rainbow and RGB gradients are intentionally slow-moving so the
+    colors drift almost imperceptibly from one hue to the next rather than
+    rapidly cycling.
 
-    The function can display either random Unicode characters or a specific character.
+    An optional Windows Terminal GPU backend is also available. This mode
+    exports a calming HLSL shader, updates one or more Windows Terminal
+    settings.json files to use it as the profile pixel shader, and lets the GPU
+    handle the visual effect at the terminal-rendering layer.
+
+    Supported gradient styles:
+    - Rainbow  : balanced HSL rainbow bands
+    - Greyscale: pulsing monochrome shimmer
+    - Custom   : aurora-like blue/teal/purple gradient
+    - LolCat   : high-saturation lolcat-inspired rainbow sweep
+
+    The animation can render either a specific character or a curated set of
+    fixed-width glyphs in random mode. Press 'q' or Ctrl+C to exit, or use
+    -MaxFrames for non-interactive runs and smoke tests.
 
 .PARAMETER ColorGradient
-    Specifies the type of color gradient to display (Rainbow, Greyscale, Custom, LolCat).
+    Specifies the gradient style to render when -UseRgbColor is not specified.
 
 .PARAMETER UseRgbColor
-    Switch to indicate that the full RGB loop should be used instead of HSL-based gradient.
+    Uses a smooth sine-wave RGB animation instead of the selected HSL
+    gradient. When specified, this takes precedence over -ColorGradient.
+
+.PARAMETER Renderer
+    Chooses the rendering backend. Console uses the in-place ANSI renderer in
+    this function. WindowsTerminalShader exports and applies a GPU pixel shader
+    for Windows Terminal.
+
+.PARAMETER ShaderOutputPath
+    The destination path for the exported Windows Terminal HLSL shader when
+    -Renderer WindowsTerminalShader is used.
+
+.PARAMETER WindowsTerminalSettingsPath
+    Optional path or paths to Windows Terminal settings.json files to update
+    when -Renderer WindowsTerminalShader is used. When omitted, the function
+    attempts to locate Windows Terminal settings files automatically.
 
 .PARAMETER UnicodeCharMode
-    Specifies the mode for displaying characters (Random or Specific).
+    Controls whether the animation uses a curated random glyph set or a single
+    fixed character.
 
 .PARAMETER SpecificChar
-    The character to display when UnicodeCharMode is set to 'Specific'.
+    The character to display when -UnicodeCharMode is set to Specific.
+    Fixed-width characters such as '█', '▓', '▒', and '■' work best.
 
 .PARAMETER DebugCleanup
-    Shows detailed debug output during cleanup to diagnose terminal input issues.
+    Writes cleanup diagnostics directly to the console to help troubleshoot
+    terminal input or cursor-restoration issues.
+
+.PARAMETER MaxFrames
+    Number of frames to render before automatically exiting. The default value
+    of 0 runs until the user exits manually.
 
 .EXAMPLE
-    Invoke-ConsoleNoise -ColorGradient "Rainbow" -UnicodeCharMode "Random"
-    Displays a rainbow gradient with random Unicode characters.
+    Invoke-ConsoleNoise -ColorGradient Rainbow -UnicodeCharMode Random
+
+    Displays a smooth in-place rainbow animation using curated glyphs.
 
 .EXAMPLE
-    Invoke-ConsoleNoise -ColorGradient "Greyscale" -UnicodeCharMode "Specific" -SpecificChar '★'
-    Displays a greyscale gradient with the '★' character.
+    Invoke-ConsoleNoise -ColorGradient Custom -UnicodeCharMode Specific -SpecificChar '█'
+
+    Displays an aurora-style animation using a solid block character.
 
 .EXAMPLE
-    Invoke-ConsoleNoise -DebugCleanup
-    Run with debug output to troubleshoot terminal input issues after exit.
+    Invoke-ConsoleNoise -UseRgbColor -MaxFrames 120
+
+    Renders 120 frames of the RGB wave animation and then exits.
+
+.EXAMPLE
+    Invoke-ConsoleNoise -DebugCleanup -MaxFrames 10
+
+    Runs a short animation and shows detailed cleanup diagnostics.
+
+.EXAMPLE
+    Invoke-ConsoleNoise -Renderer WindowsTerminalShader
+
+    Exports the calming HLSL shader and updates Windows Terminal to use the GPU
+    shader backend.
 
 .NOTES
-    Press 'q' to exit the function at any time.
-    Requires the Pansies module for RGB color rendering.
-    LolCat mode requires the lolcat module.
+    Optimized for ANSI-capable terminals such as Windows Terminal and VS Code.
+    No external modules are required for the console backend. The GPU backend
+    targets Windows Terminal pixel shaders rather than NVAPI directly because
+    Windows Terminal already provides a practical GPU shader pipeline.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
-    param (
+    [OutputType([void])]
+    param(
         [Parameter()]
         [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
         [string]$ColorGradient = 'Rainbow',
 
         [Parameter()]
         [switch]$UseRgbColor,
+
+        [Parameter()]
+        [ValidateSet('Console', 'WindowsTerminalShader')]
+        [string]$Renderer = 'Console',
+
+        [Parameter()]
+        [string]$ShaderOutputPath = 'C:\temp\CalmAurora.hlsl',
+
+        [Parameter()]
+        [string[]]$WindowsTerminalSettingsPath,
 
         [Parameter()]
         [ValidateSet('Random', 'Specific')]
@@ -64,293 +126,761 @@ function Invoke-ConsoleNoise {
         [char]$SpecificChar = [char]0x2588,
 
         [Parameter()]
-        [switch]$DebugCleanup
+        [switch]$DebugCleanup,
+
+        [Parameter()]
+        [ValidateRange(0, 1000000)]
+        [int]$MaxFrames = 0
     )
 
-    $originalState = Get-ConsoleState
+    if ($Renderer -eq 'WindowsTerminalShader') {
+        Enable-ConsoleNoiseWindowsTerminalShader -ShaderOutputPath $ShaderOutputPath -SettingsPaths $WindowsTerminalSettingsPath
+        return
+    }
+
+    $originalState = Get-ConsoleNoiseState
+    $context = $null
+    $errorRecordToWrite = $null
 
     try {
-        Initialize-Console
-
-        $requiredModules = @('Pansies')
-        if ($ColorGradient -eq 'LolCat') {
-            $requiredModules += 'lolcat'
-        }
-
-        foreach ($module in $requiredModules) {
-            Import-RequiredModule -ModuleName $module
-        }
-
-        $displaySettings = Get-DisplayConfiguration
-        $consoleWidth = $displaySettings.Width
-        $sleepTimeMs = $displaySettings.SleepTimeMs
-
-        $displayFunctions = @{
-            'RGB'    = { Show-RgbColorDisplay -ConsoleWidth $consoleWidth -SleepTimeMs $sleepTimeMs -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar }
-            'LolCat' = { Show-LolCatDisplay -ConsoleWidth $consoleWidth -SleepTimeMs $sleepTimeMs -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar }
-            'HSL'    = { Show-HslColorDisplay -ColorGradient $ColorGradient -ConsoleWidth $consoleWidth -SleepTimeMs $sleepTimeMs -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar }
-        }
-
-        if ($UseRgbColor) {
-            & $displayFunctions['RGB']
-        }
-        elseif ($ColorGradient -eq 'LolCat') {
-            & $displayFunctions['LolCat']
-        }
-        else {
-            & $displayFunctions['HSL']
-        }
+        $context = New-ConsoleNoiseContext -ColorGradient $ColorGradient -UseRgbColor:$UseRgbColor -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar -MaxFrames $MaxFrames
+        Initialize-ConsoleNoiseHost -Context $context
+        Start-ConsoleNoiseAnimation -Context $context
     }
     catch {
-        Write-Error "Error: $($_.Exception.Message)"
+        $errorRecordToWrite = $_
     }
     finally {
-        if ($DebugCleanup) {
-            [Console]::WriteLine('`n[DEBUG] Starting cleanup process...')
-        }
-        
-        Restore-ConsoleState -OriginalState $originalState -ConsoleWidth $consoleWidth -DebugMode:$DebugCleanup
+        Restore-ConsoleNoiseState -OriginalState $originalState -Context $context -DebugMode:$DebugCleanup
+    }
 
-        if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Checking PSReadLine module...')
-        }
-        
-        if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
-            if ($DebugCleanup) {
-                [Console]::WriteLine('[DEBUG] PSReadLine module found, attempting reset...')
-            }
-            try {
-                if ($DebugCleanup) {
-                    [Console]::WriteLine('[DEBUG] Setting EditMode to Windows...')
-                }
-                Set-PSReadLineOption -EditMode Windows -ErrorAction SilentlyContinue
-                
-                if ($DebugCleanup) {
-                    [Console]::WriteLine('[DEBUG] Calling RevertLine...')
-                }
-                [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-                
-                if ($DebugCleanup) {
-                    [Console]::WriteLine('[DEBUG] PSReadLine reset complete')
-                }
-            }
-            catch {
-                if ($DebugCleanup) {
-                    [Console]::WriteLine("[DEBUG] PSReadLine reset error: $($_.Exception.Message)")
-                }
-            }
-        }
-        else {
-            if ($DebugCleanup) {
-                [Console]::WriteLine('[DEBUG] PSReadLine module not loaded')
-            }
-        }
-
-        if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Writing new line...')
-        }
-        [Console]::WriteLine()
-        
-        if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Final buffer clear (1/2)...')
-        }
-        Clear-KeyboardBuffer -DebugMode:$DebugCleanup
-        Start-Sleep -Milliseconds 100
-        
-        if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Final buffer clear (2/2)...')
-        }
-        Clear-KeyboardBuffer -DebugMode:$DebugCleanup
-        
-        if ($DebugCleanup) {
-            [Console]::WriteLine('[DEBUG] Cleanup complete. Testing keyboard input...')
-            [Console]::WriteLine("[DEBUG] Console.KeyAvailable: $([Console]::KeyAvailable)")
-            [Console]::WriteLine("[DEBUG] RawUI.KeyAvailable: $($Host.UI.RawUI.KeyAvailable)")
-            [Console]::WriteLine('[DEBUG] Attempting to read PSReadLine state...')
-            try {
-                $editMode = (Get-PSReadLineOption).EditMode
-                [Console]::WriteLine("[DEBUG] PSReadLine EditMode: $editMode")
-            }
-            catch {
-                [Console]::WriteLine("[DEBUG] Could not read PSReadLine options: $($_.Exception.Message)")
-            }
-            [Console]::WriteLine('')
-            [Console]::WriteLine('[DEBUG] Press ENTER to clear screen and return to prompt...')
-            [Console]::ReadLine() | Out-Null
-        }
-        
-        # Force all pending output to complete
-        [Console]::Out.Flush()
-        Start-Sleep -Milliseconds 100
-        
-        # Clear the screen for clean user experience
-        try {
-            Clear-Host
-        }
-        catch {
-            [Console]::Clear()
-        }
-        
-        # Clear any remaining keys in the buffer after screen clear
-        Clear-KeyboardBuffer -DebugMode:$false
-        Start-Sleep -Milliseconds 50
-        Clear-KeyboardBuffer -DebugMode:$false
+    if ($null -ne $errorRecordToWrite) {
+        Write-Error -ErrorRecord $errorRecordToWrite
     }
 }
 
-function Restore-ConsoleState {
-    param (
-        [Parameter(Mandatory = $true)]
-        [hashtable]$OriginalState,
+function Enable-ConsoleNoiseWindowsTerminalShader {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ShaderOutputPath,
+
         [Parameter()]
-        [int]$ConsoleWidth,
-        [Parameter()]
-        [switch]$DebugMode
+        [string[]]$SettingsPaths
     )
 
-    if ($DebugMode) {
-        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Starting buffer flush (1/2)...')
+    $exportedShaderPath = Export-ConsoleNoiseWindowsTerminalShader -DestinationPath $ShaderOutputPath
+    $resolvedSettingsPaths = if ($SettingsPaths) {
+        $SettingsPaths
     }
-    Clear-KeyboardBuffer -DebugMode:$DebugMode
-    Start-Sleep -Milliseconds 150
-    
-    if ($DebugMode) {
-        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Starting buffer flush (2/2)...')
-    }
-    Clear-KeyboardBuffer -DebugMode:$DebugMode
-
-    if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) -and
-        $OriginalState.ContainsKey('CursorVisible')) {
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Restoring cursor visibility to $($OriginalState.CursorVisible)...")
-        }
-        $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
+    else {
+        Get-ConsoleNoiseWindowsTerminalSettingsPath
     }
 
-    # Don't clear screen yet - wait until all cleanup is done
-
-    if ($DebugMode) {
-        [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Restoring colors (FG: $($OriginalState.FgColor), BG: $($OriginalState.BgColor))...")
-    }
-    $Host.UI.RawUI.ForegroundColor = $OriginalState.FgColor
-    $Host.UI.RawUI.BackgroundColor = $OriginalState.BgColor
-
-    try {
-        if ($DebugMode) {
-            [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Calling Console.ResetColor()...')
-        }
-        [Console]::ResetColor()
-    }
-    catch {
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Restore-ConsoleState: Console.ResetColor() error: $($_.Exception.Message)")
-        }
+    if (-not $resolvedSettingsPaths) {
+        Write-Warning "No Windows Terminal settings.json file was found automatically. The shader was exported to '$exportedShaderPath'. Configure experimental.pixelShaderPath manually to enable the GPU backend."
+        return
     }
 
-    if ($DebugMode) {
-        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Final buffer flush...')
-    }
-    Clear-KeyboardBuffer -DebugMode:$DebugMode
-    
-    if ($DebugMode) {
-        [Console]::WriteLine('[DEBUG] Restore-ConsoleState: Complete')
-    }
-    
-    # Force output flush before returning
-    [Console]::Out.Flush()
+    Set-ConsoleNoiseWindowsTerminalShader -SettingsPaths $resolvedSettingsPaths -ShaderPath $exportedShaderPath
+    Write-Information "Exported calming GPU shader to '$exportedShaderPath'." -InformationAction Continue
+    Write-Information 'Updated Windows Terminal settings. Open a new Windows Terminal tab or reload settings to apply the shader.' -InformationAction Continue
 }
 
-function Get-ConsoleState {
-    $state = @{
-        FgColor = $Host.UI.RawUI.ForegroundColor
-        BgColor = $Host.UI.RawUI.BackgroundColor
+function Export-ConsoleNoiseWindowsTerminalShader {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    $repositoryRoot = Split-Path -Path $PSScriptRoot -Parent
+    $sourceShaderPath = Join-Path -Path $repositoryRoot -ChildPath 'Non PowerShell Tools\CalmAurora.hlsl'
+    if (-not (Test-Path -Path $sourceShaderPath)) {
+        throw "CalmAurora.hlsl was not found at '$sourceShaderPath'."
     }
 
-    if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
-        $state.CursorVisible = $Host.UI.RawUI.CursorVisible
+    $destinationDirectory = Split-Path -Path $DestinationPath -Parent
+    if ($destinationDirectory -and -not (Test-Path -Path $destinationDirectory)) {
+        New-Item -Path $destinationDirectory -ItemType Directory -Force | Out-Null
+    }
+
+    Copy-Item -Path $sourceShaderPath -Destination $DestinationPath -Force
+    return $DestinationPath
+}
+
+function Get-ConsoleNoiseWindowsTerminalSettingsPath {
+    [CmdletBinding()]
+    param()
+
+    $patterns = @(
+        (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Packages\Microsoft.WindowsTerminal*\LocalState\settings.json'),
+        (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Microsoft\Windows Terminal\settings.json')
+    )
+
+    $paths = foreach ($pattern in $patterns) {
+        Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+    }
+
+    return ($paths | Sort-Object -Unique)
+}
+
+function Set-ConsoleNoiseWindowsTerminalShader {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SettingsPaths,
+
+        [Parameter(Mandatory)]
+        [string]$ShaderPath
+    )
+
+    foreach ($settingsPath in $SettingsPaths) {
+        if (-not (Test-Path -Path $settingsPath)) {
+            Write-Warning "Windows Terminal settings file not found: '$settingsPath'"
+            continue
+        }
+
+        $rawJson = Get-Content -Path $settingsPath -Raw -ErrorAction Stop
+        $settings = $rawJson | ConvertFrom-Json -ErrorAction Stop
+
+        if (-not ($settings.PSObject.Properties.Name -contains 'profiles')) {
+            $settings | Add-Member -MemberType NoteProperty -Name 'profiles' -Value ([pscustomobject]@{})
+        }
+
+        if (-not ($settings.profiles.PSObject.Properties.Name -contains 'defaults')) {
+            $settings.profiles | Add-Member -MemberType NoteProperty -Name 'defaults' -Value ([pscustomobject]@{})
+        }
+
+        $settings.profiles.defaults | Add-Member -MemberType NoteProperty -Name 'experimental.pixelShaderPath' -Value $ShaderPath -Force
+        $settings.profiles.defaults | Add-Member -MemberType NoteProperty -Name 'experimental.retroTerminalEffect' -Value $false -Force
+
+        $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+        $backupPath = "$settingsPath.$timestamp.bak"
+        Copy-Item -Path $settingsPath -Destination $backupPath -Force
+
+        $json = $settings | ConvertTo-Json -Depth 100
+        [System.IO.File]::WriteAllText($settingsPath, $json, [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
+function Get-ConsoleNoiseState {
+    $state = @{
+        ForegroundColor = $Host.UI.RawUI.ForegroundColor
+        BackgroundColor = $Host.UI.RawUI.BackgroundColor
+    }
+
+    try {
+        $state.OutputEncoding = [Console]::OutputEncoding
+    }
+    catch {
+    }
+
+    try {
+        $state.TreatControlCAsInput = [Console]::TreatControlCAsInput
+    }
+    catch {
+    }
+
+    if (Get-Module -Name PSReadLine -ErrorAction Ignore) {
+        try {
+            $state.PSReadLineEditMode = (Get-PSReadLineOption).EditMode
+        }
+        catch {
+        }
+    }
+
+    if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property -ErrorAction Ignore) {
+        try {
+            $state.CursorVisible = $Host.UI.RawUI.CursorVisible
+        }
+        catch {
+        }
+    }
+
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+        try {
+            $state.OutputRendering = [string]$PSStyle.OutputRendering
+        }
+        catch {
+        }
     }
 
     return $state
 }
 
-function Initialize-Console {
-    if ($env:TERM_PROGRAM -eq 'vscode') {
+function New-ConsoleNoiseContext {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
+        [string]$ColorGradient,
+
+        [Parameter()]
+        [switch]$UseRgbColor,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Random', 'Specific')]
+        [string]$UnicodeCharMode,
+
+        [Parameter(Mandatory)]
+        [char]$SpecificChar,
+
+        [Parameter(Mandatory)]
+        [int]$MaxFrames
+    )
+
+    $viewport = Get-ConsoleNoiseViewport
+    $refreshRate = Get-ConsoleNoiseRefreshRate
+
+    return [pscustomobject]@{
+        Width               = $viewport.Width
+        Height              = $viewport.Height
+        RefreshRate         = $refreshRate
+        FrameDelayMs        = Get-ConsoleNoiseFrameDelay -RefreshRate $refreshRate
+        ColorGradient       = $ColorGradient
+        UseRgbColor         = [bool]$UseRgbColor
+        UnicodeCharMode     = $UnicodeCharMode
+        SpecificChar        = [string]$SpecificChar
+        MaxFrames           = $MaxFrames
+        UseAnsi             = Test-ConsoleNoiseAnsiSupport
+        Escape              = [char]27
+        RainbowHueDrift     = 0.00045
+        RainbowRowHueStep   = 0.0075
+        RgbPhaseDrift       = 0.0016
+        RgbRowPhaseStep     = 0.045
+        RandomCharacterPool = @(
+            '█', '▓', '▒', '░', '■', '◆',
+            '◈', '●', '◼', '▪', '▫', '▣'
+        )
+    }
+}
+
+function Initialize-ConsoleNoiseHost {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context
+    )
+
+    Clear-ConsoleNoiseKeyboardBuffer -DebugMode:$false
+
+    try {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     }
-
-    if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property) {
-        $Host.UI.RawUI.CursorVisible = $false
+    catch {
     }
-}
 
-function Import-RequiredModule {
-    param (
-        [string]$ModuleName
-    )
-
-    if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
+    if ($Context.UseAnsi -and $PSVersionTable.PSVersion.Major -ge 7) {
         try {
-            Install-Module -Name $ModuleName -Scope CurrentUser -AllowClobber -Force -AllowPrerelease
+            $PSStyle.OutputRendering = 'Ansi'
         }
         catch {
-            Write-Error "Error installing $ModuleName module: $($_.Exception.Message)"
-            throw
         }
     }
-    Import-Module -Name $ModuleName -Force -ErrorAction Stop
-}
 
-function Get-DisplayConfiguration {
-    $width = $Host.UI.RawUI.WindowSize.Width
-    $videoControllers = Get-CimInstance -Namespace 'root\CIMV2' -Query 'SELECT * FROM Win32_VideoController'
-    $refreshRate = 60
-    if ($videoControllers -and $videoControllers.CurrentRefreshRate) {
-        $refreshRate = ($videoControllers.CurrentRefreshRate | Where-Object { $_ -gt 0 } | Select-Object -First 1) -as [int]
-        if (-not $refreshRate) {
-            $refreshRate = 60
+    try {
+        [Console]::TreatControlCAsInput = $true
+    }
+    catch {
+    }
+
+    if ($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property -ErrorAction Ignore) {
+        try {
+            $Host.UI.RawUI.CursorVisible = $false
+        }
+        catch {
         }
     }
-    $sleepTimeMs = [math]::Round(1000 / $refreshRate)
-    return @{ Width = $width; SleepTimeMs = $sleepTimeMs }
+
+    [Console]::Clear()
+    [Console]::SetCursorPosition(0, 0)
 }
 
-function Get-RandomUnicodeCharacter {
-    $ranges = @(
-        @{ Start = 0x1F300; End = 0x1F5FF }
+function Restore-ConsoleNoiseState {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$OriginalState,
+
+        [Parameter()]
+        [pscustomobject]$Context,
+
+        [Parameter()]
+        [switch]$DebugMode
     )
-    $range = Get-Random -InputObject $ranges
-    $codePoint = Get-Random -Minimum $range.Start -Maximum ($range.End + 1)
-    return [char]::ConvertFromUtf32($codePoint)
+
+    Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message '[DEBUG] Starting Invoke-ConsoleNoise cleanup...'
+    Clear-ConsoleNoiseKeyboardBuffer -DebugMode:$DebugMode
+
+    if (($Host.UI.RawUI | Get-Member -Name CursorVisible -MemberType Property -ErrorAction Ignore) -and $OriginalState.ContainsKey('CursorVisible')) {
+        try {
+            $Host.UI.RawUI.CursorVisible = $OriginalState.CursorVisible
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to restore cursor visibility: $($_.Exception.Message)"
+        }
+    }
+
+    try {
+        $Host.UI.RawUI.ForegroundColor = $OriginalState.ForegroundColor
+        $Host.UI.RawUI.BackgroundColor = $OriginalState.BackgroundColor
+    }
+    catch {
+        Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to restore host colors: $($_.Exception.Message)"
+    }
+
+    try {
+        [Console]::ResetColor()
+    }
+    catch {
+        Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Console.ResetColor failed: $($_.Exception.Message)"
+    }
+
+    if ($OriginalState.ContainsKey('OutputEncoding')) {
+        try {
+            [Console]::OutputEncoding = $OriginalState.OutputEncoding
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to restore output encoding: $($_.Exception.Message)"
+        }
+    }
+
+    if ($OriginalState.ContainsKey('TreatControlCAsInput')) {
+        try {
+            [Console]::TreatControlCAsInput = [bool]$OriginalState.TreatControlCAsInput
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to restore TreatControlCAsInput: $($_.Exception.Message)"
+        }
+    }
+
+    if ($PSVersionTable.PSVersion.Major -ge 7 -and $OriginalState.ContainsKey('OutputRendering')) {
+        try {
+            $PSStyle.OutputRendering = $OriginalState.OutputRendering
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to restore PSStyle output rendering: $($_.Exception.Message)"
+        }
+    }
+
+    Reset-ConsoleNoisePSReadLine -OriginalState $OriginalState -DebugMode:$DebugMode
+
+    [Console]::Out.Flush()
+    Start-Sleep -Milliseconds 40
+
+    try {
+        [Console]::Clear()
+    }
+    catch {
+        try {
+            Clear-Host
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Failed to clear console during cleanup: $($_.Exception.Message)"
+        }
+    }
+
+    Clear-ConsoleNoiseKeyboardBuffer -DebugMode:$DebugMode
+    Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message '[DEBUG] Invoke-ConsoleNoise cleanup complete.'
+}
+
+function Reset-ConsoleNoisePSReadLine {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$OriginalState,
+
+        [Parameter()]
+        [switch]$DebugMode
+    )
+
+    if (-not (Get-Module -Name PSReadLine -ErrorAction Ignore)) {
+        return
+    }
+
+    if ($OriginalState.ContainsKey('PSReadLineEditMode')) {
+        try {
+            Set-PSReadLineOption -EditMode $OriginalState.PSReadLineEditMode -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Set-PSReadLineOption failed: $($_.Exception.Message)"
+        }
+    }
+
+    try {
+        [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+    }
+    catch {
+        Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] PSConsoleReadLine::RevertLine failed: $($_.Exception.Message)"
+    }
+}
+
+function Write-ConsoleNoiseDebug {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+
+        [Parameter()]
+        [switch]$Enabled
+    )
+
+    if ($Enabled) {
+        [Console]::WriteLine($Message)
+    }
+}
+
+function Get-ConsoleNoiseViewport {
+    $width = 80
+    $height = 24
+
+    try {
+        $width = $Host.UI.RawUI.WindowSize.Width
+        $height = $Host.UI.RawUI.WindowSize.Height
+    }
+    catch {
+        try {
+            $width = [Console]::WindowWidth
+            $height = [Console]::WindowHeight
+        }
+        catch {
+        }
+    }
+
+    if ($width -lt 1) {
+        $width = 1
+    }
+
+    if ($height -lt 2) {
+        $height = 2
+    }
+
+    return [pscustomobject]@{
+        Width  = $width
+        Height = [Math]::Max(1, ($height - 1))
+    }
+}
+
+function Update-ConsoleNoiseViewport {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context
+    )
+
+    $viewport = Get-ConsoleNoiseViewport
+    $sizeChanged = ($Context.Width -ne $viewport.Width) -or ($Context.Height -ne $viewport.Height)
+
+    $Context.Width = $viewport.Width
+    $Context.Height = $viewport.Height
+
+    return $sizeChanged
+}
+
+function Get-ConsoleNoiseRefreshRate {
+    $refreshRate = 60
+
+    try {
+        $rates = Get-CimInstance -Namespace 'root\CIMV2' -ClassName Win32_VideoController -ErrorAction Stop |
+            ForEach-Object { [int]$_.CurrentRefreshRate } |
+                Where-Object { $_ -gt 0 }
+
+        if ($rates) {
+            $refreshRate = $rates | Select-Object -First 1
+        }
+    }
+    catch {
+    }
+
+    if ($refreshRate -lt 1) {
+        $refreshRate = 60
+    }
+
+    return [int]$refreshRate
+}
+
+function Get-ConsoleNoiseFrameDelay {
+    param(
+        [Parameter(Mandatory)]
+        [int]$RefreshRate
+    )
+
+    $effectiveRefreshRate = if ($RefreshRate -gt 0) {
+        $RefreshRate
+    }
+    else {
+        60
+    }
+
+    if ($effectiveRefreshRate -gt 30) {
+        $effectiveRefreshRate = 30
+    }
+    elseif ($effectiveRefreshRate -lt 24) {
+        $effectiveRefreshRate = 24
+    }
+
+    return [Math]::Max(16, [int][Math]::Round(1000 / $effectiveRefreshRate))
+}
+
+function Test-ConsoleNoiseAnsiSupport {
+    if ($Host.Name -like '*ISE*') {
+        return $false
+    }
+
+    if ($env:TERM -eq 'dumb') {
+        return $false
+    }
+
+    return $true
+}
+
+function Start-ConsoleNoiseAnimation {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context
+    )
+
+    $frameNumber = 0
+
+    while ($true) {
+        if ($Context.MaxFrames -gt 0 -and $frameNumber -ge $Context.MaxFrames) {
+            break
+        }
+
+        if (Test-ConsoleNoiseExitRequested) {
+            break
+        }
+
+        if (Update-ConsoleNoiseViewport -Context $Context) {
+            [Console]::Clear()
+        }
+
+        $frameText = New-ConsoleNoiseFrame -Context $Context -FrameNumber $frameNumber
+        [Console]::SetCursorPosition(0, 0)
+        [Console]::Write($frameText)
+        [Console]::Out.Flush()
+
+        $frameNumber++
+        Start-Sleep -Milliseconds $Context.FrameDelayMs
+    }
+}
+
+function New-ConsoleNoiseFrame {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber
+    )
+
+    $estimatedCapacity = [Math]::Max(128, (($Context.Width + 24) * $Context.Height))
+    $builder = [System.Text.StringBuilder]::new($estimatedCapacity)
+
+    for ($rowIndex = 0; $rowIndex -lt $Context.Height; $rowIndex++) {
+        $color = Get-ConsoleNoiseRowColor -Context $Context -FrameNumber $FrameNumber -RowIndex $rowIndex
+
+        if ($Context.UseAnsi) {
+            $null = $builder.Append((New-ConsoleNoiseAnsiForegroundSequence -Red $color.Red -Green $color.Green -Blue $color.Blue))
+        }
+
+        $null = $builder.Append((New-ConsoleNoiseRow -Context $Context -FrameNumber $FrameNumber -RowIndex $rowIndex))
+
+        if ($rowIndex -lt ($Context.Height - 1)) {
+            $null = $builder.Append("`r`n")
+        }
+    }
+
+    if ($Context.UseAnsi) {
+        $null = $builder.Append("$($Context.Escape)[0m")
+    }
+
+    return $builder.ToString()
+}
+
+function New-ConsoleNoiseRow {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    if ($Context.UnicodeCharMode -eq 'Specific') {
+        return ($Context.SpecificChar * $Context.Width)
+    }
+
+    $characterPool = $Context.RandomCharacterPool
+    $builder = [System.Text.StringBuilder]::new($Context.Width)
+    $poolCount = $characterPool.Count
+    $waveOffset = [int][Math]::Round((Get-ConsoleNoiseWaveValue -Phase (($FrameNumber * 0.12) + ($RowIndex * 0.35))) * ($poolCount - 1))
+    $driftOffset = [int][Math]::Floor(($FrameNumber * 0.6) + ($RowIndex * 1.4))
+    $rowOffset = ($waveOffset + $driftOffset) % $poolCount
+
+    for ($columnIndex = 0; $columnIndex -lt $Context.Width; $columnIndex++) {
+        $poolIndex = ($columnIndex + $rowOffset) % $poolCount
+        $null = $builder.Append($characterPool[$poolIndex])
+    }
+
+    return $builder.ToString()
+}
+
+function Get-ConsoleNoiseRowColor {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    if ($Context.UseRgbColor) {
+        return Get-ConsoleNoiseRgbWaveColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
+    }
+
+    return Get-ConsoleNoiseHslGradientColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
+}
+
+function Get-ConsoleNoiseRgbWaveColor {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    $phase = ($FrameNumber * $Context.RgbPhaseDrift) + ($RowIndex * $Context.RgbRowPhaseStep)
+    $channelMidpoint = 160
+    $channelAmplitude = 70
+
+    $red = [int][Math]::Round($channelMidpoint + ($channelAmplitude * [Math]::Sin($phase)))
+    $green = [int][Math]::Round($channelMidpoint + ($channelAmplitude * [Math]::Sin($phase + ((2 * [Math]::PI) / 3))))
+    $blue = [int][Math]::Round($channelMidpoint + ($channelAmplitude * [Math]::Sin($phase + ((4 * [Math]::PI) / 3))))
+
+    return [pscustomobject]@{
+        Red   = $red
+        Green = $green
+        Blue  = $blue
+    }
+}
+
+function Get-ConsoleNoiseHslGradientColor {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    $rowPhase = ($FrameNumber * 0.045) + ($RowIndex * 0.06)
+
+    switch ($Context.ColorGradient) {
+        'Greyscale' {
+            $lightness = 0.18 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 3.6)) * 0.62)
+            return Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $lightness
+        }
+
+        'Custom' {
+            $hue = 0.56 + ([Math]::Sin($rowPhase * 1.7) * 0.12)
+            if ($hue -lt 0) {
+                $hue += 1.0
+            }
+            elseif ($hue -ge 1.0) {
+                $hue -= 1.0
+            }
+
+            $saturation = 0.74 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 0.8)) * 0.16)
+            $lightness = 0.38 + ((Get-ConsoleNoiseWaveValue -Phase (($rowPhase * 2.1) + 0.7)) * 0.18)
+
+            return Convert-HslToRgb -Hue $hue -Saturation $saturation -Lightness $lightness
+        }
+
+        'LolCat' {
+            $hue = (($FrameNumber * 0.065) + ($RowIndex * 0.115)) % 1.0
+            $lightness = 0.55 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 2.4)) * 0.10)
+            return Convert-HslToRgb -Hue $hue -Saturation 1.0 -Lightness $lightness
+        }
+
+        default {
+            $hue = (($FrameNumber * $Context.RainbowHueDrift) + ($RowIndex * $Context.RainbowRowHueStep)) % 1.0
+            return Convert-HslToRgb -Hue $hue -Saturation 0.84 -Lightness 0.56
+        }
+    }
+}
+
+function Get-ConsoleNoiseWaveValue {
+    param(
+        [Parameter(Mandatory)]
+        [double]$Phase
+    )
+
+    return (([Math]::Sin($Phase) + 1.0) / 2.0)
 }
 
 function Convert-HslToRgb {
-    param (
-        [Parameter(Mandatory = $true)][double]$Hue,
-        [Parameter(Mandatory = $true)][double]$Saturation,
-        [Parameter(Mandatory = $true)][double]$Lightness
+    param(
+        [Parameter(Mandatory)]
+        [double]$Hue,
+
+        [Parameter(Mandatory)]
+        [double]$Saturation,
+
+        [Parameter(Mandatory)]
+        [double]$Lightness
     )
 
+    $Hue = $Hue % 1.0
+    if ($Hue -lt 0) {
+        $Hue += 1.0
+    }
+
+    $Saturation = [Math]::Max(0.0, [Math]::Min(1.0, $Saturation))
+    $Lightness = [Math]::Max(0.0, [Math]::Min(1.0, $Lightness))
+
     if ($Saturation -eq 0) {
-        $r = $g = $b = $Lightness
+        $r = $Lightness
+        $g = $Lightness
+        $b = $Lightness
     }
     else {
         $hue2rgb = {
-            param($p, $q, $t)
+            param(
+                [double]$p,
+                [double]$q,
+                [double]$t
+            )
+
             if ($t -lt 0) {
-                $t += 1 
+                $t += 1.0
             }
+
             if ($t -gt 1) {
-                $t -= 1 
+                $t -= 1.0
             }
-            if ($t -lt 1 / 6) {
-                return $p + ($q - $p) * 6 * $t 
+
+            if ($t -lt (1.0 / 6.0)) {
+                return $p + (($q - $p) * 6.0 * $t)
             }
-            if ($t -lt 1 / 2) {
-                return $q 
+
+            if ($t -lt 0.5) {
+                return $q
             }
-            if ($t -lt 2 / 3) {
-                return $p + ($q - $p) * (2 / 3 - $t) * 6 
+
+            if ($t -lt (2.0 / 3.0)) {
+                return $p + (($q - $p) * (((2.0 / 3.0) - $t) * 6.0))
             }
+
             return $p
         }
 
@@ -358,241 +888,106 @@ function Convert-HslToRgb {
             $Lightness * (1 + $Saturation)
         }
         else {
-            $Lightness + $Saturation - $Lightness * $Saturation
+            $Lightness + $Saturation - ($Lightness * $Saturation)
         }
 
-        $p = 2 * $Lightness - $q
-        $r = & $hue2rgb $p $q ($Hue + 1 / 3)
+        $p = (2 * $Lightness) - $q
+        $r = & $hue2rgb $p $q ($Hue + (1.0 / 3.0))
         $g = & $hue2rgb $p $q $Hue
-        $b = & $hue2rgb $p $q ($Hue - 1 / 3)
+        $b = & $hue2rgb $p $q ($Hue - (1.0 / 3.0))
     }
 
-    $r = [math]::Round($r * 255)
-    $g = [math]::Round($g * 255)
-    $b = [math]::Round($b * 255)
+    $red = [Math]::Max(0, [Math]::Min(255, [int][Math]::Round($r * 255)))
+    $green = [Math]::Max(0, [Math]::Min(255, [int][Math]::Round($g * 255)))
+    $blue = [Math]::Max(0, [Math]::Min(255, [int][Math]::Round($b * 255)))
 
-    return [PoshCode.Pansies.RgbColor]::new($r, $g, $b)
-}
-
-function Clear-KeyboardBuffer {
-    param (
-        [Parameter()]
-        [switch]$DebugMode
-    )
-    
-    try {
-        if ($DebugMode) {
-            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 1 (Console API)...')
-        }
-        $attempts = 0
-        $keysCleared = 0
-        while ([Console]::KeyAvailable -and $attempts -lt 100) {
-            [Console]::ReadKey($true) | Out-Null
-            $attempts++
-            $keysCleared++
-        }
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 1 cleared $keysCleared keys in $attempts attempts")
-        }
-    }
-    catch {
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 1 error: $($_.Exception.Message)")
-        }
-    }
-
-    try {
-        if ($DebugMode) {
-            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 2 (RawUI)...')
-        }
-        $rawUI = $Host.UI.RawUI
-        if ($rawUI) {
-            $attempts = 0
-            $keysCleared = 0
-            while ($rawUI.KeyAvailable -and $attempts -lt 100) {
-                $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
-                $rawUI.ReadKey($options) | Out-Null
-                $attempts++
-                $keysCleared++
-            }
-            if ($DebugMode) {
-                [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 2 cleared $keysCleared keys in $attempts attempts")
-            }
-        }
-    }
-    catch {
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 2 error: $($_.Exception.Message)")
-        }
-    }
-    
-    try {
-        if ($DebugMode) {
-            [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: Method 3 (FlushInputBuffer)...')
-        }
-        $method = [Console]::GetType().GetMethod('FlushInputBuffer')
-        if ($method) {
-            if ($DebugMode) {
-                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method found, invoking...')
-            }
-            [Console]::FlushInputBuffer()
-            if ($DebugMode) {
-                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer successful')
-            }
-        }
-        else {
-            if ($DebugMode) {
-                [Console]::WriteLine('[DEBUG] Clear-KeyboardBuffer: FlushInputBuffer method not available')
-            }
-        }
-    }
-    catch {
-        if ($DebugMode) {
-            [Console]::WriteLine("[DEBUG] Clear-KeyboardBuffer: Method 3 error: $($_.Exception.Message)")
-        }
+    return [pscustomobject]@{
+        Red   = [int]$red
+        Green = [int]$green
+        Blue  = [int]$blue
     }
 }
 
-function Get-CharToDisplay {
-    param (
-        [string]$UnicodeCharMode,
-        [char]$SpecificChar
+function New-ConsoleNoiseAnsiForegroundSequence {
+    param(
+        [Parameter(Mandatory)]
+        [int]$Red,
+
+        [Parameter(Mandatory)]
+        [int]$Green,
+
+        [Parameter(Mandatory)]
+        [int]$Blue
     )
 
-    if ($UnicodeCharMode -eq 'Random') {
-        return Get-RandomUnicodeCharacter
-    }
-    else {
-        return [string]$SpecificChar
-    }
+    return ('{0}[38;2;{1};{2};{3}m' -f [char]27, $Red, $Green, $Blue)
 }
 
-function Test-KeyPress {
-    $checkKey = {
-        param($character, $virtualKey, $controlState)
-
-        if ($character -eq 'q' -or $character -eq 'Q') {
-            return $true
-        }
-
-        $ctrlPressed = ($controlState -band ([System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed))
-
-        if ($ctrlPressed -and $virtualKey -eq 67) {
-            return $true
-        }
-        return $false
-    }
-
+function Test-ConsoleNoiseExitRequested {
     try {
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
-            if (&$checkKey $key.KeyChar ([int]$key.Key) 0) {
-                return $true
+
+            if ($null -ne $key) {
+                if ($key.Key -eq [System.ConsoleKey]::Q) {
+                    return $true
+                }
+
+                if ((($key.Modifiers -band [System.ConsoleModifiers]::Control) -ne 0) -and $key.Key -eq [System.ConsoleKey]::C) {
+                    return $true
+                }
             }
         }
     }
     catch {
-        $rawUI = $Host.UI.RawUI
-        if ($rawUI -and $rawUI.KeyAvailable) {
-            try {
+        try {
+            $rawUi = $Host.UI.RawUI
+            if ($rawUi -and $rawUi.KeyAvailable) {
                 $options = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
-                $keyInfo = $rawUI.ReadKey($options)
-                if (&$checkKey $keyInfo.Character $keyInfo.VirtualKeyCode $keyInfo.ControlKeyState) {
-                    return $true
+                $keyInfo = $rawUi.ReadKey($options)
+
+                if ($null -ne $keyInfo) {
+                    if ($keyInfo.Character -eq 'q' -or $keyInfo.Character -eq 'Q') {
+                        return $true
+                    }
+
+                    $controlMask = [System.Management.Automation.Host.ControlKeyStates]::LeftCtrlPressed -bor [System.Management.Automation.Host.ControlKeyStates]::RightCtrlPressed
+                    if (($keyInfo.ControlKeyState -band $controlMask) -and $keyInfo.VirtualKeyCode -eq 67) {
+                        return $true
+                    }
                 }
             }
-            catch {
-            }
+        }
+        catch {
+            return $false
         }
     }
 
     return $false
 }
 
-function Show-RgbColorDisplay {
-    param (
-        [int]$ConsoleWidth,
-        [int]$SleepTimeMs,
-        [string]$UnicodeCharMode,
-        [char]$SpecificChar
+function Clear-ConsoleNoiseKeyboardBuffer {
+    param(
+        [Parameter()]
+        [switch]$DebugMode
     )
 
-    $gstep = 0.01
-    $bstep = 0.02
-    $rstep = 0.1
-    $r = 255
-    $g = 0
-    $b = 0
-
-    while (-not (Test-KeyPress)) {
-        $color = [PoshCode.Pansies.RgbColor]::new([Math]::Round($r, 2), [Math]::Round($g, 2), [Math]::Round($b, 2))
-        $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-        $lineToDisplay = $charToDisplay * $ConsoleWidth
-
-        Write-Host $lineToDisplay -ForegroundColor $color
-        Start-Sleep -Milliseconds $SleepTimeMs
-
-        $g += $gstep
-        if ($g -eq 255) {
-            $g = 0 
-        }
-
-        $b += $bstep
-        if ($b -eq 255) {
-            $b = 0 
-        }
-
-        $r -= $rstep
-        if ($r -eq 0) {
-            $r = 255 
+    try {
+        while ([Console]::KeyAvailable) {
+            [Console]::ReadKey($true) | Out-Null
         }
     }
-}
-
-function Show-LolCatDisplay {
-    param (
-        [int]$ConsoleWidth,
-        [int]$SleepTimeMs,
-        [string]$UnicodeCharMode,
-        [char]$SpecificChar
-    )
-
-    $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-
-    while (-not (Test-KeyPress)) {
-        $lineToDisplay = $charToDisplay * $ConsoleWidth
-        $lineToDisplay | lolcat -a
-        Start-Sleep -Milliseconds $SleepTimeMs
+    catch {
+        Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] Console keyboard flush failed: $($_.Exception.Message)"
     }
-}
 
-function Show-HslColorDisplay {
-    param (
-        [string]$ColorGradient,
-        [int]$ConsoleWidth,
-        [int]$SleepTimeMs,
-        [string]$UnicodeCharMode,
-        [char]$SpecificChar
-    )
-
-    $hue = 0.0
-    $sat = 0.8
-    $light = 0.5
-
-    while (-not (Test-KeyPress)) {
-        if ($ColorGradient -eq 'Greyscale') {
-            $light = ($light + 0.01) % 1.0
-            $color = Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $light
+    try {
+        $rawUi = $Host.UI.RawUI
+        if ($rawUi -and ($rawUi | Get-Member -Name FlushInputBuffer -MemberType Method -ErrorAction Ignore)) {
+            $rawUi.FlushInputBuffer()
         }
-        else {
-            $hue = ($hue + 0.01) % 1.0
-            $color = Convert-HslToRgb -Hue $hue -Saturation $sat -Lightness $light
-        }
-
-        $charToDisplay = Get-CharToDisplay -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar
-        $lineToDisplay = $charToDisplay * $ConsoleWidth
-
-        Write-Host $lineToDisplay -ForegroundColor $color
-        Start-Sleep -Milliseconds $SleepTimeMs
+    }
+    catch {
+        Write-ConsoleNoiseDebug -Enabled:$DebugMode -Message "[DEBUG] RawUI keyboard flush failed: $($_.Exception.Message)"
     }
 }
