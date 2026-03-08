@@ -1,386 +1,678 @@
-<#
-.SYNOPSIS
-    Applies tiny11 modifications to an existing Windows installation.
+function Invoke-Tiny11Live {
+    <#
+    .SYNOPSIS
+    Applies tiny11-style cleanup changes to the current Windows installation.
 
-.DESCRIPTION
-    This script applies the tiny11 cleanup operations to a running Windows installation,
-    removing bloatware, disabling telemetry, and applying various optimizations without
-    requiring a WIM image or reinstallation.
+    .DESCRIPTION
+    Invoke-Tiny11Live removes selected provisioned and installed Appx packages,
+    applies tiny11-style registry changes, disables selected telemetry-related
+    scheduled tasks, and can optionally restart the computer when finished.
 
-.EXAMPLE
-    .\Invoke-Tiny11Live.ps1
-    
-    Runs the cleanup on the current Windows installation.
+    This function is intended for use on a live Windows installation and must
+    be run from an elevated PowerShell session. It does not modify the current
+    execution policy or relaunch itself in a second console window; instead it
+    follows normal advanced-function behavior and supports PowerShell's
+    -WhatIf and -Confirm semantics.
 
-.NOTES
+    .PARAMETER Force
+    Skips the additional interactive confirmation prompt before changes are
+    applied. This does not bypass PowerShell's built-in -WhatIf or -Confirm
+    behavior.
+
+    .PARAMETER Restart
+    Restarts the computer automatically after the cleanup completes.
+
+    .PARAMETER SkipTranscript
+    Skips transcript logging.
+
+    .PARAMETER TranscriptPath
+    Path to the transcript log file. By default, a timestamped log file is
+    created next to this function file.
+
+    .PARAMETER PassThru
+    Returns a summary object describing the work performed.
+
+    .EXAMPLE
+    Invoke-Tiny11Live -WhatIf
+
+    Shows what would happen without making changes.
+
+    .EXAMPLE
+    Invoke-Tiny11Live -Force -Verbose
+
+    Applies the cleanup without the extra ShouldContinue prompt and emits
+    verbose progress details.
+
+    .EXAMPLE
+    Invoke-Tiny11Live -Restart -Confirm:$false
+
+    Applies the cleanup and then restarts the computer without confirmation
+    prompts.
+
+    .EXAMPLE
+    Invoke-Tiny11Live -PassThru | Format-List *
+
+    Applies the cleanup and returns a summary object.
+
+    .OUTPUTS
+    [pscustomobject] when -PassThru is specified.
+
+    .NOTES
     Author: Based on tiny11maker.ps1 by ntdevlabs
-    Date: 2025
-    
-    This script must be run as Administrator.
-    A system restart is recommended after running this script.
-#>
+    Date: 2026-03-09
 
-#---------[ Functions ]---------#
-function Set-RegistryValue {
-    param (
-        [string]$path,
-        [string]$name,
-        [ValidateSet('REG_SZ', 'REG_DWORD', 'REG_BINARY', 'REG_MULTI_SZ', 'REG_EXPAND_SZ', 'REG_QWORD')] [string]$type,
-        [object]$value
+    Run this function from an elevated PowerShell session.
+    A restart is strongly recommended after the cleanup completes.
+    #>
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter()]
+        [switch]$Force,
+
+        [Parameter()]
+        [switch]$Restart,
+
+        [Parameter()]
+        [switch]$SkipTranscript,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$TranscriptPath = (Join-Path -Path $PSScriptRoot -ChildPath ('tiny11cleanup_{0}.log' -f (Get-Date -Format 'yyyyMMdd_HHmmss'))),
+
+        [Parameter()]
+        [switch]$PassThru
     )
-    try {
-        # Ensure the registry path exists
-        if (-not (Test-Path $path)) {
-            New-Item -Path $path -Force | Out-Null
+
+    Set-StrictMode -Version 3.0
+
+    function Write-Tiny11Message {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [AllowEmptyString()]
+            [string]$Message
+        )
+
+        Write-Information $Message -InformationAction Continue
+    }
+
+    function Write-Tiny11Section {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Message
+        )
+
+        Write-Tiny11Message -Message "===== $Message ====="
+    }
+
+    function Add-Tiny11Error {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Message
+        )
+
+        $summary.Errors.Add($Message)
+        Write-Warning $Message
+    }
+
+    function Test-Tiny11IsWindows {
+        [CmdletBinding()]
+        param()
+
+        return ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT)
+    }
+
+    function Test-Tiny11Administrator {
+        [CmdletBinding()]
+        param()
+
+        $windowsIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $windowsPrincipal = [System.Security.Principal.WindowsPrincipal]::new($windowsIdentity)
+        return $windowsPrincipal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+
+    function ConvertTo-Tiny11RegistryPath {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path
+        )
+
+        if ($Path -match '^[A-Za-z]+:\\') {
+            return $Path
         }
-        # Convert value to appropriate string for reg.exe
-        $valueString = $value
-        switch ($type) {
-            'REG_DWORD' {
-                if ($value -isnot [int] -and $value -isnot [uint32]) {
-                    throw 'Value for REG_DWORD must be an integer.'
-                }
-                $valueString = [string]$value
+
+        switch -Regex ($Path) {
+            '^HKLM\\' {
+                return ('HKLM:\' + $Path.Substring(5))
             }
-            'REG_QWORD' {
-                if ($value -isnot [int64] -and $value -isnot [uint64]) {
-                    throw 'Value for REG_QWORD must be a 64-bit integer.'
-                }
-                $valueString = [string]$value
-            }
-            'REG_BINARY' {
-                if ($value -isnot [byte[]]) {
-                    throw 'Value for REG_BINARY must be a byte array.'
-                }
-                $valueString = ($value | ForEach-Object { $_.ToString('X2') }) -join ''
-            }
-            'REG_MULTI_SZ' {
-                if ($value -isnot [string[]]) {
-                    throw 'Value for REG_MULTI_SZ must be a string array.'
-                }
-                $valueString = $value -join '\0'
-            }
-            'REG_SZ' {
-            }
-            'REG_EXPAND_SZ' {
+            '^HKCU\\' {
+                return ('HKCU:\' + $Path.Substring(5))
             }
             default {
-                throw "Unsupported registry type: $type"
+                throw "Unsupported registry path format: '$Path'."
             }
         }
-        & 'reg' 'add' $path '/v' $name '/t' $type '/d' $valueString '/f' | Out-Null
-        Write-Output "Set registry value: $path\$name"
     }
-    catch {
-        Write-Output "Error setting registry value: $_"
-    }
-}
 
-function Remove-RegistryValue {
-    param (
-        [string]$path
-    )
-    try {
-        if (Test-Path $path) {
-            & 'reg' 'delete' $path '/f' | Out-Null
-            Write-Output "Removed registry value: $path"
+    function Set-Tiny11RegistryValue {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path,
+
+            [Parameter(Mandatory)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Name,
+
+            [Parameter(Mandatory)]
+            [ValidateSet('REG_SZ', 'REG_DWORD', 'REG_BINARY', 'REG_MULTI_SZ', 'REG_EXPAND_SZ', 'REG_QWORD')]
+            [string]$Type,
+
+            [Parameter(Mandatory)]
+            [AllowNull()]
+            [object]$Value
+        )
+
+        try {
+            $resolvedPath = ConvertTo-Tiny11RegistryPath -Path $Path
+            if (-not (Test-Path -LiteralPath $resolvedPath)) {
+                New-Item -Path $resolvedPath -Force -ErrorAction Stop | Out-Null
+            }
+
+            $propertyType = switch ($Type) {
+                'REG_SZ' {
+                    'String' 
+                }
+                'REG_DWORD' {
+                    'DWord' 
+                }
+                'REG_BINARY' {
+                    'Binary' 
+                }
+                'REG_MULTI_SZ' {
+                    'MultiString' 
+                }
+                'REG_EXPAND_SZ' {
+                    'ExpandString' 
+                }
+                'REG_QWORD' {
+                    'QWord' 
+                }
+            }
+
+            $propertyValue = switch ($Type) {
+                'REG_BINARY' {
+                    if ($Value -isnot [byte[]]) {
+                        throw 'Value for REG_BINARY must be a byte array.'
+                    }
+
+                    [byte[]]$Value
+                }
+                'REG_MULTI_SZ' {
+                    if ($Value -is [string]) {
+                        @($Value)
+                    }
+                    else {
+                        [string[]]$Value
+                    }
+                }
+                default {
+                    $Value
+                }
+            }
+
+            New-ItemProperty -Path $resolvedPath -Name $Name -PropertyType $propertyType -Value $propertyValue -Force -ErrorAction Stop | Out-Null
+            $summary.RegistryValuesSet++
+            Write-Verbose "Set registry value: $resolvedPath\$Name"
+        }
+        catch {
+            Add-Tiny11Error -Message "Failed to set registry value '$Path\$Name': $($_.Exception.Message)"
         }
     }
-    catch {
-        Write-Output "Error removing registry value: $_"
-    }
-}
 
-#---------[ Execution ]---------#
-# Check if PowerShell execution is restricted
-if ((Get-ExecutionPolicy) -eq 'Restricted') {
-    Write-Output 'Your current PowerShell Execution Policy is set to Restricted, which prevents scripts from running. Do you want to change it to RemoteSigned? (yes/no)'
-    $response = Read-Host
-    if ($response -eq 'yes') {
-        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Confirm:$false
+    function Remove-Tiny11RegistryKey {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path
+        )
+
+        try {
+            $resolvedPath = ConvertTo-Tiny11RegistryPath -Path $Path
+            if (-not (Test-Path -LiteralPath $resolvedPath)) {
+                Write-Verbose "Registry key not present: $resolvedPath"
+                return
+            }
+
+            Remove-Item -LiteralPath $resolvedPath -Recurse -Force -ErrorAction Stop
+            $summary.RegistryKeysRemoved++
+            Write-Verbose "Removed registry key: $resolvedPath"
+        }
+        catch {
+            Add-Tiny11Error -Message "Failed to remove registry key '$Path': $($_.Exception.Message)"
+        }
+    }
+
+    function Test-Tiny11PackagePrefixMatch {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [AllowNull()]
+            [AllowEmptyString()]
+            [string]$Name,
+
+            [Parameter(Mandatory)]
+            [string[]]$PackagePrefixes
+        )
+
+        if ([string]::IsNullOrEmpty($Name)) {
+            return $false
+        }
+
+        foreach ($packagePrefix in $PackagePrefixes) {
+            if ($Name -like "*$packagePrefix*") {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    function Remove-Tiny11AppxPackages {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string[]]$PackagePrefixes
+        )
+
+        Write-Tiny11Section -Message 'Removing Provisioned AppX Packages'
+
+        try {
+            $provisionedPackages = Get-AppxProvisionedPackage -Online -ErrorAction Stop
+            $matchingProvisionedPackages = $provisionedPackages | Where-Object {
+                Test-Tiny11PackagePrefixMatch -Name $_.DisplayName -PackagePrefixes $PackagePrefixes
+            }
+
+            foreach ($package in $matchingProvisionedPackages) {
+                try {
+                    Write-Tiny11Message -Message "Removing provisioned package: $($package.DisplayName)"
+                    $package | Remove-AppxProvisionedPackage -Online -ErrorAction Stop | Out-Null
+                    $summary.ProvisionedPackagesRemoved++
+                }
+                catch {
+                    Add-Tiny11Error -Message "Failed to remove provisioned package '$($package.DisplayName)': $($_.Exception.Message)"
+                }
+            }
+        }
+        catch {
+            Add-Tiny11Error -Message "Error enumerating provisioned AppX packages: $($_.Exception.Message)"
+        }
+
+        Write-Tiny11Message -Message 'Removing installed AppX packages for all users...'
+
+        try {
+            $installedPackages = Get-AppxPackage -AllUsers -ErrorAction Stop
+            $matchingInstalledPackages = $installedPackages | Where-Object {
+                Test-Tiny11PackagePrefixMatch -Name $_.Name -PackagePrefixes $PackagePrefixes
+            }
+
+            foreach ($package in $matchingInstalledPackages) {
+                try {
+                    Write-Tiny11Message -Message "Removing installed package: $($package.Name)"
+                    Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction Stop
+                    $summary.InstalledPackagesRemoved++
+                }
+                catch {
+                    Add-Tiny11Error -Message "Failed to remove installed package '$($package.Name)': $($_.Exception.Message)"
+                }
+            }
+        }
+        catch {
+            Add-Tiny11Error -Message "Error enumerating installed AppX packages: $($_.Exception.Message)"
+        }
+    }
+
+    function Disable-Tiny11TelemetryScheduledTasks {
+        [CmdletBinding()]
+        param()
+
+        Write-Tiny11Section -Message 'Disabling Telemetry Scheduled Tasks'
+
+        $schtasksPath = Join-Path -Path $env:SystemRoot -ChildPath 'System32\schtasks.exe'
+        if (-not (Test-Path -LiteralPath $schtasksPath)) {
+            Add-Tiny11Error -Message "schtasks.exe was not found at '$schtasksPath'."
+            return
+        }
+
+        $scheduledTasks = @(
+            '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser',
+            '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
+            '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip',
+            '\Microsoft\Windows\Application Experience\ProgramDataUpdater',
+            '\Microsoft\Windows\Windows Error Reporting\QueueReporting'
+        )
+
+        foreach ($scheduledTask in $scheduledTasks) {
+            & $schtasksPath /Query /TN $scheduledTask 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Verbose "Scheduled task not found: $scheduledTask"
+                continue
+            }
+
+            Write-Tiny11Message -Message "Disabling: $scheduledTask"
+            & $schtasksPath /Change /TN $scheduledTask /Disable 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $summary.ScheduledTasksDisabled++
+            }
+            else {
+                Add-Tiny11Error -Message "Failed to disable scheduled task '$scheduledTask'."
+            }
+        }
+    }
+
+    $summary = [ordered]@{
+        ComputerName               = $env:COMPUTERNAME
+        StartTime                  = Get-Date
+        EndTime                    = $null
+        Duration                   = $null
+        TranscriptPath             = if ($SkipTranscript) {
+            $null 
+        }
+        else {
+            $TranscriptPath 
+        }
+        ProvisionedPackagesRemoved = 0
+        InstalledPackagesRemoved   = 0
+        RegistryValuesSet          = 0
+        RegistryKeysRemoved        = 0
+        ScheduledTasksDisabled     = 0
+        RestartRequested           = [bool]$Restart
+        RestartTriggered           = $false
+        Errors                     = [System.Collections.Generic.List[string]]::new()
+    }
+
+    if (-not (Test-Tiny11IsWindows)) {
+        throw 'Invoke-Tiny11Live is supported only on Windows.'
+    }
+
+    if (-not (Test-Tiny11Administrator)) {
+        throw 'Invoke-Tiny11Live must be run from an elevated PowerShell session.'
+    }
+
+    $targetComputer = if ([string]::IsNullOrWhiteSpace($env:COMPUTERNAME)) {
+        'local computer' 
     }
     else {
-        Write-Output 'The script cannot be run without changing the execution policy. Exiting...'
-        exit
+        $env:COMPUTERNAME 
     }
-}
+    if (-not $PSCmdlet.ShouldProcess($targetComputer, 'Apply tiny11 live cleanup changes')) {
+        return
+    }
 
-# Check and run the script as admin if required
-#$adminSID = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
-#$adminGroup = $adminSID.Translate([System.Security.Principal.NTAccount])
-$myWindowsID = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-$myWindowsPrincipal = New-Object System.Security.Principal.WindowsPrincipal($myWindowsID)
-$adminRole = [System.Security.Principal.WindowsBuiltInRole]::Administrator
-if (! $myWindowsPrincipal.IsInRole($adminRole)) {
-    Write-Output 'Restarting script as admin in a new window, you can close this one.'
-    $newProcess = New-Object System.Diagnostics.ProcessStartInfo 'PowerShell'
-    $newProcess.Arguments = $myInvocation.MyCommand.Definition
-    $newProcess.Verb = 'runas'
-    [System.Diagnostics.Process]::Start($newProcess)
-    exit
-}
+    if (-not $Force) {
+        $queryMessage = 'This will remove selected built-in applications, update registry policy settings, and disable telemetry-related scheduled tasks on the current Windows installation.'
+        $caption = 'Continue with Tiny11 live cleanup?'
+        if (-not $PSCmdlet.ShouldContinue($queryMessage, $caption)) {
+            Write-Tiny11Message -Message 'Operation cancelled.'
+            return
+        }
+    }
 
-# Start the transcript
-Start-Transcript -Path "$PSScriptRoot\tiny11cleanup_$(Get-Date -f yyyyMMdd_HHmms).log"
+    $transcriptStarted = $false
 
-$Host.UI.RawUI.WindowTitle = 'Tiny11 Live Cleanup'
-Clear-Host
-Write-Output '=========================================='
-Write-Output '   Tiny11 Live Cleanup - Release: 2025   '
-Write-Output '=========================================='
-Write-Output ''
-Write-Warning 'This script will remove bloatware and apply optimizations to your current Windows installation.'
-Write-Warning 'A system restart is recommended after completion.'
-Write-Output ''
-$confirm = Read-Host 'Do you want to continue? (yes/no)'
-if ($confirm -ne 'yes') {
-    Write-Output 'Operation cancelled.'
-    Stop-Transcript
-    exit
-}
+    $packagePrefixes = @(
+        'AppUp.IntelManagementandSecurityStatus',
+        'Clipchamp.Clipchamp',
+        'DolbyLaboratories.DolbyAccess',
+        'DolbyLaboratories.DolbyDigitalPlusDecoderOEM',
+        'Microsoft.BingNews',
+        'Microsoft.BingSearch',
+        'Microsoft.BingWeather',
+        'Microsoft.Copilot',
+        'Microsoft.Windows.CrossDevice',
+        'Microsoft.GamingApp',
+        'Microsoft.GetHelp',
+        'Microsoft.Getstarted',
+        'Microsoft.Microsoft3DViewer',
+        'Microsoft.MicrosoftOfficeHub',
+        'Microsoft.MicrosoftSolitaireCollection',
+        'Microsoft.MicrosoftStickyNotes',
+        'Microsoft.MixedReality.Portal',
+        'Microsoft.MSPaint',
+        'Microsoft.Office.OneNote',
+        'Microsoft.OfficePushNotificationUtility',
+        'Microsoft.OutlookForWindows',
+        'Microsoft.Paint',
+        'Microsoft.People',
+        'Microsoft.PowerAutomateDesktop',
+        'Microsoft.SkypeApp',
+        'Microsoft.StartExperiencesApp',
+        'Microsoft.Todos',
+        'Microsoft.Wallet',
+        'Microsoft.Windows.DevHome',
+        'Microsoft.Windows.Copilot',
+        'Microsoft.Windows.Teams',
+        'Microsoft.WindowsAlarms',
+        'Microsoft.WindowsCamera',
+        'microsoft.windowscommunicationsapps',
+        'Microsoft.WindowsFeedbackHub',
+        'Microsoft.WindowsMaps',
+        'Microsoft.WindowsSoundRecorder',
+        'Microsoft.WindowsTerminal',
+        'Microsoft.Xbox.TCUI',
+        'Microsoft.XboxApp',
+        'Microsoft.XboxGameOverlay',
+        'Microsoft.XboxGamingOverlay',
+        'Microsoft.XboxIdentityProvider',
+        'Microsoft.XboxSpeechToTextOverlay',
+        'Microsoft.YourPhone',
+        'Microsoft.ZuneMusic',
+        'Microsoft.ZuneVideo',
+        'MicrosoftCorporationII.MicrosoftFamily',
+        'MicrosoftCorporationII.QuickAssist',
+        'MSTeams',
+        'MicrosoftTeams',
+        'Microsoft.549981C3F5F10'
+    )
 
-Write-Output ''
-Write-Output 'Starting cleanup process...'
-Write-Output ''
+    $registrySections = [ordered]@{
+        'Bypassing system requirements'                  = @(
+            @{ Path = 'HKCU\Control Panel\UnsupportedHardwareNotificationCache'; Name = 'SV1'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Control Panel\UnsupportedHardwareNotificationCache'; Name = 'SV2'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SYSTEM\Setup\LabConfig'; Name = 'BypassCPUCheck'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SYSTEM\Setup\LabConfig'; Name = 'BypassRAMCheck'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SYSTEM\Setup\LabConfig'; Name = 'BypassSecureBootCheck'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SYSTEM\Setup\LabConfig'; Name = 'BypassStorageCheck'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SYSTEM\Setup\LabConfig'; Name = 'BypassTPMCheck'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SYSTEM\Setup\MoSetup'; Name = 'AllowUpgradesWithUnsupportedTPMOrCPU'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Disabling Sponsored Apps'                       = @(
+            @{ Path = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'OemPreInstalledAppsEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'PreInstalledAppsEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SilentInstalledAppsEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableWindowsConsumerFeatures'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'ContentDeliveryAllowed'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SOFTWARE\Microsoft\PolicyManager\current\device\Start'; Name = 'ConfigureStartPins'; Type = 'REG_SZ'; Value = '{"pinnedList": [{}]}' },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'FeatureManagementEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'PreInstalledAppsEverEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SoftLandingEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContentEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-310093Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-338388Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-338389Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-338393Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353694Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353696Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SystemPaneSuggestionsEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\PushToInstall'; Name = 'DisablePushToInstall'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\MRT'; Name = 'DontOfferThroughWUAU'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableConsumerAccountStateContent'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableCloudOptimizedContent'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Enabling Local Accounts on OOBE'                = @(
+            @{ Path = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE'; Name = 'BypassNRO'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Disabling Reserved Storage'                     = @(
+            @{ Path = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager'; Name = 'ShippedWithReserves'; Type = 'REG_DWORD'; Value = 0 }
+        )
+        'Disabling BitLocker Device Encryption'          = @(
+            @{ Path = 'HKLM\SYSTEM\CurrentControlSet\Control\BitLocker'; Name = 'PreventDeviceEncryption'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Disabling Chat icon'                            = @(
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Chat'; Name = 'ChatIcon'; Type = 'REG_DWORD'; Value = 3 },
+            @{ Path = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarMn'; Type = 'REG_DWORD'; Value = 0 }
+        )
+        'Disabling OneDrive folder backup'               = @(
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive'; Name = 'DisableFileSyncNGSC'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Disabling Telemetry'                            = @(
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'; Name = 'Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Privacy'; Name = 'TailoredExperiencesWithDiagnosticDataEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy'; Name = 'HasAccepted'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Input\TIPC'; Name = 'Enabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\InputPersonalization'; Name = 'RestrictImplicitInkCollection'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKCU\Software\Microsoft\InputPersonalization'; Name = 'RestrictImplicitTextCollection'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKCU\Software\Microsoft\InputPersonalization\TrainedDataStore'; Name = 'HarvestContacts'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKCU\Software\Microsoft\Personalization\Settings'; Name = 'AcceptedPrivacyPolicy'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection'; Name = 'AllowTelemetry'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SYSTEM\CurrentControlSet\Services\dmwappushservice'; Name = 'Start'; Type = 'REG_DWORD'; Value = 4 }
+        )
+        'Preventing installation of DevHome and Outlook' = @(
+            @{ Path = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler\OutlookUpdate'; Name = 'workCompleted'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler\DevHomeUpdate'; Name = 'workCompleted'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Disabling Copilot'                              = @(
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot'; Name = 'TurnOffWindowsCopilot'; Type = 'REG_DWORD'; Value = 1 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Edge'; Name = 'HubsSidebarEnabled'; Type = 'REG_DWORD'; Value = 0 },
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer'; Name = 'DisableSearchBoxSuggestions'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Preventing installation of Teams'               = @(
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Teams'; Name = 'DisableInstallation'; Type = 'REG_DWORD'; Value = 1 }
+        )
+        'Preventing installation of New Outlook'         = @(
+            @{ Path = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Mail'; Name = 'PreventRun'; Type = 'REG_DWORD'; Value = 1 }
+        )
+    }
 
-# Remove Provisioned AppX Packages
-Write-Output '===== Removing Provisioned AppX Packages ====='
-try {
-    $packages = Get-AppxProvisionedPackage -Online | Select-Object -ExpandProperty DisplayName
-    
-    $packagePrefixes = 'AppUp.IntelManagementandSecurityStatus',
-    'Clipchamp.Clipchamp', 
-    'DolbyLaboratories.DolbyAccess',
-    'DolbyLaboratories.DolbyDigitalPlusDecoderOEM',
-    'Microsoft.BingNews',
-    'Microsoft.BingSearch',
-    'Microsoft.BingWeather',
-    'Microsoft.Copilot',
-    'Microsoft.Windows.CrossDevice',
-    'Microsoft.GamingApp',
-    'Microsoft.GetHelp',
-    'Microsoft.Getstarted',
-    'Microsoft.Microsoft3DViewer',
-    'Microsoft.MicrosoftOfficeHub',
-    'Microsoft.MicrosoftSolitaireCollection',
-    'Microsoft.MicrosoftStickyNotes',
-    'Microsoft.MixedReality.Portal',
-    'Microsoft.MSPaint',
-    'Microsoft.Office.OneNote',
-    'Microsoft.OfficePushNotificationUtility',
-    'Microsoft.OutlookForWindows',
-    'Microsoft.Paint',
-    'Microsoft.People',
-    'Microsoft.PowerAutomateDesktop',
-    'Microsoft.SkypeApp',
-    'Microsoft.StartExperiencesApp',
-    'Microsoft.Todos',
-    'Microsoft.Wallet',
-    'Microsoft.Windows.DevHome',
-    'Microsoft.Windows.Copilot',
-    'Microsoft.Windows.Teams',
-    'Microsoft.WindowsAlarms',
-    'Microsoft.WindowsCamera',
-    'microsoft.windowscommunicationsapps',
-    'Microsoft.WindowsFeedbackHub',
-    'Microsoft.WindowsMaps',
-    'Microsoft.WindowsSoundRecorder',
-    'Microsoft.WindowsTerminal',
-    'Microsoft.Xbox.TCUI',
-    'Microsoft.XboxApp',
-    'Microsoft.XboxGameOverlay',
-    'Microsoft.XboxGamingOverlay',
-    'Microsoft.XboxIdentityProvider',
-    'Microsoft.XboxSpeechToTextOverlay',
-    'Microsoft.YourPhone',
-    'Microsoft.ZuneMusic',
-    'Microsoft.ZuneVideo',
-    'MicrosoftCorporationII.MicrosoftFamily',
-    'MicrosoftCorporationII.QuickAssist',
-    'MSTeams',
-    'MicrosoftTeams', 
-    'Microsoft.549981C3F5F10'
-    
-    foreach ($prefix in $packagePrefixes) {
-        $matchingPackages = $packages | Where-Object { $_ -like "*$prefix*" }
-        foreach ($pkg in $matchingPackages) {
+    $registryRemovalSections = [ordered]@{
+        'Removing content delivery subscription keys'          = @(
+            'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Subscriptions',
+            'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SuggestedApps'
+        )
+        'Removing Edge related registries'                     = @(
+            'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge',
+            'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update'
+        )
+        'Removing OOBE scheduler keys for Outlook and DevHome' = @(
+            'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler_Oobe\OutlookUpdate',
+            'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler_Oobe\DevHomeUpdate'
+        )
+    }
+
+    try {
+        if (-not $SkipTranscript) {
+            $transcriptDirectory = Split-Path -Path $TranscriptPath -Parent
+            if ($transcriptDirectory -and -not (Test-Path -LiteralPath $transcriptDirectory)) {
+                New-Item -Path $transcriptDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            }
+
             try {
-                Write-Output "Removing provisioned package: $pkg"
-                Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $pkg } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
+                Start-Transcript -Path $TranscriptPath -ErrorAction Stop | Out-Null
+                $transcriptStarted = $true
             }
             catch {
-                Write-Output "  Failed to remove $pkg : $_"
+                Add-Tiny11Error -Message "Failed to start transcript at '$TranscriptPath': $($_.Exception.Message)"
+            }
+        }
+
+        Write-Tiny11Message -Message '=========================================='
+        Write-Tiny11Message -Message '   Tiny11 Live Cleanup                    '
+        Write-Tiny11Message -Message '=========================================='
+        Write-Tiny11Message -Message ''
+        Write-Warning 'This function will remove bloatware and apply optimizations to your current Windows installation.'
+        Write-Warning 'A system restart is recommended after completion.'
+        if (-not $SkipTranscript) {
+            Write-Tiny11Message -Message "Transcript log: $TranscriptPath"
+        }
+        Write-Tiny11Message -Message ''
+        Write-Tiny11Message -Message 'Starting cleanup process...'
+        Write-Tiny11Message -Message ''
+
+        Remove-Tiny11AppxPackages -PackagePrefixes $packagePrefixes
+
+        Write-Tiny11Section -Message 'Applying Registry Tweaks'
+        foreach ($registrySection in $registrySections.GetEnumerator()) {
+            Write-Tiny11Message -Message "$($registrySection.Key)..."
+            foreach ($registryOperation in $registrySection.Value) {
+                Set-Tiny11RegistryValue -Path $registryOperation.Path -Name $registryOperation.Name -Type $registryOperation.Type -Value $registryOperation.Value
+            }
+        }
+
+        foreach ($registryRemovalSection in $registryRemovalSections.GetEnumerator()) {
+            Write-Tiny11Message -Message "$($registryRemovalSection.Key)..."
+            foreach ($registryPath in $registryRemovalSection.Value) {
+                Remove-Tiny11RegistryKey -Path $registryPath
+            }
+        }
+
+        Disable-Tiny11TelemetryScheduledTasks
+
+        Write-Tiny11Message -Message ''
+        Write-Tiny11Message -Message '=========================================='
+        Write-Tiny11Message -Message '   Cleanup Complete!                     '
+        Write-Tiny11Message -Message '=========================================='
+        Write-Tiny11Message -Message ''
+        Write-Tiny11Message -Message 'The tiny11 cleanup has been applied to your Windows installation.'
+        if (-not $SkipTranscript) {
+            Write-Tiny11Message -Message "Log file saved to: $TranscriptPath"
+        }
+        Write-Warning 'IMPORTANT: A system restart is strongly recommended.'
+    }
+    finally {
+        $summary.EndTime = Get-Date
+        $summary.Duration = [string](New-TimeSpan -Start $summary.StartTime -End $summary.EndTime)
+
+        if ($transcriptStarted) {
+            try {
+                Stop-Transcript | Out-Null
+            }
+            catch {
+                Add-Tiny11Error -Message "Failed to stop transcript cleanly: $($_.Exception.Message)"
             }
         }
     }
-    
-    # Also remove installed AppX packages for current user
-    Write-Output 'Removing installed AppX packages for all users...'
-    foreach ($prefix in $packagePrefixes) {
-        $matchingAppx = Get-AppxPackage -AllUsers | Where-Object { $_.Name -like "*$prefix*" }
-        foreach ($app in $matchingAppx) {
-            try {
-                Write-Output "Removing installed package: $($app.Name)"
-                Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction SilentlyContinue | Out-Null
-            }
-            catch {
-                Write-Output "  Failed to remove $($app.Name) : $_"
-            }
+
+    if ($Restart) {
+        try {
+            $summary.RestartTriggered = $true
+            Write-Warning 'Restarting the computer now...'
+            Restart-Computer -Force -ErrorAction Stop
+        }
+        catch {
+            $summary.RestartTriggered = $false
+            Add-Tiny11Error -Message "Failed to restart the computer automatically: $($_.Exception.Message)"
         }
     }
-}
-catch {
-    Write-Output "Error during AppX package removal: $_"
-}
 
-Write-Output ''
-Write-Output '===== Applying Registry Tweaks ====='
-
-# Bypass system requirements
-Write-Output 'Bypassing system requirements...'
-Set-RegistryValue 'HKCU\Control Panel\UnsupportedHardwareNotificationCache' 'SV1' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Control Panel\UnsupportedHardwareNotificationCache' 'SV2' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\LabConfig' 'BypassCPUCheck' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\LabConfig' 'BypassRAMCheck' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\LabConfig' 'BypassSecureBootCheck' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\LabConfig' 'BypassStorageCheck' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\LabConfig' 'BypassTPMCheck' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SYSTEM\Setup\MoSetup' 'AllowUpgradesWithUnsupportedTPMOrCPU' 'REG_DWORD' '1'
-
-# Disable Sponsored Apps
-Write-Output 'Disabling Sponsored Apps...'
-Set-RegistryValue 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'OemPreInstalledAppsEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'PreInstalledAppsEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SilentInstalledAppsEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent' 'DisableWindowsConsumerFeatures' 'REG_DWORD' '1'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'ContentDeliveryAllowed' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\PolicyManager\current\device\Start' 'ConfigureStartPins' 'REG_SZ' '{"pinnedList": [{}]}'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'FeatureManagementEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'PreInstalledAppsEverEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SoftLandingEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContentEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-310093Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-338388Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-338389Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-338393Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-353694Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SubscribedContent-353696Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'SystemPaneSuggestionsEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\PushToInstall' 'DisablePushToInstall' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\MRT' 'DontOfferThroughWUAU' 'REG_DWORD' '1'
-Remove-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Subscriptions'
-Remove-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SuggestedApps'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent' 'DisableConsumerAccountStateContent' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent' 'DisableCloudOptimizedContent' 'REG_DWORD' '1'
-
-# Enable Local Accounts on OOBE
-Write-Output 'Enabling Local Accounts on OOBE...'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE' 'BypassNRO' 'REG_DWORD' '1'
-
-# Disable Reserved Storage
-Write-Output 'Disabling Reserved Storage...'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager' 'ShippedWithReserves' 'REG_DWORD' '0'
-
-# Disable BitLocker Device Encryption
-Write-Output 'Disabling BitLocker Device Encryption...'
-Set-RegistryValue 'HKLM\SYSTEM\CurrentControlSet\Control\BitLocker' 'PreventDeviceEncryption' 'REG_DWORD' '1'
-
-# Disable Chat icon
-Write-Output 'Disabling Chat icon...'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Chat' 'ChatIcon' 'REG_DWORD' '3'
-Set-RegistryValue 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'TaskbarMn' 'REG_DWORD' '0'
-
-# Remove Edge related registries
-Write-Output 'Removing Edge related registries...'
-Remove-RegistryValue 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge'
-Remove-RegistryValue 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update'
-
-# Disable OneDrive folder backup
-Write-Output 'Disabling OneDrive folder backup...'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive' 'DisableFileSyncNGSC' 'REG_DWORD' '1'
-
-# Disable Telemetry
-Write-Output 'Disabling Telemetry...'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo' 'Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Windows\CurrentVersion\Privacy' 'TailoredExperiencesWithDiagnosticDataEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy' 'HasAccepted' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Input\TIPC' 'Enabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\InputPersonalization' 'RestrictImplicitInkCollection' 'REG_DWORD' '1'
-Set-RegistryValue 'HKCU\Software\Microsoft\InputPersonalization' 'RestrictImplicitTextCollection' 'REG_DWORD' '1'
-Set-RegistryValue 'HKCU\Software\Microsoft\InputPersonalization\TrainedDataStore' 'HarvestContacts' 'REG_DWORD' '0'
-Set-RegistryValue 'HKCU\Software\Microsoft\Personalization\Settings' 'AcceptedPrivacyPolicy' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'AllowTelemetry' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SYSTEM\CurrentControlSet\Services\dmwappushservice' 'Start' 'REG_DWORD' '4'
-
-# Prevent installation of DevHome and Outlook
-Write-Output 'Preventing installation of DevHome and Outlook...'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler_Oobe\OutlookUpdate' 'workCompleted' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler\OutlookUpdate' 'workCompleted' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler\DevHomeUpdate' 'workCompleted' 'REG_DWORD' '1'
-Remove-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler_Oobe\OutlookUpdate'
-Remove-RegistryValue 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\UScheduler_Oobe\DevHomeUpdate'
-
-# Disable Copilot
-Write-Output 'Disabling Copilot...'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 'REG_DWORD' '1'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Edge' 'HubsSidebarEnabled' 'REG_DWORD' '0'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer' 'DisableSearchBoxSuggestions' 'REG_DWORD' '1'
-
-# Prevent installation of Teams
-Write-Output 'Preventing installation of Teams...'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Teams' 'DisableInstallation' 'REG_DWORD' '1'
-
-# Prevent installation of New Outlook
-Write-Output 'Preventing installation of New Outlook...'
-Set-RegistryValue 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Mail' 'PreventRun' 'REG_DWORD' '1'
-
-Write-Output ''
-Write-Output '===== Disabling Telemetry Scheduled Tasks ====='
-try {
-    $tasksPath = "$env:SystemRoot\System32\Tasks"
-    
-    # Application Compatibility Appraiser
-    $taskFile = "$tasksPath\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser"
-    if (Test-Path $taskFile) {
-        Write-Output 'Disabling: Microsoft Compatibility Appraiser'
-        & schtasks /Change /TN '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser' /Disable | Out-Null
+    if ($PassThru) {
+        [pscustomobject]@{
+            ComputerName               = $summary.ComputerName
+            StartTime                  = $summary.StartTime
+            EndTime                    = $summary.EndTime
+            Duration                   = $summary.Duration
+            TranscriptPath             = $summary.TranscriptPath
+            ProvisionedPackagesRemoved = $summary.ProvisionedPackagesRemoved
+            InstalledPackagesRemoved   = $summary.InstalledPackagesRemoved
+            RegistryValuesSet          = $summary.RegistryValuesSet
+            RegistryKeysRemoved        = $summary.RegistryKeysRemoved
+            ScheduledTasksDisabled     = $summary.ScheduledTasksDisabled
+            RestartRequested           = $summary.RestartRequested
+            RestartTriggered           = $summary.RestartTriggered
+            Errors                     = $summary.Errors.ToArray()
+        }
     }
-    
-    # Customer Experience Improvement Program tasks
-    Write-Output 'Disabling: Customer Experience Improvement Program tasks'
-    & schtasks /Change /TN '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator' /Disable 2>$null | Out-Null
-    & schtasks /Change /TN '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip' /Disable 2>$null | Out-Null
-    
-    # Program Data Updater
-    & schtasks /Change /TN '\Microsoft\Windows\Application Experience\ProgramDataUpdater' /Disable 2>$null | Out-Null
-    
-    # Windows Error Reporting
-    Write-Output 'Disabling: Windows Error Reporting'
-    & schtasks /Change /TN '\Microsoft\Windows\Windows Error Reporting\QueueReporting' /Disable 2>$null | Out-Null
-    
-}
-catch {
-    Write-Output "Error disabling scheduled tasks: $_"
-}
-
-Write-Output ''
-Write-Output '=========================================='
-Write-Output '   Cleanup Complete!                     '
-Write-Output '=========================================='
-Write-Output ''
-Write-Output 'The tiny11 cleanup has been applied to your Windows installation.'
-Write-Output ''
-Write-Warning 'IMPORTANT: A system restart is strongly recommended.'
-Write-Output ''
-Write-Output "Log file saved to: $PSScriptRoot\tiny11cleanup_$(Get-Date -f yyyyMMdd_HHmms).log"
-Write-Output ''
-$restart = Read-Host 'Do you want to restart now? (yes/no)'
-if ($restart -eq 'yes') {
-    Write-Output 'Restarting system in 10 seconds...'
-    Stop-Transcript
-    shutdown /r /t 10 /c 'Restarting after Tiny11 cleanup'
-}
-else {
-    Write-Output 'Please restart your system manually to complete the cleanup.'
-    Stop-Transcript
 }
