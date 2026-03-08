@@ -31,10 +31,23 @@ $ModulesFolder = Get-ChildItem -Path "$powerShell7ProfilePath/modules/*.psd1" -R
 $ModulesFolder.ForEach{ Import-Module -Name $_.FullName -Force -ErrorAction SilentlyContinue }
 
 
-# create this file so we can have more contrast in the terminal
-if (-not (Test-Path -Path 'C:\temp\Retro.hlsl')) {
-  New-Item -Path 'C:\temp\' -ItemType Directory -Force
-  Copy-Item -Path "$powerShell7ProfilePath\non powershell tools\Retro.hlsl" -Destination 'C:\temp\Retro.hlsl' -Force
+# Stage Windows Terminal GPU shader files for optional pixel-shader rendering.
+$terminalShaderSourceDir = Join-Path -Path $powerShell7ProfilePath -ChildPath 'Non PowerShell Tools'
+$terminalShaderTargetDir = 'C:\temp'
+$terminalShaderFiles = @(
+  'Retro.hlsl'
+  'CalmAurora.hlsl'
+)
+
+if (-not (Test-Path -Path $terminalShaderTargetDir)) {
+  New-Item -Path $terminalShaderTargetDir -ItemType Directory -Force | Out-Null
+}
+
+foreach ($shaderFile in $terminalShaderFiles) {
+  $sourceShaderPath = Join-Path -Path $terminalShaderSourceDir -ChildPath $shaderFile
+  if (Test-Path -Path $sourceShaderPath) {
+    Copy-Item -Path $sourceShaderPath -Destination (Join-Path -Path $terminalShaderTargetDir -ChildPath $shaderFile) -Force
+  }
 }
 
 # Check if PowerShell 7 is installed
