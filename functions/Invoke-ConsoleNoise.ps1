@@ -37,17 +37,23 @@
 
 .PARAMETER Renderer
     Chooses the rendering backend. Console uses the in-place ANSI renderer in
-    this function. WindowsTerminalShader exports and applies a GPU pixel shader
-    for Windows Terminal.
+    this function. WindowsTerminalShader launches a dedicated Windows Terminal
+    session that uses a GPU pixel shader for the visual effect.
 
 .PARAMETER ShaderOutputPath
-    The destination path for the exported Windows Terminal HLSL shader when
-    -Renderer WindowsTerminalShader is used.
+    Optional destination path for the exported Windows Terminal HLSL shader when
+    -Renderer WindowsTerminalShader is used. When omitted, the shader is placed
+    in an app-managed Windows Terminal fragment folder.
 
 .PARAMETER WindowsTerminalSettingsPath
-    Optional path or paths to Windows Terminal settings.json files to update
-    when -Renderer WindowsTerminalShader is used. When omitted, the function
-    attempts to locate Windows Terminal settings files automatically.
+    Legacy parameter retained for compatibility. The current
+    WindowsTerminalShader renderer no longer edits the user's Windows Terminal
+    settings.json file.
+
+.PARAMETER LaunchWindowsTerminal
+    Retained for compatibility. The WindowsTerminalShader renderer now always
+    launches a dedicated Windows Terminal session so the GPU effect is visible
+    immediately.
 
 .PARAMETER UnicodeCharMode
     Controls whether the animation uses a curated random glyph set or a single
@@ -88,14 +94,22 @@
 .EXAMPLE
     Invoke-ConsoleNoise -Renderer WindowsTerminalShader
 
-    Exports the calming HLSL shader and updates Windows Terminal to use the GPU
-    shader backend.
+    Exports the selected HLSL shader, creates an app-owned Windows Terminal
+    fragment profile, and launches a dedicated GPU-rendered terminal session.
+
+.EXAMPLE
+    Invoke-ConsoleNoise -Renderer WindowsTerminalShader -LaunchWindowsTerminal
+
+    Launches the dedicated Windows Terminal GPU session. The switch is accepted
+    for compatibility with earlier versions of the function.
 
 .NOTES
     Optimized for ANSI-capable terminals such as Windows Terminal and VS Code.
     No external modules are required for the console backend. The GPU backend
     targets Windows Terminal pixel shaders rather than NVAPI directly because
-    Windows Terminal already provides a practical GPU shader pipeline.
+    Windows Terminal already provides a practical GPU shader pipeline. The
+    WindowsTerminalShader backend no longer mutates the user's Windows Terminal
+    profile defaults or settings.json.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
@@ -113,10 +127,14 @@ function Invoke-ConsoleNoise {
         [string]$Renderer = 'Console',
 
         [Parameter()]
-        [string]$ShaderOutputPath = 'C:\temp\CalmAurora.hlsl',
+        [AllowEmptyString()]
+        [string]$ShaderOutputPath = '',
 
         [Parameter()]
         [string[]]$WindowsTerminalSettingsPath,
+
+        [Parameter()]
+        [switch]$LaunchWindowsTerminal,
 
         [Parameter()]
         [ValidateSet('Random', 'Specific')]
@@ -134,7 +152,18 @@ function Invoke-ConsoleNoise {
     )
 
     if ($Renderer -eq 'WindowsTerminalShader') {
-        Enable-ConsoleNoiseWindowsTerminalShader -ShaderOutputPath $ShaderOutputPath -SettingsPaths $WindowsTerminalSettingsPath
+        $windowsTerminalShaderParams = @{
+            SettingsPaths         = $WindowsTerminalSettingsPath
+            LaunchWindowsTerminal = $LaunchWindowsTerminal
+            ColorGradient         = $ColorGradient
+            UseRgbColor           = $UseRgbColor
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($ShaderOutputPath)) {
+            $windowsTerminalShaderParams.ShaderOutputPath = $ShaderOutputPath
+        }
+
+        Enable-ConsoleNoiseWindowsTerminalShader @windowsTerminalShaderParams
         return
     }
 
@@ -162,42 +191,73 @@ function Invoke-ConsoleNoise {
 function Enable-ConsoleNoiseWindowsTerminalShader {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter()]
+        [AllowEmptyString()]
         [string]$ShaderOutputPath,
 
         [Parameter()]
-        [string[]]$SettingsPaths
+        [string[]]$SettingsPaths,
+
+        [Parameter()]
+        [switch]$LaunchWindowsTerminal,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
+        [string]$ColorGradient,
+
+        [Parameter()]
+        [switch]$UseRgbColor
     )
 
-    $exportedShaderPath = Export-ConsoleNoiseWindowsTerminalShader -DestinationPath $ShaderOutputPath
-    $resolvedSettingsPaths = if ($SettingsPaths) {
-        $SettingsPaths
-    }
-    else {
-        Get-ConsoleNoiseWindowsTerminalSettingsPath
+    if ($SettingsPaths) {
+        Write-Warning 'WindowsTerminalSettingsPath is ignored by the current WindowsTerminalShader renderer. A dedicated app-owned fragment profile is used instead.'
     }
 
-    if (-not $resolvedSettingsPaths) {
-        Write-Warning "No Windows Terminal settings.json file was found automatically. The shader was exported to '$exportedShaderPath'. Configure experimental.pixelShaderPath manually to enable the GPU backend."
+    $cleanedLegacySettings = Remove-ConsoleNoiseLegacyWindowsTerminalSettings
+
+    $fragmentRoot = Get-ConsoleNoiseWindowsTerminalFragmentRoot
+    $destinationShaderPath = if ([string]::IsNullOrWhiteSpace($ShaderOutputPath)) {
+        Join-Path -Path $fragmentRoot -ChildPath 'ConsoleNoiseActive.hlsl'
+    }
+    else {
+        $ShaderOutputPath
+    }
+
+    $exportedShaderPath = Export-ConsoleNoiseWindowsTerminalShader -DestinationPath $destinationShaderPath -ColorGradient $ColorGradient -UseRgbColor:$UseRgbColor
+    $profileName = 'Invoke-ConsoleNoise GPU'
+    $fragmentPath = Export-ConsoleNoiseWindowsTerminalFragmentProfile -FragmentRoot $fragmentRoot -ProfileName $profileName -ShaderPath $exportedShaderPath
+
+    Start-Sleep -Milliseconds 150
+    $launched = Start-ConsoleNoiseWindowsTerminalProfile -ProfileName $profileName -StartingDirectory (Get-Location).Path
+    if (-not $launched) {
         return
     }
 
-    Set-ConsoleNoiseWindowsTerminalShader -SettingsPaths $resolvedSettingsPaths -ShaderPath $exportedShaderPath
-    Write-Information "Exported calming GPU shader to '$exportedShaderPath'." -InformationAction Continue
-    Write-Information 'Updated Windows Terminal settings. Open a new Windows Terminal tab or reload settings to apply the shader.' -InformationAction Continue
+    Write-Information "Exported GPU shader to '$exportedShaderPath'." -InformationAction Continue
+    Write-Information "Wrote Windows Terminal fragment profile to '$fragmentPath'." -InformationAction Continue
+    foreach ($cleanedSettingsPath in $cleanedLegacySettings) {
+        Write-Information "Removed legacy ConsoleNoise shader settings from '$cleanedSettingsPath'." -InformationAction Continue
+    }
+    Write-Information "Launched Windows Terminal profile '$profileName' in a new window." -InformationAction Continue
 }
 
 function Export-ConsoleNoiseWindowsTerminalShader {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$DestinationPath
+        [string]$DestinationPath,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
+        [string]$ColorGradient,
+
+        [Parameter()]
+        [switch]$UseRgbColor
     )
 
-    $repositoryRoot = Split-Path -Path $PSScriptRoot -Parent
-    $sourceShaderPath = Join-Path -Path $repositoryRoot -ChildPath 'Non PowerShell Tools\CalmAurora.hlsl'
+    $sourceShaderPath = Resolve-ConsoleNoiseWindowsTerminalShaderSourcePath -ColorGradient $ColorGradient -UseRgbColor:$UseRgbColor
     if (-not (Test-Path -Path $sourceShaderPath)) {
-        throw "CalmAurora.hlsl was not found at '$sourceShaderPath'."
+        throw "Windows Terminal shader source was not found at '$sourceShaderPath'."
     }
 
     $destinationDirectory = Split-Path -Path $DestinationPath -Parent
@@ -207,6 +267,48 @@ function Export-ConsoleNoiseWindowsTerminalShader {
 
     Copy-Item -Path $sourceShaderPath -Destination $DestinationPath -Force
     return $DestinationPath
+}
+
+function Resolve-ConsoleNoiseWindowsTerminalShaderSourcePath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Rainbow', 'Greyscale', 'Custom', 'LolCat')]
+        [string]$ColorGradient,
+
+        [Parameter()]
+        [switch]$UseRgbColor
+    )
+
+    $repositoryRoot = Split-Path -Path $PSScriptRoot -Parent
+    $shaderFileName = if ($UseRgbColor) {
+        'ConsoleNoiseRgb.hlsl'
+    }
+    else {
+        switch ($ColorGradient) {
+            'Rainbow' {
+                'ConsoleNoiseRainbow.hlsl' 
+            }
+            'Greyscale' {
+                'ConsoleNoiseGreyscale.hlsl' 
+            }
+            'LolCat' {
+                'ConsoleNoiseLolCat.hlsl' 
+            }
+            default {
+                'CalmAurora.hlsl' 
+            }
+        }
+    }
+
+    return (Join-Path -Path $repositoryRoot -ChildPath (Join-Path -Path 'Non PowerShell Tools' -ChildPath $shaderFileName))
+}
+
+function Get-ConsoleNoiseWindowsTerminalFragmentRoot {
+    [CmdletBinding()]
+    param()
+
+    return (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Microsoft\Windows Terminal\Fragments\InvokeConsoleNoise')
 }
 
 function Get-ConsoleNoiseWindowsTerminalSettingsPath {
@@ -226,42 +328,136 @@ function Get-ConsoleNoiseWindowsTerminalSettingsPath {
     return ($paths | Sort-Object -Unique)
 }
 
-function Set-ConsoleNoiseWindowsTerminalShader {
+function Remove-ConsoleNoiseLegacyWindowsTerminalSettings {
+    [CmdletBinding()]
+    param()
+
+    $legacyShaderPath = 'C:\temp\CalmAurora.hlsl'
+    $cleanedPaths = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($settingsPath in (Get-ConsoleNoiseWindowsTerminalSettingsPath)) {
+        try {
+            $rawJson = Get-Content -LiteralPath $settingsPath -Raw -ErrorAction Stop
+            $settings = $rawJson | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            continue
+        }
+
+        if (-not ($settings.PSObject.Properties.Name -contains 'profiles')) {
+            continue
+        }
+
+        if (-not ($settings.profiles.PSObject.Properties.Name -contains 'defaults')) {
+            continue
+        }
+
+        $defaults = $settings.profiles.defaults
+        if (-not $defaults) {
+            continue
+        }
+
+        $pixelShaderProperty = $defaults.PSObject.Properties['experimental.pixelShaderPath']
+        if ($null -eq $pixelShaderProperty) {
+            continue
+        }
+
+        if ([string]$pixelShaderProperty.Value -ne $legacyShaderPath) {
+            continue
+        }
+
+        $defaults.PSObject.Properties.Remove('experimental.pixelShaderPath') | Out-Null
+        $retroProperty = $defaults.PSObject.Properties['experimental.retroTerminalEffect']
+        if ($null -ne $retroProperty -and $retroProperty.Value -eq $false) {
+            $defaults.PSObject.Properties.Remove('experimental.retroTerminalEffect') | Out-Null
+        }
+
+        $json = $settings | ConvertTo-Json -Depth 100
+        [System.IO.File]::WriteAllText($settingsPath, $json, [System.Text.UTF8Encoding]::new($false))
+        $cleanedPaths.Add($settingsPath)
+    }
+
+    return $cleanedPaths
+}
+
+function Export-ConsoleNoiseWindowsTerminalFragmentProfile {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string[]]$SettingsPaths,
+        [string]$FragmentRoot,
+
+        [Parameter(Mandatory)]
+        [string]$ProfileName,
 
         [Parameter(Mandatory)]
         [string]$ShaderPath
     )
 
-    foreach ($settingsPath in $SettingsPaths) {
-        if (-not (Test-Path -Path $settingsPath)) {
-            Write-Warning "Windows Terminal settings file not found: '$settingsPath'"
-            continue
+    if (-not (Test-Path -Path $FragmentRoot)) {
+        New-Item -Path $FragmentRoot -ItemType Directory -Force | Out-Null
+    }
+
+    $shellExecutable = $null
+    try {
+        $shellExecutable = (Get-Process -Id $PID -ErrorAction Stop).Path
+    }
+    catch {
+    }
+
+    if ([string]::IsNullOrWhiteSpace($shellExecutable)) {
+        $shellExecutable = if ($PSVersionTable.PSEdition -eq 'Core') {
+            Join-Path -Path $PSHOME -ChildPath 'pwsh.exe'
         }
-
-        $rawJson = Get-Content -Path $settingsPath -Raw -ErrorAction Stop
-        $settings = $rawJson | ConvertFrom-Json -ErrorAction Stop
-
-        if (-not ($settings.PSObject.Properties.Name -contains 'profiles')) {
-            $settings | Add-Member -MemberType NoteProperty -Name 'profiles' -Value ([pscustomobject]@{})
+        else {
+            Join-Path -Path $PSHOME -ChildPath 'powershell.exe'
         }
+    }
 
-        if (-not ($settings.profiles.PSObject.Properties.Name -contains 'defaults')) {
-            $settings.profiles | Add-Member -MemberType NoteProperty -Name 'defaults' -Value ([pscustomobject]@{})
-        }
+    $fragmentObject = [ordered]@{
+        profiles = @(
+            [ordered]@{
+                guid                               = '{ab3d0e87-0b8c-4e41-9f45-1d4d2a07fa42}'
+                name                               = $ProfileName
+                commandline                        = $shellExecutable
+                startingDirectory                  = (Get-Location).Path
+                suppressApplicationTitle           = $true
+                tabTitle                           = $ProfileName
+                'experimental.pixelShaderPath'     = $ShaderPath
+                'experimental.retroTerminalEffect' = $false
+            }
+        )
+    }
 
-        $settings.profiles.defaults | Add-Member -MemberType NoteProperty -Name 'experimental.pixelShaderPath' -Value $ShaderPath -Force
-        $settings.profiles.defaults | Add-Member -MemberType NoteProperty -Name 'experimental.retroTerminalEffect' -Value $false -Force
+    $fragmentPath = Join-Path -Path $FragmentRoot -ChildPath 'Invoke-ConsoleNoise.fragment.json'
+    $json = $fragmentObject | ConvertTo-Json -Depth 10
+    [System.IO.File]::WriteAllText($fragmentPath, $json, [System.Text.UTF8Encoding]::new($false))
+    return $fragmentPath
+}
 
-        $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
-        $backupPath = "$settingsPath.$timestamp.bak"
-        Copy-Item -Path $settingsPath -Destination $backupPath -Force
+function Start-ConsoleNoiseWindowsTerminalProfile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProfileName,
 
-        $json = $settings | ConvertTo-Json -Depth 100
-        [System.IO.File]::WriteAllText($settingsPath, $json, [System.Text.UTF8Encoding]::new($false))
+        [Parameter(Mandatory)]
+        [string]$StartingDirectory
+    )
+
+    $wtCommand = Get-Command -Name 'wt.exe' -ErrorAction SilentlyContinue
+    if (-not $wtCommand) {
+        Write-Warning 'Windows Terminal (wt.exe) was not found on PATH, so the GPU renderer could not be launched.'
+        return $false
+    }
+
+    try {
+        $argumentList = @('-w', '-1', 'new-tab', '-p', $ProfileName, '-d', $StartingDirectory)
+        Start-Process -FilePath $wtCommand.Source -ArgumentList $argumentList -ErrorAction Stop | Out-Null
+        return $true
+    }
+    catch {
+        Write-Warning "Failed to launch Windows Terminal automatically: $($_.Exception.Message)"
+        return $false
     }
 }
 
