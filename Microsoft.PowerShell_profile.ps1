@@ -37,6 +37,7 @@ $terminalShaderTargetDir = 'C:\temp'
 $terminalShaderFiles = @(
   'Retro.hlsl'
   'CalmAurora.hlsl'
+  'menger.hlsl'
 )
 
 if (-not (Test-Path -Path $terminalShaderTargetDir)) {
