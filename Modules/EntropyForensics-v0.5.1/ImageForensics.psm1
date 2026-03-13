@@ -50,6 +50,8 @@ class ImageScanner {
   [string] $ToolRoot
   [string] $PyPath
   [string] $PythonExe
+  [string] $BootstrapPythonExe
+  [object] $BootstrapPythonVersion
 
   ImageScanner() {
     $this.ToolRoot = [ImageScanner]::GetDefaultToolRoot()
@@ -77,6 +79,10 @@ class ImageScanner {
     }
 
     return (Join-Path -Path $homePath -ChildPath '.cache/ImageForensics/tools')
+  }
+
+  static [string] GetManagedPythonVersion() {
+    return '3.12'
   }
 
   static [string] GetFullPath([string] $Path) {
@@ -660,7 +666,7 @@ def main():
                 work, scale = resize_max_dim(frm, args.downscale_max)
                 feats, chE, faces, detector_tag_frame, Z = frame_entropy_features(work, args.radius, args.face_roi)
 
-                if detector_tag is None -and detector_tag_frame:
+                if detector_tag is None and detector_tag_frame:
                     detector_tag = detector_tag_frame
 
                 spatial.append(feats)
@@ -747,6 +753,21 @@ if __name__ == '__main__':
     }
   }
 
+  hidden [string] GetManagedVenvPath() {
+    return (Join-Path -Path (Split-Path -Path $this.ToolRoot -Parent) -ChildPath '.venv')
+  }
+
+  hidden [string] GetManagedPythonPath() {
+    $venvPath = $this.GetManagedVenvPath()
+    $runningOnWindows = ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT)
+
+    if ($runningOnWindows) {
+      return (Join-Path -Path $venvPath -ChildPath 'Scripts\python.exe')
+    }
+
+    return (Join-Path -Path $venvPath -ChildPath 'bin/python')
+  }
+
   hidden [string] GetLastOutputLine([string[]] $Lines) {
     $nonEmpty = @($Lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($nonEmpty.Count -eq 0) {
@@ -813,6 +834,20 @@ if __name__ == '__main__':
     }
   }
 
+  hidden [void] WritePythonVersionWarnings([object] $Version) {
+    if ([int]$Version.major -ne 3) {
+      return
+    }
+
+    if ([int]$Version.minor -lt 10) {
+      Write-Warning ('Python {0}.{1} is older than the recommended 3.10+ baseline. Some wheels may be unavailable.' -f $Version.major, $Version.minor)
+    }
+
+    if ([int]$Version.minor -ge 13) {
+      Write-Warning ('Python {0}.{1} detected. MediaPipe wheels may be unavailable; face ROI may fall back to Haar detection.' -f $Version.major, $Version.minor)
+    }
+  }
+
   hidden [pscustomobject] GetPythonVersion([string] $PythonExe, [int] $TimeoutSeconds) {
     $script = @'
 import json, sys
@@ -831,9 +866,9 @@ print(json.dumps({"major": sys.version_info[0], "minor": sys.version_info[1], "m
     return ($jsonLine | ConvertFrom-Json -ErrorAction Stop)
   }
 
-  hidden [string] ResolvePythonCommand([ImageScanOptions] $Options) {
-    if (-not [string]::IsNullOrWhiteSpace($this.PythonExe)) {
-      return $this.PythonExe
+  hidden [string] ResolveBootstrapPythonCommand([ImageScanOptions] $Options) {
+    if (-not [string]::IsNullOrWhiteSpace($this.BootstrapPythonExe)) {
+      return $this.BootstrapPythonExe
     }
 
     foreach ($candidate in @('python', 'python3')) {
@@ -864,20 +899,153 @@ print(json.dumps({"major": sys.version_info[0], "minor": sys.version_info[1], "m
         continue
       }
 
-      if ([int]$version.minor -lt 10) {
-        Write-Warning ('Python {0}.{1} is older than the recommended 3.10+ baseline. Some wheels may be unavailable.' -f $version.major, $version.minor)
-      }
-
-      if ([int]$version.minor -ge 13) {
-        Write-Warning ('Python {0}.{1} detected. MediaPipe wheels may be unavailable; face ROI may fall back to Haar detection.' -f $version.major, $version.minor)
-      }
-
-      Write-Verbose ('Using Python executable: {0} ({1}.{2}.{3})' -f $exe, $version.major, $version.minor, $version.micro)
-      $this.PythonExe = $exe
-      return $this.PythonExe
+      Write-Verbose ('Using bootstrap Python executable: {0} ({1}.{2}.{3})' -f $exe, $version.major, $version.minor, $version.micro)
+      $this.BootstrapPythonExe = $exe
+      $this.BootstrapPythonVersion = $version
+      return $this.BootstrapPythonExe
     }
 
     throw "Python 3 was not found on PATH. Install Python 3 and try again. '-InstallDependencies' can install packages, but it cannot install Python itself."
+  }
+
+  hidden [string] ResolvePythonCommand([ImageScanOptions] $Options) {
+    if (-not [string]::IsNullOrWhiteSpace($this.PythonExe)) {
+      return $this.PythonExe
+    }
+
+    $managedPython = $this.GetManagedPythonPath()
+    if (Test-Path -LiteralPath $managedPython -PathType Leaf) {
+      try {
+        $managedVersion = $this.GetPythonVersion($managedPython, $Options.TimeoutSeconds)
+        if ([int]$managedVersion.major -eq 3) {
+          $this.WritePythonVersionWarnings($managedVersion)
+          Write-Verbose ('Using uv-managed Python executable: {0} ({1}.{2}.{3})' -f $managedPython, $managedVersion.major, $managedVersion.minor, $managedVersion.micro)
+          $this.PythonExe = $managedPython
+          return $this.PythonExe
+        }
+      }
+      catch {
+        Write-Verbose ("Skipping uv-managed Python candidate '{0}': {1}" -f $managedPython, $_.Exception.Message)
+      }
+    }
+
+    $bootstrapPython = $this.ResolveBootstrapPythonCommand($Options)
+    $bootstrapVersion = $this.BootstrapPythonVersion
+    if ($null -eq $bootstrapVersion) {
+      $bootstrapVersion = $this.GetPythonVersion($bootstrapPython, $Options.TimeoutSeconds)
+      $this.BootstrapPythonVersion = $bootstrapVersion
+    }
+
+    $this.WritePythonVersionWarnings($bootstrapVersion)
+    Write-Verbose ('Using system Python executable: {0} ({1}.{2}.{3})' -f $bootstrapPython, $bootstrapVersion.major, $bootstrapVersion.minor, $bootstrapVersion.micro)
+    $this.PythonExe = $bootstrapPython
+    return $this.PythonExe
+  }
+
+  hidden [void] EnsurePipAvailable([string] $PythonExe, [int] $TimeoutSeconds) {
+    $pipCheck = $this.InvokeExternal($PythonExe, @('-m', 'pip', '--version'), $TimeoutSeconds)
+    if ($pipCheck.ExitCode -eq 0) {
+      return
+    }
+
+    Write-Verbose ('pip is unavailable for {0}; attempting ensurepip bootstrap.' -f $PythonExe)
+    $ensurePip = $this.InvokeExternal($PythonExe, @('-m', 'ensurepip', '--upgrade'), $TimeoutSeconds)
+    if ($ensurePip.ExitCode -ne 0) {
+      throw ("Failed to bootstrap pip for '{0}'. {1}" -f $PythonExe, $ensurePip.Text)
+    }
+  }
+
+  hidden [void] EnsureUvAvailable([string] $BootstrapPythonExe, [ImageScanOptions] $Options) {
+    $uvCheck = $this.InvokeExternal($BootstrapPythonExe, @('-m', 'uv', '--version'), $Options.TimeoutSeconds)
+    if ($uvCheck.ExitCode -eq 0) {
+      $uvVersionLine = $this.GetLastOutputLine($uvCheck.Output)
+      if ([string]::IsNullOrWhiteSpace($uvVersionLine)) {
+        Write-Verbose ("Using uv via '{0} -m uv'." -f $BootstrapPythonExe)
+      }
+      else {
+        Write-Verbose ("Using uv via '{0} -m uv' ({1})." -f $BootstrapPythonExe, $uvVersionLine)
+      }
+      return
+    }
+
+    $this.EnsurePipAvailable($BootstrapPythonExe, $Options.TimeoutSeconds)
+    Write-Verbose ('Installing/repairing uv with bootstrap Python {0}.' -f $BootstrapPythonExe)
+    $installResult = $this.InvokeExternal($BootstrapPythonExe, @('-m', 'pip', 'install', '--user', '--upgrade', 'uv'), $Options.TimeoutSeconds)
+    if ($installResult.ExitCode -ne 0) {
+      throw ("Failed to install uv with '{0}'. {1}" -f $BootstrapPythonExe, $installResult.Text)
+    }
+
+    $uvCheck = $this.InvokeExternal($BootstrapPythonExe, @('-m', 'uv', '--version'), $Options.TimeoutSeconds)
+    if ($uvCheck.ExitCode -ne 0) {
+      throw ('uv is still unavailable after installation. {0}' -f $uvCheck.Text)
+    }
+
+    $uvVersionLine = $this.GetLastOutputLine($uvCheck.Output)
+    if ([string]::IsNullOrWhiteSpace($uvVersionLine)) {
+      Write-Verbose ("Installed uv via '{0} -m uv'." -f $BootstrapPythonExe)
+    }
+    else {
+      Write-Verbose ("Installed uv via '{0} -m uv' ({1})." -f $BootstrapPythonExe, $uvVersionLine)
+    }
+  }
+
+  hidden [string] EnsureManagedPythonEnvironment([string] $BootstrapPythonExe, [ImageScanOptions] $Options) {
+    $this.EnsureToolRoot()
+    $this.EnsureUvAvailable($BootstrapPythonExe, $Options)
+
+    $venvPath = $this.GetManagedVenvPath()
+    $venvResult = $this.InvokeExternal(
+      $BootstrapPythonExe,
+      @('-m', 'uv', 'venv', '--python', [ImageScanner]::GetManagedPythonVersion(), $venvPath),
+      $Options.TimeoutSeconds
+    )
+
+    if ($venvResult.ExitCode -ne 0) {
+      throw ("Failed to create the uv-managed Python environment at '{0}'. {1}" -f $venvPath, $venvResult.Text)
+    }
+
+    $managedPython = $this.GetManagedPythonPath()
+    if (-not (Test-Path -LiteralPath $managedPython -PathType Leaf)) {
+      throw ("uv created '{0}', but the environment Python '{1}' was not found." -f $venvPath, $managedPython)
+    }
+
+    $managedVersion = $this.GetPythonVersion($managedPython, $Options.TimeoutSeconds)
+    $this.WritePythonVersionWarnings($managedVersion)
+    Write-Verbose ('Using uv-managed Python executable: {0} ({1}.{2}.{3})' -f $managedPython, $managedVersion.major, $managedVersion.minor, $managedVersion.micro)
+    $this.PythonExe = $managedPython
+    return $managedPython
+  }
+
+  hidden [void] InstallPackagesWithUv([string] $BootstrapPythonExe, [string] $TargetPythonExe, [string[]] $Packages, [bool] $Optional, [int] $TimeoutSeconds) {
+    $uniquePackages = @(
+      $Packages |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+          Select-Object -Unique
+    )
+
+    if ($uniquePackages.Count -eq 0) {
+      return
+    }
+
+    $packageList = $uniquePackages -join ', '
+    $dependencyKind = if ($Optional) {
+      'optional' 
+    }
+    else {
+      'required' 
+    }
+    Write-Verbose ('Installing/repairing {0} Python dependencies with uv: {1}' -f $dependencyKind, $packageList)
+
+    $installArgs = @('-m', 'uv', 'pip', 'install', '--python', $TargetPythonExe, '--upgrade') + $uniquePackages
+    $installResult = $this.InvokeExternal($BootstrapPythonExe, $installArgs, $TimeoutSeconds)
+    if ($installResult.ExitCode -ne 0) {
+      if ($Optional) {
+        Write-Warning ('uv could not install optional Python package(s): {0}. {1}' -f $packageList, $installResult.Text)
+        return
+      }
+
+      throw ('uv failed to install required Python package(s): {0}. {1}' -f $packageList, $installResult.Text)
+    }
   }
 
   hidden [pscustomobject] GetPackageStatus([string] $PythonExe, [int] $TimeoutSeconds) {
@@ -924,41 +1092,51 @@ print(json.dumps(status))
     return ($jsonLine | ConvertFrom-Json -ErrorAction Stop)
   }
 
-  hidden [void] EnsurePythonDependencies([string] $PythonExe, [ImageScanOptions] $Options) {
-    $status = $this.GetPackageStatus($PythonExe, $Options.TimeoutSeconds)
+  hidden [string] EnsurePythonDependencies([ImageScanOptions] $Options) {
+    $resolvedBootstrapPython = $null
+    $resolvedPython = $null
+
+    if ($Options.InstallDeps) {
+      $resolvedBootstrapPython = $this.ResolveBootstrapPythonCommand($Options)
+      $resolvedPython = $this.EnsureManagedPythonEnvironment($resolvedBootstrapPython, $Options)
+    }
+    else {
+      $resolvedPython = $this.ResolvePythonCommand($Options)
+    }
+
+    $status = $this.GetPackageStatus($resolvedPython, $Options.TimeoutSeconds)
     $missingRequired = @($status.missing_required)
     $missingOptional = @($status.missing_optional)
 
     if ($Options.InstallDeps -and (($missingRequired.Count -gt 0) -or ($missingOptional.Count -gt 0))) {
-      $packagesToInstall = @($missingRequired + $missingOptional | Select-Object -Unique)
-      $installScript = @'
-import subprocess, sys
-packages = sys.argv[1:]
-if not packages:
-    raise SystemExit(0)
-print("Installing: " + ", ".join(packages))
-subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "--upgrade"] + packages)
-'@
-
-      Write-Verbose ('Installing/repairing Python dependencies: {0}' -f ($packagesToInstall -join ', '))
-      $installResult = $this.InvokeExternal($PythonExe, @('-c', $installScript) + $packagesToInstall, $Options.TimeoutSeconds)
-      if ($installResult.ExitCode -ne 0) {
-        Write-Warning ('Python package installation reported issues: {0}' -f $installResult.Text)
+      if ([string]::IsNullOrWhiteSpace($resolvedBootstrapPython)) {
+        $resolvedBootstrapPython = $this.ResolveBootstrapPythonCommand($Options)
       }
 
-      $status = $this.GetPackageStatus($PythonExe, $Options.TimeoutSeconds)
+      if ($missingRequired.Count -gt 0) {
+        $this.InstallPackagesWithUv($resolvedBootstrapPython, $resolvedPython, @($missingRequired), $false, $Options.TimeoutSeconds)
+      }
+
+      if ($missingOptional.Count -gt 0) {
+        $this.InstallPackagesWithUv($resolvedBootstrapPython, $resolvedPython, @($missingOptional), $true, $Options.TimeoutSeconds)
+      }
+
+      $status = $this.GetPackageStatus($resolvedPython, $Options.TimeoutSeconds)
       $missingRequired = @($status.missing_required)
       $missingOptional = @($status.missing_optional)
     }
 
     if ($missingRequired.Count -gt 0) {
       $packageList = $missingRequired -join ', '
-      throw ('Missing required Python packages: {0}. Re-run with -InstallDependencies or install them manually with: {1} -m pip install --user --upgrade {2}' -f $packageList, $PythonExe, $packageList)
+      throw ('Missing required Python packages: {0}. Re-run with -InstallDependencies or install them manually with: uv pip install --python "{1}" --upgrade {2}' -f $packageList, $resolvedPython, $packageList)
     }
 
     if ($missingOptional.Count -gt 0 -and $Options.FaceROI) {
       Write-Warning ('Optional Python package(s) missing: {0}. Face ROI will use OpenCV Haar fallback when possible.' -f ($missingOptional -join ', '))
     }
+
+    $this.PythonExe = $resolvedPython
+    return $resolvedPython
   }
 
   hidden [void] AppendCsv([string] $CsvPath, [pscustomobject] $Row) {
@@ -1005,8 +1183,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "--upgr
       [ImageScanner]::GetFullPath($Options.OutputDir)
     }
 
-    $resolvedPythonExe = $this.ResolvePythonCommand($Options)
-    $this.EnsurePythonDependencies($resolvedPythonExe, $Options)
+    $resolvedPythonExe = $this.EnsurePythonDependencies($Options)
     $this.EnsurePythonHelper()
 
     if (-not (Test-Path -LiteralPath $outputDir -PathType Container)) {
@@ -1176,8 +1353,9 @@ Maximum dimension used during processing. Use 0 to disable downscaling.
 Optional CSV path used to append a stable summary row per scanned file.
 
 .PARAMETER InstallDependencies
-When specified, the cmdlet attempts to install or repair missing Python packages
-in the current user profile before scanning.
+When specified, the cmdlet bootstraps `uv` if needed, creates or refreshes a
+managed Python 3.12 environment for ImageForensics, and installs or repairs
+missing Python packages before scanning.
 
 .PARAMETER Legend
 Controls whether the overlay legend is drawn. Defaults to `$true`.
@@ -1215,7 +1393,7 @@ ImageScanResult
 
 .NOTES
 - Python 3 must be installed and available on PATH as `python` or `python3`.
-- `-InstallDependencies` installs Python packages only; it does not install Python itself.
+- `-InstallDependencies` bootstraps `uv` if needed and manages packages inside a dedicated ImageForensics virtual environment.
 - `-WhatIf` prevents helper creation, output directory creation, Python execution, and CSV writes.
 #>
   [OutputType([ImageScanResult])]
@@ -1257,7 +1435,7 @@ ImageScanResult
     [ValidateNotNullOrEmpty()]
     [string]$CsvPath,
 
-    [Parameter(HelpMessage = 'Install or repair missing Python packages before scanning.')]
+    [Parameter(HelpMessage = 'Bootstrap uv, create or refresh the managed Python environment, and install or repair missing Python packages before scanning.')]
     [switch]$InstallDependencies,
 
     [Parameter(HelpMessage = 'Draw the overlay legend. Defaults to $true.')]

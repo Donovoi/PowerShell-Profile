@@ -3,6 +3,7 @@ Import-Module "$PSScriptRoot\..\ImageForensics.psd1" -Force
 Describe 'ImageForensics module' {
   BeforeAll {
     $command = Get-Command Invoke-DeepfakeScan -ErrorAction Stop
+    $moduleText = Get-Content "$PSScriptRoot\..\ImageForensics.psm1" -Raw
   }
 
   It 'exports Invoke-DeepfakeScan' {
@@ -40,5 +41,15 @@ Describe 'ImageForensics module' {
 
     Invoke-DeepfakeScan -Path $inputPath -ErrorAction Continue -ErrorVariable +scanErrors | Out-Null
     $scanErrors.Count | Should BeGreaterThan 0
+  }
+
+  It 'embeds valid Python syntax for detector handoff in video scans' {
+    $moduleText | Should Match 'if detector_tag is None and detector_tag_frame:'
+    $moduleText | Should Not Match 'if detector_tag is None -and detector_tag_frame:'
+  }
+
+  It 'uses uv commands to manage Python dependencies' {
+    $moduleText | Should Match "'-m', 'uv', 'venv'"
+    $moduleText | Should Match "'-m', 'uv', 'pip', 'install'"
   }
 }

@@ -1,6 +1,6 @@
 @{
   RootModule           = 'ImageForensics.psm1'
-  ModuleVersion        = '0.6.0'
+  ModuleVersion        = '0.6.1'
   GUID                 = 'b9a2e6a4-38b8-4c3a-9b3a-8b2a0f2b8c44'
   Author               = 'Your Team'
   CompanyName          = 'Yes'
@@ -14,7 +14,7 @@
     PSData = @{
       Tags         = @('forensics', 'deepfake', 'image', 'video', 'opencv', 'mediapipe', 'powershell')
       ProjectUri   = 'https://github.com/Donovoi/PowerShell-Profile'
-      ReleaseNotes = 'v0.6.0: Hardened WhatIf behavior, added Python preflight and dependency repair, fixed detector/video metric reporting, aligned help/tests, and added README guidance.'
+      ReleaseNotes = 'v0.6.1: Fixed the embedded Python detector syntax bug, moved dependency repair to a uv-managed Python 3.12 environment, and refreshed tests/help text.'
     }
   }
 }
