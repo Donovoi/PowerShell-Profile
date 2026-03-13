@@ -1,6 +1,6 @@
 @{
   RootModule           = 'ImageForensics.psm1'
-  ModuleVersion        = '0.6.1'
+  ModuleVersion        = '0.6.2'
   GUID                 = 'b9a2e6a4-38b8-4c3a-9b3a-8b2a0f2b8c44'
   Author               = 'Your Team'
   CompanyName          = 'Yes'
@@ -14,7 +14,7 @@
     PSData = @{
       Tags         = @('forensics', 'deepfake', 'image', 'video', 'opencv', 'mediapipe', 'powershell')
       ProjectUri   = 'https://github.com/Donovoi/PowerShell-Profile'
-      ReleaseNotes = 'v0.6.1: Fixed the embedded Python detector syntax bug, moved dependency repair to a uv-managed Python 3.12 environment, and refreshed tests/help text.'
+      ReleaseNotes = 'v0.6.2: Hardened FaceROI so MediaPipe builds without the classic solutions API automatically fall back to Haar detection, plus refreshed tests/help text.'
     }
   }
 }

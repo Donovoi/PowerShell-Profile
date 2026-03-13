@@ -52,4 +52,10 @@ Describe 'ImageForensics module' {
     $moduleText | Should Match "'-m', 'uv', 'venv'"
     $moduleText | Should Match "'-m', 'uv', 'pip', 'install'"
   }
+
+  It 'falls back to Haar when mediapipe lacks the classic solutions API' {
+    $moduleText | Should Match "getattr\(mp, 'solutions', None\)"
+    $moduleText | Should Match "if tag == 'mediapipe' and fd is not None:"
+    $moduleText | Should Match "return haar_faces\(bgr\), 'haar'"
+  }
 }
