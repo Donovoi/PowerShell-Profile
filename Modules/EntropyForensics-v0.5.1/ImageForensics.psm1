@@ -233,41 +233,60 @@ def jpeg_qtables(path):
         return {'is_jpeg': False}
 
 _mp_fd = None
+_mp_face_detection_ctor = None
+_mp_detector_disabled = False
 
-def get_face_detector():
-    global _mp_fd
-    if MP_AVAILABLE:
-        if _mp_fd is None:
-            _mp_fd = mp.solutions.face_detection.FaceDetection(
-                model_selection=1,
-                min_detection_confidence=0.5
-            )
-        return _mp_fd, 'mediapipe'
-    return None, 'haar'
-
-def find_faces(bgr):
-    fd, tag = get_face_detector()
-    if tag == 'mediapipe':
-        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        h, w = rgb.shape[:2]
-        res = fd.process(rgb)
-        boxes = []
-        if res.detections:
-            for d in res.detections:
-                bb = d.location_data.relative_bounding_box
-                x = max(0, int(bb.xmin * w))
-                y = max(0, int(bb.ymin * h))
-                ww = int(bb.width * w)
-                hh = int(bb.height * h)
-                if ww > 0 and hh > 0:
-                    boxes.append((x, y, ww, hh))
-        return boxes, tag
-
+def haar_faces(bgr):
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     faces = cascade.detectMultiScale(gray, 1.1, 5, flags=cv2.CASCADE_SCALE_IMAGE, minSize=(48,48))
-    boxes = [] if faces is None else [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
-    return boxes, tag
+    return [] if faces is None else [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
+
+def get_face_detector():
+    global _mp_fd, _mp_face_detection_ctor, _mp_detector_disabled
+    if MP_AVAILABLE and not _mp_detector_disabled:
+        try:
+            if _mp_face_detection_ctor is None:
+                solutions = getattr(mp, 'solutions', None)
+                face_detection = getattr(solutions, 'face_detection', None) if solutions is not None else None
+                _mp_face_detection_ctor = getattr(face_detection, 'FaceDetection', None) if face_detection is not None else None
+                if _mp_face_detection_ctor is None:
+                    raise AttributeError('mediapipe.solutions.face_detection.FaceDetection is unavailable')
+            if _mp_fd is None:
+                _mp_fd = _mp_face_detection_ctor(
+                    model_selection=1,
+                    min_detection_confidence=0.5
+                )
+            return _mp_fd, 'mediapipe'
+        except Exception:
+            _mp_detector_disabled = True
+            _mp_fd = None
+    return None, 'haar'
+
+def find_faces(bgr):
+    global _mp_fd, _mp_detector_disabled
+    fd, tag = get_face_detector()
+    if tag == 'mediapipe' and fd is not None:
+        try:
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            h, w = rgb.shape[:2]
+            res = fd.process(rgb)
+            boxes = []
+            if res.detections:
+                for d in res.detections:
+                    bb = d.location_data.relative_bounding_box
+                    x = max(0, int(bb.xmin * w))
+                    y = max(0, int(bb.ymin * h))
+                    ww = int(bb.width * w)
+                    hh = int(bb.height * h)
+                    if ww > 0 and hh > 0:
+                        boxes.append((x, y, ww, hh))
+            return boxes, tag
+        except Exception:
+            _mp_detector_disabled = True
+            _mp_fd = None
+
+    return haar_faces(bgr), 'haar'
 
 def boundary_gradient_delta(Ey, face_xywh):
     if face_xywh is None:
