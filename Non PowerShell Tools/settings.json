@@ -45,7 +45,6 @@
             "backgroundImageOpacity": 0.0,
             "colorScheme": "Campbell",
             "elevate": true,
-            "experimental.pixelShaderPath": "C:\\temp\\CalmAurora.hlsl",
             "experimental.retroTerminalEffect": false,
             "font": {
                 "face": "OpenDyslexicM Nerd Font Mono",

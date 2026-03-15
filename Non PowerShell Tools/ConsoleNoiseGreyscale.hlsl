@@ -1,5 +1,5 @@
 // ConsoleNoiseGreyscale.hlsl
-// Soft breathing monochrome background for Windows Terminal.
+// GPU version of the row-based greyscale gradient used by Invoke-ConsoleNoise.
 
 Texture2D shaderTexture;
 SamplerState samplerState;
@@ -11,27 +11,34 @@ cbuffer PixelShaderSettings {
     float4 Background;
 };
 
-#define TAU 6.28318530718
+float WaveValue(float phase)
+{
+    return (sin(phase) + 1.0) * 0.5;
+}
+
+float EstimateRowIndex(float2 tex)
+{
+    float scaleFactor = max(1.0, Scale);
+    float estimatedRowCount = max(1.0, floor(Resolution.y / (18.0 * scaleFactor)));
+    return tex.y * max(0.0, estimatedRowCount - 1.0);
+}
+
+float3 ComposeConsoleNoise(float3 glyphColor, float mask)
+{
+    float3 backgroundColor = glyphColor * 0.10;
+    return lerp(backgroundColor, glyphColor, mask);
+}
 
 float4 main(float4 pos : SV_POSITION, float2 tex : TEXCOORD) : SV_TARGET
 {
     float4 sample = shaderTexture.Sample(samplerState, tex);
-    float4 shadowSample = shaderTexture.Sample(samplerState, tex + 2.0 * Scale * float2(-1.0, -1.0) / Resolution.y);
+    float frameNumber = Time * 30.0;
+    float rowIndex = EstimateRowIndex(tex);
+    float rowPhase = (frameNumber * 0.045) + (rowIndex * 0.06);
+    float lightness = 0.18 + (WaveValue(rowPhase * 3.6) * 0.62);
+    float3 glyphColor = float3(lightness, lightness, lightness);
+    float mask = saturate(sample.w);
+    float3 finalColor = ComposeConsoleNoise(glyphColor, mask);
 
-    float2 uv = tex * 2.0 - 1.0;
-    uv.x *= Resolution.x / Resolution.y;
-
-    float breath = 0.5 + 0.5 * cos((TAU / 18.0) * Time + uv.y * 0.8);
-    float shimmer = 0.03 * sin(uv.x * 6.0 + Time * 0.03) * sin(uv.y * 4.0 - Time * 0.02);
-    float vignette = 1.0 - smoothstep(0.45, 1.35, length(float2(uv.x * 0.85, uv.y * 1.10)));
-    vignette = 0.45 + 0.55 * vignette;
-
-    float light = (0.08 + 0.22 * breath + shimmer) * vignette;
-    float3 backgroundColor = float3(light, light, light * 1.02);
-
-    float shadow = saturate(shadowSample.w * 0.65);
-    backgroundColor = lerp(backgroundColor, backgroundColor * 0.58, shadow);
-
-    float3 finalColor = lerp(backgroundColor, sample.xyz, sample.w);
     return float4(saturate(finalColor), 1.0);
 }
