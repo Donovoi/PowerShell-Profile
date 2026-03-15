@@ -13,11 +13,16 @@
     colors drift almost imperceptibly from one hue to the next rather than
     rapidly cycling.
 
+    The console renderer is the recommended same-tab backend. It keeps the
+    effect in the current terminal session and uses cached row templates plus
+    packed RGB color handling in the hot path to reduce avoidable per-frame
+    allocations without changing the calming gradient math.
+
     An optional Windows Terminal GPU backend is also available. This mode
     exports an app-owned HLSL shader plus a tiny no-profile launcher script,
-    opens a dedicated Windows Terminal session, and lets the GPU animate the
-    same row-based gradients that the console renderer normally computes on the
-    CPU.
+    opens a dedicated GPU tab in the current Windows Terminal window, and lets
+    the GPU animate the same row-based gradients that the console renderer
+    normally computes on the CPU.
 
     Supported gradient styles:
     - Rainbow  : balanced HSL rainbow bands
@@ -38,9 +43,10 @@
 
 .PARAMETER Renderer
     Chooses the rendering backend. Console uses the in-place ANSI renderer in
-    this function. WindowsTerminalShader launches a dedicated Windows Terminal
-    session that prints the glyph mask once and uses a GPU pixel shader to
-    animate the same gradients without modifying the user's profile or
+    this function and is the recommended option for same-tab rendering.
+    WindowsTerminalShader opens a dedicated GPU tab in the current Windows
+    Terminal window, prints the glyph mask once, and uses a GPU pixel shader
+    to animate the same gradients without modifying the user's profile or
     Windows Terminal settings.json.
 
 .PARAMETER ShaderOutputPath
@@ -55,8 +61,8 @@
 
 .PARAMETER LaunchWindowsTerminal
     Retained for compatibility. The WindowsTerminalShader renderer now always
-    launches a dedicated Windows Terminal session so the GPU effect is visible
-    immediately.
+    targets the current Windows Terminal window so the GPU effect is visible
+    immediately without creating a separate window.
 
 .PARAMETER UnicodeCharMode
     Controls whether the animation uses a curated random glyph set or a single
@@ -98,23 +104,30 @@
     Invoke-ConsoleNoise -Renderer WindowsTerminalShader
 
     Exports the selected HLSL shader, creates an app-owned Windows Terminal
-    fragment profile plus a no-profile launcher script, and launches a
-    dedicated GPU-rendered terminal session.
+    fragment profile plus a no-profile launcher script, and opens a dedicated
+    GPU-rendered tab in the current Windows Terminal window.
 
 .EXAMPLE
     Invoke-ConsoleNoise -Renderer WindowsTerminalShader -LaunchWindowsTerminal
 
-    Launches the dedicated Windows Terminal GPU session. The switch is accepted
-    for compatibility with earlier versions of the function.
+    Opens the dedicated Windows Terminal GPU tab in the current window. The
+    switch is accepted for compatibility with earlier versions of the function.
 
 .NOTES
     Optimized for ANSI-capable terminals such as Windows Terminal and VS Code.
-    No external modules are required for the console backend. The GPU backend
-    targets Windows Terminal pixel shaders rather than NVAPI directly because
-    Windows Terminal already provides a practical GPU shader pipeline. The
-    WindowsTerminalShader backend writes only app-owned fragment assets and a
-    temporary launcher script; it does not mutate the user's PowerShell profile
-    or Windows Terminal settings.json.
+    No external modules are required for the console backend. The console
+    renderer caches reusable row templates, packs RGB values in the color
+    path, and appends ANSI sequences directly into the frame buffer to reduce
+    avoidable allocations during animation without changing the rendered
+    gradients.
+
+    The GPU backend targets Windows Terminal pixel shaders rather than NVAPI
+    directly because Windows Terminal already provides a practical GPU shader
+    pipeline. The WindowsTerminalShader backend writes only app-owned fragment
+    assets and a temporary launcher script; it does not mutate the user's
+    PowerShell profile or Windows Terminal settings.json. It requires an
+    existing Windows Terminal session because it opens a GPU-rendered tab in
+    the current window rather than spawning a separate window.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
@@ -263,8 +276,15 @@ function Enable-ConsoleNoiseWindowsTerminalShader {
     Write-Information "Exported GPU shader to '$exportedShaderPath'." -InformationAction Continue
     Write-Information "Wrote GPU launcher script to '$launcherScriptPath'." -InformationAction Continue
     Write-Information "Wrote Windows Terminal fragment profile to '$fragmentPath'." -InformationAction Continue
-    Write-Information "Launched Windows Terminal profile '$profileName' in a new window." -InformationAction Continue
+    Write-Information "Opened Windows Terminal profile '$profileName' in the current window." -InformationAction Continue
     return $true
+}
+
+function Test-ConsoleNoiseWindowsTerminalSession {
+    [CmdletBinding()]
+    param()
+
+    return (-not [string]::IsNullOrWhiteSpace($env:WT_SESSION))
 }
 
 function Export-ConsoleNoiseWindowsTerminalShader {
@@ -681,9 +701,19 @@ function Start-ConsoleNoiseWindowsTerminalProfile {
         return $false
     }
 
+    if (-not (Test-ConsoleNoiseWindowsTerminalSession)) {
+        Write-Warning 'WindowsTerminalShader requires Invoke-ConsoleNoise to be run inside Windows Terminal so it can open a GPU-rendered tab in the current window. No new window will be created; falling back to the console renderer.'
+        return $false
+    }
+
     try {
-        $argumentList = @('-w', '-1', 'new-tab', '-p', $ProfileName, '-d', $StartingDirectory)
-        Start-Process -FilePath $wtCommand.Source -ArgumentList $argumentList -ErrorAction Stop | Out-Null
+        $argumentList = @('-w', '0', 'new-tab', '-p', $ProfileName, '-d', $StartingDirectory)
+        $null = & $wtCommand.Source @argumentList
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "wt.exe exited with code $LASTEXITCODE."
+        }
+
         return $true
     }
     catch {
@@ -761,25 +791,34 @@ function New-ConsoleNoiseContext {
     $refreshRate = Get-ConsoleNoiseRefreshRate
 
     return [pscustomobject]@{
-        Width               = $viewport.Width
-        Height              = $viewport.Height
-        RefreshRate         = $refreshRate
-        FrameDelayMs        = Get-ConsoleNoiseFrameDelay -RefreshRate $refreshRate
-        ColorGradient       = $ColorGradient
-        UseRgbColor         = [bool]$UseRgbColor
-        UnicodeCharMode     = $UnicodeCharMode
-        SpecificChar        = [string]$SpecificChar
-        MaxFrames           = $MaxFrames
-        UseAnsi             = Test-ConsoleNoiseAnsiSupport
-        Escape              = [char]27
-        RainbowHueDrift     = 0.00045
-        RainbowRowHueStep   = 0.0075
-        RgbPhaseDrift       = 0.0016
-        RgbRowPhaseStep     = 0.045
-        RandomCharacterPool = @(
+        Width                        = $viewport.Width
+        Height                       = $viewport.Height
+        RefreshRate                  = $refreshRate
+        FrameDelayMs                 = Get-ConsoleNoiseFrameDelay -RefreshRate $refreshRate
+        ColorGradient                = $ColorGradient
+        UseRgbColor                  = [bool]$UseRgbColor
+        UnicodeCharMode              = $UnicodeCharMode
+        SpecificChar                 = [string]$SpecificChar
+        MaxFrames                    = $MaxFrames
+        UseAnsi                      = Test-ConsoleNoiseAnsiSupport
+        Escape                       = [char]27
+        AnsiForegroundPrefix         = "$([char]27)[38;2;"
+        AnsiResetSequence            = "$([char]27)[0m"
+        RainbowHueDrift              = 0.00045
+        RainbowRowHueStep            = 0.0075
+        RgbPhaseDrift                = 0.0016
+        RgbRowPhaseStep              = 0.045
+        RandomCharacterPool          = @(
             '█', '▓', '▒', '░', '■', '◆',
             '◈', '●', '◼', '▪', '▫', '▣'
         )
+        RandomCharacterPoolSignature = '█▓▒░■◆◈●◼▪▫▣'
+        CachedSpecificRow            = ''
+        CachedSpecificWidth          = 0
+        CachedSpecificChar           = ''
+        CachedRandomPattern          = ''
+        CachedRandomPatternWidth     = 0
+        CachedRandomPatternSignature = ''
     }
 }
 
@@ -1088,6 +1127,53 @@ function Start-ConsoleNoiseAnimation {
     }
 }
 
+function Get-ConsoleNoiseSpecificRow {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context
+    )
+
+    if (($Context.CachedSpecificWidth -ne $Context.Width) -or
+        ($Context.CachedSpecificChar -ne $Context.SpecificChar) -or
+        [string]::IsNullOrEmpty($Context.CachedSpecificRow)) {
+        $Context.CachedSpecificRow = ($Context.SpecificChar * $Context.Width)
+        $Context.CachedSpecificWidth = $Context.Width
+        $Context.CachedSpecificChar = $Context.SpecificChar
+    }
+
+    return $Context.CachedSpecificRow
+}
+
+function Get-ConsoleNoiseRandomRowPattern {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context
+    )
+
+    if (($Context.CachedRandomPatternWidth -ne $Context.Width) -or
+        ($Context.CachedRandomPatternSignature -ne $Context.RandomCharacterPoolSignature) -or
+        [string]::IsNullOrEmpty($Context.CachedRandomPattern)) {
+        $requiredLength = $Context.Width + $Context.RandomCharacterPool.Count - 1
+        $builder = [System.Text.StringBuilder]::new($requiredLength)
+
+        while ($builder.Length -lt $requiredLength) {
+            foreach ($character in $Context.RandomCharacterPool) {
+                if ($builder.Length -ge $requiredLength) {
+                    break
+                }
+
+                $null = $builder.Append($character)
+            }
+        }
+
+        $Context.CachedRandomPattern = $builder.ToString()
+        $Context.CachedRandomPatternWidth = $Context.Width
+        $Context.CachedRandomPatternSignature = $Context.RandomCharacterPoolSignature
+    }
+
+    return $Context.CachedRandomPattern
+}
+
 function New-ConsoleNoiseFrame {
     param(
         [Parameter(Mandatory)]
@@ -1099,29 +1185,61 @@ function New-ConsoleNoiseFrame {
 
     $estimatedCapacity = [Math]::Max(128, (($Context.Width + 24) * $Context.Height))
     $builder = [System.Text.StringBuilder]::new($estimatedCapacity)
+    $specificRow = $null
+    $randomRowPattern = $null
+    $poolCount = 0
+    $useSpecificRow = ($Context.UnicodeCharMode -eq 'Specific')
+    $useAnsi = $Context.UseAnsi
+    $ansiForegroundPrefix = $Context.AnsiForegroundPrefix
+
+    if ($useSpecificRow) {
+        $specificRow = Get-ConsoleNoiseSpecificRow -Context $Context
+    }
+    else {
+        $randomRowPattern = Get-ConsoleNoiseRandomRowPattern -Context $Context
+        $poolCount = $Context.RandomCharacterPool.Count
+    }
 
     for ($rowIndex = 0; $rowIndex -lt $Context.Height; $rowIndex++) {
-        $color = Get-ConsoleNoiseRowColor -Context $Context -FrameNumber $FrameNumber -RowIndex $rowIndex
+        $packedColor = Get-ConsoleNoiseRowPackedColor -Context $Context -FrameNumber $FrameNumber -RowIndex $rowIndex
 
-        if ($Context.UseAnsi) {
-            $null = $builder.Append((New-ConsoleNoiseAnsiForegroundSequence -Red $color.Red -Green $color.Green -Blue $color.Blue))
+        if ($useAnsi) {
+            $red = (($packedColor -shr 16) -band 0xFF)
+            $green = (($packedColor -shr 8) -band 0xFF)
+            $blue = ($packedColor -band 0xFF)
+
+            $null = $builder.Append($ansiForegroundPrefix)
+            $null = $builder.Append($red)
+            $null = $builder.Append(';')
+            $null = $builder.Append($green)
+            $null = $builder.Append(';')
+            $null = $builder.Append($blue)
+            $null = $builder.Append('m')
         }
 
-        $null = $builder.Append((New-ConsoleNoiseRow -Context $Context -FrameNumber $FrameNumber -RowIndex $rowIndex))
+        if ($useSpecificRow) {
+            $null = $builder.Append($specificRow)
+        }
+        else {
+            $waveOffset = [int][Math]::Round((Get-ConsoleNoiseWaveValue -Phase (($FrameNumber * 0.12) + ($rowIndex * 0.35))) * ($poolCount - 1))
+            $driftOffset = [int][Math]::Floor(($FrameNumber * 0.6) + ($rowIndex * 1.4))
+            $rowOffset = ($waveOffset + $driftOffset) % $poolCount
+            $null = $builder.Append($randomRowPattern, $rowOffset, $Context.Width)
+        }
 
         if ($rowIndex -lt ($Context.Height - 1)) {
             $null = $builder.Append("`r`n")
         }
     }
 
-    if ($Context.UseAnsi) {
-        $null = $builder.Append("$($Context.Escape)[0m")
+    if ($useAnsi) {
+        $null = $builder.Append($Context.AnsiResetSequence)
     }
 
     return $builder.ToString()
 }
 
-function New-ConsoleNoiseRow {
+function Get-ConsoleNoiseRowPackedColor {
     param(
         [Parameter(Mandatory)]
         [pscustomobject]$Context,
@@ -1133,23 +1251,11 @@ function New-ConsoleNoiseRow {
         [int]$RowIndex
     )
 
-    if ($Context.UnicodeCharMode -eq 'Specific') {
-        return ($Context.SpecificChar * $Context.Width)
+    if ($Context.UseRgbColor) {
+        return Get-ConsoleNoiseRgbWavePackedColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
     }
 
-    $characterPool = $Context.RandomCharacterPool
-    $builder = [System.Text.StringBuilder]::new($Context.Width)
-    $poolCount = $characterPool.Count
-    $waveOffset = [int][Math]::Round((Get-ConsoleNoiseWaveValue -Phase (($FrameNumber * 0.12) + ($RowIndex * 0.35))) * ($poolCount - 1))
-    $driftOffset = [int][Math]::Floor(($FrameNumber * 0.6) + ($RowIndex * 1.4))
-    $rowOffset = ($waveOffset + $driftOffset) % $poolCount
-
-    for ($columnIndex = 0; $columnIndex -lt $Context.Width; $columnIndex++) {
-        $poolIndex = ($columnIndex + $rowOffset) % $poolCount
-        $null = $builder.Append($characterPool[$poolIndex])
-    }
-
-    return $builder.ToString()
+    return Get-ConsoleNoiseHslGradientPackedColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
 }
 
 function Get-ConsoleNoiseRowColor {
@@ -1171,7 +1277,7 @@ function Get-ConsoleNoiseRowColor {
     return Get-ConsoleNoiseHslGradientColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
 }
 
-function Get-ConsoleNoiseRgbWaveColor {
+function Get-ConsoleNoiseRgbWavePackedColor {
     param(
         [Parameter(Mandatory)]
         [pscustomobject]$Context,
@@ -1191,6 +1297,26 @@ function Get-ConsoleNoiseRgbWaveColor {
     $green = [int][Math]::Round($channelMidpoint + ($channelAmplitude * [Math]::Sin($phase + ((2 * [Math]::PI) / 3))))
     $blue = [int][Math]::Round($channelMidpoint + ($channelAmplitude * [Math]::Sin($phase + ((4 * [Math]::PI) / 3))))
 
+    return (($red -shl 16) -bor ($green -shl 8) -bor $blue)
+}
+
+function Get-ConsoleNoiseRgbWaveColor {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    $packedColor = Get-ConsoleNoiseRgbWavePackedColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
+    $red = (($packedColor -shr 16) -band 0xFF)
+    $green = (($packedColor -shr 8) -band 0xFF)
+    $blue = ($packedColor -band 0xFF)
+
     return [pscustomobject]@{
         Red   = $red
         Green = $green
@@ -1198,7 +1324,7 @@ function Get-ConsoleNoiseRgbWaveColor {
     }
 }
 
-function Get-ConsoleNoiseHslGradientColor {
+function Get-ConsoleNoiseHslGradientPackedColor {
     param(
         [Parameter(Mandatory)]
         [pscustomobject]$Context,
@@ -1215,7 +1341,7 @@ function Get-ConsoleNoiseHslGradientColor {
     switch ($Context.ColorGradient) {
         'Greyscale' {
             $lightness = 0.18 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 3.6)) * 0.62)
-            return Convert-HslToRgb -Hue 0 -Saturation 0 -Lightness $lightness
+            return Convert-HslToPackedRgb -Hue 0 -Saturation 0 -Lightness $lightness
         }
 
         'Custom' {
@@ -1230,19 +1356,43 @@ function Get-ConsoleNoiseHslGradientColor {
             $saturation = 0.74 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 0.8)) * 0.16)
             $lightness = 0.38 + ((Get-ConsoleNoiseWaveValue -Phase (($rowPhase * 2.1) + 0.7)) * 0.18)
 
-            return Convert-HslToRgb -Hue $hue -Saturation $saturation -Lightness $lightness
+            return Convert-HslToPackedRgb -Hue $hue -Saturation $saturation -Lightness $lightness
         }
 
         'LolCat' {
             $hue = (($FrameNumber * 0.065) + ($RowIndex * 0.115)) % 1.0
             $lightness = 0.55 + ((Get-ConsoleNoiseWaveValue -Phase ($rowPhase * 2.4)) * 0.10)
-            return Convert-HslToRgb -Hue $hue -Saturation 1.0 -Lightness $lightness
+            return Convert-HslToPackedRgb -Hue $hue -Saturation 1.0 -Lightness $lightness
         }
 
         default {
             $hue = (($FrameNumber * $Context.RainbowHueDrift) + ($RowIndex * $Context.RainbowRowHueStep)) % 1.0
-            return Convert-HslToRgb -Hue $hue -Saturation 0.84 -Lightness 0.56
+            return Convert-HslToPackedRgb -Hue $hue -Saturation 0.84 -Lightness 0.56
         }
+    }
+}
+
+function Get-ConsoleNoiseHslGradientColor {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Context,
+
+        [Parameter(Mandatory)]
+        [int]$FrameNumber,
+
+        [Parameter(Mandatory)]
+        [int]$RowIndex
+    )
+
+    $packedColor = Get-ConsoleNoiseHslGradientPackedColor -Context $Context -FrameNumber $FrameNumber -RowIndex $RowIndex
+    $red = (($packedColor -shr 16) -band 0xFF)
+    $green = (($packedColor -shr 8) -band 0xFF)
+    $blue = ($packedColor -band 0xFF)
+
+    return [pscustomobject]@{
+        Red   = $red
+        Green = $green
+        Blue  = $blue
     }
 }
 
@@ -1256,6 +1406,30 @@ function Get-ConsoleNoiseWaveValue {
 }
 
 function Convert-HslToRgb {
+    param(
+        [Parameter(Mandatory)]
+        [double]$Hue,
+
+        [Parameter(Mandatory)]
+        [double]$Saturation,
+
+        [Parameter(Mandatory)]
+        [double]$Lightness
+    )
+
+    $packedColor = Convert-HslToPackedRgb -Hue $Hue -Saturation $Saturation -Lightness $Lightness
+    $red = (($packedColor -shr 16) -band 0xFF)
+    $green = (($packedColor -shr 8) -band 0xFF)
+    $blue = ($packedColor -band 0xFF)
+
+    return [pscustomobject]@{
+        Red   = [int]$red
+        Green = [int]$green
+        Blue  = [int]$blue
+    }
+}
+
+function Convert-HslToPackedRgb {
     param(
         [Parameter(Mandatory)]
         [double]$Hue,
@@ -1328,11 +1502,7 @@ function Convert-HslToRgb {
     $green = [Math]::Max(0, [Math]::Min(255, [int][Math]::Round($g * 255)))
     $blue = [Math]::Max(0, [Math]::Min(255, [int][Math]::Round($b * 255)))
 
-    return [pscustomobject]@{
-        Red   = [int]$red
-        Green = [int]$green
-        Blue  = [int]$blue
-    }
+    return (($red -shl 16) -bor ($green -shl 8) -bor $blue)
 }
 
 function New-ConsoleNoiseAnsiForegroundSequence {
