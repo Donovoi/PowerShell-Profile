@@ -14,9 +14,10 @@
     rapidly cycling.
 
     An optional Windows Terminal GPU backend is also available. This mode
-    exports a calming HLSL shader, updates one or more Windows Terminal
-    settings.json files to use it as the profile pixel shader, and lets the GPU
-    handle the visual effect at the terminal-rendering layer.
+    exports an app-owned HLSL shader plus a tiny no-profile launcher script,
+    opens a dedicated Windows Terminal session, and lets the GPU animate the
+    same row-based gradients that the console renderer normally computes on the
+    CPU.
 
     Supported gradient styles:
     - Rainbow  : balanced HSL rainbow bands
@@ -38,7 +39,9 @@
 .PARAMETER Renderer
     Chooses the rendering backend. Console uses the in-place ANSI renderer in
     this function. WindowsTerminalShader launches a dedicated Windows Terminal
-    session that uses a GPU pixel shader for the visual effect.
+    session that prints the glyph mask once and uses a GPU pixel shader to
+    animate the same gradients without modifying the user's profile or
+    Windows Terminal settings.json.
 
 .PARAMETER ShaderOutputPath
     Optional destination path for the exported Windows Terminal HLSL shader when
@@ -95,7 +98,8 @@
     Invoke-ConsoleNoise -Renderer WindowsTerminalShader
 
     Exports the selected HLSL shader, creates an app-owned Windows Terminal
-    fragment profile, and launches a dedicated GPU-rendered terminal session.
+    fragment profile plus a no-profile launcher script, and launches a
+    dedicated GPU-rendered terminal session.
 
 .EXAMPLE
     Invoke-ConsoleNoise -Renderer WindowsTerminalShader -LaunchWindowsTerminal
@@ -108,8 +112,9 @@
     No external modules are required for the console backend. The GPU backend
     targets Windows Terminal pixel shaders rather than NVAPI directly because
     Windows Terminal already provides a practical GPU shader pipeline. The
-    WindowsTerminalShader backend no longer mutates the user's Windows Terminal
-    profile defaults or settings.json.
+    WindowsTerminalShader backend writes only app-owned fragment assets and a
+    temporary launcher script; it does not mutate the user's PowerShell profile
+    or Windows Terminal settings.json.
 #>
 function Invoke-ConsoleNoise {
     [CmdletBinding()]
@@ -157,14 +162,25 @@ function Invoke-ConsoleNoise {
             LaunchWindowsTerminal = $LaunchWindowsTerminal
             ColorGradient         = $ColorGradient
             UseRgbColor           = $UseRgbColor
+            UnicodeCharMode       = $UnicodeCharMode
+            SpecificChar          = $SpecificChar
+            MaxFrames             = $MaxFrames
         }
 
         if (-not [string]::IsNullOrWhiteSpace($ShaderOutputPath)) {
             $windowsTerminalShaderParams.ShaderOutputPath = $ShaderOutputPath
         }
 
-        Enable-ConsoleNoiseWindowsTerminalShader @windowsTerminalShaderParams
-        return
+        try {
+            if (Enable-ConsoleNoiseWindowsTerminalShader @windowsTerminalShaderParams) {
+                return
+            }
+
+            Write-Warning 'Falling back to the console renderer because the GPU renderer could not be started.'
+        }
+        catch {
+            Write-Warning "WindowsTerminalShader renderer failed to start: $($_.Exception.Message). Falling back to the console renderer."
+        }
     }
 
     $originalState = Get-ConsoleNoiseState
@@ -206,14 +222,23 @@ function Enable-ConsoleNoiseWindowsTerminalShader {
         [string]$ColorGradient,
 
         [Parameter()]
-        [switch]$UseRgbColor
+        [switch]$UseRgbColor,
+
+        [Parameter()]
+        [ValidateSet('Random', 'Specific')]
+        [string]$UnicodeCharMode = 'Specific',
+
+        [Parameter()]
+        [char]$SpecificChar = [char]0x2588,
+
+        [Parameter()]
+        [ValidateRange(0, 1000000)]
+        [int]$MaxFrames = 0
     )
 
     if ($SettingsPaths) {
         Write-Warning 'WindowsTerminalSettingsPath is ignored by the current WindowsTerminalShader renderer. A dedicated app-owned fragment profile is used instead.'
     }
-
-    $cleanedLegacySettings = Remove-ConsoleNoiseLegacyWindowsTerminalSettings
 
     $fragmentRoot = Get-ConsoleNoiseWindowsTerminalFragmentRoot
     $destinationShaderPath = if ([string]::IsNullOrWhiteSpace($ShaderOutputPath)) {
@@ -224,21 +249,22 @@ function Enable-ConsoleNoiseWindowsTerminalShader {
     }
 
     $exportedShaderPath = Export-ConsoleNoiseWindowsTerminalShader -DestinationPath $destinationShaderPath -ColorGradient $ColorGradient -UseRgbColor:$UseRgbColor
+    $launcherScriptPath = Export-ConsoleNoiseWindowsTerminalBootstrapScript -FragmentRoot $fragmentRoot -UnicodeCharMode $UnicodeCharMode -SpecificChar $SpecificChar -MaxFrames $MaxFrames
+    $commandLine = Get-ConsoleNoiseWindowsTerminalCommandLine -LauncherScriptPath $launcherScriptPath
     $profileName = 'Invoke-ConsoleNoise GPU'
-    $fragmentPath = Export-ConsoleNoiseWindowsTerminalFragmentProfile -FragmentRoot $fragmentRoot -ProfileName $profileName -ShaderPath $exportedShaderPath
+    $fragmentPath = Export-ConsoleNoiseWindowsTerminalFragmentProfile -FragmentRoot $fragmentRoot -ProfileName $profileName -ShaderPath $exportedShaderPath -CommandLine $commandLine
 
     Start-Sleep -Milliseconds 150
     $launched = Start-ConsoleNoiseWindowsTerminalProfile -ProfileName $profileName -StartingDirectory (Get-Location).Path
     if (-not $launched) {
-        return
+        return $false
     }
 
     Write-Information "Exported GPU shader to '$exportedShaderPath'." -InformationAction Continue
+    Write-Information "Wrote GPU launcher script to '$launcherScriptPath'." -InformationAction Continue
     Write-Information "Wrote Windows Terminal fragment profile to '$fragmentPath'." -InformationAction Continue
-    foreach ($cleanedSettingsPath in $cleanedLegacySettings) {
-        Write-Information "Removed legacy ConsoleNoise shader settings from '$cleanedSettingsPath'." -InformationAction Continue
-    }
     Write-Information "Launched Windows Terminal profile '$profileName' in a new window." -InformationAction Continue
+    return $true
 }
 
 function Export-ConsoleNoiseWindowsTerminalShader {
@@ -267,6 +293,293 @@ function Export-ConsoleNoiseWindowsTerminalShader {
 
     Copy-Item -Path $sourceShaderPath -Destination $DestinationPath -Force
     return $DestinationPath
+}
+
+function Export-ConsoleNoiseWindowsTerminalBootstrapScript {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$FragmentRoot,
+
+        [Parameter()]
+        [ValidateSet('Random', 'Specific')]
+        [string]$UnicodeCharMode = 'Specific',
+
+        [Parameter()]
+        [char]$SpecificChar = [char]0x2588,
+
+        [Parameter()]
+        [ValidateRange(0, 1000000)]
+        [int]$MaxFrames = 0
+    )
+
+    if (-not (Test-Path -Path $FragmentRoot)) {
+        New-Item -Path $FragmentRoot -ItemType Directory -Force | Out-Null
+    }
+
+    $unicodeCharModeLiteral = ConvertTo-ConsoleNoisePowerShellSingleQuotedLiteral -Value $UnicodeCharMode
+    $specificCharLiteral = ConvertTo-ConsoleNoisePowerShellSingleQuotedLiteral -Value ([string]$SpecificChar)
+
+    $launcherScriptContent = @"
+`$ErrorActionPreference = 'SilentlyContinue'
+`$unicodeCharMode = $unicodeCharModeLiteral
+`$specificChar = $specificCharLiteral
+`$maxFrames = $MaxFrames
+`$randomCharacterPool = @(
+    '█', '▓', '▒', '░', '■', '◆',
+    '◈', '●', '◼', '▪', '▫', '▣'
+)
+
+function Get-ConsoleNoiseViewport {
+    `$width = 80
+    `$height = 24
+
+    try {
+        `$width = [Console]::WindowWidth
+        `$height = [Console]::WindowHeight
+    }
+    catch {
+    }
+
+    if (`$width -lt 1) {
+        `$width = 1
+    }
+
+    if (`$height -lt 2) {
+        `$height = 2
+    }
+
+    return [pscustomobject]@{
+        Width  = `$width
+        Height = [Math]::Max(1, (`$height - 1))
+    }
+}
+
+function Get-ConsoleNoiseWaveValue {
+    param(
+        [Parameter(Mandatory)]
+        [double]`$Phase
+    )
+
+    return (([Math]::Sin(`$Phase) + 1.0) / 2.0)
+}
+
+function New-ConsoleNoiseRow {
+    param(
+        [Parameter(Mandatory)]
+        [int]`$Width,
+
+        [Parameter(Mandatory)]
+        [int]`$RowIndex,
+
+        [Parameter(Mandatory)]
+        [int]`$Seed
+    )
+
+    if (`$unicodeCharMode -eq 'Specific') {
+        return (`$specificChar * `$Width)
+    }
+
+    `$builder = [System.Text.StringBuilder]::new(`$Width)
+    `$poolCount = `$randomCharacterPool.Count
+    `$waveOffset = [int][Math]::Round((Get-ConsoleNoiseWaveValue -Phase ((`$Seed * 0.03) + (`$RowIndex * 0.35))) * (`$poolCount - 1))
+    `$driftOffset = [int][Math]::Floor((`$Seed * 0.11) + (`$RowIndex * 1.4))
+    `$rowOffset = (`$waveOffset + `$driftOffset) % `$poolCount
+
+    for (`$columnIndex = 0; `$columnIndex -lt `$Width; `$columnIndex++) {
+        `$poolIndex = (`$columnIndex + `$rowOffset) % `$poolCount
+        `$null = `$builder.Append(`$randomCharacterPool[`$poolIndex])
+    }
+
+    return `$builder.ToString()
+}
+
+function New-ConsoleNoiseFrame {
+    param(
+        [Parameter(Mandatory)]
+        [int]`$Seed
+    )
+
+    `$viewport = Get-ConsoleNoiseViewport
+    `$estimatedCapacity = [Math]::Max(128, ((`$viewport.Width + 2) * `$viewport.Height))
+    `$builder = [System.Text.StringBuilder]::new(`$estimatedCapacity)
+
+    for (`$rowIndex = 0; `$rowIndex -lt `$viewport.Height; `$rowIndex++) {
+        `$null = `$builder.Append((New-ConsoleNoiseRow -Width `$viewport.Width -RowIndex `$rowIndex -Seed `$Seed))
+
+        if (`$rowIndex -lt (`$viewport.Height - 1)) {
+            `$null = `$builder.Append("`r`n")
+        }
+    }
+
+    [Console]::SetCursorPosition(0, 0)
+    [Console]::Write(`$builder.ToString())
+    [Console]::Out.Flush()
+
+    return `$viewport
+}
+
+function Test-ConsoleNoiseExitRequested {
+    try {
+        if ([Console]::KeyAvailable) {
+            `$key = [Console]::ReadKey(`$true)
+
+            if (`$null -ne `$key) {
+                if (`$key.Key -eq [System.ConsoleKey]::Q) {
+                    return `$true
+                }
+
+                if (((`$key.Modifiers -band [System.ConsoleModifiers]::Control) -ne 0) -and `$key.Key -eq [System.ConsoleKey]::C) {
+                    return `$true
+                }
+            }
+        }
+    }
+    catch {
+    }
+
+    return `$false
+}
+
+`$originalCursorVisibleCaptured = `$false
+`$originalTreatControlCAsInputCaptured = `$false
+
+try {
+    try {
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    }
+    catch {
+    }
+
+    try {
+        `$originalCursorVisible = [Console]::CursorVisible
+        `$originalCursorVisibleCaptured = `$true
+        [Console]::CursorVisible = `$false
+    }
+    catch {
+    }
+
+    try {
+        `$originalTreatControlCAsInput = [Console]::TreatControlCAsInput
+        `$originalTreatControlCAsInputCaptured = `$true
+        [Console]::TreatControlCAsInput = `$true
+    }
+    catch {
+    }
+
+    try {
+        [Console]::Clear()
+    }
+    catch {
+    }
+
+    `$frameSeed = [int](Get-Random -Minimum 0 -Maximum 4096)
+    `$viewport = New-ConsoleNoiseFrame -Seed `$frameSeed
+    `$startedAt = [DateTime]::UtcNow
+    `$maxDurationMs = if (`$maxFrames -gt 0) {
+        [int][Math]::Round((1000.0 / 30.0) * `$maxFrames)
+    }
+    else {
+        0
+    }
+
+    while (`$true) {
+        if (`$maxDurationMs -gt 0 -and (([DateTime]::UtcNow - `$startedAt).TotalMilliseconds -ge `$maxDurationMs)) {
+            break
+        }
+
+        if (Test-ConsoleNoiseExitRequested) {
+            break
+        }
+
+        `$latestViewport = Get-ConsoleNoiseViewport
+        if (`$latestViewport.Width -ne `$viewport.Width -or `$latestViewport.Height -ne `$viewport.Height) {
+            try {
+                [Console]::Clear()
+            }
+            catch {
+            }
+
+            `$viewport = New-ConsoleNoiseFrame -Seed `$frameSeed
+        }
+
+        Start-Sleep -Milliseconds 120
+    }
+}
+finally {
+    if (`$originalCursorVisibleCaptured) {
+        try {
+            [Console]::CursorVisible = `$originalCursorVisible
+        }
+        catch {
+        }
+    }
+
+    if (`$originalTreatControlCAsInputCaptured) {
+        try {
+            [Console]::TreatControlCAsInput = `$originalTreatControlCAsInput
+        }
+        catch {
+        }
+    }
+}
+"@
+
+    $scriptPath = Join-Path -Path $FragmentRoot -ChildPath 'Invoke-ConsoleNoise.GpuLauncher.ps1'
+    [System.IO.File]::WriteAllText($scriptPath, $launcherScriptContent, [System.Text.UTF8Encoding]::new($false))
+    return $scriptPath
+}
+
+function Get-ConsoleNoiseWindowsTerminalCommandLine {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LauncherScriptPath
+    )
+
+    $shellExecutable = Get-ConsoleNoiseShellExecutable
+    $escapedShellExecutable = $shellExecutable.Replace('"', '""')
+    $escapedLauncherScriptPath = $LauncherScriptPath.Replace('"', '""')
+
+    return ('"{0}" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{1}"' -f $escapedShellExecutable, $escapedLauncherScriptPath)
+}
+
+function Get-ConsoleNoiseShellExecutable {
+    [CmdletBinding()]
+    param()
+
+    $shellExecutable = $null
+    try {
+        $shellExecutable = (Get-Process -Id $PID -ErrorAction Stop).Path
+    }
+    catch {
+    }
+
+    if ([string]::IsNullOrWhiteSpace($shellExecutable)) {
+        $shellExecutable = if ($PSVersionTable.PSEdition -eq 'Core') {
+            Join-Path -Path $PSHOME -ChildPath 'pwsh.exe'
+        }
+        else {
+            Join-Path -Path $PSHOME -ChildPath 'powershell.exe'
+        }
+    }
+
+    return $shellExecutable
+}
+
+function ConvertTo-ConsoleNoisePowerShellSingleQuotedLiteral {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return "''"
+    }
+
+    return "'$($Value.Replace("'", "''"))'"
 }
 
 function Resolve-ConsoleNoiseWindowsTerminalShaderSourcePath {
@@ -311,75 +624,6 @@ function Get-ConsoleNoiseWindowsTerminalFragmentRoot {
     return (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Microsoft\Windows Terminal\Fragments\InvokeConsoleNoise')
 }
 
-function Get-ConsoleNoiseWindowsTerminalSettingsPath {
-    [CmdletBinding()]
-    param()
-
-    $patterns = @(
-        (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Packages\Microsoft.WindowsTerminal*\LocalState\settings.json'),
-        (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Microsoft\Windows Terminal\settings.json')
-    )
-
-    $paths = foreach ($pattern in $patterns) {
-        Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty FullName
-    }
-
-    return ($paths | Sort-Object -Unique)
-}
-
-function Remove-ConsoleNoiseLegacyWindowsTerminalSettings {
-    [CmdletBinding()]
-    param()
-
-    $legacyShaderPath = 'C:\temp\CalmAurora.hlsl'
-    $cleanedPaths = [System.Collections.Generic.List[string]]::new()
-
-    foreach ($settingsPath in (Get-ConsoleNoiseWindowsTerminalSettingsPath)) {
-        try {
-            $rawJson = Get-Content -LiteralPath $settingsPath -Raw -ErrorAction Stop
-            $settings = $rawJson | ConvertFrom-Json -ErrorAction Stop
-        }
-        catch {
-            continue
-        }
-
-        if (-not ($settings.PSObject.Properties.Name -contains 'profiles')) {
-            continue
-        }
-
-        if (-not ($settings.profiles.PSObject.Properties.Name -contains 'defaults')) {
-            continue
-        }
-
-        $defaults = $settings.profiles.defaults
-        if (-not $defaults) {
-            continue
-        }
-
-        $pixelShaderProperty = $defaults.PSObject.Properties['experimental.pixelShaderPath']
-        if ($null -eq $pixelShaderProperty) {
-            continue
-        }
-
-        if ([string]$pixelShaderProperty.Value -ne $legacyShaderPath) {
-            continue
-        }
-
-        $defaults.PSObject.Properties.Remove('experimental.pixelShaderPath') | Out-Null
-        $retroProperty = $defaults.PSObject.Properties['experimental.retroTerminalEffect']
-        if ($null -ne $retroProperty -and $retroProperty.Value -eq $false) {
-            $defaults.PSObject.Properties.Remove('experimental.retroTerminalEffect') | Out-Null
-        }
-
-        $json = $settings | ConvertTo-Json -Depth 100
-        [System.IO.File]::WriteAllText($settingsPath, $json, [System.Text.UTF8Encoding]::new($false))
-        $cleanedPaths.Add($settingsPath)
-    }
-
-    return $cleanedPaths
-}
-
 function Export-ConsoleNoiseWindowsTerminalFragmentProfile {
     [CmdletBinding()]
     param(
@@ -390,27 +634,14 @@ function Export-ConsoleNoiseWindowsTerminalFragmentProfile {
         [string]$ProfileName,
 
         [Parameter(Mandatory)]
-        [string]$ShaderPath
+        [string]$ShaderPath,
+
+        [Parameter(Mandatory)]
+        [string]$CommandLine
     )
 
     if (-not (Test-Path -Path $FragmentRoot)) {
         New-Item -Path $FragmentRoot -ItemType Directory -Force | Out-Null
-    }
-
-    $shellExecutable = $null
-    try {
-        $shellExecutable = (Get-Process -Id $PID -ErrorAction Stop).Path
-    }
-    catch {
-    }
-
-    if ([string]::IsNullOrWhiteSpace($shellExecutable)) {
-        $shellExecutable = if ($PSVersionTable.PSEdition -eq 'Core') {
-            Join-Path -Path $PSHOME -ChildPath 'pwsh.exe'
-        }
-        else {
-            Join-Path -Path $PSHOME -ChildPath 'powershell.exe'
-        }
     }
 
     $fragmentObject = [ordered]@{
@@ -418,7 +649,7 @@ function Export-ConsoleNoiseWindowsTerminalFragmentProfile {
             [ordered]@{
                 guid                               = '{ab3d0e87-0b8c-4e41-9f45-1d4d2a07fa42}'
                 name                               = $ProfileName
-                commandline                        = $shellExecutable
+                commandline                        = $CommandLine
                 startingDirectory                  = (Get-Location).Path
                 suppressApplicationTitle           = $true
                 tabTitle                           = $ProfileName

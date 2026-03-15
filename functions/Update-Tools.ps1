@@ -448,7 +448,7 @@ function Update-Tools {
     $menuItem12 = [MenuItem]::new('UpdateDotNetSDK', { Update-DotNetSDK })
     $menuItem13 = [MenuItem]::new('UpdateVcRedist', { Update-VcRedist })
     $menuItem14 = [MenuItem]::new('Invoke Tron', { Invoke-Tron -Elevate -Wait })
-    $menuItem15 = [MenuItem]::new('Exit', { return })
+    $menuItem15 = [MenuItem]::new('Exit', { exit })
 
     # Filter menu items based on IncludeTools/ExcludeTools if specified
     $allMenuItems = @(

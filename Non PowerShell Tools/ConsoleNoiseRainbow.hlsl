@@ -1,5 +1,5 @@
 // ConsoleNoiseRainbow.hlsl
-// Slow, calming rainbow bands for Windows Terminal.
+// GPU version of the row-based rainbow gradient used by Invoke-ConsoleNoise.
 
 Texture2D shaderTexture;
 SamplerState samplerState;
@@ -11,31 +11,75 @@ cbuffer PixelShaderSettings {
     float4 Background;
 };
 
-float3 HueToRgb(float hue)
+float Hue2Rgb(float p, float q, float t)
 {
-    float3 rgb = abs(frac(hue + float3(0.0, 0.6666667, 0.3333333)) * 6.0 - 3.0) - 1.0;
-    return saturate(rgb);
+    if (t < 0.0) {
+        t += 1.0;
+    }
+
+    if (t > 1.0) {
+        t -= 1.0;
+    }
+
+    if (t < (1.0 / 6.0)) {
+        return p + ((q - p) * 6.0 * t);
+    }
+
+    if (t < 0.5) {
+        return q;
+    }
+
+    if (t < (2.0 / 3.0)) {
+        return p + ((q - p) * (((2.0 / 3.0) - t) * 6.0));
+    }
+
+    return p;
+}
+
+float3 HslToRgb(float hue, float saturation, float lightness)
+{
+    hue = frac(hue);
+    saturation = saturate(saturation);
+    lightness = saturate(lightness);
+
+    if (saturation <= 0.0001) {
+        return float3(lightness, lightness, lightness);
+    }
+
+    float q = (lightness < 0.5)
+        ? lightness * (1.0 + saturation)
+        : lightness + saturation - (lightness * saturation);
+    float p = (2.0 * lightness) - q;
+
+    return float3(
+        Hue2Rgb(p, q, hue + (1.0 / 3.0)),
+        Hue2Rgb(p, q, hue),
+        Hue2Rgb(p, q, hue - (1.0 / 3.0))
+    );
+}
+
+float EstimateRowIndex(float2 tex)
+{
+    float scaleFactor = max(1.0, Scale);
+    float estimatedRowCount = max(1.0, floor(Resolution.y / (18.0 * scaleFactor)));
+    return tex.y * max(0.0, estimatedRowCount - 1.0);
+}
+
+float3 ComposeConsoleNoise(float3 glyphColor, float mask)
+{
+    float3 backgroundColor = glyphColor * 0.10;
+    return lerp(backgroundColor, glyphColor, mask);
 }
 
 float4 main(float4 pos : SV_POSITION, float2 tex : TEXCOORD) : SV_TARGET
 {
     float4 sample = shaderTexture.Sample(samplerState, tex);
-    float4 shadowSample = shaderTexture.Sample(samplerState, tex + 2.0 * Scale * float2(-1.0, -1.0) / Resolution.y);
+    float frameNumber = Time * 30.0;
+    float rowIndex = EstimateRowIndex(tex);
+    float hue = frac((frameNumber * 0.00045) + (rowIndex * 0.0075));
+    float3 glyphColor = HslToRgb(hue, 0.84, 0.56);
+    float mask = saturate(sample.w);
+    float3 finalColor = ComposeConsoleNoise(glyphColor, mask);
 
-    float2 uv = tex * 2.0 - 1.0;
-    uv.x *= Resolution.x / Resolution.y;
-
-    float hue = frac(0.62 + tex.y * 0.58 + 0.035 * sin(uv.x * 1.4 + Time * 0.05) + Time * 0.010);
-    float glow = 0.55 + 0.45 * pow(saturate(1.0 - abs(uv.y) * 0.8), 1.4);
-    float ripple = 0.90 + 0.10 * sin((uv.x * 1.8) + (uv.y * 0.8) + Time * 0.08);
-
-    float3 baseColor = float3(0.020, 0.028, 0.055);
-    float3 rainbow = HueToRgb(hue);
-    float3 backgroundColor = baseColor + rainbow * glow * ripple * 0.42;
-
-    float shadow = saturate(shadowSample.w * 0.65);
-    backgroundColor = lerp(backgroundColor, backgroundColor * 0.58, shadow);
-
-    float3 finalColor = lerp(backgroundColor, sample.xyz, sample.w);
     return float4(saturate(finalColor), 1.0);
 }

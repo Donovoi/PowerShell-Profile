@@ -1,6 +1,5 @@
 // CalmAurora.hlsl
-// A calming aurora-style Windows Terminal pixel shader.
-// Designed for slow, soothing motion and good terminal text readability.
+// GPU version of the custom aurora-like gradient used by Invoke-ConsoleNoise.
 
 Texture2D<float4> shaderTexture : register(t0);
 SamplerState samplerState : register(s0);
@@ -12,107 +11,83 @@ cbuffer PixelShaderSettings {
   float4 Background;
 };
 
-#define TAU 6.28318530718
-
-float Hash21(float2 p) {
-  p = frac(p * float2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return frac(p.x * p.y);
-}
-
-float Noise(float2 p) {
-  float2 i = floor(p);
-  float2 f = frac(p);
-  f = f * f * (3.0 - 2.0 * f);
-
-  float a = Hash21(i);
-  float b = Hash21(i + float2(1.0, 0.0));
-  float c = Hash21(i + float2(0.0, 1.0));
-  float d = Hash21(i + float2(1.0, 1.0));
-
-  return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
-}
-
-float Fbm(float2 p) {
-  float value = 0.0;
-  float amplitude = 0.5;
-
-  [unroll] for (int i = 0; i < 5; i++) {
-    value += amplitude * Noise(p);
-    p = float2(0.80 * p.x - 0.60 * p.y, 0.60 * p.x + 0.80 * p.y) * 2.03 +
-        float2(13.4, 7.9);
-    amplitude *= 0.5;
+float Hue2Rgb(float p, float q, float t) {
+  if (t < 0.0) {
+    t += 1.0;
   }
 
-  return value;
+  if (t > 1.0) {
+    t -= 1.0;
+  }
+
+  if (t < (1.0 / 6.0)) {
+    return p + ((q - p) * 6.0 * t);
+  }
+
+  if (t < 0.5) {
+    return q;
+  }
+
+  if (t < (2.0 / 3.0)) {
+    return p + ((q - p) * (((2.0 / 3.0) - t) * 6.0));
+  }
+
+  return p;
 }
 
-float3 Palette(float t) {
-  float3 deepNight = float3(0.018, 0.030, 0.060);
-  float3 blueMist = float3(0.055, 0.110, 0.190);
-  float3 tealGlow = float3(0.110, 0.340, 0.360);
-  float3 violetHue = float3(0.240, 0.220, 0.430);
+float3 HslToRgb(float hue, float saturation, float lightness) {
+  hue = frac(hue);
+  saturation = saturate(saturation);
+  lightness = saturate(lightness);
 
-  float blendA = smoothstep(0.00, 0.45, t);
-  float blendB = smoothstep(0.30, 0.80, t);
-  float blendC = smoothstep(0.60, 1.00, t);
+  if (saturation <= 0.0001) {
+    return float3(lightness, lightness, lightness);
+  }
 
-  float3 color = lerp(deepNight, blueMist, blendA);
-  color = lerp(color, tealGlow, blendB * 0.80);
-  color = lerp(color, violetHue, blendC * 0.45);
+  float q = (lightness < 0.5)
+      ? lightness * (1.0 + saturation)
+      : lightness + saturation - (lightness * saturation);
+  float p = (2.0 * lightness) - q;
 
-  return color;
+  return float3(
+      Hue2Rgb(p, q, hue + (1.0 / 3.0)),
+      Hue2Rgb(p, q, hue),
+      Hue2Rgb(p, q, hue - (1.0 / 3.0)));
 }
 
-float3 RenderAurora(float2 uv, float time) {
-  float2 p = uv;
-  p.x *= Resolution.x / Resolution.y;
+float WaveValue(float phase) {
+  return (sin(phase) + 1.0) * 0.5;
+}
 
-  float slowTime = time * 0.035;
-  float fieldA = Fbm(p * 1.05 + float2(slowTime * 0.65, -slowTime * 0.22));
-  float fieldB = Fbm(p * 1.65 - float2(slowTime * 0.35, slowTime * 0.16));
+float EstimateRowIndex(float2 tex) {
+  float scaleFactor = max(1.0, Scale);
+  float estimatedRowCount = max(1.0, floor(Resolution.y / (18.0 * scaleFactor)));
+  return tex.y * max(0.0, estimatedRowCount - 1.0);
+}
 
-  float ribbonA = sin(p.x * 1.7 + fieldA * 2.7 + slowTime * 0.55);
-  float ribbonB = sin(p.x * 1.0 - fieldB * 3.4 - slowTime * 0.38 + 1.4);
-  float ribbonC = sin(p.x * 0.7 + fieldA * 4.1 + slowTime * 0.27 + 3.0);
-
-  float veil = ribbonA * 0.50 + ribbonB * 0.32 + ribbonC * 0.18;
-  veil = smoothstep(-0.45, 0.90, veil - p.y * 1.15);
-
-  float shimmer = 0.55 + 0.45 * Fbm(p * 2.0 + float2(0.0, slowTime * 0.08));
-  float intensity = saturate(veil * shimmer);
-
-  return Palette(intensity) * intensity;
+float3 ComposeConsoleNoise(float3 glyphColor, float mask) {
+  float3 backgroundColor = glyphColor * 0.10;
+  return lerp(backgroundColor, glyphColor, mask);
 }
 
 float4 main(float4 pos : SV_POSITION, float2 tex : TEXCOORD) : SV_TARGET {
   float4 sample = shaderTexture.Sample(samplerState, tex);
+  float frameNumber = Time * 30.0;
+  float rowIndex = EstimateRowIndex(tex);
+  float rowPhase = (frameNumber * 0.045) + (rowIndex * 0.06);
+  float hue = 0.56 + (sin(rowPhase * 1.7) * 0.12);
 
-  float2 uv = tex * 2.0 - 1.0;
-  uv.y *= 0.9;
+  if (hue < 0.0) {
+    hue += 1.0;
+  } else if (hue >= 1.0) {
+    hue -= 1.0;
+  }
 
-  float slowTime = Time * 0.04;
-  float baseNoise = Fbm(uv * 0.75 + float2(0.0, slowTime * 0.12));
-  float horizon = smoothstep(-1.0, 0.35, 1.0 - tex.y);
-
-  float3 backgroundA = float3(0.010, 0.018, 0.035);
-  float3 backgroundB = float3(0.026, 0.055, 0.095);
-  float3 backgroundColor =
-      lerp(backgroundA, backgroundB, horizon * (0.35 + 0.65 * baseNoise));
-
-  float3 auroraColor = RenderAurora(uv, Time);
-
-  float vignette =
-      1.0 - smoothstep(0.45, 1.35, length(float2(uv.x * 0.85, uv.y * 1.10)));
-  vignette = 0.45 + 0.55 * vignette;
-
-  float4 shadowSample = shaderTexture.Sample(
-      samplerState, tex + 2.0 * Scale * float2(-1.0, -1.0) / Resolution.y);
-  float shadow = saturate(shadowSample.w * 0.65);
-
-  float3 finalColor = (backgroundColor + auroraColor) * vignette;
-  finalColor = lerp(finalColor, finalColor * 0.58, shadow);
-  finalColor = lerp(finalColor, sample.xyz, sample.w);
+  float saturation = 0.74 + (WaveValue(rowPhase * 0.8) * 0.16);
+  float lightness = 0.38 + (WaveValue((rowPhase * 2.1) + 0.7) * 0.18);
+  float3 glyphColor = HslToRgb(hue, saturation, lightness);
+  float mask = saturate(sample.w);
+  float3 finalColor = ComposeConsoleNoise(glyphColor, mask);
 
   return float4(saturate(finalColor), 1.0);
 }

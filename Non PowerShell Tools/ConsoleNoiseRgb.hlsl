@@ -1,5 +1,5 @@
 // ConsoleNoiseRgb.hlsl
-// Smooth RGB wave background for Windows Terminal.
+// GPU version of the RGB wave used by Invoke-ConsoleNoise.
 
 Texture2D shaderTexture;
 SamplerState samplerState;
@@ -13,26 +13,33 @@ cbuffer PixelShaderSettings {
 
 #define TAU 6.28318530718
 
+float EstimateRowIndex(float2 tex)
+{
+    float scaleFactor = max(1.0, Scale);
+    float estimatedRowCount = max(1.0, floor(Resolution.y / (18.0 * scaleFactor)));
+    return tex.y * max(0.0, estimatedRowCount - 1.0);
+}
+
+float3 ComposeConsoleNoise(float3 glyphColor, float mask)
+{
+    float3 backgroundColor = glyphColor * 0.10;
+    return lerp(backgroundColor, glyphColor, mask);
+}
+
 float4 main(float4 pos : SV_POSITION, float2 tex : TEXCOORD) : SV_TARGET
 {
     float4 sample = shaderTexture.Sample(samplerState, tex);
-    float4 shadowSample = shaderTexture.Sample(samplerState, tex + 2.0 * Scale * float2(-1.0, -1.0) / Resolution.y);
+    float frameNumber = Time * 30.0;
+    float rowIndex = EstimateRowIndex(tex);
+    float phase = (frameNumber * 0.0016) + (rowIndex * 0.045);
 
-    float2 uv = tex * 2.0 - 1.0;
-    uv.x *= Resolution.x / Resolution.y;
+    float red = (160.0 + (70.0 * sin(phase))) / 255.0;
+    float green = (160.0 + (70.0 * sin(phase + (TAU / 3.0)))) / 255.0;
+    float blue = (160.0 + (70.0 * sin(phase + ((2.0 * TAU) / 3.0)))) / 255.0;
 
-    float phase = Time * 0.060 + uv.y * 1.20 + uv.x * 0.18;
-    float wave = 0.65 + 0.35 * (0.5 + 0.5 * cos(uv.x * 1.3 - Time * 0.040));
+    float3 glyphColor = float3(red, green, blue);
+    float mask = saturate(sample.w);
+    float3 finalColor = ComposeConsoleNoise(glyphColor, mask);
 
-    float red = 0.10 + 0.30 * (0.5 + 0.5 * sin(phase));
-    float green = 0.10 + 0.30 * (0.5 + 0.5 * sin(phase + TAU / 3.0));
-    float blue = 0.14 + 0.34 * (0.5 + 0.5 * sin(phase + (2.0 * TAU) / 3.0));
-
-    float3 backgroundColor = float3(red, green, blue) * wave + float3(0.016, 0.018, 0.028);
-
-    float shadow = saturate(shadowSample.w * 0.65);
-    backgroundColor = lerp(backgroundColor, backgroundColor * 0.58, shadow);
-
-    float3 finalColor = lerp(backgroundColor, sample.xyz, sample.w);
     return float4(saturate(finalColor), 1.0);
 }
