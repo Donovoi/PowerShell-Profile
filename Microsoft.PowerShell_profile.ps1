@@ -20,14 +20,31 @@ $ErrorActionPreference = 'continue'
 $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
 
 
-# Define the profile path
-$powerShell7ProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+# Define the profile path, preferring the current profile root when it contains the repo content.
+$documentsPowerShellProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
+$profileRootCandidates = @(
+  $PSScriptRoot
+  $documentsPowerShellProfilePath
+) | Where-Object {
+  -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -Path $_)
+} | Select-Object -Unique
+
+$powerShell7ProfilePath = $profileRootCandidates |
+  Where-Object {
+    (Test-Path -Path (Join-Path -Path $_ -ChildPath 'functions')) -or
+    (Test-Path -Path (Join-Path -Path $_ -ChildPath 'Modules'))
+  } |
+    Select-Object -First 1
+
+if (-not $powerShell7ProfilePath) {
+  $powerShell7ProfilePath = $documentsPowerShellProfilePath
+}
 
 # Import all of my functions
-$FunctionsFolder = Get-ChildItem -Path "$powerShell7ProfilePath/functions/*.ps*" -Recurse
+$FunctionsFolder = Get-ChildItem -Path (Join-Path -Path $powerShell7ProfilePath -ChildPath 'functions\*.ps*') -Recurse
 $FunctionsFolder.ForEach{ .$_.FullName }
 # Import all of my modules
-$ModulesFolder = Get-ChildItem -Path "$powerShell7ProfilePath/modules/*.psd1" -Recurse
+$ModulesFolder = Get-ChildItem -Path (Join-Path -Path $powerShell7ProfilePath -ChildPath 'Modules\*.psd1') -Recurse
 $ModulesFolder.ForEach{ Import-Module -Name $_.FullName -Force -ErrorAction SilentlyContinue }
 
 
