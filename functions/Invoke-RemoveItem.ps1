@@ -1,32 +1,5 @@
-<#
-.SYNOPSIS
-    Removes files or directories with retry and optional ownership repair.
-
-.DESCRIPTION
-    Safely wraps Remove-Item for profile maintenance. The command never tests
-    removability by deleting the target. It first tries Remove-Item, then optionally
-    takes ownership and grants the current user full control before retrying.
-
-.PARAMETER Path
-    One or more paths to remove. Accepts pipeline input.
-
-.PARAMETER RetryCount
-    Number of delete attempts per path. Defaults to 3.
-
-.PARAMETER RetryDelayMilliseconds
-    Delay between retry attempts. Defaults to 300 milliseconds.
-
-.PARAMETER TakeOwnership
-    Uses takeown.exe and icacls.exe before retrying a failed delete.
-
-.EXAMPLE
-    Invoke-RemoveItem -Path 'C:\Temp\OldFolder' -Recurse -Force
-
-.EXAMPLE
-    Invoke-RemoveItem -Path 'C:\Temp\OldFolder' -Recurse -Force -TakeOwnership -Verbose
-#>
 function Invoke-RemoveItem {
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, Position = 0)]
         [Alias('FullName', 'LiteralPath')]
@@ -59,13 +32,10 @@ function Invoke-RemoveItem {
             }
 
             $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($itemPath)
-            if (-not $PSCmdlet.ShouldProcess($resolvedPath, 'Remove item')) {
-                continue
-            }
-
             $removeParameters = @{
                 LiteralPath = $resolvedPath
                 ErrorAction = 'Stop'
+                Confirm     = $false
             }
             if ($Recurse) {
                 $removeParameters.Recurse = $true 
@@ -81,21 +51,11 @@ function Invoke-RemoveItem {
                     break
                 }
                 catch {
-                    $isLastAttempt = $attempt -eq $RetryCount
-
                     if ($TakeOwnership -and $attempt -eq 1) {
-                        $ownershipParameters = @{
-                            Path        = $resolvedPath
-                            Recurse     = $Recurse
-                            ErrorAction = 'Stop'
-                        }
-                        if ($VerbosePreference -ne 'SilentlyContinue') {
-                            $ownershipParameters.Verbose = $true
-                        }
-                        Set-Removable @ownershipParameters
+                        Set-Removable -Path $resolvedPath -Recurse:$Recurse -ErrorAction Stop
                     }
 
-                    if ($isLastAttempt) {
+                    if ($attempt -eq $RetryCount) {
                         throw "Failed to remove '$resolvedPath' after $RetryCount attempt(s): $($_.Exception.Message)"
                     }
 
@@ -107,7 +67,7 @@ function Invoke-RemoveItem {
 }
 
 function Set-Removable {
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
@@ -122,10 +82,6 @@ function Set-Removable {
     }
 
     $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-    if (-not $PSCmdlet.ShouldProcess($resolvedPath, 'Take ownership and grant full control')) {
-        return
-    }
-
     $takeownArgs = @('/f', $resolvedPath)
     $icaclsArgs = @($resolvedPath, '/grant', "${env:USERNAME}:(F)")
 
@@ -134,14 +90,12 @@ function Set-Removable {
         $icaclsArgs += @('/t', '/c')
     }
 
-    $takeownOutput = & takeown.exe @takeownArgs 2>&1
-    $takeownOutput | ForEach-Object { Write-Verbose -Message $_ }
+    & takeown.exe @takeownArgs 2>&1 | ForEach-Object { Write-Verbose -Message $_ }
     if ($LASTEXITCODE -ne 0) {
         throw "takeown.exe failed for '$resolvedPath' with exit code $LASTEXITCODE."
     }
 
-    $icaclsOutput = & icacls.exe @icaclsArgs 2>&1
-    $icaclsOutput | ForEach-Object { Write-Verbose -Message $_ }
+    & icacls.exe @icaclsArgs 2>&1 | ForEach-Object { Write-Verbose -Message $_ }
     if ($LASTEXITCODE -ne 0) {
         throw "icacls.exe failed for '$resolvedPath' with exit code $LASTEXITCODE."
     }
@@ -175,7 +129,10 @@ function Test-IsRemovable {
             $access.IdentityReference.Value -eq $identity.Name -or
             $principal.IsInRole($access.IdentityReference.Value)
 
-            if ($ruleApplies -and (($access.FileSystemRights -band [Security.AccessControl.FileSystemRights]::Delete) -or ($access.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl))) {
+            $hasDeleteRight = ($access.FileSystemRights -band [Security.AccessControl.FileSystemRights]::Delete) -eq [Security.AccessControl.FileSystemRights]::Delete
+            $hasFullControl = ($access.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -eq [Security.AccessControl.FileSystemRights]::FullControl
+
+            if ($ruleApplies -and ($hasDeleteRight -or $hasFullControl)) {
                 return $true
             }
         }
