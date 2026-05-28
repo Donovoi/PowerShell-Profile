@@ -1,322 +1,342 @@
 <#
 .SYNOPSIS
-    Download the extra resources needed for xways forensics at the moment this is just Excire, Conditional Colouring, and All Templates
+    Downloads and installs supplemental X-Ways Forensics resources.
+
+.DESCRIPTION
+    Downloads selected X-Ways resource files into an X-Ways installation folder.
+    The default resources are Excire, Conditional Coloring, and the AFF4 X-Tension.
+
+    Optionally downloads WinHex/X-Ways templates from known public template sources
+    into a scripts and templates folder.
+
+    Credentials can be supplied with -Credential or stored locally with Export-Clixml.
+    Stored credentials are protected by Windows DPAPI and are only decryptable by the
+    same Windows user on the same machine.
+
 .PARAMETER XWaysRoot
-    This should be set as your X-Ways Root Folder
+    The root folder of the X-Ways installation, such as F:\xwfportable.
+
 .PARAMETER XWScriptsAndTemplatesFolder
-    This is an optional parameter to set the scripts and templates folder. If left empty is will be "$XWaysRoot\..\XWScriptsAndTemplates"
+    Optional destination folder for downloaded templates. If omitted, the command uses
+    ..\XWScriptsAndTemplates relative to XWaysRoot.
+
+.PARAMETER Credential
+    Optional PSCredential object for X-Ways authenticated resource downloads. If omitted,
+    the command imports the stored credential or prompts for one and stores it locally.
+
+.PARAMETER CredentialPath
+    Optional path to the stored credential XML file. This is a file path, not the
+    credential value itself. Defaults to:
+    Documents\XWAYSRESOURCESCREDENTIALFILES\Get-XwaysResources.credential.xml
+
 .PARAMETER ResetCredentials
-    This is a switch parameter, use this if you need to change the X-Ways credentials
+    Removes the stored credential before prompting for a new one.
+
 .PARAMETER GetTemplates
-    Use this if you would like to get all Templates that I could find on the internet.
+    Downloads additional WinHex/X-Ways templates into XWScriptsAndTemplatesFolder.
+
 .EXAMPLE
-    Get-XwaysResources -XWaysRoot "C:\XwaysResources"
+    Get-XwaysResources -XWaysRoot 'F:\xwfportable'
+
+    Downloads the default X-Ways resource files into F:\xwfportable.
+
 .EXAMPLE
-    Get-XwaysResources -GetTemplates -XWaysRoot F:\xwfportable -ResetCredentials
+    Get-XwaysResources -XWaysRoot 'F:\xwfportable' -GetTemplates
+
+    Downloads the default resource files and additional templates.
+
+.EXAMPLE
+    Get-XwaysResources -XWaysRoot 'F:\xwfportable' -ResetCredentials
+
+    Removes the stored credential and prompts for a new X-Ways credential.
+
+.EXAMPLE
+    $credential = Get-Credential
+    Get-XwaysResources -XWaysRoot 'F:\xwfportable' -Credential $credential -GetTemplates
+
+    Uses an explicitly supplied credential instead of loading or saving one first.
+
+.EXAMPLE
+    Get-XwaysResources -XWaysRoot 'F:\xwfportable' -GetTemplates -WhatIf
+
+    Shows the download, extraction, folder creation, and cleanup actions that would run.
+
+.OUTPUTS
+    System.Management.Automation.PSCustomObject
+
 .NOTES
-Now depends on Invoke-AriaDownload and Get-FileDownload
+    Requires network access.
+
+    Uses Get-FileDownload when it is already available in the session; otherwise falls
+    back to Invoke-WebRequest.
 #>
 function Get-XwaysResources {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+  [OutputType([pscustomobject])]
   param(
-    [Parameter(Mandatory = $true)]
-    [string]
-    $XWaysRoot,
-    [Parameter()]
-    [string]
-    $XWScriptsAndTemplatesFolder = $(Resolve-Path -Path "$XWaysRoot\..\XWScriptsAndTemplates"),
-    [Parameter()]
-    [switch]
-    $ResetCredentials,
-    [Parameter()]
-    [switch]
-    $GetTemplates
+    [Parameter(Mandatory = $true, Position = 0)]
+    [ValidateNotNullOrEmpty()]
+    [string]$XWaysRoot,
 
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$XWScriptsAndTemplatesFolder,
+
+    [Parameter()]
+    [pscredential]$Credential,
+
+    [Parameter()]
+    [ValidateNotNull()]
+    [System.IO.FileInfo]$CredentialPath = (Join-Path -Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -ChildPath 'XWAYSRESOURCESCREDENTIALFILES\Get-XwaysResources.credential.xml'),
+
+    [Parameter()]
+    [switch]$ResetCredentials,
+
+    [Parameter()]
+    [switch]$GetTemplates
   )
+
+  function Resolve-XWaysProviderPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+  }
+
+  function Get-XWaysResourceCredential {
+    param(
+      [pscredential]$Credential,
+      [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    if ($Credential) {
+      return $Credential
+    }
+
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+      $storedCredential = Import-Clixml -LiteralPath $Path
+      if ($storedCredential -isnot [pscredential]) {
+        throw "Credential file '$Path' did not contain a PSCredential. Use -ResetCredentials and try again."
+      }
+
+      return $storedCredential
+    }
+
+    $parentPath = Split-Path -Path $Path -Parent
+    if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
+      New-Item -Path $parentPath -ItemType Directory -Force | Out-Null
+    }
+
+    $newCredential = Get-Credential -Message 'Enter your X-Ways credentials'
+    $newCredential | Export-Clixml -Path $Path -Force
+    return $newCredential
+  }
+
+  function New-XWaysBasicAuthHeader {
+    param([Parameter(Mandatory = $true)][pscredential]$Credential)
+
+    $networkCredential = $Credential.GetNetworkCredential()
+    $authenticationPair = '{0}:{1}' -f $networkCredential.UserName, $networkCredential.Password
+    $authenticationToken = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($authenticationPair))
+
+    @{
+      Authorization = "Basic $authenticationToken"
+      'User-Agent'  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36'
+      Referer       = 'https://x-ways.net/res/'
+    }
+  }
+
+  function Save-XWaysDownload {
+    param(
+      [Parameter(Mandatory = $true)][uri[]]$Uri,
+      [Parameter(Mandatory = $true)][string]$DestinationDirectory,
+      [hashtable]$Headers
+    )
+
+    $downloadCommand = Get-Command -Name Get-FileDownload -ErrorAction SilentlyContinue
+    if ($downloadCommand) {
+      $downloadParameters = @{
+        URL                  = @($Uri | ForEach-Object { $_.AbsoluteUri })
+        DestinationDirectory = $DestinationDirectory
+        UseAria2             = $true
+        NoRPCMode            = $true
+      }
+
+      if ($Headers) {
+        $downloadParameters.Headers = $Headers
+      }
+
+      Get-FileDownload @downloadParameters
+      return
+    }
+
+    foreach ($item in $Uri) {
+      $fileName = [uri]::UnescapeDataString([IO.Path]::GetFileName($item.LocalPath))
+      if ([string]::IsNullOrWhiteSpace($fileName)) {
+        throw "Could not determine a file name for '$item'."
+      }
+
+      $invokeParameters = @{
+        Uri         = $item
+        OutFile     = Join-Path -Path $DestinationDirectory -ChildPath $fileName
+        ErrorAction = 'Stop'
+      }
+
+      if ($Headers) {
+        $invokeParameters.Headers = $Headers
+      }
+
+      Invoke-WebRequest @invokeParameters
+    }
+  }
+
+  function Expand-XWaysArchive {
+    param(
+      [Parameter(Mandatory = $true)][string]$RootPath,
+      [Parameter(Mandatory = $true)][string]$ArchivePrefix,
+      [Parameter(Mandatory = $true)][string]$DestinationName
+    )
+
+    $destinationPath = Join-Path -Path $RootPath -ChildPath $DestinationName
+    if (-not (Test-Path -LiteralPath $destinationPath -PathType Container)) {
+      New-Item -Path $destinationPath -ItemType Directory -Force | Out-Null
+    }
+
+    $archives = Get-ChildItem -LiteralPath $RootPath -Filter "$ArchivePrefix*.zip" -File -ErrorAction SilentlyContinue
+    foreach ($archive in $archives) {
+      Expand-Archive -LiteralPath $archive.FullName -DestinationPath $destinationPath -Force
+      Remove-Item -LiteralPath $archive.FullName -Force
+    }
+  }
+
+  function Save-XWaysTemplateIndex {
+    param(
+      [Parameter(Mandatory = $true)][uri]$Uri,
+      [Parameter(Mandatory = $true)][string]$DestinationDirectory
+    )
+
+    $response = Invoke-WebRequest -Uri $Uri -ErrorAction Stop
+    $links = @($response.Links | Where-Object { $_.href -match '\.(tpl|zip)$' })
+
+    foreach ($link in $links) {
+      $downloadUri = [uri]::new($Uri, $link.href)
+      Save-XWaysDownload -Uri $downloadUri -DestinationDirectory $DestinationDirectory
+    }
+
+    return $links.Count
+  }
+
+  function Expand-XWaysTemplateArchives {
+    param([Parameter(Mandatory = $true)][string]$DestinationDirectory)
+
+    $archives = Get-ChildItem -LiteralPath $DestinationDirectory -Filter '*.zip' -File -ErrorAction SilentlyContinue
+    foreach ($archive in $archives) {
+      Expand-Archive -LiteralPath $archive.FullName -DestinationPath $DestinationDirectory -Force
+      Remove-Item -LiteralPath $archive.FullName -Force
+    }
+  }
+
+  $previousProgressPreference = $ProgressPreference
+  $ProgressPreference = 'SilentlyContinue'
+  $xWaysRootPath = $null
+
   try {
-    # For faster downloads
-    $ProgressPreference = 'SilentlyContinue'
+    $credentialFilePath = $CredentialPath.FullName
+    $xWaysRootPath = Resolve-XWaysProviderPath -Path $XWaysRoot
 
-    # Import the required cmdlets
-    $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
-    $neededcmdlets | ForEach-Object {
-      if (-not (Get-Command -Name $_ -ErrorAction SilentlyContinue)) {
-        if (-not (Get-Command -Name 'Install-Cmdlet' -ErrorAction SilentlyContinue)) {
-          $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Install-Cmdlet.ps1'
-          $finalstring = [scriptblock]::Create($method.ToString() + "`nExport-ModuleMember -Function * -Alias *")
-          New-Module -Name 'InstallCmdlet' -ScriptBlock $finalstring | Import-Module
-        }
-        Write-Verbose -Message "Importing cmdlet: $_"
-        $Cmdletstoinvoke = Install-Cmdlet -RepositoryCmdlets $_
-        $Cmdletstoinvoke | Import-Module -Force
-      }
+    if (-not (Test-Path -LiteralPath $xWaysRootPath -PathType Container)) {
+      throw "X-Ways root folder does not exist: $xWaysRootPath"
     }
 
-    # if $resetCredentials is set to true then we will delete the credential files
-    if ($ResetCredentials) {
-      Remove-Item -Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES" -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    # Check if we have $XWAYSUSB set as a variable if $XWaysRoot is set to $XWAYSUSB\xwfportable
-    if (-not (Resolve-Path -Path $XWaysRoot) -or (-not ({ [System.IO.Path]::IsPathRooted($XWaysRoot) }))) {
-      Write-Warning "$XWAYSUSB `$XWaysRoot is empty or not an absolute path."
-      $XWaysRoot = Out-Host -InputObject 'Please enter the Folder that is the root of your chosen X-Ways Installation'
-      Out-Host -InputObject "Your Chosen Folder is $($XWaysRoot)"
-    }
-
-    #region Credentials
-    #TODO Export the credential stuff to a function
-    # THE Following CREDENTIAL STUFF IS MOSTLY WORK FROM https://gist.github.com/davefunkel THANK YOU DAVE and from
-    # https://purple.telstra.com.au/blog/using-saved-credentials-securely-in-powershell-scripts Thank you purple Telstra
-    if (-not (Test-Path "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES")) {
-      # Root Folder
-      $rootFolder = "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES"
-
-      # Secure Credential File
-      $credentialFileDir = $rootFolder
-      $credentialFilePath = "$credentialFileDir\$scriptName-SecureStore.txt"
-
-      # Path to store AES File (if using AES mode for PrepareCredentials)
-      $AESKeyFileDir = $rootFolder
-      $AESKeyFilePath = "$AESKeyFileDir\$scriptName-AES.key"
-
-      $title = 'Prepare Credentials Encryption Method'
-      $message = 'Which mode do you wish to use?'
-
-      $DPAPI = New-Object System.Management.Automation.Host.ChoiceDescription '&DPAPI', `
-        'Use Windows Data Protection API.  This uses your current user context and machine to create the encryption key.'
-
-      $AES = New-Object System.Management.Automation.Host.ChoiceDescription '&AES', `
-        'Use a randomly generated SecureKey for AES.  This will generate an AES.key file that you need to protect as it contains the encryption key.'
-
-      $options = [System.Management.Automation.Host.ChoiceDescription[]]($DPAPI, $AES)
-
-      $choice = $host.ui.PromptForChoice($title, $message, $options, 0)
-
-      switch ($choice) {
-        0 {
-          $encryptMode = 'DPAPI'
-        }
-        1 {
-          $encryptMode = 'AES'
-        }
-      }
-      Out-Host -InputObject "Encryption mode $encryptMode was selected to prepare the credentials."
-
-      Out-Host -InputObject 'Collecting XWAYS Credentials to create a secure credential file...'
-      # Collect the credentials to be used.
-      Out-Host -InputObject 'Please enter your X-Ways Credentials'
-      $creds = Get-Credential
-
-      # Store the details in a hashed format
-      $userName = $creds.UserName
-      $passwordSecureString = $creds.Password
-
-      if ($encryptMode -eq 'DPAPI') {
-        $password = $passwordSecureString | ConvertFrom-SecureString
-      }
-      elseif ($encryptMode -eq 'AES') {
-        # Generate a random AES Encryption Key.
-        $AESKey = New-Object Byte[] 32
-        [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($AESKey)
-
-        # Store the AESKey into a file. This file should be protected!  (e.g. ACL on the file to allow only select people to read)
-
-        # Check if Credential File dir exists, if not, create it
-        if (!(Test-Path $AESKeyFileDir)) {
-          New-Item -Type Directory $AESKeyFileDir | Out-Null
-        }
-        Set-Content $AESKeyFilePath $AESKey # Any existing AES Key file will be overwritten
-        $password = $passwordSecureString | ConvertFrom-SecureString -Key $AESKey
-      }
-      else {
-        # Placeholder in case there are other EncryptModes
-      }
-
-
-      # Check if Credential File dir exists, if not, create it
-      if (!(Test-Path $credentialFileDir)) {
-        New-Item -Type Directory $credentialFileDir | Out-Null
-      }
-
-      # Contents in this file can only be read and decrypted if you have the encryption key
-      # If using DPAPI mode, then this can only be ready by the user that ran this script on the same machine
-      # If using AES mode, then the AES.key file contains the encryption key
-
-      Set-Content $credentialFilePath $userName # Any existing credential file will be overwritten
-      Add-Content $credentialFilePath $password
-
-      if ($encryptMode -eq 'AES') {
-        Write-Logg -Message 'IMPORTANT! Make sure you restrict read access, via ACLs, to the AES.Key file that has been generated to ensure stored credentials are secure.'
-      }
-      Write-Logg -Message 'Credentials collected and stored.'
+    if ($PSBoundParameters.ContainsKey('XWScriptsAndTemplatesFolder')) {
+      $templatesPath = Resolve-XWaysProviderPath -Path $XWScriptsAndTemplatesFolder
     }
     else {
-      # Root Folder
-      $rootFolder = "$ENV:USERPROFILE\Documents\XWAYSRESOURCESCREDENTIALFILES"
-
-      # Secure Credential File
-      $credentialFileDir = $rootFolder
-      $credentialFilePath = "$credentialFileDir\-SecureStore.txt"
-
-      # Path to store AES File (if using AES mode for PrepareCredentials)
-      $AESKeyFileDir = $rootFolder
-      $AESKeyFilePath = "$AESKeyFileDir\-AES.key"
+      $templatesPath = [IO.Path]::GetFullPath((Join-Path -Path $xWaysRootPath -ChildPath '..\XWScriptsAndTemplates'))
     }
 
-    # Check to see if we have an AES Key file.  If so, then we will use it to decrypt the secure credential file
-    if (Test-Path $AESKeyFilePath) {
-      try {
-        Out-Host -InputObject 'Found an AES Key File.  Using this to decrypt the secure credential file.'
-        $decryptMode = 'AES'
-        $AESKey = Get-Content $AESKeyFilePath
-      }
-      catch {
-        $errText = $error[0]
-        Write-Logg "AES Key file detected, but could not be read.  Error Message was: $errText" -Type ERROR
-        exit -1
+    if ($ResetCredentials -and (Test-Path -LiteralPath $credentialFilePath)) {
+      if ($PSCmdlet.ShouldProcess($credentialFilePath, 'Remove stored X-Ways credential')) {
+        Remove-Item -LiteralPath $credentialFilePath -Force
       }
     }
-    else {
-      Out-Host -InputObject 'No AES Key File found.  Using DPAPI method, which requires same user and machine to decrypt the secure credential file.'
-      $decryptMode = 'DPAPI'
+
+    $resources = @(
+      [pscustomobject]@{ Name = 'Excire'; Uri = [uri]'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip'; ArchivePrefix = 'Excire'; DestinationName = 'Excire'; ExpandArchive = $true }
+      [pscustomobject]@{ Name = 'Conditional Coloring'; Uri = [uri]'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg'; ArchivePrefix = $null; DestinationName = $null; ExpandArchive = $false }
+      [pscustomobject]@{ Name = 'AFF4 X-Tension'; Uri = [uri]'https://www.x-ways.net/res/aff4-xways-2.1.1.zip'; ArchivePrefix = 'aff4'; DestinationName = 'aff4'; ExpandArchive = $true }
+    )
+
+    $resourceFilesDownloaded = $false
+    if ($PSCmdlet.ShouldProcess($xWaysRootPath, 'Download X-Ways resource files')) {
+      $xWaysCredential = Get-XWaysResourceCredential -Credential $Credential -Path $credentialFilePath
+      $headers = New-XWaysBasicAuthHeader -Credential $xWaysCredential
+      Save-XWaysDownload -Uri $resources.Uri -DestinationDirectory $xWaysRootPath -Headers $headers
+      $resourceFilesDownloaded = $true
     }
 
-    try {
-      Out-Host -InputObject "Reading secure credential file at $credentialFilePath."
-      $credFiles = Get-Content $credentialFilePath
-      $userName = $credFiles[0]
-      if ($decryptMode -eq 'DPAPI') {
-        $password = $credFiles[1] | ConvertTo-SecureString
+    foreach ($resource in $resources | Where-Object { $_.ExpandArchive }) {
+      if ($PSCmdlet.ShouldProcess($xWaysRootPath, "Expand $($resource.Name) archive")) {
+        Expand-XWaysArchive -RootPath $xWaysRootPath -ArchivePrefix $resource.ArchivePrefix -DestinationName $resource.DestinationName
       }
-      elseif ($decryptMode -eq 'AES') {
-        $password = $credFiles[1] | ConvertTo-SecureString -Key $AESKey
-      }
-      else {
-        # Placeholder in case there are other decrypt modes
-      }
-
-      Out-Host -InputObject 'Creating credential object...'
-      $credObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $password
-      $passwordClearText = $credObject.GetNetworkCredential().Password
-      Out-Host -InputObject "Credential store read.  UserName is $userName and Password is $passwordClearText"
-
-    }
-    catch {
-      $errText = $error[0]
-      Out-Host -InputObject "Failed to Prepare Credentials.  Error Message was: $errText" -Type ERROR
-      Write-Logg -Message 'Failed to Prepare Credentials.  Please check Log File.'
-      exit -1
-    }
-    #endregion Credentials
-
-    #  Then we need to convert the username and password to base64 for basic http authentication
-    $AuthenticationPair = "$($userName)`:$($PasswordClearText)"
-    $Bytes = [System.Text.Encoding]::ASCII.GetBytes($AuthenticationPair)
-    $Base64AuthString = [System.Convert]::ToBase64String($Bytes)
-
-    $headers = @{
-      'Authorization' = "Basic $Base64AuthString"
-      'User-Agent'    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5414.120 Safari/537.36'
-      'Referer'       = 'https://x-ways.net/res/'
     }
 
-    Out-Host -InputObject 'Downloading Excire.zip, Conditional Coloring.cfg, and aff4-xways-2.1.1.zip'
-    $urls = 'https://www.x-ways.net/res/Excire%20for%20v21.1%20and%20later.zip', 'https://x-ways.net/res/conditional%20coloring/Conditional%20Coloring.cfg', 'https://www.x-ways.net/res/aff4-xways-2.1.1.zip'
-
-    Get-FileDownload -URL $urls -DestinationDirectory "$XWaysRoot" -Headers $headers -UseAria2 -NoRPCMode
-
-    function Invoke-NormalizePath {
-      param (
-        [string]$path
-      )
-      return [System.IO.Path]::Combine($path, [System.IO.Path]::GetFileName($path))
-    }
-
-    function Expand-Zip {
-      param (
-        [string]$rootPath,
-        [string]$pluginName
-      )
-
-      $pluginFolder = Join-Path -Path $rootPath -ChildPath $pluginName
-      if (-not (Test-Path $pluginFolder)) {
-        New-Item -Path $pluginFolder -ItemType Directory -Force
-      }
-      Expand-Archive -Path "$rootPath\$pluginName*.zip" -DestinationPath $pluginFolder -Force
-      Remove-Item -Path "$rootPath\$pluginName*.zip" -Force
-    }
-
-    # Normalize the root path
-    $XWaysRoot = Invoke-NormalizePath -path $XWaysRoot
-
-    Out-Host -InputObject "Extracting zips to $($XWaysRoot)"
-    Expand-Zip -rootPath $XWaysRoot -pluginName 'Excire'
-    Expand-Zip -rootPath $XWaysRoot -pluginName 'aff4'
-
+    $templateDownloadCount = 0
     if ($GetTemplates) {
-
-      # Create the Scripts and Templates folder if it doesn't exist
-      if (-not (Test-Path "$XWScriptsAndTemplatesFolder")) {
-        New-Item -Path "$XWScriptsAndTemplatesFolder" -ItemType Directory -Force
+      if ($PSCmdlet.ShouldProcess($templatesPath, 'Create X-Ways scripts and templates folder')) {
+        New-Item -Path $templatesPath -ItemType Directory -Force | Out-Null
       }
 
-      # Now we copy all TPL files from x-ways.net/winhex/templates two other sites to the XWScriptsAndTemplates folder on $XWAYSUSB
-      $UrlsToDownloadTemplates = @('https://res.jens-training.com/templates/', 'https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip', 'https://x-ways.net/winhex/templates/')
+      $templateSources = @(
+        [pscustomobject]@{ Kind = 'Index'; Uri = [uri]'https://res.jens-training.com/templates/' }
+        [pscustomobject]@{ Kind = 'Archive'; Uri = [uri]'https://github.com/kacos2000/WinHex_Templates/archive/refs/heads/master.zip' }
+        [pscustomobject]@{ Kind = 'Index'; Uri = [uri]'https://x-ways.net/winhex/templates/' }
+      )
 
-      $UrlsToDownloadTemplates.ForEach{
-        $url = $_
-        switch -WildCard ($url) {
-          '*.zip' {
-            $ProgressPreference = 'SilentlyContinue'
-            Out-Host -InputObject "Downloading kacos2000's Templates as a zip"
-            Invoke-WebRequest -Uri $url -OutFile "$XWScriptsAndTemplatesFolder\$($($_).Split('/')[-1])"
-            break
-          }
-          default {
-            Out-Host -InputObject 'Parsing Templates from Jens and then from X-Ways'
-            $XWAYSTemplateNames = (Invoke-WebRequest -Uri $url).Links.Where({ ($_.href -like '*.tpl') -or ($_.href -like '*.zip') })
-
-            # provide a count of how many templates were found
-            Out-Host -InputObject "There are $($($XWAYSTemplateNames.href).Count) templates available from $url"
-
-            # then download each template and save it to the XWScriptsAndTemplates folder
-            Out-Host -InputObject "Downloading templates to $XWScriptsAndTemplatesFolder"
-
-            $XWAYSTemplateNames.href.ForEach{
-              # remove any url encoding
-              $newname = [System.Web.HttpUtility]::UrlDecode($_)
-              # download tpl file from multiple sites. But make sure we download from x-ways as the last download.
-              Invoke-WebRequest -Uri $( -join "$url" + "$_") -OutFile "$XWScriptsAndTemplatesFolder\$newname"
-            }
-          }
+      foreach ($source in $templateSources) {
+        if (-not $PSCmdlet.ShouldProcess($templatesPath, "Download templates from $($source.Uri)")) {
+          continue
         }
 
+        if ($source.Kind -eq 'Archive') {
+          Save-XWaysDownload -Uri $source.Uri -DestinationDirectory $templatesPath
+          $templateDownloadCount++
+          continue
+        }
+
+        $templateDownloadCount += Save-XWaysTemplateIndex -Uri $source.Uri -DestinationDirectory $templatesPath
       }
 
-      # Finally we will expand and remove any remaing zip files
-      $zipfiles = Get-ChildItem -Path "$XWScriptsAndTemplatesFolder" -Filter '*.zip'
-      $zipfiles.ForEach{
-        Expand-Archive -Path $_ -DestinationPath "$XWScriptsAndTemplatesFolder" -Force
-        Remove-Item -Path $_ -Force
+      if ($PSCmdlet.ShouldProcess($templatesPath, 'Expand downloaded template archives')) {
+        Expand-XWaysTemplateArchives -DestinationDirectory $templatesPath
       }
     }
-    #TODO Download all X-Tensions from X-Ways website and copy them to the $XWScriptsAndTemplatesFolder
 
+    [pscustomobject]@{
+      XWaysRoot                 = $xWaysRootPath
+      ScriptsAndTemplatesFolder = if ($GetTemplates) {
+        $templatesPath 
+      }
+      else {
+        $null 
+      }
+      ResourceFilesDownloaded   = $resourceFilesDownloaded
+      TemplateFilesDownloaded   = $templateDownloadCount
+      CredentialPath            = $credentialFilePath
+    }
   }
   catch {
-    $errText = $_.Exception.Message
-    Write-Error "$errText"
-    Write-Warning "If you are getting 'Unauthorized' try using the -ResetCredentials switch and rerun the script`n Exiting"
-    Exit-PSHostProcess
+    $PSCmdlet.ThrowTerminatingError($_)
   }
-  Finally {
-    # Remove any aria2c files and folders
-    $ariafiles = Get-ChildItem -Path "$XWaysRoot" -Filter '*aria2*'
-    if (Test-Path $ariafiles -ErrorAction SilentlyContinue) {
-      Remove-Item -Path $ariafiles -Force -Recurse -ErrorAction SilentlyContinue
+  finally {
+    if ($xWaysRootPath -and (Test-Path -LiteralPath $xWaysRootPath -PathType Container)) {
+      $ariaFiles = Get-ChildItem -LiteralPath $xWaysRootPath -Filter '*aria2*' -File -ErrorAction SilentlyContinue
+      foreach ($ariaFile in $ariaFiles) {
+        if ($PSCmdlet.ShouldProcess($ariaFile.FullName, 'Remove aria2 metadata file')) {
+          Remove-Item -LiteralPath $ariaFile.FullName -Force -ErrorAction SilentlyContinue
+        }
+      }
     }
-    Out-Host -InputObject 'All Done!'
-  }
 
+    $ProgressPreference = $previousProgressPreference
+  }
 }
