@@ -1,13 +1,10 @@
 <#
 .SYNOPSIS
     Force-installs or refreshes the PowerShell profile.
-
-.DESCRIPTION
-    Compatibility wrapper around Install-Profile. Keep this file only if you want an
-    Invoke-PowerShellProfile command name as well as Install-Profile.
 #>
 function Invoke-PowerShellProfile {
     [CmdletBinding()]
+    [OutputType([pscustomobject])]
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
