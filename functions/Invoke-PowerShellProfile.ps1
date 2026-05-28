@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Installs or refreshes the PowerShell profile.
+    Force-installs or refreshes the PowerShell profile.
 
 .DESCRIPTION
     Compatibility wrapper around Install-Profile. Keep this file only if you want an
     Invoke-PowerShellProfile command name as well as Install-Profile.
 #>
 function Invoke-PowerShellProfile {
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    [CmdletBinding()]
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -15,17 +15,7 @@ function Invoke-PowerShellProfile {
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [string]$ProfilePath = (Join-Path -Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -ChildPath 'PowerShell'),
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$BackupRoot = (Join-Path -Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -ChildPath 'PowerShell_Profile_Backups'),
-
-        [Parameter()]
-        [switch]$NoBackup,
-
-        [Parameter()]
-        [switch]$ImportFunctionsAfterInstall
+        [string]$ProfilePath = (Join-Path -Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -ChildPath 'PowerShell')
     )
 
     Install-Profile @PSBoundParameters
