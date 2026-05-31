@@ -152,10 +152,45 @@ function Get-XwaysResources {
       [hashtable]$Headers
     )
 
-    $downloadCommand = Get-Command -Name Get-FileDownload -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $DestinationDirectory -PathType Container)) {
+      New-Item -Path $DestinationDirectory -ItemType Directory -Force | Out-Null
+    }
+
+    $downloadItems = foreach ($item in $Uri) {
+      $fileName = [uri]::UnescapeDataString([IO.Path]::GetFileName($item.LocalPath))
+      if ([string]::IsNullOrWhiteSpace($fileName)) {
+        throw "Could not determine a file name for '$item'."
+      }
+
+      $outputPath = Join-Path -Path $DestinationDirectory -ChildPath $fileName
+      if ((Test-Path -LiteralPath $outputPath -PathType Leaf) -and ((Get-Item -LiteralPath $outputPath).Length -gt 0)) {
+        Write-Verbose "Output file already exists: $outputPath"
+        continue
+      }
+
+      [pscustomobject]@{
+        Uri        = $item
+        OutputPath = $outputPath
+      }
+    }
+
+    if (-not $downloadItems) {
+      return
+    }
+
+    # Avoid passing Basic auth headers to external downloaders, where they can
+    # appear in the process command line. Authenticated X-Ways resources use
+    # native PowerShell downloads; unauthenticated template downloads may still
+    # use the faster helper.
+    $downloadCommand = if ($Headers -and $Headers.ContainsKey('Authorization')) {
+      $null
+    }
+    else {
+      Get-Command -Name Get-FileDownload -ErrorAction SilentlyContinue
+    }
     if ($downloadCommand) {
       $downloadParameters = @{
-        URL                  = @($Uri | ForEach-Object { $_.AbsoluteUri })
+        URL                  = @($downloadItems.Uri | ForEach-Object { $_.AbsoluteUri })
         DestinationDirectory = $DestinationDirectory
         UseAria2             = $true
         NoRPCMode            = $true
@@ -165,19 +200,14 @@ function Get-XwaysResources {
         $downloadParameters.Headers = $Headers
       }
 
-      Get-FileDownload @downloadParameters
+      Get-FileDownload @downloadParameters | Out-Null
       return
     }
 
-    foreach ($item in $Uri) {
-      $fileName = [uri]::UnescapeDataString([IO.Path]::GetFileName($item.LocalPath))
-      if ([string]::IsNullOrWhiteSpace($fileName)) {
-        throw "Could not determine a file name for '$item'."
-      }
-
+    foreach ($downloadItem in $downloadItems) {
       $invokeParameters = @{
-        Uri         = $item
-        OutFile     = Join-Path -Path $DestinationDirectory -ChildPath $fileName
+        Uri         = $downloadItem.Uri
+        OutFile     = $downloadItem.OutputPath
         ErrorAction = 'Stop'
       }
 
@@ -185,8 +215,18 @@ function Get-XwaysResources {
         $invokeParameters.Headers = $Headers
       }
 
-      Invoke-WebRequest @invokeParameters
+      Invoke-WebRequest @invokeParameters | Out-Null
     }
+  }
+
+  function Test-XWaysDirectoryHasItems {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+      return $false
+    }
+
+    return [bool](Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue | Select-Object -First 1)
   }
 
   function Expand-XWaysArchive {
@@ -196,12 +236,21 @@ function Get-XwaysResources {
       [Parameter(Mandatory = $true)][string]$DestinationName
     )
 
+    $archives = Get-ChildItem -LiteralPath $RootPath -Filter "$ArchivePrefix*.zip" -File -ErrorAction SilentlyContinue
+    if (-not $archives) {
+      return
+    }
+
     $destinationPath = Join-Path -Path $RootPath -ChildPath $DestinationName
+    if (Test-XWaysDirectoryHasItems -Path $destinationPath) {
+      Write-Verbose "Expanded resource already exists: $destinationPath"
+      return
+    }
+
     if (-not (Test-Path -LiteralPath $destinationPath -PathType Container)) {
       New-Item -Path $destinationPath -ItemType Directory -Force | Out-Null
     }
 
-    $archives = Get-ChildItem -LiteralPath $RootPath -Filter "$ArchivePrefix*.zip" -File -ErrorAction SilentlyContinue
     foreach ($archive in $archives) {
       Expand-Archive -LiteralPath $archive.FullName -DestinationPath $destinationPath -Force
       Remove-Item -LiteralPath $archive.FullName -Force
@@ -219,7 +268,7 @@ function Get-XwaysResources {
 
     foreach ($link in $links) {
       $downloadUri = [uri]::new($Uri, $link.href)
-      Save-XWaysDownload -Uri $downloadUri -DestinationDirectory $DestinationDirectory
+      Save-XWaysDownload -Uri $downloadUri -DestinationDirectory $DestinationDirectory | Out-Null
     }
 
     return $links.Count
@@ -270,7 +319,25 @@ function Get-XwaysResources {
     if ($PSCmdlet.ShouldProcess($xWaysRootPath, 'Download X-Ways resource files')) {
       $xWaysCredential = Get-XWaysResourceCredential -Credential $Credential -Path $credentialFilePath
       $headers = New-XWaysBasicAuthHeader -Credential $xWaysCredential
-      Save-XWaysDownload -Uri $resources.Uri -DestinationDirectory $xWaysRootPath -Headers $headers
+      $resourceUris = foreach ($resource in $resources) {
+        if ($resource.ExpandArchive -and $resource.DestinationName) {
+          $resourceDestinationPath = Join-Path -Path $xWaysRootPath -ChildPath $resource.DestinationName
+          if (Test-XWaysDirectoryHasItems -Path $resourceDestinationPath) {
+            Write-Verbose "Expanded resource already exists: $resourceDestinationPath"
+            continue
+          }
+        }
+
+        $resource.Uri
+      }
+
+      if ($resourceUris) {
+        Save-XWaysDownload -Uri $resourceUris -DestinationDirectory $xWaysRootPath -Headers $headers
+      }
+      else {
+        Write-Verbose 'All X-Ways resource files are already present.'
+      }
+
       $resourceFilesDownloaded = $true
     }
 
