@@ -1,42 +1,26 @@
-# Helper function to determine the final output path
 function Get-FinalOutputPath {
-    [CmdletBinding(SupportsShouldProcess=$true)]
-    param (
-        [string]$BasePath,
+    <#
+    .SYNOPSIS
+    Resolves a file destination without creating directories or overwriting files.
+    .DESCRIPTION
+    Use a trailing separator for a directory that does not yet exist.
+    Existing files require -Force; the caller must also enforce this when publishing.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$BasePath,
         [string]$FileName,
         [switch]$Force
     )
-
-    # If the output path doesn't include a file name (ends with \ or /), append the file name
-    if ($BasePath -match '[/\\]$' -or (Test-Path -Path $BasePath -PathType Container)) {
-        $folderPath = $BasePath
-        if (-not (Test-Path -Path $folderPath -PathType Container)) {
-            New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
-            Write-Verbose "Created directory: $folderPath"
-        }
-
-        $fullPath = Join-Path -Path $folderPath -ChildPath $FileName
-        Write-Verbose "Using generated full path: $fullPath"
+    $path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($BasePath)
+    if ($BasePath -match '[/\\]$' -or [IO.Directory]::Exists($path)) {
+        if (-not $FileName -or $FileName -in '.', '..' -or
+            $FileName.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0 -or
+            $FileName -match '[. ]$|^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)') { throw 'FileName must be a safe file name, without a path.' }
+        $path = [IO.Path]::Combine($path, $FileName)
     }
-    else {
-        # Ensure the directory exists
-        $directory = Split-Path -Path $BasePath -Parent
-        if (-not [string]::IsNullOrEmpty($directory) -and -not (Test-Path -Path $directory -PathType Container)) {
-            New-Item -Path $directory -ItemType Directory -Force | Out-Null
-            Write-Verbose "Created directory: $directory"
-        }
-
-        $fullPath = $BasePath
-        Write-Verbose "Using specified path: $fullPath"
-    }
-
-    # Check if file exists and handle Force parameter
-    if (Test-Path -Path $fullPath -PathType Leaf) {
-        if (-not $Force -and -not $PSCmdlet.ShouldProcess($fullPath, 'Overwrite existing file')) {
-            throw "File already exists: $fullPath. Use -Force to overwrite."
-        }
-        Write-Verbose "File exists, will be overwritten: $fullPath"
-    }
-
-    return $fullPath
+    if ([IO.Directory]::Exists($path)) { throw "Destination is a directory: $path" }
+    if ([IO.File]::Exists($path) -and -not $Force) { throw "File exists; use -Force: $path" }
+    $path
 }
