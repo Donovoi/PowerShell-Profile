@@ -1,3 +1,11 @@
+function Get-Handle {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    if (-not ('ProcessHandler' -as [type])) {
 Add-Type -TypeDefinition @'
 using System;
 using System.Diagnostics;
@@ -22,14 +30,7 @@ public class ProcessHandler
     }
 }
 '@ -Language CSharp
-
-function Get-Handle {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$FilePath
-    )
-
+    }
     $processHandler = New-Object ProcessHandler
     $escapedFilePath = $FilePath -replace '\\', '\\\\'
     $escapedFileNameWithExtension = Split-Path $escapedFilePath -Leaf
