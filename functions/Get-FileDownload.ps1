@@ -46,6 +46,8 @@ function Get-FileDownload {
     }
     process {
         foreach ($download in $URL) {
+            if ($GitHub -and ([uri]$download).Host -notin 'github.com','api.github.com') { throw '-GitHub requires a GitHub URL.' }
+            if ($IsPrivateRepo -and -not $Token -and -not ($Headers -and $Headers['Authorization'])) { throw 'A private repository download requires a token or Authorization header.' }
             if ($FileName) {
                 $namedCount++
                 if ($namedCount -gt 1 -or $URL.Count -gt 1) { throw '-FileName requires exactly one URL.' }
@@ -59,7 +61,7 @@ function Get-FileDownload {
             }
             if (-not $PSCmdlet.ShouldProcess($output, 'Download and verify file')) { continue }
             if ($UseAria2 -and -not $ForceNativeDownload -and -not $transportReady) {
-                if (-not $aria2cExe) { $aria2cExe = (Get-Command aria2c.exe -CommandType Application -ErrorAction SilentlyContinue).Source }
+                if (-not $aria2cExe) { $aria2cExe = (Get-Command aria2c.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
                 if (-not $aria2cExe) {
                     $tools = Join-Path $destination '.profile-tools'
                     $null = Get-LatestGitHubRelease -OwnerRepository 'aria2/aria2' -AssetName '-win-64bit-' -ExtractZip -DownloadPathDirectory $tools -Force

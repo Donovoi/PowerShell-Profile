@@ -63,13 +63,34 @@ function Invoke-ValidatedDownload {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     try {
         if ($Transport -eq 'Native') {
-            $parameters = @{ Uri = $URL; OutFile = $partial; Headers = $requestHeaders; TimeoutSec = $TimeoutSeconds; ErrorAction = 'Stop' }
-            if ($WebSession) { $parameters.WebSession = $WebSession }
-            if ($UserAgent) { $parameters.UserAgent = $UserAgent }
-            $null = Invoke-WebRequest @parameters
+            $handler = [Net.Http.HttpClientHandler]::new()
+            if ($WebSession) { $handler.CookieContainer = $WebSession.Cookies; $handler.Credentials = $WebSession.Credentials }
+            $client = [Net.Http.HttpClient]::new($handler)
+            $client.Timeout = [Threading.Timeout]::InfiniteTimeSpan
+            $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Get, $URL)
+            $cancellation = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds($TimeoutSeconds))
+            $response = $null; $outputStream = $null; $inputStream = $null
+            try {
+                foreach ($key in $requestHeaders.Keys) {
+                    if (-not $request.Headers.TryAddWithoutValidation($key, [string]$requestHeaders[$key])) { throw 'Unsupported request header.' }
+                }
+                if ($UserAgent -and -not $requestHeaders.ContainsKey('User-Agent')) { $null = $request.Headers.TryAddWithoutValidation('User-Agent', $UserAgent) }
+                $response = $client.SendAsync($request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancellation.Token).GetAwaiter().GetResult()
+                $null = $response.EnsureSuccessStatusCode()
+                $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+                $outputStream = [IO.File]::Open($partial, 'CreateNew', 'Write', 'None')
+                $null = $inputStream.CopyToAsync($outputStream, 81920, $cancellation.Token).GetAwaiter().GetResult()
+                if ($ExpectedLength -lt 0 -and $null -ne $response.Content.Headers.ContentLength) { $ExpectedLength = $response.Content.Headers.ContentLength }
+            }
+            finally {
+                if ($outputStream) { $outputStream.Dispose() }
+                if ($inputStream) { $inputStream.Dispose() }
+                if ($response) { $response.Dispose() }
+                $request.Dispose(); $client.Dispose(); $cancellation.Dispose()
+            }
         }
         else {
-            $executable = (Get-Command -Name $Aria2cExePath -CommandType Application -ErrorAction Stop).Source
+            $executable = (Get-Command -Name $Aria2cExePath -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
             $options = [Collections.Generic.List[string]]::new()
             foreach ($line in @('enable-rpc=false','auto-file-renaming=false','allow-overwrite=false',
                 'continue=false','max-tries=3','retry-wait=1','connect-timeout=10','timeout=30',
@@ -93,7 +114,19 @@ function Invoke-ValidatedDownload {
                     "rpc-listen-port=$port","rpc-secret=$rpcSecret")) { $options.Add($line) }
             }
             foreach ($line in $options) { if ($line -match '[\r\n]') { throw 'Invalid aria2 option value.' } }
-            [IO.File]::WriteAllLines($configPath, $options, [Text.UTF8Encoding]::new($false))
+            # Create the credential-bearing config with a protected DACL from its first byte.
+            $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+            try {
+                $security = [Security.AccessControl.FileSecurity]::new()
+                $security.SetOwner($identity.User)
+                $security.SetAccessRuleProtection($true, $false)
+                $security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($identity.User, 'FullControl', 'Allow'))
+                $configStream = [IO.FileSystemAclExtensions]::Create([IO.FileInfo]::new($configPath), [IO.FileMode]::CreateNew, [Security.AccessControl.FileSystemRights]::Write, [IO.FileShare]::None, 4096, [IO.FileOptions]::None, $security)
+            }
+            finally { $identity.Dispose() }
+            $configWriter = [IO.StreamWriter]::new($configStream, [Text.UTF8Encoding]::new($false))
+            try { foreach ($line in $options) { $configWriter.WriteLine($line) } }
+            finally { $configWriter.Dispose() }
             if ($Transport -eq 'Aria2') {
                 $result = Invoke-Process -FilePath $executable -ArgumentList @("--conf-path=$configPath", '--', $URL.AbsoluteUri) -PassThru -IgnoreExitCode -TimeoutSeconds $TimeoutSeconds
                 if ($result.ExitCode -ne 0) { throw "aria2 exited with code $($result.ExitCode)." }

@@ -45,7 +45,12 @@ function Invoke-AriaDownload {
         }
         foreach ($entry in $urls) {
             $output = Get-OutputFilename -Url $entry -DestDir $DownloadDirectory -HeadersToUse $Headers
+            if (-not $PSCmdlet.ShouldProcess($output, 'Download and verify with aria2')) { continue }
+            $parameters.Confirm = $false; $parameters.WhatIf = $false
             Invoke-ValidatedDownload @parameters -URL $entry -OutFile $output
         }
-    } else { Invoke-ValidatedDownload @parameters -URL $URL -OutFile $OutFile }
+    } elseif ($PSCmdlet.ShouldProcess($OutFile, 'Download and verify with aria2')) {
+        $parameters.Confirm = $false; $parameters.WhatIf = $false
+        Invoke-ValidatedDownload @parameters -URL $URL -OutFile $OutFile
+    }
 }

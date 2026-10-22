@@ -1,6 +1,6 @@
 #requires -Version 7.0
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$TestRoot)
+param([Parameter(Mandatory)][string]$TestRoot,[string]$FFmpegFixturePath)
 $ErrorActionPreference = 'Stop'
 if (Test-Path -LiteralPath $TestRoot) { throw 'Use a new fixture directory.' }
 $null = [IO.Directory]::CreateDirectory($TestRoot)
@@ -47,7 +47,7 @@ try {
     foreach ($transport in 'Native','Aria2','RPC') {
         $path=Join-Path $TestRoot "$transport.bin"
         $result=Invoke-ValidatedDownload -URL "$base/bytes.bin" -OutFile $path -Transport $transport -Aria2cExePath $aria -Headers $headers -ExpectedLength 22 -TimeoutSeconds 15
-        Assert ($result -eq $path -and [IO.File]::ReadAllText($path) -eq 'download fixture bytes') "$transport did not produce exact bytes/path"
+        Assert (@($result).Count -eq 1 -and $result -eq $path -and [IO.File]::ReadAllText($path) -eq 'download fixture bytes') "$transport did not produce exact bytes/path"
         Assert-Fails { Invoke-ValidatedDownload -URL "$base/bytes.bin" -OutFile $path -Transport $transport -Aria2cExePath $aria }
         Assert-Fails { Invoke-ValidatedDownload -URL "$base/missing.bin" -OutFile $path -Transport $transport -Aria2cExePath $aria -Force -TimeoutSeconds 10 }
         Assert ([IO.File]::ReadAllText($path) -eq 'download fixture bytes') "$transport failure damaged old file"
@@ -118,16 +118,25 @@ try {
     Write-Host 'PASS: private release uses authenticated asset API and forwards name/size/hash'
 
     $zip=[IO.Compression.ZipFile]::Open("$TestRoot/ffmpeg.zip",'Create')
-    $entry=$zip.CreateEntry('ffmpeg-release/bin/ffmpeg.exe')
-    $writer=[IO.StreamWriter]::new($entry.Open()); $writer.Write('fake executable bytes'); $writer.Dispose(); $zip.Dispose()
+    $entry=$zip.CreateEntry('ffmpeg-release/bin/ffmpeg.exe',[IO.Compression.CompressionLevel]::NoCompression)
+    $entryStream=$entry.Open()
+    try {
+        if($FFmpegFixturePath){
+            $binaryStream=[IO.File]::OpenRead($FFmpegFixturePath)
+            try{$binaryStream.CopyTo($entryStream)}finally{$binaryStream.Dispose()}
+        }else{$entryStream.Write([Text.Encoding]::UTF8.GetBytes('fake executable bytes'))}
+    }finally{$entryStream.Dispose();$zip.Dispose()}
     $realProcess=${function:Invoke-Process}
     function Invoke-Process {
         [CmdletBinding()] param($FilePath,$ArgumentList,[switch]$PassThru,$TimeoutSeconds)
+        if($FFmpegFixturePath){return (& $realProcess @PSBoundParameters)}
         Assert ([IO.File]::ReadAllText($FilePath) -eq 'fake executable bytes' -and $ArgumentList[0] -eq '-version') 'FFmpeg version check not executed on the extracted file'
         [pscustomobject]@{StandardOutput='ffmpeg version fixture';ExitCode=0}
     }
     $ffmpeg=Get-FFmpeg -Url "$base/ffmpeg.zip" -LocalDependencies -LocalPath "$TestRoot/local"
-    Assert ($ffmpeg -eq "$TestRoot\local\ffmpeg\bin\ffmpeg.exe" -and [IO.File]::ReadAllText($ffmpeg) -eq 'fake executable bytes') 'FFmpeg layout or returned path incorrect'
+    Assert ($ffmpeg -eq "$TestRoot\local\ffmpeg\bin\ffmpeg.exe") 'FFmpeg layout or returned path incorrect'
+    if($FFmpegFixturePath){Assert ((Get-FileHash -LiteralPath $ffmpeg).Hash -eq (Get-FileHash -LiteralPath $FFmpegFixturePath).Hash) 'Real FFmpeg changed during download/extraction'}
+    else{Assert ([IO.File]::ReadAllText($ffmpeg) -eq 'fake executable bytes') 'FFmpeg extraction changed bytes'}
     Assert ((Get-FFmpeg -DestinationPath $ffmpeg) -eq $ffmpeg) 'Existing FFmpeg validation failed'
     Assert-Fails { Get-FFmpeg -Url "$base/ffmpeg.7z" -DestinationPath "$TestRoot/unsupported.exe" }
     Set-Item Function:Invoke-Process $realProcess
