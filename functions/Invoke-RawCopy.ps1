@@ -1,323 +1,108 @@
-<#
-.SYNOPSIS
-Performs a sector-level copy of an NTFS file by reading its disk extents
-directly and writing them to a destination file.
-
-.DESCRIPTION
-Invoke-RawCopy is intended for low-level forensics, backup, or migration
-scenarios where a byte-for-byte clone of a file is required.
-It uses NtObjectManager to enumerate NTFS retrieval pointers, can create a
-VSS snapshot to avoid “file in use” issues, and supports sparse regions so
-holes are preserved without allocating unnecessary disk space.
-
-The cmdlet:
-• Validates parameters and loads NtObjectManager on demand.
-• Optionally creates a VSS snapshot of the source volume (default).
-• Reads each logical cluster (LCN) run with un-buffered IO respecting physical
-  sector size.
-• Writes to the destination file, optionally overwriting an existing file.
-• Displays real-time progress, ETA, and enforces a user-selectable buffer size.
-
-.PARAMETER Path
-Absolute path to the source file.
-Must exist and reference a regular file.
-
-.PARAMETER Destination
-Absolute path (including filename) for the output file.
-If the file exists, specify ‑Overwrite to replace it.
-
-.PARAMETER Overwrite
-Switch. Allow overwriting an existing destination file.
-
-.PARAMETER DisableVss
-Switch. Skip creation of a Volume Shadow Copy snapshot and access the source
-file directly. Use when VSS is unavailable or not required.
-
-.PARAMETER BufferSizeKB
-Size of the in-memory transfer buffer in kilobytes (default 64 KB, range
-4-40960). Must be a multiple of the underlying physical sector size.
-
-.EXAMPLE
-Invoke-RawCopy -Path 'C:\Images\disk.img' -Destination 'D:\Backups\disk.img'
-
-Creates a VSS snapshot of C:\, then copies disk.img sector-by-sector to the
-backup location.
-
-.EXAMPLE
-Invoke-RawCopy -Path 'C:\db\database.mdf' -Destination '\\Server\Share\database.mdf' `
-               -BufferSizeKB 256 -Overwrite -DisableVss
-
-Copies the database file using a 256 KB buffer, overwriting any existing file
-at the destination and bypassing VSS.
-
-.INPUTS
-None. Parameters are provided by value.
-
-.OUTPUTS
-None. Produces a file at the destination path and progress output.
-
-.NOTES
-Author : Unknown (profile function)
-Requires: NtObjectManager 2.0.1 or later, Windows Vista+ with PowerShell 5.1+.
-The cmdlet must run with sufficient privileges to create VSS snapshots and
-perform raw disk reads.
-
-.LINK
-Get-Help
-#>
 function Invoke-RawCopy {
-    [CmdletBinding()]
+    <#
+    .SYNOPSIS
+    Acquires a file through a VSS snapshot and verifies its logical-data SHA256.
+    .DESCRIPTION
+    Requires elevated PowerShell on a local NTFS drive. Nonresident, uncompressed
+    data is read from validated raw extents. Resident, compressed and encrypted
+    files use the logical snapshot stream instead and report that method.
+    DisableVss explicitly opts into a live-volume copy with weaker consistency.
+    Publishes only after exact-length and source/destination hash agreement.
+    Does not acquire alternate streams, ACLs, slack space or full forensic images.
+    Raw-device/VSS integration still requires qualification on disposable NTFS media.
+    #>
+    [CmdletBinding(SupportsShouldProcess,ConfirmImpact='High')]
+    [OutputType([pscustomobject])]
     param(
-        [Parameter(Mandatory, Position = 0)]
-        [ValidateScript({ Test-Path $_ -PathType Leaf })]
-        [string]$Path,
-
-        [Parameter(Mandatory, Position = 1)]
-        [string]$Destination,
-
+        [Parameter(Mandatory,Position=0)][string]$Path,
+        [Parameter(Mandatory,Position=1)][string]$Destination,
         [switch]$Overwrite,
         [switch]$DisableVss,
-        [ValidateRange(4, 40960)][int]$BufferSizeKB = 64
+        [ValidateRange(4,40960)][int]$BufferSizeKB=64
     )
-
-    # ────────── prerequisites ──────────
-    if (-not (Get-Module -ListAvailable -Name NtObjectManager)) {
-        Install-Module NtObjectManager -RequiredVersion 2.0.1 -Scope CurrentUser -Force
+    $ErrorActionPreference='Stop'
+    $source=(Get-Item -LiteralPath $Path -Force -ErrorAction Stop).FullName
+    if(-not [IO.File]::Exists($source)){throw 'Source must be a file.'}
+    $destinationPath=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destination)
+    if($source -eq $destinationPath){throw 'Source and destination must differ.'}
+    if([IO.File]::Exists($destinationPath) -and -not $Overwrite){throw 'Destination exists; use -Overwrite.'}
+    if($source -notmatch '^[A-Za-z]:\\'){throw 'Raw copy requires a local drive-letter path.'}
+    for($part=$source;$part;$part=[IO.Path]::GetDirectoryName($part)){
+        if([IO.File]::GetAttributes($part) -band [IO.FileAttributes]::ReparsePoint){throw 'Source path must not traverse reparse points or mounted folders.'}
     }
-    Import-Module NtObjectManager -ErrorAction Stop
-    Set-StrictMode -Version Latest
-
-    # ────────── helpers ──────────
-    function New-VssSnapshot($VolumeRoot) {
-        $cl = [wmiclass]'Win32_ShadowCopy'
-        $r = $cl.Create($VolumeRoot, 'ClientAccessible')
-        if ($r.ReturnValue) {
-            throw "VSS create failed: $($r.ReturnValue)"
-        }
-        Get-CimInstance Win32_ShadowCopy -Filter "ID='$($r.ShadowID)'"
-    }
-    function Remove-VssSnapshot($Shadow) {
-        if ($Shadow) {
-            $Shadow | Remove-CimInstance
-        }
-    }
-    function Get-NtfsExtents([NtCoreLib.NtFile]$File) {
-        $ctl = Get-NtIoControlCode 0x90073   # FSCTL_GET_RETRIEVAL_POINTERS
-        $bufSz = 64KB
-        $STATUS_BUFFER_OVERFLOW = 0x80000005
-        $STATUS_END_OF_FILE = 0xC0000011
-        $ext = @(); [UInt64]$vcn = 0; $more = $false
-        do {
-            $in = [BitConverter]::GetBytes($vcn)
-            $status = 0; $out = $null
-            try {
-                $out = Send-NtFileControl -File $File -ControlCode $ctl -Input $in -OutputLength $bufSz
-            }
-            catch [NtApiDotNet.NtException] {
-                $status = $_.Exception.Status
-                if ($status -eq $STATUS_BUFFER_OVERFLOW) {
-                    $out = $_.Exception.OutputBuffer
-                }
-                elseif ($status -eq $STATUS_END_OF_FILE) {
-                    break
-                }
-                else {
-                    throw
-                }
-            }
-            if (-not $out) {
-                break
-            }
-            $pin = [Runtime.InteropServices.GCHandle]::Alloc($out, 'Pinned')
-            try {
-                $count = [BitConverter]::ToUInt32($out, 0)
-                if (-not $count) {
-                    break
-                }
-                $start = [BitConverter]::ToUInt64($out, 4)
-                $ofs = 12
-                for ($i = 0; $i -lt $count; $i++) {
-                    $next = [BitConverter]::ToUInt64($out, $ofs)
-                    $lcn = [BitConverter]::ToUInt64($out, $ofs + 8)
-                    $len = $next - ($i ? $ext[-1].NextVcn : $start)
-                    $ext += [pscustomobject]@{ NextVcn = $next; Lcn = $lcn; ClusterCount = $len }
-                    $ofs += 16
-                }
-                $vcn = $ext[-1].NextVcn
-            }
-            finally {
-                if ($pin.IsAllocated) {
-                    $pin.Free()
-                }
-            }
-        } while ($status -eq $STATUS_BUFFER_OVERFLOW)
-        return $ext
-    }
-
-    # ────────── main ──────────
-    if ((Test-Path $Destination) -and (-not $Overwrite)) {
-        throw 'Destination exists - use -Overwrite.'
-    }
-
-    $volRoot = ([IO.Path]::GetPathRoot((Resolve-Path $Path))).TrimEnd('\') + '\'
-    $drive = $volRoot[0]
-    $clusterSize = (Get-Volume -DriveLetter $drive).AllocationUnitSize
-    $logicalSizeBytes = (Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$drive`:'").Size
-
-    # physical sector size
-    $sectorSize = 4096
+    if(-not $PSCmdlet.ShouldProcess($source,"Acquire verified file data to $destinationPath; VSS=$(-not $DisableVss)")){return}
+    if(-not (Get-Command Initialize-CmdletDependencies -ErrorAction SilentlyContinue)){. (Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1')}
+    Initialize-CmdletDependencies -RequiredCmdlets @('Test-IsAdministrator','Initialize-RawCopyNative','ConvertFrom-NtfsRetrievalPointer','Copy-NtfsExtentData') -PreferLocal -ErrorAction Stop
+    if(-not (Test-IsAdministrator)){throw 'Open an elevated PowerShell session to acquire raw NTFS data.'}
+    Initialize-RawCopyNative
+    $volumeRoot=[IO.Path]::GetPathRoot($source)
+    $drive=$volumeRoot.Substring(0,2)
+    $volumeInfo=Get-CimInstance -ClassName Win32_Volume -Filter "DriveLetter='$drive'" -ErrorAction Stop
+    if($volumeInfo.FileSystem -ne 'NTFS' -or -not $volumeInfo.BlockSize -or -not $volumeInfo.Capacity){throw 'A local NTFS volume with known geometry is required.'}
+    $shadow=$null; $shadowId=$null; $record=$null; $sourceStream=$null; $volumeStream=$null; $volumeHandle=$null; $outputStream=$null
+    $temporary=$destinationPath+'.'+[guid]::NewGuid().ToString('N')+'.partial'
+    $sourcePath=$source; $volumePath='\\.\'+$drive
+    $started=[datetime]::UtcNow
     try {
-        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$drive`:'" |
-            Get-CimAssociatedInstance -ResultClassName Win32_DiskPartition |
-                Get-CimAssociatedInstance -ResultClassName Win32_DiskDrive | Select-Object -First 1
-        if ($disk -and $disk.BytesPerSector) {
-            $sectorSize = [int]$disk.BytesPerSector
+        if(-not $DisableVss){
+            $created=Invoke-CimMethod -ClassName Win32_ShadowCopy -MethodName Create -Arguments @{Volume=$volumeRoot;Context='ClientAccessible'} -ErrorAction Stop
+            if($created.ReturnValue -ne 0){throw "VSS creation failed with code $($created.ReturnValue)."}
+            $shadowId=$created.ShadowID
+            $shadow=Get-CimInstance -ClassName Win32_ShadowCopy -Filter "ID='$($created.ShadowID)'" -ErrorAction Stop
+            if(-not $shadow){throw 'Created VSS snapshot could not be located.'}
+            $volumePath=$shadow.DeviceObject.TrimEnd('\')
+            $sourcePath=$volumePath+'\'+$source.Substring($volumeRoot.Length)
+        } else { Write-Warning 'Live-volume acquisition can observe concurrent changes; VSS is disabled.' }
+        $sourceAttributes=[IO.File]::GetAttributes($sourcePath)
+        $sourceStream=[IO.File]::Open($sourcePath,'Open','Read',([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+        [long]$length=$sourceStream.Length
+        $extents=[Collections.Generic.List[object]]::new()
+        $logical=($sourceAttributes -band ([IO.FileAttributes]::Compressed -bor [IO.FileAttributes]::Encrypted)) -ne 0
+        if(-not $logical -and $length -gt 0){
+            [long]$vcn=0
+            do {
+                $retrieval=[ProfileRawCopy.Native]::Retrieve($sourceStream.SafeFileHandle,$vcn)
+                if($retrieval.Resident){$logical=$true;break}
+                $partExtents=@(ConvertFrom-NtfsRetrievalPointer -Buffer $retrieval.Buffer -ExpectedStartingVcn $vcn)
+                if(-not $partExtents.Count){throw 'Retrieval pointers made no progress for a nonempty file.'}
+                foreach($extent in $partExtents){$extents.Add($extent)}
+                $vcn=$partExtents[-1].NextVcn
+            } while($retrieval.More)
         }
-        else {
-            # Fallback to using Get-PhysicalDisk if available (Windows 8+)
-            try {
-                $physicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $disk.Index } | Select-Object -First 1
-                if ($physicalDisk -and $physicalDisk.PhysicalSectorSize) {
-                    $sectorSize = [int]$physicalDisk.PhysicalSectorSize
-                }
-                elseif ($physicalDisk -and $physicalDisk.LogicalSectorSize) {
-                    $sectorSize = [int]$physicalDisk.LogicalSectorSize
-                }
-            }
-            catch {
-                Write-Verbose 'Get-PhysicalDisk not available, using default sector size'
-            }
+        $parent=[IO.Path]::GetDirectoryName($destinationPath)
+        $null=[IO.Directory]::CreateDirectory($parent)
+        $outputStream=[IO.File]::Open($temporary,'CreateNew','ReadWrite','None')
+        $method='RawExtents'
+        if($logical -or $length -eq 0){
+            $method='LogicalFileData'
+            $sourceStream.CopyTo($outputStream,$BufferSizeKB*1024)
+        } else {
+            $volumeHandle=[ProfileRawCopy.Native]::OpenVolume($volumePath)
+            $volumeStream=[IO.FileStream]::new($volumeHandle,[IO.FileAccess]::Read)
+            Copy-NtfsExtentData -Volume $volumeStream -Output $outputStream -Extents $extents.ToArray() -FileLength $length -ClusterSize $volumeInfo.BlockSize -VolumeLength $volumeInfo.Capacity -BufferSize ($BufferSizeKB*1024)
         }
-    }
-    catch {
-        Write-Warning "Failed to determine physical sector size for $volRoot. Using default $sectorSize bytes."
-        Write-Warning "$_.Exception.Message"
-    }
-
-    # snapshot
-    $shadow = $null; $srcPath = $Path; $volDevice = "\\.\$drive`:"
-    if (-not $DisableVss) {
-        Write-Verbose "Creating VSS snapshot of $volRoot"
-        $shadow = New-VssSnapshot $volRoot
-        $volDevice = $shadow.DeviceObject.TrimEnd('\\')
-        $srcPath = $Path -replace '^[A-Za-z]:', $volDevice
-    }
-
-    # handles
-    $srcFile = Get-NtFile -Win32Path $srcPath -Access ReadData -ShareMode All
-    $extents = Get-NtfsExtents $srcFile
-    $total = ($extents | Measure-Object ClusterCount -Sum).Sum * $clusterSize
-
-    # Validate total size calculation is reasonable
-    if ($total -gt 2TB) {
-        Write-Warning "Calculated total size ($total bytes) seems unreasonably large. File may have sparse regions or calculation error."
-        # Try to get actual file size for comparison
+        if($outputStream.Length -ne $length -or $sourceStream.Length -ne $length){throw 'File length changed or acquisition was incomplete.'}
+        $sourceStream.Position=0; $outputStream.Position=0
+        $hasher=[Security.Cryptography.SHA256]::Create()
         try {
-            $realSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
-            if ($realSize -lt $total) {
-                Write-Verbose "Using actual file size ($realSize) instead of calculated size ($total)"
-                $total = $realSize
-            }
-        }
-        catch {
-            Write-Verbose "Could not get actual file size for validation"
-        }
-    }
-
-    $bufSize = $BufferSizeKB * 1KB
-    if ($bufSize % $sectorSize) {
-        throw "BufferSizeKB must be a multiple of $sectorSize bytes."
-    }
-
-    $buffer = [byte[]]::new($bufSize)
-    $volNt = Get-NtFile -Win32Path $volDevice -Access ReadData -ShareMode All -Options 'NoIntermediateBuffering,SequentialOnly'
-    $vol = [System.IO.FileStream]::new($volNt.Handle, [System.IO.FileAccess]::Read)
-    $dest = [IO.File]::Open($Destination, 'Create', 'ReadWrite', 'None')
-
-    try {
-        [UInt64]$copied = 0
-        $sw = [Diagnostics.Stopwatch]::StartNew()
-
-        # Get the actual file size to avoid setting length too large
-        try {
-            $actualFileSize = (Get-Item -LiteralPath $Path -ErrorAction Stop).Length
-            Write-Verbose "Actual file size for '$Path': $actualFileSize bytes"
-        }
-        catch {
-            Write-Verbose "Could not get file size for '$Path': $($_.Exception.Message)"
-            # Use a reasonable default or calculate from extents
-            $actualFileSize = $extents | ForEach-Object { [UInt64]$_.ClusterCount * [UInt64]$clusterSize } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
-            Write-Verbose "Calculated file size from extents: $actualFileSize bytes"
-        }
-
-        # Validate the file size is reasonable for the file system
-        $maxFileSize = [Math]::Min([Int64]::MaxValue, 2TB)  # 2TB limit for safety
-        if ($actualFileSize -gt $maxFileSize) {
-            Write-Warning "File size ($actualFileSize bytes) exceeds safe limit. Using extent-based calculation instead."
-            $actualFileSize = $total
-            if ($actualFileSize -gt $maxFileSize) {
-                throw "File size calculation resulted in unreasonably large size: $actualFileSize bytes"
-            }
-        }
-
-        foreach ($e in $extents) {
-            # skip sparse run or nonsense extents beyond disk size
-            $extentBytes = [UInt64]$e.ClusterCount * [UInt64]$clusterSize
-            if ($e.Lcn -eq [UInt64]::MaxValue -or (($e.Lcn * [UInt64]$clusterSize) + $extentBytes -gt [UInt64]$logicalSizeBytes)) {
-                # For sparse runs, seek forward but don't exceed actual file size
-                $newPosition = [Math]::Min([Int64]($dest.Position + $extentBytes), [Int64]$actualFileSize)
-                $dest.Seek($newPosition, 'Begin') | Out-Null
-                $copied += $extentBytes
-                continue
-            }
-
-            $offset = [UInt64]$e.Lcn * [UInt64]$clusterSize
-            $vol.Seek([Int64]$offset, 'Begin') | Out-Null
-            [UInt64]$remaining = $extentBytes
-            while ($remaining -gt 0) {
-                $chunk = [UInt64][Math]::Min($bufSize, ($remaining / $sectorSize) * $sectorSize)
-                if ($chunk -eq 0) {
-                    $chunk = $sectorSize
-                }
-                $r = $vol.Read($buffer, 0, [int]$chunk)
-                if ($r -eq 0) {
-                    throw "Unexpected EOF at LCN $($e.Lcn)"
-                }
-                $dest.Write($buffer, 0, $r)
-                $copied += $r; $remaining -= [UInt64]$r
-                $pct = [Math]::Round(($copied / $total) * 100, 2)
-                $eta = if ($copied) {
-                    ($total - $copied) / ($copied / $sw.Elapsed.TotalSeconds)
-                }
-                else {
-                    0
-                }
-                Write-Progress -Activity 'RawCopy' -Status "$pct %" -PercentComplete $pct -SecondsRemaining $eta
-            }
-        }
-
-        # Set the final file length to match the original file, with safety checks
-        try {
-            if ($actualFileSize -le [Int32]::MaxValue) {
-                $dest.SetLength([Int64]$actualFileSize)
-                Write-Verbose "Set destination file length to $actualFileSize bytes"
-            }
-            else {
-                Write-Warning "File size too large for SetLength, keeping current size: $($dest.Length) bytes"
-            }
-        }
-        catch {
-            Write-Warning "Failed to set file length to $actualFileSize`: $($_.Exception.Message)"
-            Write-Verbose "Destination file will keep its current length: $($dest.Length) bytes"
-        }
-
-        Write-Progress -Activity 'RawCopy' -Completed -Status 'Copy complete' -PercentComplete 100
-        Write-Output 'Copy complete'
-        Write-Output "Destination File is: $Destination"
+            $sourceHash=[BitConverter]::ToString($hasher.ComputeHash($sourceStream)).Replace('-','')
+            $destinationHash=[BitConverter]::ToString($hasher.ComputeHash($outputStream)).Replace('-','')
+        } finally {$hasher.Dispose()}
+        if($sourceHash -ne $destinationHash){throw 'Raw and logical file hashes differ; output was not published.'}
+        $outputStream.Dispose(); $outputStream=$null
+        [IO.File]::Move($temporary,$destinationPath,[bool]$Overwrite)
+        $record=[pscustomobject]@{Success=$true;Source=$source;Destination=$destinationPath;Length=$length;SHA256=$destinationHash;Method=$method;Consistency=$(if($DisableVss){'Live'}else{'VSS'});SnapshotId=$shadowId;StartedUtc=$started;CompletedUtc=[datetime]::UtcNow}
     }
     finally {
-        $dest.Dispose(); $vol.Dispose(); $srcFile.Dispose(); if ($shadow) {
-            Remove-VssSnapshot $shadow
+        if($outputStream){$outputStream.Dispose()}
+        if($volumeStream){$volumeStream.Dispose()}
+        if($volumeHandle){$volumeHandle.Dispose()}
+        if($sourceStream){$sourceStream.Dispose()}
+        if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}
+        if($shadowId){
+            if(-not $shadow){$shadow=Get-CimInstance -ClassName Win32_ShadowCopy -Filter "ID='$shadowId'" -ErrorAction Stop}
+            if($shadow){$shadow|Remove-CimInstance -ErrorAction Stop}else{Write-Warning "Snapshot cleanup could not locate $shadowId; check VSS state."}
         }
     }
+    $record
 }
