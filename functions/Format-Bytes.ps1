@@ -11,21 +11,27 @@
     1.15 GB
 #>
 Function Format-Bytes {
-    param([double]$bytes)
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [ValidateScript({ $_ -ge 0 -and -not [double]::IsInfinity($_) -and -not [double]::IsNaN($_) })]
+        [double]$bytes
+    )
     switch ($bytes) {
-        { $_ -gt 1PB } {
+        { $_ -ge 1PB } {
             '{0:0.00} PB' -f ($bytes / 1PB); break
         }
-        { $_ -gt 1TB } {
+        { $_ -ge 1TB } {
             '{0:0.00} TB' -f ($bytes / 1TB); break
         }
-        { $_ -gt 1GB } {
+        { $_ -ge 1GB } {
             '{0:0.00} GB' -f ($bytes / 1GB); break
         }
-        { $_ -gt 1MB } {
+        { $_ -ge 1MB } {
             '{0:0.00} MB' -f ($bytes / 1MB); break
         }
-        { $_ -gt 1KB } {
+        { $_ -ge 1KB } {
             '{0:0.00} KB' -f ($bytes / 1KB); break
         }
         Default {

@@ -1,5 +1,11 @@
 function Test-IsAdministrator {
-    $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
-    $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    if (-not $IsWindows) { return $false }
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    try {
+        [Security.Principal.WindowsPrincipal]::new($identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+    finally { $identity.Dispose() }
 }

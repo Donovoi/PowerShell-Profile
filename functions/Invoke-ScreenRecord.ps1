@@ -3,8 +3,14 @@
 
 
 function Install-psScreenRecorder {
+    [CmdletBinding()]
     param (
+        [switch]$LocalDependencies,
+        [string]$LocalPath
     )
+    if ($LocalDependencies -and [string]::IsNullOrWhiteSpace($LocalPath)) {
+        throw 'LocalPath is required with LocalDependencies.'
+    }
     # Import the required cmdlets
     $neededcmdlets = @('Install-Dependencies', 'Get-FileDownload', 'Invoke-AriaDownload', 'Get-LongName', 'Write-Logg', 'Get-Properties')
     $neededcmdlets | ForEach-Object {
@@ -19,7 +25,8 @@ function Install-psScreenRecorder {
             $Cmdletstoinvoke | Import-Module -Force
         }
     }
-    Install-Dependencies -PSModule psScreenRecorder -LocalModulesDirectory "$PWD\Modules" -NoNugetPackage
+    $moduleDirectory = if ($LocalDependencies) { Join-Path $LocalPath 'Modules' } else { Join-Path $PWD 'Modules' }
+    Install-Dependencies -PSModule psScreenRecorder -LocalModulesDirectory $moduleDirectory -NoNugetPackage
 
 }
 

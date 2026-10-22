@@ -124,7 +124,7 @@ function Install-PSModule {
                 else {
                     Write-Warning "Initialize-CmdletDependencies.ps1 not found in $cmdletRoot"
                     Write-Warning 'Falling back to direct download'
-                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1' -ErrorAction Stop
+                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -ErrorAction Stop
                     $scriptBlock = [scriptblock]::Create($method)
                     . $scriptBlock
                 }
@@ -137,7 +137,7 @@ function Install-PSModule {
         
         # (1) Import required cmdlets if missing
         # Load all required cmdlets (replaces 100+ lines of boilerplate)
-        Initialize-CmdletDependencies -RequiredCmdlets @('Write-Logg') -PreferLocal -Force
+        Initialize-CmdletDependencies -RequiredCmdlets @('Write-Logg') -PreferLocal -ErrorAction Stop
 
         try {
             # Build a module list
@@ -148,9 +148,8 @@ function Install-PSModule {
                     'PSReadLine'
                 )
             }
-            elseif ($PSModule) {
-                $ModulesToBeInstalled = $PSModule
-            }
+            if ($PSModule) { $ModulesToBeInstalled += $PSModule }
+            $ModulesToBeInstalled = @($ModulesToBeInstalled | Select-Object -Unique)
 
             # Remove all modules if requested (the original code suggests this is possible)
             if ($RemoveAllInMemoryModules) {
@@ -215,7 +214,7 @@ function Install-PSModule {
                             if (Test-Path -Path $LocalModulePath -PathType Container -ErrorAction SilentlyContinue) {
                                 Write-Logg -Message "Module '$moduleName' found locally. Importing..." -Level VERBOSE
                                 try {
-                                    Import-Module -Name $LocalModulePath -Force -ErrorAction Stop -WarningAction SilentlyContinue
+                                    Import-Module -Name $LocalModulePath -Global -Force -ErrorAction Stop -WarningAction SilentlyContinue
                                 }
                                 catch {
                                     Write-Logg -Message "Failed to import local module '$moduleName': $($_.Exception.Message). Trying PSGallery..." -Level WARNING
@@ -224,7 +223,7 @@ function Install-PSModule {
                                             -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                                     }
                                     catch {
-                                        Write-Logg -Message "Failed to install module '$moduleName' from PSGallery: $($_.Exception.Message)" -Level WARNING
+                                        throw
                                     }
                                 }
                             }
@@ -235,7 +234,7 @@ function Install-PSModule {
                                         -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                                 }
                                 catch {
-                                    Write-Logg -Message "Failed to install module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                                    throw
                                 }
                             }
                         }
@@ -246,14 +245,14 @@ function Install-PSModule {
                                     -Scope CurrentUser -AllowClobber -SkipPublisherCheck -WarningAction SilentlyContinue
                             }
                             catch {
-                                Write-Logg -Message "Failed to install module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                                throw
                             }
                         }
                     }
 
                     # Try to import the module, but don't fail if assembly is already loaded
                     try {
-                        Import-Module -Name $moduleName -Force -ErrorAction Stop -WarningAction SilentlyContinue
+                        Import-Module -Name $moduleName -Global -Force -ErrorAction Stop -WarningAction SilentlyContinue
                     }
                     catch {
                         # If it's an assembly conflict, check if module is actually available
@@ -263,11 +262,11 @@ function Install-PSModule {
                                 Write-Logg -Message "Module '$moduleName' is already loaded and available" -Level VERBOSE
                             }
                             else {
-                                Write-Logg -Message "Module '$moduleName' assembly loaded but module not imported. This may cause issues." -Level WARNING
+                                throw
                             }
                         }
                         else {
-                            Write-Logg -Message "Failed to import module '$moduleName': $($_.Exception.Message)" -Level WARNING
+                            throw
                         }
                     }
                 }
@@ -277,7 +276,7 @@ function Install-PSModule {
             }
         }
         catch {
-            Write-Error "An error occurred in Install-PSModule: $_"
+            throw
         }
     }
 }
