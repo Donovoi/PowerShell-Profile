@@ -1,5 +1,3 @@
-$ErrorActionPreference = 'Stop'
-
 function Install-ChocoBox {
   [CmdletBinding()]
   param(
@@ -60,7 +58,11 @@ function Set-SOE {
   )
 
   begin {
-    Start-AsAdmin -WindowsPowerShell
+    $ErrorActionPreference = 'Stop'
+    if (-not (Get-Command Test-IsAdministrator -ErrorAction Ignore)) {
+      . (Join-Path $PSScriptRoot 'Test-IsAdministrator.ps1')
+    }
+    if (-not (Test-IsAdministrator)) { throw 'Set-SOE requires an elevated PowerShell session.' }
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Force -Scope Process
 
     # Reset all group poilicies to system defaults
