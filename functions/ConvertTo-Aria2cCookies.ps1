@@ -1,76 +1,32 @@
-<#
-.SYNOPSIS
-    Converts PowerShell cookie objects to Aria2c compatible cookie format.
-
-.DESCRIPTION
-    The ConvertTo-Aria2cCookies function takes a CookieContainer object and converts its cookies into a format
-    compatible with Aria2c downloader. It saves the converted cookies to a specified file path.
-    The cookie format follows Aria2c specifications with tab-separated values:
-    domain_name, http_only_flag, path, secure_flag, expiration_timestamp, name, value
-
-.PARAMETER Cookies
-    A System.Net.CookieContainer object containing the cookies to be converted.
-    These cookies typically come from a web session or request.
-
-.PARAMETER CookieFilePath
-    The full path where the converted cookie file should be saved.
-    The file will be created in Aria2c compatible format.
-
-.PARAMETER Domain
-    The domain name for which to extract cookies from the cookie container.
-    This parameter is used to filter cookies for the specific domain.
-
-.EXAMPLE
-    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    ConvertTo-Aria2cCookies -Cookies $session.Cookies -CookieFilePath "C:\temp\cookies.txt" -Domain "example.com"
-
-.NOTES
-    File Name      : ConvertTo-Aria2cCookies.ps1
-    Prerequisite   : PowerShell 5.1 or later
-    Copyright      : MIT License
-    Purpose        : Convert web session cookies for use with Aria2c downloader
-
-.OUTPUTS
-    Creates a text file at the specified path containing the converted cookies in Aria2c format.
-
-.LINK
-    https://aria2.github.io/manual/en/html/aria2c.html#cookie
-
-.FUNCTIONALITY
-    Web Tools
-    File Download
-    Cookie Management
-#>
-
 function ConvertTo-Aria2cCookies {
+    <#
+    .SYNOPSIS
+    Writes cookies in the Netscape cookie-file format used by aria2.
+    .DESCRIPTION
+    Domain accepts a host or an absolute HTTP(S) URL. Expiration uses Unix seconds;
+    session cookies use zero. HttpOnly is represented by the #HttpOnly_ prefix.
+    Protect the resulting file like a credential.
+    #>
     [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [System.Net.CookieContainer]$Cookies,
-        [Parameter(Mandatory)]
-        [string]$CookieFilePath,
-        [Parameter(Mandatory)]
-        [string]$Domain
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][Net.CookieContainer]$Cookies,
+        [Parameter(Mandatory)][string]$CookieFilePath,
+        [Parameter(Mandatory)][string]$Domain
     )
-
-    $cookieList = @()
-
-    foreach ($cookie in $Cookies.GetCookies($Domain)) {
-        # Check if the Expires property is valid
-        $expires = if ($cookie.Expires -eq [DateTime]::MinValue) {
-            # Default to a placeholder (e.g., 0 for session cookies)
-            0
-        }
-        else {
-            $cookie.Expires.ToFileTimeUtc()
-        }
-
-        # Append cookie information in aria2c-compatible format
-        $cookieList += "$($cookie.Domain)	$([int]$cookie.HttpOnly)	$($cookie.Path)	$([int]$cookie.Secure)	$expires	$($cookie.Name)	$($cookie.Value)"
+    $uri = if ($Domain -match '^https?://') { [uri]$Domain } else { [uri]("https://" + $Domain.TrimStart('.')) }
+    if ($uri.Scheme -notin 'http','https') { throw 'Domain must be an HTTP(S) host or URL.' }
+    $lines = [Collections.Generic.List[string]]::new()
+    $lines.Add('# Netscape HTTP Cookie File')
+    foreach ($cookie in $Cookies.GetCookies($uri)) {
+        $expires = if ($cookie.Expires -eq [datetime]::MinValue) { 0 } else { ([DateTimeOffset]$cookie.Expires.ToUniversalTime()).ToUnixTimeSeconds() }
+        $domainField = if ($cookie.HttpOnly) { '#HttpOnly_' + $cookie.Domain } else { $cookie.Domain }
+        $fields = @($domainField, $cookie.Domain.StartsWith('.').ToString().ToUpperInvariant(),
+            $cookie.Path, $cookie.Secure.ToString().ToUpperInvariant(), [string]$expires, $cookie.Name, $cookie.Value)
+        if (@($fields | Where-Object { $_ -match '[\r\n\t]' }).Count) { throw 'Cookie contains a delimiter that cannot be represented in Netscape format.' }
+        $lines.Add($fields -join "`t")
     }
-
-    # Write the cookie list to the file
-    $cookieList | Set-Content -Path $CookieFilePath -Encoding UTF8
-
-    return $CookieFilePath
+    $path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CookieFilePath)
+    [IO.File]::WriteAllLines($path, $lines, [Text.UTF8Encoding]::new($false))
+    $path
 }

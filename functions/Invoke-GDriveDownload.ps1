@@ -215,6 +215,7 @@ function Invoke-GDriveDownload {
 
                     # Determine final output path
                     $actualOutputPath = Get-FinalOutputPath -BasePath $OutputPath -FileName $fileDetails.FileName -Force:$Force
+                    $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($actualOutputPath))
 
                     # Save the downloaded content
                     Save-BinaryContent -Content $downloadResponse.Content -Path $actualOutputPath
