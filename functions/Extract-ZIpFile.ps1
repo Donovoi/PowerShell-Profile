@@ -16,8 +16,9 @@ function Extract-ZipFile {
     )
     $ErrorActionPreference = 'Stop'
     $source = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($zipFilePath)
-    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($outputFolderPath).TrimEnd('\', '/')
-    $prefix = $root + [IO.Path]::DirectorySeparatorChar
+    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($outputFolderPath)
+    if ($root.Length -gt [IO.Path]::GetPathRoot($root).Length) { $root = $root.TrimEnd('\', '/') }
+    $prefix = $root.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     function Assert-PlainPath([string]$Path) {
         for ($part = $Path; $part; $part = [IO.Path]::GetDirectoryName($part)) {
             if (Test-Path -LiteralPath $part) {
