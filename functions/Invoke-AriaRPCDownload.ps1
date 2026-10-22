@@ -27,5 +27,9 @@ function Invoke-AriaRPCDownload {
         else { . ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -ErrorAction Stop))) }
     }
     Initialize-CmdletDependencies -RequiredCmdlets @('Invoke-ValidatedDownload') -PreferLocal -ErrorAction Stop
-    Invoke-ValidatedDownload @PSBoundParameters -Transport RPC
+    if ($PSCmdlet.ShouldProcess($OutFile, 'Download and verify using private aria2 RPC')) {
+        $parameters = @{} + $PSBoundParameters
+        $parameters.Confirm = $false; $parameters.WhatIf = $false
+        Invoke-ValidatedDownload @parameters -Transport RPC
+    }
 }

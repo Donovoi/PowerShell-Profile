@@ -6,6 +6,7 @@ function Get-FinalOutputPath {
     Use a trailing separator for a directory that does not yet exist.
     Existing files require -Force; the caller must also enforce this when publishing.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess','',Justification='Pure path resolver; retains the existing WhatIf/Confirm parameters for compatibility. Publication is guarded by the caller.')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
     param(
