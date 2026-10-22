@@ -47,7 +47,7 @@ function Start-ForensicSystemElevation {
         Write-Verbose "Executing SYSTEM elevation with: $powershellPath $systemArgs"
 
         # Execute under SYSTEM context
-        Get-SYSTEM -Command $powershellPath -Arguments $systemArgs
+        Get-SYSTEM -PowerShellPath $powershellPath -PowerShellArgs $systemArgs
 
         # Schedule cleanup
         Register-ForensicCleanup -TempScript $tempScript.FullName

@@ -54,7 +54,7 @@ function Show-TUIConfirmationDialog {
         else {
             Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
             Write-Warning 'Falling back to direct download'
-            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+            $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1'
             $scriptBlock = [scriptblock]::Create($method)
             . $scriptBlock
         }

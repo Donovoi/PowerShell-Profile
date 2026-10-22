@@ -1,194 +1,113 @@
-<#
-.SYNOPSIS
-This function is used to invoke a process with the given file path and argument list.
-It is a wrapper around the Start-Process cmdlet.
-
-.DESCRIPTION
-Taken from work done by Adam Bertram https://www.powershellgallery.com/packages/Invoke-Process/1.4/Content/Invoke-Process.ps1
-The Invoke-Process function is an advanced function that supports common parameters like, -Debug etc.
-It takes a mandatory file path and an optional argument list as input parameters.
-The function also defines dynamic parameters for the Start-Process cmdlet excluding the 'FilePath', 'ArgumentList' and common parameters.
-
-.PARAMETER FilePath
-A mandatory parameter that specifies the file path of the process to be invoked. This parameter should not be null or empty.
-
-.PARAMETER ArgumentList
-An optional parameter that specifies the argument list for the process to be invoked. This parameter should not be null or empty.
-
-.EXAMPLE
-$rcloneexe = Join-Path -Path $PWD -ChildPath '.\rclone.exe' -Resolve
-$RCloneConfig = Join-Path -Path $PWD -ChildPath '.\rclone.conf' -Resolve
-$Arguments = @(
-    'config',
-    'create',
-    'onedrive',
-    'onedrive',
-    "--config `"$RCloneConfig`""
-)
-$RCloneProcessParams = @{
-    FilePath     = "$rcloneexe"
-    ArgumentList = $Arguments
-    NoNewWindow  = $true
-    PassThru     = $true
-    #Wait         = $true #dont use wait, it will hang the script
-}
-
-Invoke-Process @RCloneProcessParams
-
-This example demonstrates how to use the Invoke-Process function to start a process with the specified file path and argument list.
-
-.NOTES
-The function creates temporary files for standard output and error. It then starts the process and keeps checking the process until it has exited. During this time, it writes new lines of standard output and error to the console. If any exception occurs, it throws a terminating error. Finally, it removes the temporary files.
-#>
 function Invoke-Process {
-    # CmdletBinding attribute is used to make this function advanced which means it will support common parameters like, -Debug etc.
+    <#
+    .SYNOPSIS
+    Runs a native executable synchronously and captures both output streams.
+    .DESCRIPTION
+    ArgumentList contains one element per native argument; do not prequote values.
+    Both streams drain asynchronously to prevent pipe deadlocks. By default stdout
+    lines enter the success stream and stderr is information tagged StandardError.
+    PassThru returns one result object with Id, ExitCode, StandardOutput and
+    StandardError instead. Nonzero exit codes throw unless IgnoreExitCode is set.
+    TimeoutSeconds bounds the run and terminates its process tree on timeout.
+    .PARAMETER NoNewWindow
+    Compatibility switch. Execution always uses redirected pipes without a window.
+    .PARAMETER Wait
+    Compatibility switch. This command always waits for completion.
+    .EXAMPLE
+    Invoke-Process git -ArgumentList @('-C', 'C:\My Repo', 'status', '--short')
+    .EXAMPLE
+    $result = Invoke-Process pwsh -ArgumentList @('-NoProfile', '-Command', 'exit 7') -PassThru -IgnoreExitCode
+    #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string], [pscustomobject])]
     param(
-        # Mandatory parameter for file path. It should not be null or empty.
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$FilePath,
-
-        # Optional parameter for argument list. It should not be null or empty.
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string[]]$ArgumentList
+        [Parameter(Mandatory, Position = 0)] [ValidateNotNullOrEmpty()] [string]$FilePath,
+        [Parameter(Position = 1)] [AllowEmptyCollection()] [AllowEmptyString()] [string[]]$ArgumentList = @(),
+        [string]$WorkingDirectory,
+        [hashtable]$Environment,
+        [ValidateRange(0, 2147483)] [int]$TimeoutSeconds = 0,
+        [switch]$PassThru,
+        [switch]$IgnoreExitCode,
+        [switch]$NoNewWindow,
+        [switch]$Wait,
+        [string]$RedirectStandardOutput,
+        [string]$RedirectStandardError
     )
-
-    # Dynamic parameters are defined in this block.
-    dynamicparam {
-        # Get all parameters of Start-Process cmdlet.
-        $startProcessParams = (Get-Command Start-Process).ParameterSets.parameters
-
-        # Create a dictionary to hold dynamic parameters.
-        $paramDictionary = New-Object -Type System.Management.Automation.RuntimeDefinedParameterDictionary
-
-        # Define an array to hold names of parameters to ignore.
-        $paramsToIgnore = @('FilePath', 'ArgumentList')
-
-        # Add optional common parameters to ignore list.
-        foreach ($param in [System.Management.Automation.PSCmdlet]::OptionalCommonParameters) {
-            $paramsToIgnore += $param
-        }
-
-        # Add mandatory common parameters to ignore list.
-        foreach ($param in [System.Management.Automation.PSCmdlet]::CommonParameters) {
-            $paramsToIgnore += $param
-        }
-
-        # Iterate over each parameter of Start-Process cmdlet.
-        foreach ($param in $startProcessParams) {
-            # Skip parameters that are in ignore list.
-            if ($param.Name -notin $paramsToIgnore) {
-                # Create a new ParameterAttribute object.
-                $attributes = New-Object System.Management.Automation.ParameterAttribute
-                $attributes.Mandatory = $false
-
-                # Create a collection to hold attributes.
-                $attributeCollection = New-Object `
-                    -Type System.Collections.ObjectModel.Collection[System.Attribute]
-                $attributeCollection.Add($attributes)
-
-                # Add a ValidateScript attribute for the Wait parameter.
-                if ($param.Name -eq 'Wait') {
-                    $validateScript = New-Object System.Management.Automation.ValidateScriptAttribute -ArgumentList {
-                        if ($_ -eq $true) {
-                            throw 'The Wait parameter is not supported at the moment.'
-                        }
-                    }
-                    $attributeCollection.Add($validateScript)
-                }
-
-                # Get the type of the parameter.
-                $paramType = $param.ParameterType
-
-                # Create a new RuntimeDefinedParameter object.
-                $dynParam1 = New-Object `
-                    -Type System.Management.Automation.RuntimeDefinedParameter `
-                    -ArgumentList ($param.name, $paramType, $attributeCollection)
-
-                # Check if the key already exists in the dictionary.
-                if (-not $paramDictionary.ContainsKey($param.Name)) {
-                    $paramDictionary.Add($param.Name, $dynParam1)
-                }
-            }
-        }
-        return $paramDictionary
+    if ($NoNewWindow -or $Wait) { Write-Verbose 'Invoke-Process always waits and uses redirected pipes without a window.' }
+    if (-not $PSCmdlet.ShouldProcess($FilePath, 'Run executable')) { return }
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FilePath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    if ($WorkingDirectory) {
+        $startInfo.WorkingDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkingDirectory)
     }
-
-    # Process block contains the main script that the function executes.
-    process {
-        try {
-            # Create temporary files for standard output and error.
-            $stdOutTempFile = "$env:TEMP\$((New-Guid).Guid)"
-            $stdErrTempFile = "$env:TEMP\$((New-Guid).Guid)"
-
-            # Define parameters for Start-Process cmdlet.
-            $startProcessParams = @{
-                FilePath               = $FilePath
-                ArgumentList           = $ArgumentList
-                RedirectStandardError  = $stdErrTempFile
-                RedirectStandardOutput = $stdOutTempFile
+    else { $startInfo.WorkingDirectory = $PWD.ProviderPath }
+    foreach ($argument in $ArgumentList) { $startInfo.ArgumentList.Add($argument) }
+    if ($Environment) {
+        foreach ($key in $Environment.Keys) {
+            if ($null -eq $Environment[$key]) { $null = $startInfo.Environment.Remove($key) }
+            else { $startInfo.Environment[$key] = [string]$Environment[$key] }
+        }
+    }
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    $started = $false
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $started = $process.Start()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        if ($TimeoutSeconds -gt 0) {
+            if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                throw [TimeoutException]::new("Process '$FilePath' exceeded $TimeoutSeconds seconds.")
             }
-            # Merge the PSBoundParameters into the startProcessParams hashtable.
-            foreach ($key in $PSBoundParameters.Keys) {
-                if ($key -notin @('FilePath', 'ArgumentList')) {
-                    $startProcessParams[$key] = $PSBoundParameters[$key]
-                }
-            }
-
-            # Check if the cmdlet should process further based on ShouldProcess result.
-            if ($PSCmdlet.ShouldProcess("Process [$($FilePath)]", "Run with args: [$($ArgumentList)]")) {
-                # Start the process and get the process ID.
-                $cmd = Start-Process @startProcessParams
-                $processId = $cmd.Id
-                $lastStdOutLineIndex = 0
-                $lastStdErrLineIndex = 0
-
-                # Keep checking the process until it has exited.
-                do {
-                    # Get the content of standard output and error files.
-                    $cmdOutput = Get-Content -Path $stdOutTempFile
-                    $cmdError = Get-Content -Path $stdErrTempFile
-
-                    # Write new lines of standard output to console.
-                    if ($cmdOutput.Count -gt $lastStdOutLineIndex) {
-                        Write-Output -InputObject $cmdOutput[$lastStdOutLineIndex..($cmdOutput.Count - 1)]
-                        $lastStdOutLineIndex = $cmdOutput.Count
-                    }
-
-                    # Write new lines of standard error to console.
-                    if ($cmdError.Count -gt $lastStdErrLineIndex) {
-                        Write-Output -Message $cmdError[$lastStdErrLineIndex..($cmdError.Count - 1)]
-                        $lastStdErrLineIndex = $cmdError.Count
-                    }
-
-                    # Sleep for a second.
-                    Start-SleepWithCountdown -Seconds 1 -NoConsoleOutput
-
-                } while (Get-Process -Id $processId -ErrorAction SilentlyContinue)
-
-                # If the process has exited, write remaining lines of standard output and error to console.
-                if ($cmd.HasExited) {
-                    if ($cmdOutput.Count -gt $lastStdOutLineIndex) {
-                        Write-Output -InputObject $cmdOutput[$lastStdOutLineIndex..($cmdOutput.Count - 1)]
-                        $lastStdOutLineIndex = $cmdOutput.Count
-                    }
-
-                    if ($cmdError.Count -gt $lastStdErrLineIndex) {
-                        Write-Error -Message $cmdError[$lastStdErrLineIndex..($cmdError.Count - 1)]
-                        $lastStdErrLineIndex = $cmdError.Count
-                    }
+        }
+        else { $process.WaitForExit() }
+        if ($TimeoutSeconds -gt 0) {
+            foreach ($task in @($stdoutTask, $stderrTask)) {
+                $remaining = [Math]::Max(0, $TimeoutSeconds * 1000 - [int]$clock.ElapsedMilliseconds)
+                if (-not $task.Wait($remaining)) {
+                    throw [TimeoutException]::new("Process '$FilePath' exceeded $TimeoutSeconds seconds while draining output.")
                 }
             }
         }
-        catch {
-            # Throw terminating error if any exception occurs.
-            $PSCmdlet.ThrowTerminatingError($_)
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        $result = [pscustomobject]@{
+            PSTypeName = 'PowerShellProfile.ProcessResult'
+            Id = $process.Id
+            ExitCode = $process.ExitCode
+            StandardOutput = $stdout
+            StandardError = $stderr
         }
-        finally {
-            # Remove temporary files in the end.
-            Remove-Item -Path $stdOutTempFile, $stdErrTempFile -Force -ErrorAction Ignore
+        if ($RedirectStandardOutput) {
+            [IO.File]::WriteAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RedirectStandardOutput), $stdout)
         }
+        if ($RedirectStandardError) {
+            [IO.File]::WriteAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RedirectStandardError), $stderr)
+        }
+        if ($result.ExitCode -ne 0 -and -not $IgnoreExitCode) {
+            $errorRecord = [Management.Automation.ErrorRecord]::new(
+                [InvalidOperationException]::new("Process '$FilePath' exited with code $($result.ExitCode). $stderr"),
+                'NativeProcessFailed', [Management.Automation.ErrorCategory]::InvalidResult, $result)
+            $PSCmdlet.ThrowTerminatingError($errorRecord)
+        }
+        if ($PassThru) { return $result }
+        if ($stderr.Length -and -not $RedirectStandardError) { Write-Information -MessageData $stderr -Tags StandardError -InformationAction Continue }
+        if ($stdout.Length -and -not $RedirectStandardOutput) {
+            $reader = [IO.StringReader]::new($stdout)
+            try { while ($null -ne ($line = $reader.ReadLine())) { $line } }
+            finally { $reader.Dispose() }
+        }
+    }
+    finally {
+        if ($started -and -not $process.HasExited) {
+            $process.Kill($true)
+            $null = $process.WaitForExit(5000)
+        }
+        $process.Dispose()
     }
 }
