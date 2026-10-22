@@ -9,8 +9,8 @@ $powerShell7ProfilePath = @($PSScriptRoot, $documentsPowerShellProfilePath) |
   Select-Object -First 1
 
 if ($powerShell7ProfilePath) {
-  # Exclude the obsolete Whisper implementation and the identical matrix copy.
-  $excludedFunctionFiles = @('Invoke-Whispercpp-SDL2-BACKUP.ps1', 'cmatrix.ps1')
+  # Aggregate compatibility files remain usable directly; startup loads canonical files once.
+  $excludedFunctionFiles = @('Invoke-Whispercpp-SDL2-BACKUP.ps1', 'cmatrix.ps1', 'PSReflect.ps1', 'Copy-FileSystemUtilities.ps1')
   foreach ($functionFile in (Get-ChildItem -LiteralPath (Join-Path $powerShell7ProfilePath 'functions') -Filter '*.ps1' -File -Recurse | Sort-Object FullName)) {
     if ($functionFile.Name -in $excludedFunctionFiles) { continue }
     try { . $functionFile.FullName }
