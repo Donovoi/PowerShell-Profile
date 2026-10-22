@@ -1,61 +1,78 @@
-<#
-.SYNOPSIS
-Extracts the contents of a zip file to a specified output folder.
-
-.DESCRIPTION
-The Extract-ZipFile function extracts the contents of a zip file to a specified output folder. It uses the System.IO.Compression.ZipFile class to open and read the zip file, and then iterates through each entry in the zip archive. For each entry, it creates the corresponding target path in the output folder, creates any necessary directories, and copies the entry's contents to the target file.
-
-.PARAMETER zipFilePath
-The path to the zip file that needs to be extracted..
-
-.PARAMETER outputFolderPath
-The path to the folder where the contents of the zip file should be extracted.
-
-.EXAMPLE
-Extract-ZipFile -zipFilePath "C:\path\to\archive.zip" -outputFolderPath "C:\path\to\output"
-
-This example extracts the contents of the "archive.zip" file to the "output" folder.
-
-.NOTES
-Author: Your Name
-Date:   Current Date
-#>
 function Extract-ZipFile {
-    param (
-        [string]$zipFilePath,
-        [string]$outputFolderPath
+    <#
+    .SYNOPSIS
+    Extracts a ZIP after validating every entry and destination.
+    .DESCRIPTION
+    Rejects traversal, device names, alternate streams, symbolic links, duplicate
+    destinations and existing reparse points. Existing files require -Force.
+    Use a destination that other processes cannot modify during extraction.
+    Validation precedes writes; an I/O failure can leave earlier entries.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)][string]$zipFilePath,
+        [Parameter(Mandatory)][string]$outputFolderPath,
+        [switch]$Force
     )
-    Add-Type -AssemblyName System.Net.Http
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-    if (-not (Test-Path $zipFilePath)) {
-        Write-Error "Zip file does not exist: $zipFilePath"
-        return
-    }
-
-    try {
-        $zipArchive = [System.IO.Compression.ZipFile]::OpenRead($zipFilePath)
-        foreach ($entry in $zipArchive.Entries) {
-            $targetPath = Join-Path $outputFolderPath $entry.FullName
-            if (-not $entry.FullName.EndsWith('/')) {
-                $dir = Split-Path $targetPath
-                if (-not (Test-Path $dir)) {
-                    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    $ErrorActionPreference = 'Stop'
+    $source = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($zipFilePath)
+    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($outputFolderPath).TrimEnd('\', '/')
+    $prefix = $root + [IO.Path]::DirectorySeparatorChar
+    function Assert-PlainPath([string]$Path) {
+        for ($part = $Path; $part; $part = [IO.Path]::GetDirectoryName($part)) {
+            if (Test-Path -LiteralPath $part) {
+                if ((Get-Item -LiteralPath $part -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                    throw "ZIP destination contains a reparse point: $part"
                 }
-                $entryStream = $entry.Open()
-                $fileStream = [System.IO.File]::Create($targetPath)
-                $entryStream.CopyTo($fileStream)
-                $fileStream.Dispose()
-                $entryStream.Dispose()
             }
         }
     }
-    catch {
-        Write-Error "An error occurred while extracting the zip file: $_"
-    }
-    finally {
-        if ($null -ne $zipArchive) {
-            $zipArchive.Dispose()
+    Assert-PlainPath $root
+    $archive = [IO.Compression.ZipFile]::OpenRead($source)
+    try {
+        $seen = [Collections.Generic.Dictionary[string,bool]]::new([StringComparer]::OrdinalIgnoreCase)
+        $entries = foreach ($entry in $archive.Entries) {
+            $name = $entry.FullName.Replace('/', '\')
+            if ([IO.Path]::IsPathRooted($name)) { throw "Rooted ZIP entry: $name" }
+            $isDirectory = $name.EndsWith('\')
+            foreach ($part in $name.TrimEnd('\').Split('\')) {
+                if (-not $part -or $part -in '.', '..' -or $part -match '[<>:"|?*\x00-\x1f]' -or
+                    $part -match '[. ]$' -or $part -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)') {
+                    throw "Unsafe ZIP entry: $name"
+                }
+            }
+            if ((($entry.ExternalAttributes -shr 16) -band 0xF000) -eq 0xA000) { throw "ZIP symbolic link: $name" }
+            $target = [IO.Path]::GetFullPath([IO.Path]::Combine($root, $name)).TrimEnd('\')
+            if (-not $target.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw "ZIP entry escapes destination: $name" }
+            if ($target -eq $source) { throw 'ZIP cannot overwrite its own archive.' }
+            if ($seen.ContainsKey($target)) { throw "Duplicate ZIP destination: $name" }
+            $seen.Add($target, $isDirectory)
+            Assert-PlainPath $target
+            if (Test-Path -LiteralPath $target) {
+                $existing = Get-Item -LiteralPath $target -Force
+                if ($existing.PSIsContainer -ne $isDirectory) { throw "ZIP file/directory conflict: $name" }
+                if (-not $isDirectory -and -not $Force) { throw "File exists; use -Force: $target" }
+            }
+            [pscustomobject]@{ Entry = $entry; Target = $target; IsDirectory = $isDirectory }
+        }
+        foreach ($item in $entries) {
+            for ($parent = [IO.Path]::GetDirectoryName($item.Target); $parent -and $parent.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase); $parent = [IO.Path]::GetDirectoryName($parent)) {
+                if (($seen.ContainsKey($parent) -and -not $seen[$parent]) -or [IO.File]::Exists($parent)) { throw "ZIP parent is a file: $parent" }
+            }
+        }
+        if (-not $PSCmdlet.ShouldProcess($root, "Extract $($archive.Entries.Count) validated ZIP entries")) { return }
+        $null = [IO.Directory]::CreateDirectory($root)
+        foreach ($item in $entries) {
+            Assert-PlainPath $item.Target
+            if ($item.IsDirectory) { $null = [IO.Directory]::CreateDirectory($item.Target); continue }
+            $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($item.Target))
+            $temporary = $item.Target + '.' + [guid]::NewGuid().ToString('N') + '.partial'
+            try {
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($item.Entry, $temporary, $false)
+                [IO.File]::Move($temporary, $item.Target, [bool]$Force)
+            }
+            finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
         }
     }
+    finally { $archive.Dispose() }
 }
