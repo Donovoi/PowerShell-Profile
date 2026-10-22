@@ -21,6 +21,48 @@ All script tests passed on PowerShell 7.6.7 / Windows 10.0.26300. Older PowerShe
 
 ## Intentional API corrections
 
+### Packages C–G
+
+The Windows suite also requires `aria2c.exe` on PATH. It uses a loopback HTTP server and disposable local Git remotes; it does not use real credentials, reset user repositories, install a profile, or read raw evidence disks. `ProfileDownloads.Behavior.ps1 -FFmpegFixturePath <existing ffmpeg.exe>` additionally serves a real executable from a local ZIP and verifies extraction, its version and hash.
+
+Run focused static validation with PSScriptAnalyzer 1.25.0:
+
+```powershell
+./tests/Invoke-ProfileStaticValidation.ps1 -OutputPath ./static-results.json
+```
+
+The checked-in baseline covers C–G production files. It permits five existing warnings: two compatibility command names and three intentionally exported profile variables. New warnings and all errors fail. Public-command validation rejects duplicate file-level definitions without confusing nested helper functions with public commands. GitHub Actions runs the static gate and Windows regression suite; hosted CI has not run until these commits are pushed.
+
+| Added test | Evidence |
+| --- | --- |
+| ProfileArchive.Behavior | Exact ZIP bytes, empty directories, overwrite/WhatIf, traversal, device/ADS paths, duplicates, symlinks and junctions. |
+| ProfileDownloads.Behavior | Real native/aria2/RPC loopback transfers, headers, completion, failures, timeout, hashes, lengths, multiple URLs, fallback isolation, cookies, private-release parameter capture and FFmpeg ZIP layout. |
+| ProfileSecrets.Behavior | Mocked locked/missing/custom vaults; original secret types retained; no policy reconfiguration or secret-bearing errors. |
+| ProfileGit.Behavior | Real local bare remotes; preview, reset/merge/push, recovery of staged/unstaged/untracked work, ignored files, Cargo sentinels, NoPush, divergence, locks, detached HEAD and failed remotes. |
+| ProfileSearch.Behavior | Reference filename/content fixtures, Unicode, recursive glob behavior, junction avoidance and mocked Everything ownership. |
+| ProfileRawCopy.Behavior | ABI layout, malformed buffers, sparse/multiple extents, partial clusters, EOF, large logical lengths, real file retrieval IOCTL, and mocked VSS cleanup. No raw-device reads. |
+| ProfileForensicCopy.Behavior | Regular/LOG/empty file bytes and hashes; partial totals, locked failures, verified adapter contract, stale-output rejection and import order. |
+| ProfilePublicCommands.Behavior | Unique public definitions and compatibility imports. |
+
+Downloads emit one path per successful URL. Existing outputs require `-Force`; a failed transfer keeps the prior file. `-AllowEmpty` explicitly allows zero-byte output. `-ExpectedLength` and `-ExpectedSHA256` verify before publication. aria2 URL files accept plain URLs, not arbitrary per-item options. Native cookie authentication uses `-WebSession`; Netscape files require aria2. Google Drive must supply a direct download URL/session; interactive confirmation pages are not handled by this generic downloader.
+
+FFmpeg now defaults to a static-build ZIP. Custom `.7z` and shared DLL builds fail explicitly; the old implementation did not extract them correctly. Existing executables are checked with `-version`. Automatic dependency installation remains available when a function is invoked.
+
+`Get-GitPull -Preview` shows branch, remote URLs, commit IDs, local changes and proposed cleanup. Execution prompts once per repository (`-Confirm:$false` is available after review); `-NoPush` keeps the merge local. Ignored files are preserved, including merge collisions. Submodules, active operations/locks, detached HEAD, assume-unchanged and skip-worktree entries require manual handling. Origin pushes must preserve ancestry and match the previewed remote commit. Recovery refs are retained, and stashed changes are intentionally not reapplied to the synchronized checkout. For recovery into a separate directory:
+
+```powershell
+git -C C:\Repo worktree add --detach C:\Recovery refs/profile-sync/ID/head
+git -C C:\Recovery stash apply --index refs/profile-sync/ID/worktree
+```
+
+Use the actual `RecoveryRef` returned by the command; `/worktree` exists only when there were local changes, and `/target` preserves an existing target branch. On a failed merge, inspect the retained repository state and recovery refs; there is no destructive reset fallback.
+
+The Rust/SIMD experiments are compatibility wrappers over tested PowerShell searches. `Find-FilesRust` searches text and returns `MatchInfo`; `Find-RustyFile` searches filenames; `Find-FilesWithGlobPattern` returns paths. They do not create Cargo/build files. Everything uses an invocation-specific folder-indexing instance when `SearchInDirectory` is supplied, or queries an existing instance otherwise. Its portable default is Everything 1.5.0.1424b with ES 1.1.0.38. Existing INI files and unrelated processes are not changed.
+
+Forensic collection includes LOG files and reports per-file hashes, counts, errors and partial success. Legacy external RawCopy/XCopy/Robocopy adapters are disabled because their previous exit-code/file-existence checks did not establish acquisition correctness. `Invoke-RawCopy` supplies the verified adapter contract. Its extent decoder and copying components are tested, but elevated VSS/raw-volume acquisition remains unqualified. It acquires logical file data, not ADS, ACLs, slack or a disk image. Resident/compressed/encrypted files use a logical snapshot stream. Failed checks do not publish the staged file.
+
+`Set-StoredSecret` requires a registered vault. It uses the default or sole vault unless `-Vault` is supplied; `-SecurePassword` unlocks SecretStore without changing authentication. First-use vault registration/configuration is explicit. SecureString and PSCredential are passed directly to SecretManagement.
+
 - Importing the profile no longer installs tools. Invoke-OhMyPoshRandomTheme still automatically installs its missing executable when called directly. Startup uses its new LocalOnly mode.
 - Initialize-CmdletDependencies imports into global scope, verifies exports, forwards repository/timeout options, and throws after bounded retries (default: three). Already available commands are reused unless Force is specified.
 - Install-Cmdlet returns cached path strings with PreferLocal and PSModuleInfo otherwise. Both modes import commands globally. Warm cache use does not download; Force refreshes only after download and syntax validation. WhatIf does not download, import or create a cache.
@@ -33,4 +75,4 @@ All script tests passed on PowerShell 7.6.7 / Windows 10.0.26300. Older PowerShe
 
 The corrected CsWin32 dependency table pins [0.3.366](https://www.nuget.org/packages/Microsoft.Windows.CsWin32/0.3.366), a published package version. Binding is tested; the unfinished DLL-generation workflow is not validated end to end.
 
-The broader review's download, forensic-layout, Git reset/sync, full deduplication and credential-storage packages remain separate work. Set-InvalidHandle is also still unfinished: Get-Handle does not implement the file-handle contract it expects. Moving native compilation into Get-Handle only makes importing that file safe.
+Packages C–G implement the reviewed download, forensic-layout, Git reset/sync, duplicate-definition and credential-storage corrections described above. Set-InvalidHandle remains unfinished: Get-Handle does not implement the file-handle contract it expects. Moving native compilation into Get-Handle only makes importing that file safe.

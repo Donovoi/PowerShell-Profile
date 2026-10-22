@@ -33,6 +33,14 @@ $testNames=@(
     'ProfileStartup.Behavior',
     'ProfileCore.Behavior',
     'ProfileDependencies.Behavior',
+    'ProfileArchive.Behavior',
+    'ProfileDownloads.Behavior',
+    'ProfileSecrets.Behavior',
+    'ProfileGit.Behavior',
+    'ProfileSearch.Behavior',
+    'ProfileRawCopy.Behavior',
+    'ProfileForensicCopy.Behavior',
+    'ProfilePublicCommands.Behavior',
     'Install-Profile.Status',
     'Install-Profile.Integration',
     'Restart-WindowsThumbnailWorker.Import',
@@ -41,7 +49,7 @@ $testNames=@(
 )
 $results=foreach($name in $testNames) {
     $parameters=@()
-    if($name -in $testNames[0..4]) { $parameters=@('-TestRoot',(Join-Path $root $name)) }
+    if($name -notin @('Restart-WindowsThumbnailWorker.Import','Restart-WindowsThumbnailWorker.Behavior','Update-WindowsThumbnailCache.Import')) { $parameters=@('-TestRoot',(Join-Path $root $name)) }
     $logPath=Join-Path $root ($name+'.log')
     $timer=[Diagnostics.Stopwatch]::StartNew()
     & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot ($name+'.ps1')) @parameters *> $logPath
