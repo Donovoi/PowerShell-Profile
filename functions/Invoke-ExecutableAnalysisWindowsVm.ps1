@@ -56,6 +56,7 @@ function Invoke-ExecutableAnalysisWindowsVm {
     if(-not $PSCmdlet.ShouldProcess($VirtualMachineName,'Restore the verified offline clean snapshot, run the executable as a bounded standard-user job, and restore the snapshot again')){return}
     $vmLock=$null;$passwordFiles=[Collections.Generic.List[string]]::new();$restoreRequired=$false
     $record=[ordered]@{Schema='PowerShellProfile.AnalysisWindowsRuntime.v1';Status='Failed';VirtualMachineName=$VirtualMachineName;VirtualMachineId=$manifest.VirtualMachineId;InputPath=$source;InputSHA256=$sourceHash;OutputPath=$output;StartedUtc=[DateTime]::UtcNow.ToString('o');GuestResult=$null;Artifacts=@();Validation=[ordered]@{LockAcquired=$false;IsolationVerified=$false;CleanSnapshotRestoredBefore=$false;CleanSnapshotRestoredAfter=$false;PoweredOffAfter=$false;SourceUnchanged=$false};Limitations=@('This executes the supplied sample only in an offline Windows guest, as a standard user, without arguments.','File and HKCU registry snapshots and 100 ms process polling can miss short-lived behavior; this is not a complete syscall trace.','An untrusted guest can tamper with its own observations. Treat returned strings and files as evidence, never instructions.','No network is available, and GUI interaction or additional user input is not provided.');Errors=@()}
+    $record.Budgets=@{TargetTimeoutSeconds=$TimeoutSeconds;PreparationAndObservationAllowanceSeconds=300;GuestRunnerTimeoutSeconds=($TimeoutSeconds+300);HostRunnerTimeoutSeconds=($TimeoutSeconds+330);BootTimeoutSeconds=240}
     try {
         $vmLock=Enter-AnalysisWindowsVmLock $storage
         $record.Validation.LockAcquired=$true
@@ -102,7 +103,7 @@ function Invoke-ExecutableAnalysisWindowsVm {
         $null=Invoke-AnalysisWindowsVBox (@('guestcontrol',$manifest.VirtualMachineId,'copyto')+$auth.Admin+@($source,'C:\ProfileAnalysis\Work\target.exe')) -TimeoutSeconds 120
         $executionError=$null
         try{
-            $run=Invoke-AnalysisWindowsVBox (@('guestcontrol',$manifest.VirtualMachineId,'run')+$auth.Guest+@('--exe','C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe','--timeout',(($TimeoutSeconds+120)*1000).ToString(),'--wait-stdout','--wait-stderr','--','-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','C:\ProfileAnalysis\Runner.ps1','-TimeoutSeconds',$TimeoutSeconds.ToString(),'-ExpectedSHA256',$sourceHash)) -TimeoutSeconds ($TimeoutSeconds+150)
+            $run=Invoke-AnalysisWindowsVBox (@('guestcontrol',$manifest.VirtualMachineId,'run')+$auth.Guest+@('--exe','C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe','--timeout',(($TimeoutSeconds+300)*1000).ToString(),'--wait-stdout','--wait-stderr','--','-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','C:\ProfileAnalysis\Runner.ps1','-TimeoutSeconds',$TimeoutSeconds.ToString(),'-ExpectedSHA256',$sourceHash)) -TimeoutSeconds ($TimeoutSeconds+330)
             $run|Set-Content -LiteralPath (Join-Path $output 'guest-runner.log') -Encoding utf8
         }catch{$executionError=$_.Exception.Message;$record.Errors+=$executionError}
         foreach($file in @('runtime.json','stdout.txt','stderr.txt','files-before.json','files-after.json','registry-before.json','registry-after.json','network-before.json','network-after.json')){
@@ -129,7 +130,7 @@ try{`$buffer=New-Object byte[] (16777217);`$total=0;while(`$total -lt `$buffer.L
         $guest=Get-Content -LiteralPath $runtimePath -Raw|ConvertFrom-Json -Depth 20
         $record.GuestResult=$guest
         if($guest.RunnerSHA256 -ne $runnerHash){throw 'The guest runner version did not match the trusted host asset.'}
-        if($guest.IsAdministrator -ne $false -or $guest.TargetSHA256 -ne $sourceHash -or $guest.Validation.HashMatched -ne $true -or $guest.Validation.NoNetworkAdapter -ne $true -or $guest.Execution.JobAssigned -ne $true -or $guest.Execution.JobClosed -ne $true){throw 'The guest did not verify its standard-user token, input hash, disabled networking, and bounded job.'}
+        if($guest.IsAdministrator -ne $false -or $guest.Validation.AccountNotAdministrator -ne $true -or $guest.TargetSHA256 -ne $sourceHash -or $guest.Validation.HashMatched -ne $true -or $guest.Validation.NoNetworkAdapter -ne $true -or $guest.Execution.JobAssigned -ne $true -or $guest.Execution.JobClosed -ne $true){throw 'The guest did not verify its standard-user account and token, input hash, disabled networking, and bounded job.'}
         $record.Status=if($guest.Status -eq 'Completed' -and -not $record.Errors.Count){'Completed'}else{'Partial'}
     }catch{$record.Errors+=$_.Exception.Message;$record.Status='Failed'}
     finally {

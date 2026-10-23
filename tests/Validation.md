@@ -41,6 +41,8 @@ Separate local checks on 23 October 2026 used real providers and benign, known-a
 
 These fixtures qualify the exercised adapters, not all input formats, arbitrary protected programs, every guest execution path or complete semantic recovery. Real interactive installed-profile checks separately verify Oh My Posh rendering and custom keybindings; CI uses controlled startup fixtures.
 
+Local Windows provisioning used an existing Windows 11 x64 ISO. VirtualBox 7.2.20 on this Hyper-V-enabled host needed CPU changes, pause/resume recovery and a guest-service restart while setup completed. Those manual recoveries do not qualify an untouched fresh Windows installation. Service readiness, credential persistence before guest mutation, retryable account setup, bounded timeouts and failure cleanup have separate regression checks; live runtime qualification is reported separately.
+
 ## Intentional API corrections
 
 ### Packages C–G

@@ -9,6 +9,8 @@ $ErrorActionPreference='Stop'
 $target='C:\ProfileAnalysis\Work\target.exe'
 $output='C:\ProfileAnalysis\Results'
 $record=[ordered]@{SchemaVersion=1;Status='Failed';StartedUtc=[DateTime]::UtcNow.ToString('o');GuestUser=[Security.Principal.WindowsIdentity]::GetCurrent().Name;IsAdministrator=$null;ExpectedSHA256=$ExpectedSHA256;TargetSHA256=$null;TargetUnchanged=$null;Execution=$null;Validation=@{};Limitations=@('Execution is offline and without arguments or GUI interaction.','Process polling can miss very short-lived processes.','File observations cover the guest work and temporary directories, not every system volume.','Registry observations cover bounded HKCU Software values, not every registry hive.','Connection snapshots do not trace every failed network API call; no external network adapter is present.','A disposable VM is a containment measure, not a guarantee against hypervisor escape.')}
+$record.Budgets=[ordered]@{TimeoutSeconds=$TimeoutSeconds;MaximumActiveProcesses=32;MaximumProcessMemoryBytes=536870912;MaximumJobMemoryBytes=1073741824;CombinedOutputThresholdBytes=8388608;PollingIntervalMilliseconds=100;OutputThresholdIsPolled=$true;FileInventoryEntryLimit=5000;RegistryKeyLimit=2000;RegistryValueLimit=5000}
+$record.Limitations+='Process creation or memory allocation can fail at the configured job limits. The polled output threshold can be exceeded between observations.'
 
 function Get-GuestFileInventory {
     $rows=New-Object 'Collections.Generic.List[object]'
@@ -56,6 +58,9 @@ try {
     $principal=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     $record.IsAdministrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if($record.IsAdministrator){throw 'Target execution refuses an administrator token.'}
+    $currentUserSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    if(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction Stop | Where-Object {$_.SID.Value -eq $currentUserSid}){throw 'Target execution refuses an account in Administrators, including a filtered administrator token.'}
+    $record.Validation.AccountNotAdministrator=$true
     $record.TargetSHA256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
     if($record.TargetSHA256 -ne $ExpectedSHA256){throw 'Guest input SHA256 differs from the host snapshot.'}
     $record.Validation.HashMatched=$true
