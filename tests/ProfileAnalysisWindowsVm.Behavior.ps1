@@ -10,6 +10,9 @@ $repo=Split-Path $PSScriptRoot -Parent
 function Assert-True {param([bool]$Condition,[string]$Message)if(-not $Condition){throw $Message}}
 function Assert-Throws {param([scriptblock]$Action,[string]$Message)$thrown=$false;try{& $Action}catch{$thrown=$true};Assert-True $thrown $Message}
 
+$parsed=ConvertFrom-AnalysisWindowsVmInfo "name=`"Fixture`"`r`ncpus=1`r`nmemory=6144`r`nVMState=`"poweroff`""
+Assert-True ($parsed.cpus -eq '1' -and $parsed.memory -eq '6144' -and $parsed.VMState -eq 'poweroff') 'Unquoted VirtualBox numeric settings were not parsed.'
+
 # The actual parser rejects other operating systems, DLLs, malformed offsets and objects.
 $header=[byte[]]::new(256);$header[0]=0x4d;$header[1]=0x5a;$header[60]=128
 $header[128]=0x50;$header[129]=0x45;$header[132]=0x64;$header[133]=0x86;$header[150]=2
@@ -70,11 +73,34 @@ function Invoke-AnalysisWindowsVBox {
                 Assert-True ($script:postInstallRecipe.IndexOf('Start-Service') -lt $script:postInstallRecipe.IndexOf("Set-Content -LiteralPath 'C:\profile-setup-ready.txt'")) 'Readiness was published before starting the guest-control service.'
                 $script:vmSettings.VMState='running'
                 if($script:freshMode -eq 'unattended-failure'){throw 'Mock unattended installation failed'}
+                Assert-True $script:resetConversion 'Setup did not arm its one-time reboot boundary.'
+                $script:vmSettings.VMState='poweroff'
                 return ''
             }
             'createvm' {$script:vmSettings.name=$ArgumentList[2];return ''}
-            {$_ -in 'setextradata','modifyvm','createmedium','storagectl','storageattach'} {return ''}
+            'setextradata' {
+                if($ArgumentList[2] -eq 'VBoxInternal2/TurnResetIntoPowerOff'){$script:resetConversion=$ArgumentList.Count -eq 4 -and $ArgumentList[3] -eq '1'}
+                return ''
+            }
+            'guestproperty' {
+                Assert-True ($ArgumentList[2] -eq $script:vmSettings.UUID -and $ArgumentList[3] -eq '/VirtualBox/HostInfo/VMPowerOffReason') 'Setup queried the wrong reboot evidence.'
+                if($script:freshMode -eq 'unexpected-poweroff'){return 'Value: PowerOff'}
+                return 'Value: Reset'
+            }
+            'modifyvm' {
+                if($ArgumentList -contains '--cpus'){
+                    $cpu=$ArgumentList[[Array]::IndexOf($ArgumentList,'--cpus')+1]
+                    if($cpu -eq '1'){
+                        Assert-True ($script:vmSettings.VMState -eq 'poweroff' -and -not $script:resetConversion) 'CPU changed while running or without disarming reboot conversion.'
+                        $script:firstBootConfigured=$true
+                    }
+                    $script:vmSettings.cpus=if($script:freshMode -eq 'cpu-verification-failure'){'4'}else{$cpu}
+                }
+                return ''
+            }
+            {$_ -in 'createmedium','storagectl','storageattach'} {return ''}
             'guestcontrol' {
+                Assert-True ($script:firstBootConfigured -and $script:vmSettings.cpus -eq '1') 'Guest readiness was trusted before the first-boot transition.'
                 if($ArgumentList[2] -eq 'copyto'){
                     $script:provisioningFileObserved=$ArgumentList[-2]
                     Assert-True (Test-Path -LiteralPath $script:provisioningFileObserved) 'The protected provisioning file was not created.'
@@ -216,6 +242,7 @@ $freshSource=$freshSource.Replace('-lt 30GB','-lt 0').Replace('Start-Sleep -Seco
 . ([scriptblock]::Create($freshSource))
 foreach($mode in @('unattended-failure','provision-failure','manifest-write-failure')){
     $script:freshMode=$mode;$script:freshStorage=Join-Path $TestRoot $mode;$script:provisioningFileObserved=$null
+    $script:resetConversion=$false;$script:firstBootConfigured=$false
     $script:vmSettings=$valid.Clone()
     try{
         Assert-Throws {Initialize-ExecutableAnalysisWindowsVm -VirtualMachineName ('Fresh-'+$mode) -IsoPath $script:fixtureIso -StoragePath $script:freshStorage} "$mode did not fail as expected."
@@ -236,6 +263,20 @@ foreach($mode in @('unattended-failure','provision-failure','manifest-write-fail
     }
 }
 Write-Host 'PASS: fresh initializer failures remove bootstrap/provisioning secrets and release the lock even when manifest persistence fails'
+
+foreach($mode in @('unexpected-poweroff','cpu-verification-failure')){
+    $script:freshMode=$mode;$script:freshStorage=Join-Path $TestRoot $mode
+    $script:resetConversion=$false;$script:firstBootConfigured=$false;$script:vmSettings=$valid.Clone()
+    try{
+        Assert-Throws {Initialize-ExecutableAnalysisWindowsVm -VirtualMachineName ('Fresh-'+$mode) -IsoPath $script:fixtureIso -StoragePath $script:freshStorage} "$mode was accepted."
+        $failed=Get-Content -LiteralPath (Join-Path $script:freshStorage 'analysis-windows-vm.json') -Raw|ConvertFrom-Json
+        Assert-True ($failed.Status -eq 'Failed' -and $failed.ProvisioningPhase -eq 'WindowsPE') 'An invalid transition advanced provisioning.'
+        Assert-True (-not(Test-Path -LiteralPath (Join-Path $script:freshStorage 'pending-admin-credential.clixml'))) 'Invalid transition reached account mutation.'
+        Assert-True (-not(Test-Path -LiteralPath (Join-Path $script:freshStorage 'bootstrap-password.tmp'))) 'Invalid transition retained the bootstrap plaintext.'
+        $released=Enter-AnalysisWindowsVmLock $script:freshStorage;$released.Dispose()
+    }finally{$script:freshMode=$null}
+}
+Write-Host 'PASS: only a verified guest reboot allows the powered-off CPU transition; invalid shutdown/topology fail before account changes'
 
 # Execute the decoded production recipe with only service APIs and its two output
 # paths substituted. A failed service start must never publish a readiness marker.
