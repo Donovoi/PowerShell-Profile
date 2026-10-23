@@ -1,10 +1,23 @@
 function Invoke-OhMyPoshRandomTheme {
+    <#
+    .SYNOPSIS
+    Initializes Oh My Posh with a random installed theme, including Store/MSIX themes.
+    .PARAMETER LocalOnly
+    Never installs tools or requests a remote theme list. Uses the built-in default
+    if the executable is available but no local theme files can be found.
+    .PARAMETER PassThru
+    Returns true after the initialization script executes, or false when LocalOnly
+    skips a missing executable. Failed native or script execution throws.
+    #>
     [CmdletBinding()]
     param(
         [switch]$AuthenticateIfNeeded = $true,
         [int]$ThemeListCacheDays = 14,
-        [switch]$LocalOnly
+        [switch]$LocalOnly,
+        [switch]$PassThru
     )
+
+    $ErrorActionPreference = 'Stop'
 
     function Get-OhMyPoshThemeCachePath {
         $cacheRoot = Join-Path -Path $env:LOCALAPPDATA -ChildPath 'PowerShellProfile\Cache'
@@ -310,8 +323,22 @@ function Invoke-OhMyPoshRandomTheme {
 
         $themeFiles = foreach ($themePath in ($themePaths | Where-Object { $_ } | Select-Object -Unique)) {
             if (Test-Path -Path $themePath) {
-                Get-ChildItem -Path (Join-Path -Path $themePath -ChildPath '*.omp.json') -ErrorAction SilentlyContinue
+                Get-ChildItem -LiteralPath $themePath -Filter '*.omp.json' -File -ErrorAction SilentlyContinue
             }
+        }
+
+        # Store/MSIX themes live in the registered installation, not LocalCache.
+        if (-not $themeFiles -and (Get-Command Get-AppxPackage -ErrorAction Ignore)) {
+            try {
+                $packages = Get-AppxPackage -Name 'ohmyposh.cli*' -ErrorAction Stop
+                $themeFiles = foreach ($package in $packages) {
+                    if ($package.InstallLocation) {
+                        $directory = Join-Path $package.InstallLocation 'themes'
+                        Get-ChildItem -LiteralPath $directory -Filter '*.omp.json' -File -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            catch { Write-Verbose "Could not discover Store themes: $($_.Exception.Message)" }
         }
 
         return @($themeFiles)
@@ -319,7 +346,7 @@ function Invoke-OhMyPoshRandomTheme {
 
     # ensure Oh My Posh is installed
     if (-not (Get-Command -Name 'oh-my-posh' -ErrorAction SilentlyContinue)) {
-        if ($LocalOnly) { return }
+        if ($LocalOnly) { if ($PassThru) { $false }; return }
         Write-Host 'Oh My Posh not found. Installing via winget...'
         winget install JanDeDobbeleer.OhMyPosh --source winget
 
@@ -332,12 +359,12 @@ function Invoke-OhMyPoshRandomTheme {
     if (-not (Get-Command oh-my-posh -CommandType Application -ErrorAction Ignore)) {
         throw 'Oh My Posh executable is unavailable after installation.'
     }
-    $themes = Get-LocalOhMyPoshThemes
+    $theme = $null
+    $themes = @(Get-LocalOhMyPoshThemes)
     if ($themes.Count -gt 0) {
         $theme = (Get-Random -InputObject $themes).FullName
     }
-    else {
-        if ($LocalOnly) { Write-Verbose 'No local Oh My Posh themes found; retaining the existing prompt.'; return }
+    elseif (-not $LocalOnly) {
         $baseUrl = 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes'
         $themeNames = Get-CachedOhMyPoshThemeNames
 
@@ -347,13 +374,20 @@ function Invoke-OhMyPoshRandomTheme {
 
         if (-not $themeNames) {
             Write-Warning 'No oh-my-posh themes available. Falling back to the default oh-my-posh initialization.'
-            oh-my-posh init pwsh | Invoke-Expression
-            return
         }
-
-        $themeName = Get-Random -InputObject $themeNames
-        $theme = "$baseUrl/$themeName"
+        else {
+            $themeName = Get-Random -InputObject $themeNames
+            $theme = "$baseUrl/$themeName"
+        }
     }
 
-    oh-my-posh init pwsh --config $theme | Invoke-Expression
+    # The executable has a built-in default even when no theme files are installed.
+    $arguments = @('init', 'pwsh')
+    if ($theme) { $arguments += @('--config', $theme) }
+    $initialization = @(& oh-my-posh @arguments)
+    if ($LASTEXITCODE -ne 0) { throw "Oh My Posh initialization failed with exit code $LASTEXITCODE." }
+    $code = $initialization -join [Environment]::NewLine
+    if ([string]::IsNullOrWhiteSpace($code)) { throw 'Oh My Posh returned an empty initialization script.' }
+    Invoke-Expression -Command $code -ErrorAction Stop
+    if ($PassThru) { $true }
 }

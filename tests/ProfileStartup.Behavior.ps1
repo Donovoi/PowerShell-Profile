@@ -53,9 +53,9 @@ Test-Case 'Installed UI tools keep final bindings and do not duplicate PATH or i
             else { Microsoft.PowerShell.Core\Get-Command @PSBoundParameters }
         }
         function Set-PSReadLineOption { [CmdletBinding()] param($EditMode) $script:bindings.Clear(); Assert-True ($EditMode -eq 'Windows') 'Wrong editing mode.' }
-        function Invoke-SamplePSReadLineProfile { $script:bindings['('] = 'SamplePairInsertion' }
+        function Invoke-SamplePSReadLineProfile { [CmdletBinding()] param($EditMode) Set-PSReadLineOption -EditMode $EditMode; $script:bindings['('] = 'SamplePairInsertion' }
         function Set-PSReadLineKeyHandler { [CmdletBinding()] param($Key,$Function) $script:bindings[$Key]=$Function }
-        function Invoke-OhMyPoshRandomTheme { [CmdletBinding()] param([switch]$LocalOnly) Assert-True $LocalOnly 'Startup allowed remote themes.'; $script:promptCalls++ }
+        function Invoke-OhMyPoshRandomTheme { [CmdletBinding()] param([switch]$LocalOnly,[switch]$PassThru) Assert-True ($LocalOnly -and $PassThru) 'Startup did not require a local initialization result.'; $script:promptCalls++; $true }
         Initialize-ProfileAppearance
         Initialize-ProfileAppearance
         Assert-True ($script:promptCalls -eq 1) 'Prompt initialized repeatedly.'
