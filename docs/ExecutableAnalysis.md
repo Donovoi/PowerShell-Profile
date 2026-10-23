@@ -79,6 +79,10 @@ Programs requiring unavailable guest dependencies, elevated privileges, GUI inte
 
 The Windows guest uses a dedicated built-in Administrator management account for provisioning and evidence transfer, with a random password protected by Windows DPAPI on the host. Targets run as the separate `analysis-user` account, whose absence from the Administrators group is checked in addition to its token. UAC remains enabled. Protected recovery credentials are saved before guest password changes, so a provisioning timeout does not discard the credentials needed for recovery.
 
+A trusted guest controller uses a temporary password-logon Scheduled Task at limited privilege to load that standard user's Windows profile. The runner verifies the loaded user registry hive and writable HKCU before launching the target. Temporary launch credentials are restricted to management administrators and SYSTEM, then deleted before the target starts; they are not passed in process arguments or stored in the task action. The host requires agreement between the task result, runner report and verified task removal before reporting completion.
+
+The controller verifies the task account by SID and grants only its required batch-logon right inside the disposable guest. A real batch-logon token must pass identity and non-administrator checks before execution. Controller evidence is kept in the protected guest directory; ordinary program evidence is read using the standard account. Snapshot restoration removes the temporary guest policy change.
+
 On first use, provide the media explicitly:
 
 ```powershell

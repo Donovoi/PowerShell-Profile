@@ -54,15 +54,23 @@ function Invoke-BridgeCase([string]$Mode) {
     $configuration=@{
         reaScript=$mockPath;inputPath=$source;outputDirectory=$output
         format=if($Mode -eq 'extraction'){'archive'}else{'native'}
-        timeoutSeconds=1;totalTimeoutSeconds=10
+        # The first Node launch can be slow on a cold Windows CI runner. Keep
+        # the deliberate timeout case strict without timing ordinary startup.
+        timeoutSeconds=if($Mode -eq 'timeout'){1}else{10};totalTimeoutSeconds=60
         maxFunctions=if($Mode -eq 'functionlimit'){1}else{0}
         maxEvidenceBytes=if($Mode -eq 'limit'){4096}else{67108864}
         maxTotalEvidenceBytes=if($Mode -eq 'oversizedexport'){65536}else{1073741824}
     }
     $configPath=Join-Path $run 'config.json'
     $configuration|ConvertTo-Json|Set-Content -LiteralPath $configPath -Encoding utf8
-    $process=Invoke-AnalysisTool $node.Source @($bridge,$configPath) -LogPath (Join-Path $run 'process') -WorkingDirectory $run -TimeoutSeconds 15 -Environment @{REA_BRIDGE_TEST_MODE=$Mode}
+    $process=Invoke-AnalysisTool $node.Source @($bridge,$configPath) -LogPath (Join-Path $run 'process') -WorkingDirectory $run -TimeoutSeconds 90 -Environment @{REA_BRIDGE_TEST_MODE=$Mode}
     $manifestPath=Join-Path $output 'rea-result.json'
+    if(-not(Test-Path -LiteralPath $manifestPath)){
+        $process|Select-Object Status,ExitCode,Seconds|ConvertTo-Json -Compress|Write-Host
+        foreach($diagnostic in @($process.StandardOutputPath,$process.StandardErrorPath)){
+            if(Test-Path -LiteralPath $diagnostic){Get-Content -LiteralPath $diagnostic -Tail 15|ForEach-Object{Write-Host ($_.Substring(0,[Math]::Min(400,$_.Length)))}}
+        }
+    }
     Assert (Test-Path -LiteralPath $manifestPath) "Case $Mode did not preserve a manifest; process: $($process.Status)"
     $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json
     [pscustomobject]@{Record=$manifest;Source=$source;Output=$output;Process=$process}

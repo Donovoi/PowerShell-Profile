@@ -45,6 +45,7 @@
     "functions/Invoke-ExecutableAnalysisWindowsVm.ps1",
     "scripts/ExecutableAnalysis/WindowsVm.Common.ps1",
     "scripts/ExecutableAnalysis/WindowsGuestRunner.ps1",
+    "scripts/ExecutableAnalysis/WindowsGuestController.ps1",
     "scripts/ExecutableAnalysis/Get-AnalysisIdentity.ps1",
     "scripts/ExecutableAnalysis/Invoke-AnalysisTool.ps1",
     "scripts/ExecutableAnalysis/Invoke-AnalysisRound.ps1",
