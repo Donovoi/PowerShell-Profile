@@ -170,6 +170,7 @@ function Invoke-AnalysisWindowsVBox {
             Assert-True ($MaxOutputCharacters -eq 23000000) 'Evidence transfer lost its host capture limit.'
             if($transfer -match 'runtime\.json'){
                 $data=@{Status=if($script:failGuest){'Failed'}else{'Completed'};GuestUser=('FIXTURE\'+$manifest.GuestUser);UserEnvironment=@{UserName=$manifest.GuestUser;LoadedHiveSid='S-1-5-21-123-456-789-1001'};IsAdministrator=$false;TargetSHA256=$inputHash;RunnerSHA256=(Get-FileHash -LiteralPath (Join-Path $script:fixtureAssets 'WindowsGuestRunner.ps1')).Hash;Validation=@{AccountNotAdministrator=(-not $script:filteredAdmin);UserProfileLoaded=(-not $script:profileMissing);HashMatched=$true;NoNetworkAdapter=$true};Execution=@{JobAssigned=(-not $script:failGuest);JobClosed=$true;Reason='Completed';ExitCode=0}}|ConvertTo-Json -Depth 6 -Compress
+                if($script:launchFailure){$data=($data|ConvertFrom-Json);$data.Status='Failed';$data.Execution=$null;$data|Add-Member NoteProperty Error 'Side-by-side configuration is incorrect';$data|Add-Member NoteProperty ErrorDetails @{NativeErrorCode=14001;Operation='Create suspended target'};$data=$data|ConvertTo-Json -Depth 6 -Compress}
             }elseif($transfer -match 'controller\.json'){
                 Assert-True ($transfer -match 'Private\\controller\.json' -and $ArgumentList -contains $manifest.AdminUser) 'Controller evidence was not read privately by the management account.'
                 $controllerData=@{Status='Completed';BatchLogonRightVerified=$true;TaskPrincipal=@{UserId=('FIXTURE\'+$manifest.GuestUser);UserSid='S-1-5-21-123-456-789-1001';ExpectedUserSid='S-1-5-21-123-456-789-1001';LogonType='Password';RunLevel='Limited'};CredentialRemovedBeforeLaunch=$true;TaskRemoved=$true;RunnerStarted=$true;RunnerExitCode=0;Error=$null}
@@ -194,7 +195,8 @@ try{
 }finally{$held.Dispose()}
 Write-Host 'PASS: exclusive lock rejects a concurrent analysis without changing any VM state'
 
-foreach($case in @('success','guest-failure','cleanup-failure','paused-guest','filtered-admin','missing-profile','launch-copy-failure','CredentialRemovedBeforeLaunch','TaskRemoved','RunnerStarted','controller-error','controller-exit','controller-principal','controller-elevation','controller-status')){
+foreach($case in @('success','launch-failure','guest-failure','cleanup-failure','paused-guest','filtered-admin','missing-profile','launch-copy-failure','CredentialRemovedBeforeLaunch','TaskRemoved','RunnerStarted','controller-error','controller-exit','controller-principal','controller-elevation','controller-status')){
+    $script:launchFailure=$case -eq 'launch-failure'
     $script:badController=if($case -in 'CredentialRemovedBeforeLaunch','TaskRemoved','RunnerStarted','controller-error','controller-exit','controller-principal','controller-elevation','controller-status'){$case}else{$null}
     $script:restores=0;$script:vmSettings=$valid.Clone();$script:failGuest=$case -in 'guest-failure','paused-guest';$script:failFinalRestore=$case -eq 'cleanup-failure';$script:pauseGuest=$case -eq 'paused-guest';$script:filteredAdmin=$case -eq 'filtered-admin';$script:profileMissing=$case -eq 'missing-profile';$script:failLaunchCopy=$case -eq 'launch-copy-failure'
     $result=Invoke-ExecutableAnalysisWindowsVm -InputPath $inputPath -OutputPath (Join-Path $TestRoot $case) -VirtualMachineName $manifest.VirtualMachineName -TimeoutSeconds 1
@@ -206,6 +208,7 @@ foreach($case in @('success','guest-failure','cleanup-failure','paused-guest','f
         Assert-True ($result.Status -eq 'Completed') ('Successful mock did not complete: '+($result.Errors -join '; '))
         Assert-True ($result.Validation.CleanSnapshotRestoredAfter -and $result.Validation.PoweredOffAfter) 'Successful mock did not verify cleanup.'
     }else{Assert-True ($result.Status -eq 'Failed') "$case was reported as success."}
+    if($case -eq 'launch-failure'){Assert-True ($result.Errors -match 'Guest target observation failed' -and $result.GuestResult.ErrorDetails.NativeErrorCode -eq 14001 -and $null -eq $result.GuestResult.Execution) 'Launch failure lost native diagnosis or implied execution.'}
     $available=Enter-AnalysisWindowsVmLock $owned;$available.Dispose()
 }
 Write-Host 'PASS: orchestration preserves literal paths and source bytes, bounds transfers, restores after failures, and removes credentials'
@@ -340,6 +343,14 @@ $runnerAst=[Management.Automation.Language.Parser]::ParseFile($RunnerPath,[ref]$
 if($errors.Count){throw 'The runner did not parse.'}
 $runnerAssignment=$runnerAst.Find({param($node)$node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.VariablePath.UserPath -eq 'native'},$true)
 Add-Type -TypeDefinition $runnerAssignment.Right.Expression.Value -Language CSharp -ErrorAction Stop
+$detailFunction=$runnerAst.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-GuestExceptionDetail'},$true)
+. ([scriptblock]::Create($detailFunction.Extent.Text))
+$cause=[ComponentModel.Win32Exception]::new(14001);$cause.Data['Operation']='Create suspended target'
+$wrapper=[Exception]::new('PowerShell invocation wrapper',$cause)
+$detail=Get-GuestExceptionDetail -Exception $wrapper
+if($detail.NativeErrorCode -ne 14001 -or $detail.Operation -ne 'Create suspended target' -or $detail.ExceptionType -ne 'System.ComponentModel.Win32Exception' -or -not $detail.NativeErrorMessage -or $detail.WrapperMessage -ne 'PowerShell invocation wrapper'){throw 'Native launch exception details were lost.'}
+$plain=Get-GuestExceptionDetail -Exception ([InvalidOperationException]::new('Fixture failure'))
+if($null -ne $plain.NativeErrorCode -or $plain.Message -ne 'Fixture failure'){throw 'Non-Win32 failure was mislabeled.'}
 # Compile only. Never call the native policy or logon methods on the host.
 Write-Output 'PASS: Windows PowerShell 5.1 compiles the guest native helper without invoking it'
 '@|Set-Content -LiteralPath $compileFixture -Encoding utf8
