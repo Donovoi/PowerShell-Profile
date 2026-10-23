@@ -245,7 +245,7 @@ function Get-AnalysisApplicationContext {
                     }catch{$row.Status='Refused';$row.Reason=$_.Exception.Message;Add-ContextLimitation ("Unpacked directory was not fully inspected ($($directory.Relative)): $($_.Exception.Message)") -Partial}
                 }
             }
-            Add-ContextLimitation 'ASAR files are opaque candidates here; their format, packed members and required unpacked paths have not been verified.'
+            Add-ContextLimitation 'The ApplicationContext collection stage does not inspect ASAR members. Consult subsequent REA inspection, extraction and retained-file verification for archive coverage; this collection-stage limit does not describe those later results.'
         }
     }catch{Add-ContextLimitation $_.Exception.Message -Partial}
     foreach($row in $inventory){if($row.Status -eq 'Discovered'){$row.Status='Omitted';$row.Reason='Inventory limits or an earlier failure prevented inspection.';$state.Partial=$true}}
