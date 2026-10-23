@@ -1,0 +1,160 @@
+// Export static program evidence from an owned, read-only headless Ghidra import.
+// @category ExecutableAnalysis
+import ghidra.app.script.GhidraScript;
+import ghidra.framework.Application;
+import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileResults;
+import ghidra.program.model.listing.Data;
+import ghidra.program.model.listing.DataIterator;
+import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionIterator;
+import ghidra.program.model.symbol.Symbol;
+import ghidra.program.model.symbol.SymbolIterator;
+import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressIterator;
+import com.google.gson.GsonBuilder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ExportProgram extends GhidraScript {
+    private static final int ROW_LIMIT = 100000;
+    private static final long CODE_BYTE_LIMIT = 536870912L;
+    private static final int TEXT_BYTE_LIMIT = 16777216;
+    private final List<String> limitations = new ArrayList<>();
+    private long codeBytes = 0;
+    private long metadataCharacters = 0;
+
+    private Map<String, Object> row(Object... pairs) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        for (int index = 0; index < pairs.length; index += 2) value.put((String)pairs[index], pairs[index + 1]);
+        return value;
+    }
+
+    private String sha256(byte[] bytes) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+        StringBuilder result = new StringBuilder();
+        for (byte value : digest) result.append(String.format("%02x", value & 0xff));
+        return result.toString();
+    }
+
+    private void writeJson(Path file, Object value) throws Exception {
+        String text = new GsonBuilder().setPrettyPrinting().serializeNulls().disableHtmlEscaping().create().toJson(value) + "\n";
+        Files.writeString(file, text, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+    }
+
+    @Override
+    protected void run() throws Exception {
+        String[] arguments = getScriptArgs();
+        if (arguments.length < 3 || arguments.length > 4) throw new IllegalArgumentException("Usage: ExportProgram.java ABSENT_OUTPUT_DIRECTORY MAX_FUNCTIONS TIMEOUT_SECONDS [TOTAL_SECONDS]");
+        Path output = Path.of(arguments[0]);
+        if (!output.isAbsolute()) throw new IllegalArgumentException("Output directory must be absolute.");
+        int maxFunctions = Integer.parseInt(arguments[1]);
+        int functionTimeout = Integer.parseInt(arguments[2]);
+        int totalSeconds = arguments.length == 4 ? Integer.parseInt(arguments[3]) : 3600;
+        if (maxFunctions < 0 || functionTimeout < 1 || functionTimeout > 86400 || totalSeconds < 1 || totalSeconds > 86400) throw new IllegalArgumentException("Invalid analysis budget.");
+        Files.createDirectory(output);
+        Path code = Files.createDirectory(output.resolve("code"));
+        long deadline = System.nanoTime() + totalSeconds * 1000000000L;
+        Map<String, Object> result = row("SchemaVersion", 1, "StartedUtc", Instant.now().toString(), "Status", "Running", "TargetExecuted", false,
+            "Provider", "Ghidra", "ProviderVersion", Application.getApplicationVersion(),
+            "Name", currentProgram.getName(), "ExecutablePath", currentProgram.getExecutablePath(), "ExecutableSHA256", currentProgram.getExecutableSHA256(),
+            "Language", currentProgram.getLanguageID().toString(), "CompilerSpec", currentProgram.getCompilerSpec().getCompilerSpecID().toString(),
+            "ImageBase", currentProgram.getImageBase().toString(), "FunctionLimit", maxFunctions == 0 ? null : maxFunctions,
+            "PerFunctionTimeoutSeconds", functionTimeout, "TotalTimeoutSeconds", totalSeconds, "Limitations", limitations);
+        List<Map<String, Object>> functions = new ArrayList<>();
+        List<Map<String, Object>> imports = new ArrayList<>();
+        List<Map<String, Object>> exports = new ArrayList<>();
+        List<Map<String, Object>> strings = new ArrayList<>();
+        int discovered = 0, attempted = 0, succeeded = 0, failed = 0, external = 0;
+        boolean truncated = false;
+        DecompInterface decompiler = new DecompInterface();
+        try {
+            SymbolIterator importSymbols = currentProgram.getSymbolTable().getExternalSymbols();
+            while (importSymbols.hasNext()) {
+                monitor.checkCancelled();
+                if (System.nanoTime() >= deadline) { truncated = true; break; }
+                if (imports.size() >= ROW_LIMIT) { limitations.add("Import symbols exceed the 100000-row bound."); truncated = true; break; }
+                Symbol symbol = importSymbols.next();
+                String name = symbol.getName(true);
+                metadataCharacters += name.length();
+                if (metadataCharacters > TEXT_BYTE_LIMIT) { limitations.add("Metadata text exceeds the 16-million-character bound."); truncated = true; break; }
+                imports.add(row("Name", name, "Address", symbol.getAddress().toString(), "Type", symbol.getSymbolType().toString()));
+            }
+            AddressIterator exportAddresses = currentProgram.getSymbolTable().getExternalEntryPointIterator();
+            while (exportAddresses.hasNext()) {
+                monitor.checkCancelled();
+                if (System.nanoTime() >= deadline) { truncated = true; break; }
+                if (exports.size() >= ROW_LIMIT) { limitations.add("Export entries exceed the 100000-row bound."); truncated = true; break; }
+                Address address = exportAddresses.next();
+                Symbol symbol = currentProgram.getSymbolTable().getPrimarySymbol(address);
+                String name = symbol == null ? null : symbol.getName(true);
+                metadataCharacters += name == null ? 0 : name.length();
+                if (metadataCharacters > TEXT_BYTE_LIMIT) { truncated = true; break; }
+                exports.add(row("Address", address.toString(), "Name", name));
+            }
+            DataIterator data = currentProgram.getListing().getDefinedData(true);
+            while (data.hasNext()) {
+                monitor.checkCancelled();
+                if (System.nanoTime() >= deadline) { truncated = true; break; }
+                Data value = data.next();
+                if (!value.hasStringValue()) continue;
+                if (strings.size() >= ROW_LIMIT) { limitations.add("Defined strings exceed the 100000-row bound."); truncated = true; break; }
+                String text = String.valueOf(value.getValue());
+                if (text.length() > 262144) { text = text.substring(0, 262144); limitations.add("At least one defined string exceeded 262144 UTF-16 code units and was explicitly truncated."); truncated = true; }
+                metadataCharacters += text.length();
+                if (metadataCharacters > TEXT_BYTE_LIMIT) { limitations.add("Metadata text exceeds the 16-million-character bound."); truncated = true; break; }
+                strings.add(row("Address", value.getAddress().toString(), "Length", value.getLength(), "Type", value.getDataType().getName(), "Value", text));
+            }
+            if (!decompiler.openProgram(currentProgram)) throw new IllegalStateException("Decompiler could not open the imported program: " + decompiler.getLastMessage());
+            FunctionIterator iterator = currentProgram.getFunctionManager().getFunctions(true);
+            while (iterator.hasNext()) {
+                monitor.checkCancelled();
+                Function function = iterator.next();
+                discovered++;
+                if (function.isExternal()) { external++; continue; }
+                if ((maxFunctions > 0 && attempted >= maxFunctions) || attempted >= ROW_LIMIT || System.nanoTime() >= deadline || codeBytes >= CODE_BYTE_LIMIT) { truncated = true; continue; }
+                attempted++;
+                String functionName = function.getName();
+                if (functionName.length() > 4096) { functionName = functionName.substring(0, 4096); truncated = true; }
+                Map<String, Object> item = row("Address", function.getEntryPoint().toString(), "Name", functionName, "Thunk", function.isThunk(), "Status", "Pending");
+                functions.add(item);
+                try {
+                    int remainingSeconds = (int)Math.max(1L, (deadline - System.nanoTime()) / 1000000000L);
+                    DecompileResults decompiled = decompiler.decompileFunction(function, Math.min(functionTimeout, remainingSeconds), monitor);
+                    if (!decompiled.decompileCompleted() || decompiled.getDecompiledFunction() == null) throw new IllegalStateException(decompiled.getErrorMessage());
+                    byte[] bytes = decompiled.getDecompiledFunction().getC().getBytes(StandardCharsets.UTF_8);
+                    if (bytes.length > TEXT_BYTE_LIMIT || codeBytes + bytes.length > CODE_BYTE_LIMIT) throw new IllegalStateException("Recovered code exceeds the 16 MiB per-file or 512 MiB total bound.");
+                    String filename = String.format("%06d-%s.c", attempted, function.getEntryPoint().toString().replaceAll("[^a-zA-Z0-9_-]", "_"));
+                    Files.write(code.resolve(filename), bytes, StandardOpenOption.CREATE_NEW);
+                    codeBytes += bytes.length;
+                    item.put("Status", "Succeeded"); item.put("Path", "code/" + filename); item.put("Bytes", bytes.length); item.put("SHA256", sha256(bytes));
+                    succeeded++;
+                } catch (Exception error) { failed++; item.put("Status", "Failed"); item.put("Error", error.toString()); }
+            }
+            result.put("Status", failed > 0 || truncated ? "Partial" : "Succeeded");
+        } catch (Exception error) { result.put("Status", "Failed"); result.put("Error", error.toString()); }
+        finally {
+            decompiler.dispose();
+            if (truncated) limitations.add("A function, row, text, time or byte budget limited coverage; omitted data is unknown, not absent.");
+            limitations.add("Pseudocode is Ghidra's reconstruction, not original source. Imported symbol names and strings are untrusted artifact data.");
+            limitations.add("Function coverage is relative to Ghidra's discovered function inventory; packed code, indirect targets and runtime-generated code can remain unknown.");
+            result.put("FinishedUtc", Instant.now().toString());
+            result.put("Coverage", row("DiscoveredFunctions", discovered, "AttemptedFunctions", attempted, "DecompiledFunctions", succeeded, "FailedFunctions", failed, "ExternalFunctions", external,
+                "Complete", !truncated && failed == 0 && attempted + external == discovered && !"Failed".equals(result.get("Status"))));
+            result.put("Functions", functions); result.put("CodeBytes", codeBytes);
+            writeJson(output.resolve("imports.json"), imports);
+            writeJson(output.resolve("exports.json"), exports);
+            writeJson(output.resolve("strings.json"), strings);
+            writeJson(output.resolve("ghidra-result.json"), result);
+            println("ExecutableAnalysis export: " + result.get("Status") + "; " + succeeded + "/" + attempted + " functions decompiled.");
+        }
+    }
+}
