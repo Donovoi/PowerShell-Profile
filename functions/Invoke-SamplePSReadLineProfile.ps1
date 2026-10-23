@@ -524,7 +524,10 @@ function Invoke-SamplePSReadLineProfile {
         # needing to type cd and won't change the command line.
 
         #
-        $global:PSReadLineMarks = @{}
+        # Reloading the profile should retain the directories already marked.
+        if (-not (Get-Variable -Name PSReadLineMarks -Scope Global -ErrorAction Ignore)) {
+            $global:PSReadLineMarks = @{}
+        }
 
         Set-PSReadLineKeyHandler -Key Ctrl+J `
             -BriefDescription MarkDirectory `
