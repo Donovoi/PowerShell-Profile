@@ -28,12 +28,23 @@ jobs:
           $root = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('ProfileValidation-' + [guid]::NewGuid().ToString('N'))
           "PROFILE_VALIDATION_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           ./tests/Invoke-ProfileValidation.ps1 -TestRoot $root
+      - name: Collect validation logs
+        if: always()
+        run: |
+          $logs = Join-Path $env:RUNNER_TEMP 'profile-validation-logs'
+          $null = New-Item -ItemType Directory -Path $logs -Force
+          $static = Join-Path $env:RUNNER_TEMP 'profile-static.json'
+          if (Test-Path -LiteralPath $static) {
+            Copy-Item -LiteralPath $static -Destination $logs -ErrorAction Stop
+          }
+          if ($env:PROFILE_VALIDATION_ROOT -and (Test-Path -LiteralPath $env:PROFILE_VALIDATION_ROOT)) {
+            Get-ChildItem -LiteralPath $env:PROFILE_VALIDATION_ROOT -File |
+              Where-Object Extension -In '.json', '.log' |
+              Copy-Item -Destination $logs -ErrorAction Stop
+          }
       - name: Retain validation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: profile-validation
-          path: |
-            ${{ runner.temp }}/profile-static.json
-            ${{ env.PROFILE_VALIDATION_ROOT }}/*.json
-            ${{ env.PROFILE_VALIDATION_ROOT }}/*.log
+          path: ${{ runner.temp }}/profile-validation-logs/
