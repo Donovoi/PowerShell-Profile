@@ -55,12 +55,15 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     function Initialize-ExecutableAnalysisVm { param($VirtualMachineName) $calls.Add(@{Kind='InitializeLinux';Name=$VirtualMachineName}) }
     function Initialize-ExecutableAnalysisWindowsVm { param($VirtualMachineName,$IsoPath) $calls.Add(@{Kind='InitializeWindows';Name=$VirtualMachineName;IsoPath=$IsoPath}) }
     function Invoke-ExecutableAnalysisVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Linux';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Complete'} }
-    function Invoke-ExecutableAnalysisWindowsVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Windows';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Complete'} }
+    function Invoke-ExecutableAnalysisWindowsVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Windows';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Completed';GuestResult=@{Execution=@{ExitCode=7;Reason='Completed'}}} }
+    $standalone=Join-Path $TestRoot 'pwsh.exe'
+    Copy-Item -LiteralPath (Join-Path $PSHOME 'pwsh.exe') -Destination $standalone
     $linux=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -RuntimeSeconds 7
     Assert-True ($linux.Status -eq 'CompletedWithLimitations' -and $calls.Count -eq 2 -and $calls[0].Kind -eq 'InitializeLinux' -and $calls[1].Name -eq 'Profile-Analysis-Linux' -and $calls[1].Seconds -eq 7) 'Linux runtime routing or initialization failed.'
-    $windows=Invoke-ExecutableAnalysis (Join-Path $PSHOME 'pwsh.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -WindowsIsoPath 'fixture-media.iso'
+    $windows=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -WindowsIsoPath 'fixture-media.iso'
     Assert-True ($windows.Status -eq 'CompletedWithLimitations' -and $calls[2].Kind -eq 'InitializeWindows' -and $calls[2].IsoPath -eq 'fixture-media.iso' -and $calls[3].Name -eq 'Profile-Analysis-Windows') 'Windows runtime routing or ISO forwarding failed.'
-    $null=Invoke-ExecutableAnalysis (Join-Path $PSHOME 'pwsh.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -VirtualMachineName 'Owned-Custom-VM'
+    Assert-True ((Get-Content -LiteralPath $windows.ReportPath -Raw) -match 'Target exit code: 7; reason: Completed') 'Runtime report concealed the target exit code.'
+    $null=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -VirtualMachineName 'Owned-Custom-VM'
     Assert-True ($calls.Count -eq 5 -and $calls[4].Name -eq 'Owned-Custom-VM' -and $calls[4].Input -like '*analysis-*\input\pwsh.exe') 'NoInstall, explicit VM selection or retained-copy handoff failed.'
     $unsupported=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'wasm') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
     Assert-True ($unsupported.Status -eq 'Partial' -and $calls.Count -eq 5 -and @($unsupported.Stages|Where-Object Status -EQ 'Unsupported').Count -eq 1) 'Unsupported runtime format invoked a VM or appeared complete.'
@@ -69,8 +72,55 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     [IO.File]::WriteAllBytes($dll,$dllBytes)
     $unsupportedDll=Invoke-ExecutableAnalysis $dll -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
     Assert-True ($unsupportedDll.Status -eq 'Partial' -and $calls.Count -eq 5 -and @($unsupportedDll.Stages|Where-Object Status -EQ 'Unsupported').Count -eq 1) 'A DLL initialized or invoked a VM without an execution harness.'
+    $packaged=Join-Path $TestRoot 'packaged-app'
+    $null=[IO.Directory]::CreateDirectory((Join-Path $packaged 'resources'))
+    Copy-Item -LiteralPath $standalone -Destination (Join-Path $packaged 'entry.exe')
+    [IO.File]::WriteAllText((Join-Path $packaged 'resources/app.asar'),'fixture archive; never executed')
+    [IO.File]::WriteAllText((Join-Path $packaged 'AppxManifest.xml'),'<Package><Applications><Application Id="App" Executable="entry.exe"/></Applications></Package>')
+    $packageResult=Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
+    Assert-True ($packageResult.Status -eq 'Partial' -and $calls.Count -eq 5 -and @($packageResult.Stages|Where-Object { $_.Name -eq 'Runtime' -and $_.Status -eq 'Unsupported' }).Count -eq 1) 'Packaged application initialized or invoked the single-file runtime adapter.'
+    $packageContext=Get-Content -LiteralPath (Join-Path $packageResult.OutputDirectory 'basic/application-context.json') -Raw|ConvertFrom-Json
+    Assert-True ($packageContext.Detected -and $packageContext.EntryPoints[0].DeclaredPath -eq 'entry.exe' -and $packageContext.EntryPoints[0].SelectedInput) 'PE application context or declared entry point was lost.'
+    $linked=Join-Path $TestRoot 'linked-source'
+    $null=New-Item -ItemType Junction -Path $linked -Target $packaged
+    $unverified=Invoke-ExecutableAnalysis (Join-Path $linked 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
+    $unverifiedContext=Get-Content -LiteralPath (Join-Path $unverified.OutputDirectory 'basic/application-context.json') -Raw|ConvertFrom-Json
+    Assert-True ($unverifiedContext.Status -eq 'Partial' -and -not $unverifiedContext.Detected -and $calls.Count -eq 5 -and @($unverified.Stages|Where-Object { $_.Name -eq 'Runtime' -and $_.Status -eq 'Unsupported' }).Count -eq 1) 'Unverifiable adjacent context was accepted as a standalone runtime target.'
 }
 Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit VM names and unsupported formats (VM helpers mocked).'
+
+& {
+    # Exercise the actual orchestrator with its installer/process/decompiler boundaries
+    # replaced. The fixture never runs the selected PE, a provider or an installer.
+    $script:analysisFixtureAssets=Join-Path $repo 'scripts/ExecutableAnalysis'
+    . (Join-Path $script:analysisFixtureAssets 'Get-AnalysisApplicationContext.ps1')
+    $source=[IO.File]::ReadAllText((Join-Path $repo 'functions/Invoke-ExecutableAnalysis.ps1'))
+    $source=$source.Replace("`$assets=Join-Path (Split-Path `$PSScriptRoot -Parent) 'scripts/ExecutableAnalysis'",'$assets=$script:analysisFixtureAssets')
+    $source=$source.Replace('. $helperPath','# Actual pure helpers are already imported; mock external boundaries below.')
+    . ([scriptblock]::Create($source))
+    function Resolve-AnalysisTool { param($LogDirectory,$ReaScriptPath,$NoInstall,$Managed,$Native,$Wasm,$Java) [pscustomobject]@{ReaScript='fixture-rea.mjs';Node='fixture-node.exe';Ghidra='fixture-ghidra';Limitations=@()} }
+    function Invoke-AnalysisTool {
+        param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$Environment)
+        $config=Get-Content -LiteralPath $ArgumentList[1] -Raw|ConvertFrom-Json
+        Assert-True ($config.timeoutSeconds -eq 601 -and $config.archiveIntegrityPolicy -eq 'record-and-continue' -and $config.maxJavaScriptHeapMB -eq 2048 -and $config.maxTotalEvidenceBytes -eq 2GB) 'Requested timeout or explicit integrity policy was not forwarded.'
+        @{Status=$script:nativeFixture.Status;InputUnchanged=$true;InputSHA256Before=(Get-FileHash -LiteralPath $config.inputPath).Hash;Coverage=@{DecompiledFunctions=$script:nativeFixture.Count};Limitations=@()}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $config.outputDirectory 'rea-result.json')
+        [pscustomobject]@{Status='Completed'}
+    }
+    function Invoke-AnalysisGhidra {
+        param($InputPath,$OutputDirectory,$GhidraPath,$AssetDirectory,$LogDirectory,$MaxFunctions,$TimeoutSeconds)
+        $fallbackCalls.Add($InputPath)
+        Assert-True ($InputPath -like '*analysis-*\input\pwsh.exe' -and $MaxFunctions -eq 80 -and $TimeoutSeconds -eq 601) 'Fallback did not use retained input and caller budgets.'
+        [pscustomobject]@{Status='Partial';Manifest=@{Coverage=@{DecompiledFunctions=80;Complete=$false}}}
+    }
+    foreach($case in @(@{Status='Partial';Count=0;Fallback=$true},@{Status='Failed';Count=0;Fallback=$true},@{Status='Partial';Count=1;Fallback=$false},@{Status='Succeeded';Count=2;Fallback=$false})){
+        $script:nativeFixture=$case;$fallbackCalls=[Collections.Generic.List[string]]::new()
+        $result=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'pwsh.exe') -OutputDirectory $TestRoot -SkipAI -NoInstall -TimeoutSeconds 601 -MaxFunctions 80 -ArchiveIntegrityPolicy RecordAndContinue -MaxJavaScriptHeapMB 2048 -MaxProviderEvidenceBytes 2GB
+        Assert-True (($fallbackCalls.Count -eq 1) -eq $case.Fallback) 'Direct Ghidra fallback policy did not match failed/partial REA code recovery.'
+        Assert-True ($result.SourceUnchanged -and @($result.Stages|Where-Object Name -EQ 'REA').Count -eq 1) 'Fallback lost source identity or original REA evidence.'
+        Assert-True (@($result.Stages|Where-Object Name -EQ 'Orchestration').Count -eq 0) 'Mocked fallback orchestration failed.'
+    }
+}
+Write-Host 'PASS: native fallback recovers only missing REA code, preserves provider evidence, and honors explicit time/integrity budgets.'
 
 $child=Join-Path $TestRoot 'child.ps1'
 [IO.File]::WriteAllText($child,'param([string]$Value) [Console]::Out.Write($Value); [Console]::Error.Write("stderr"); exit 7')
@@ -132,12 +182,12 @@ Assert-True ((Get-AnalysisProviderStatus -Process ([pscustomobject]@{Status='Com
 Write-Host 'PASS: successful provider manifests cannot override failed processes or mismatched input identity.'
 
 $selection=Join-Path $TestRoot 'evidence-selection'
-foreach($folder in 'basic','runtime','logs','code','rea'){$null=[IO.Directory]::CreateDirectory((Join-Path $selection $folder))}
-foreach($name in 'basic/identity.json','runtime/runtime.json','runtime/stdout.txt','runtime/strace.log','logs/ilspy.command.json','rea/rea-result.json'){[IO.File]::WriteAllText((Join-Path $selection $name),'fixture')}
+foreach($folder in 'basic','runtime','logs','code','rea','application/rea-1/rea-raw'){$null=[IO.Directory]::CreateDirectory((Join-Path $selection $folder))}
+foreach($name in 'basic/identity.json','basic/application-context.json','runtime/runtime.json','runtime/stdout.txt','runtime/strace.log','logs/ilspy.command.json','rea/rea-result.json','application/rea-1/rea-raw/006-analyze_javascript_application.json'){[IO.File]::WriteAllText((Join-Path $selection $name),'fixture')}
 foreach($index in 1..55){[IO.File]::WriteAllText((Join-Path $selection "code/function-$index.c"),'return 42;')}
 $selected=@(Select-AnalysisEvidenceFile -RunDirectory $selection)
 Assert-True ($selected.Count -eq 40) 'AI evidence file budget was lost.'
-foreach($name in 'identity.json','runtime.json','stdout.txt','strace.log','ilspy.command.json','rea-result.json'){Assert-True ($selected.Name -contains $name) ('Code volume crowded out required evidence: '+$name)}
+foreach($name in 'identity.json','application-context.json','runtime.json','stdout.txt','strace.log','ilspy.command.json','rea-result.json','006-analyze_javascript_application.json'){Assert-True ($selected.Name -contains $name) ('Code volume crowded out required evidence: '+$name)}
 Write-Host 'PASS: large decompilations retain runtime observations, identity and invocation provenance in the AI review sample.'
 
 & {
