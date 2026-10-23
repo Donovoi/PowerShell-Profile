@@ -1,6 +1,6 @@
 {
   "AnalyzerVersion": "1.25.0",
-  "Scope": "C-G production changes and profile appearance regression fixes; existing compatibility warnings retained",
+  "Scope": "C-G production changes, appearance fixes and executable analysis; existing compatibility warnings retained",
   "Files": [
     "functions/cmatrix.ps1",
     "functions/ConvertFrom-NtfsRetrievalPointer.ps1",
@@ -37,7 +37,20 @@
     "Microsoft.PowerShell_profile.ps1",
     "functions/Initialize-ProfileAppearance.ps1",
     "functions/Invoke-OhMyPoshRandomTheme.ps1",
-    "functions/Invoke-SamplePSReadLineProfile.ps1"
+    "functions/Invoke-SamplePSReadLineProfile.ps1",
+    "functions/Invoke-ExecutableAnalysis.ps1",
+    "functions/Initialize-ExecutableAnalysisVm.ps1",
+    "functions/Invoke-ExecutableAnalysisVm.ps1",
+    "functions/Initialize-ExecutableAnalysisWindowsVm.ps1",
+    "functions/Invoke-ExecutableAnalysisWindowsVm.ps1",
+    "scripts/ExecutableAnalysis/WindowsVm.Common.ps1",
+    "scripts/ExecutableAnalysis/WindowsGuestRunner.ps1",
+    "scripts/ExecutableAnalysis/WindowsGuestController.ps1",
+    "scripts/ExecutableAnalysis/Get-AnalysisIdentity.ps1",
+    "scripts/ExecutableAnalysis/Invoke-AnalysisTool.ps1",
+    "scripts/ExecutableAnalysis/Invoke-AnalysisRound.ps1",
+    "scripts/ExecutableAnalysis/Invoke-AnalysisGhidra.ps1",
+    "scripts/ExecutableAnalysis/Resolve-AnalysisTools.ps1"
   ],
   "AllowedWarnings": [
     {

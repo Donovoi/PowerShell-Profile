@@ -71,9 +71,35 @@ try {
     Assert ((Get-PSReadLineKeyHandler -Chord Tab).Function -eq 'Complete') 'Tab completion was lost'
     Assert ((Get-PSReadLineKeyHandler -Chord '(').Function -eq 'SelfInsert') 'Bracket override was lost'
     Assert ((Get-PSReadLineKeyHandler -Chord UpArrow).Function -eq 'HistorySearchBackward') 'Custom history binding was lost'
+    $expectedBindings=@(
+        'DownArrow|HistorySearchForward'; 'LeftArrow|BackwardChar'
+        'RightArrow|ForwardCharAndAcceptNextSuggestionWord'; 'F7|History'; 'F1|CommandHelp'
+        'Ctrl+c|CopyOrCancelLine'; 'Ctrl+v|Paste'; 'Ctrl+b|BuildCurrentDirectory'
+        'Ctrl+q|TabCompleteNext'; 'Ctrl+Q|TabCompletePrevious'; 'Ctrl+C|Copy'; 'Ctrl+V|PasteAsHereString'
+        'Ctrl+d,Ctrl+c|CaptureScreen'; 'Alt+d|ShellKillWord'
+        'Alt+Backspace|ShellBackwardKillWord'; 'Alt+b|ShellBackwardWord'; 'Alt+f|ShellForwardWord'
+        'Alt+B|SelectShellBackwardWord'; 'Alt+F|SelectShellForwardWord'
+        'Alt+w|SaveInHistory'; 'Alt+(|ParenthesizeSelection'; "Alt+'|ToggleQuoteArgument"
+        'Alt+%|ExpandAliases'; 'Ctrl+J|MarkDirectory'; 'Ctrl+j|JumpDirectory'
+        'Alt+j|ShowDirectoryMarks'; 'Alt+a|SelectCommandArguments'; 'Alt+x|ToUnicodeChar'
+        'Backspace|SmartBackspace'
+    )
+    foreach($binding in $expectedBindings){
+        $chord,$function=$binding -split '\|',2
+        Assert ((Get-PSReadLineKeyHandler -Chord $chord).Function -eq $function) "Binding changed: $chord"
+    }
+    foreach($chord in @('"',"'",'(',')','{','}','[',']')){
+        Assert ((Get-PSReadLineKeyHandler -Chord $chord).Function -eq 'SelfInsert') "Pair insertion override changed: $chord"
+    }
+    Assert (Get-PSReadLineOption).HistorySearchCursorMovesToEnd 'History search cursor option was lost'
+    Assert ($null -ne (Get-PSReadLineOption).CommandValidationHandler) 'Command validation handler was lost'
+    $global:PSReadLineMarks['Fixture']=Join-Path $TestRoot 'marked directory'
+    Initialize-ProfileAppearance
+    Assert ($global:PSReadLineMarks['Fixture'] -eq (Join-Path $TestRoot 'marked directory')) 'Reinitialization erased directory marks'
     Invoke-SamplePSReadLineProfile
     Assert ((Get-PSReadLineOption).EditMode -eq 'Emacs') 'The standalone sample default changed'
-    Write-Host 'PASS: real PSReadLine Windows mode, custom history, final Tab/bracket bindings and standalone compatibility'
+    Assert ($global:PSReadLineMarks.ContainsKey('Fixture')) 'Standalone initialization erased directory marks'
+    Write-Host 'PASS: real Windows editing, all custom/final bindings, history options, directory-mark preservation and standalone compatibility'
 }
 finally {
     foreach($name in $savedEnvironment.Keys){[Environment]::SetEnvironmentVariable($name,$savedEnvironment[$name],'Process')}
