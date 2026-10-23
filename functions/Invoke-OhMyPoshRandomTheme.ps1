@@ -2,7 +2,8 @@ function Invoke-OhMyPoshRandomTheme {
     [CmdletBinding()]
     param(
         [switch]$AuthenticateIfNeeded = $true,
-        [int]$ThemeListCacheDays = 14
+        [int]$ThemeListCacheDays = 14,
+        [switch]$LocalOnly
     )
 
     function Get-OhMyPoshThemeCachePath {
@@ -318,19 +319,25 @@ function Invoke-OhMyPoshRandomTheme {
 
     # ensure Oh My Posh is installed
     if (-not (Get-Command -Name 'oh-my-posh' -ErrorAction SilentlyContinue)) {
+        if ($LocalOnly) { return }
         Write-Host 'Oh My Posh not found. Installing via winget...'
         winget install JanDeDobbeleer.OhMyPosh --source winget
 
-        if ($env:Path -notcontains "$env:LOCALAPPDATA\Programs\oh-my-posh\bin") {
+        if ($LASTEXITCODE -ne 0) { throw "Oh My Posh installation failed with exit code $LASTEXITCODE." }
+        if ("$env:LOCALAPPDATA\Programs\oh-my-posh\bin" -notin @($env:Path -split ';' | ForEach-Object { $_.Trim().Trim('"').TrimEnd('\') })) {
             $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
         }
     }
 
+    if (-not (Get-Command oh-my-posh -CommandType Application -ErrorAction Ignore)) {
+        throw 'Oh My Posh executable is unavailable after installation.'
+    }
     $themes = Get-LocalOhMyPoshThemes
     if ($themes.Count -gt 0) {
         $theme = (Get-Random -InputObject $themes).FullName
     }
     else {
+        if ($LocalOnly) { Write-Verbose 'No local Oh My Posh themes found; retaining the existing prompt.'; return }
         $baseUrl = 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes'
         $themeNames = Get-CachedOhMyPoshThemeNames
 

@@ -3,7 +3,10 @@ function Restore-WinMgmt {
   param(
     [switch]$Force
   )
-  #requires -RunAsAdministrator
+  if (-not (Get-Command Test-IsAdministrator -ErrorAction Ignore)) {
+    . (Join-Path $PSScriptRoot 'Test-IsAdministrator.ps1')
+  }
+  if (-not (Test-IsAdministrator)) { throw 'Restore-WinMgmt requires an elevated PowerShell session.' }
   if ((-not (Get-Disk -ErrorAction SilentlyContinue)) -or ($Force -eq $true)) {
     # all commands below must be run in cmd as admin
     $commands = @(

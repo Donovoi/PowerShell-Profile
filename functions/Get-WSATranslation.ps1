@@ -34,7 +34,7 @@ function Get-WSASetup {
     # Install winget powershell module
     if (-not (Get-Command -Name 'Install-WinGetPackage' -ErrorAction SilentlyContinue)) {
         Write-Logg -Message 'Installing winget PowerShell Module' -Level Info
-        Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackages -AddDefaultAssemblies
+        Install-Dependencies -InstallDefaultPSModules -InstallDefaultNugetPackage -AddDefaultAssemblies
     }
 
     #  check if git is installed, if not install it

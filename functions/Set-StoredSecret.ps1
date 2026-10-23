@@ -1,105 +1,46 @@
-<#
-.SYNOPSIS
-   Sets a secret as a named secret in the secret store.
-
-.DESCRIPTION
-   The Set-StoredSecret function stores a provided secret as a named secret in the secret store.
-   If a secret with the same name already exists, it will be overwritten.
-
-.PARAMETER Secret
-   The secret to store in the secret store. Can be a plain text or a SecureString.
-
-.PARAMETER SecretName
-   The name to assign to the stored secret.
-
-.EXAMPLE
-   Set-StoredSecret -Secret 'your_plain_text_secret_here' -SecretName 'MySecret'
-
-.EXAMPLE
-   $SecureSecret = ConvertTo-SecureString -String 'your_plain_text_secret_here' -AsPlainText -Force
-   Set-StoredSecret -Secret $SecureSecret -SecretName 'MySecret'
-
-.NOTES
-   Ensure to handle secret security appropriately. Avoid exposing secrets in plain text.
-#>
 function Set-StoredSecret {
-    [CmdletBinding()]
+    <#
+    .SYNOPSIS
+    Stores a secret in an explicitly registered vault without changing its policy.
+    .DESCRIPTION
+    Installs missing SecretManagement/SecretStore modules when invoked.
+    SecureString and PSCredential values pass directly to Set-Secret. Other types
+    supported by SecretManagement (string, byte[] and hashtable) are accepted.
+    With no Vault, uses the default vault or the sole registered vault.
+    Register a vault explicitly before first use; authentication is never weakened.
+    SecurePassword unlocks a SecretStore vault only. No secret value is logged.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string])]
     param(
-        [Parameter(Mandatory = $true)]
-        [object]
-        $Secret,
-
-        [Parameter(Mandatory = $true)]
-        [string]
-        $SecretName,
-
-        [Parameter(Mandatory = $false)]
-        [System.Security.SecureString]
-        $SecurePassword = $(ConvertTo-SecureString -String 'PrettyPassword' -AsPlainText -Force)
+        [Parameter(Mandatory)][ValidateNotNull()][object]$Secret,
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$SecretName,
+        [Security.SecureString]$SecurePassword,
+        [string]$Vault
     )
-
-    # Install and import secret management modules if not already installed
-    $modulesToInstall = @('Microsoft.PowerShell.SecretManagement', 'Microsoft.PowerShell.SecretStore')
-    $modulesToInstall | ForEach-Object {
-        if (-not (Get-Module -ListAvailable -Name $_)) {
-            Install-Module -Name $_ -Scope CurrentUser -Force -Confirm:$false -AllowClobber
-        }
-        Import-Module -Name $_ -Force
+    if ($Secret -isnot [Security.SecureString] -and $Secret -isnot [pscredential] -and
+        $Secret -isnot [string] -and $Secret -isnot [byte[]] -and $Secret -isnot [hashtable]) {
+        throw 'Secret must be SecureString, PSCredential, string, byte[] or hashtable.'
     }
-
-    # Check if a vault is registered
-    $vaults = Get-SecretVault
-    if ($vaults) {
-        $currentConfig = Get-SecretStoreConfiguration
-        if ($currentConfig.Authentication -ne 'None') {
-
-            try {
-                # Use the provided SecureString password to unlock the secret store
-                Unlock-SecretStore -Password $SecurePassword
-            }
-            catch {
-                # If unlocking fails, reconfigure the secret store to not require authentication
-                Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false
-            }
-        }
+    if (-not $PSCmdlet.ShouldProcess($SecretName, 'Store secret using the registered vault policy')) { return }
+    $ErrorActionPreference = 'Stop'
+    foreach ($moduleName in 'Microsoft.PowerShell.SecretManagement','Microsoft.PowerShell.SecretStore') {
+        if (-not (Get-Module -ListAvailable -Name $moduleName)) { Install-Module -Name $moduleName -Scope CurrentUser -Force -ErrorAction Stop }
+        Import-Module -Name $moduleName -ErrorAction Stop
     }
+    $vaults = @(Get-SecretVault -ErrorAction Stop)
+    if ($Vault) { $selected = @($vaults | Where-Object Name -EQ $Vault) }
     else {
-        try {
-            Write-Logg -Message "Initializing the secret store..." -Level Warning
-            Register-SecretVault -Name SecretStorePowershellrcloned -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -AllowClobber -Confirm:$false
-            Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -Interaction None -Confirm:$false -Password $SecurePassword
-        }
-        catch {
-            Write-Logg -Message "An error occurred while initializing the secret store: $_" -Level Error
-            throw
-        }
+        $selected = @($vaults | Where-Object IsDefault)
+        if (-not $selected.Count -and $vaults.Count -eq 1) { $selected = $vaults }
     }
-    # Check if the secret is a SecureString and convert it to plain text if necessary
-    if ($Secret -is [System.Security.SecureString]) {
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secret)
-        $Secret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+    if ($selected.Count -ne 1) { throw 'Select an existing vault with -Vault. For first use, explicitly register a vault with Register-SecretVault and configure its authentication.' }
+    if ($SecurePassword) {
+        if ($selected[0].ModuleName -ne 'Microsoft.PowerShell.SecretStore') { throw '-SecurePassword is only supported for a SecretStore vault.' }
+        try { Unlock-SecretStore -Password $SecurePassword -ErrorAction Stop }
+        catch { throw 'SecretStore unlock failed. Authentication settings were not changed.' }
     }
-
-    try {
-        # Check if the secret already exists
-        $existingSecret = Get-Secret -Name $SecretName -ErrorAction SilentlyContinue
-
-        # Store the provided secret as a named secret in the secret store
-        Set-Secret -Name $SecretName -Secret $Secret
-
-        if ($null -ne $existingSecret) {
-            Write-Host "The secret '$SecretName' already existed and has been overwritten." -ForegroundColor Yellow
-        }
-        else {
-            Write-Host "The secret '$SecretName' has been created successfully." -ForegroundColor Green
-        }
-    }
-    catch {
-        Write-Logg -Message "An error occurred while setting the secret: $_" -Level Error
-        throw
-    }
-
-    # Return the name of the secret
-    return $SecretName
+    try { Set-Secret -Name $SecretName -Secret $Secret -Vault $selected[0].Name -ErrorAction Stop }
+    catch { throw 'The secret could not be stored. Check vault access and unlock it if needed; authentication settings were not changed.' }
+    $SecretName
 }

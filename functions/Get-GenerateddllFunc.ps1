@@ -27,7 +27,7 @@ function Get-GenerateddllFunc {
         }
 
         # add and install any dependencies
-        Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
+        Install-Dependencies -InstallDefaultPSModules -NugetPackage @{ 'Microsoft.Windows.CsWin32' = '0.3.366' } -InstallDefaultNugetPackage -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
         # verify, normalize and escape the path using dotnet methods
         $dlltoinspect = [System.IO.Path]::GetFullPath($dlltoinspect).Replace('\', '\\').Trim()
         # Extract function metadata (names, parameters, return types) using dnlib
@@ -88,7 +88,7 @@ function ExtractFunctionMetadataUsingDnlib() {
     }
     # Load the dll with dnlib
     # add and install any dependencies
-    Install-Dependencies -InstallDefaultPSModules -NugetPackages Microsoft.Windows.CsWin32 -InstallDefaultNugetPackages -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
+    Install-Dependencies -InstallDefaultPSModules -NugetPackage @{ 'Microsoft.Windows.CsWin32' = '0.3.366' } -InstallDefaultNugetPackage -AddDefaultAssemblies -AddCustomAssemblies "$PWD\Libraries\dnlib.dll"
     $module = [dnlib.DotNet.ModuleDefMD]::Load("$dlltoinspect", [dnlib.DotNet.ModuleContext]::new())
 
     # Extract method information
