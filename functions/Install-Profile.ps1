@@ -95,8 +95,60 @@ function Install-Profile {
         }
         $statusPath = Join-Path $request.RunPath 'status.json'
         [IO.File]::WriteAllText($statusPath + '.tmp', ($record | ConvertTo-Json -Depth 4))
-        [IO.File]::Move($statusPath + '.tmp', $statusPath, $true)
+        # Some status readers omit FILE_SHARE_DELETE. Retry the atomic rename
+        # briefly; never expose partially written JSON or retry indefinitely.
+        for ($attempt = 0; ; $attempt++) {
+            try {
+                if ([IO.File]::Exists($statusPath)) {
+                    [IO.File]::Replace($statusPath + '.tmp', $statusPath, [NullString]::Value)
+                }
+                else { [IO.File]::Move($statusPath + '.tmp', $statusPath) }
+                break
+            }
+            catch {
+                $exception = $_.Exception.GetBaseException()
+                $code = $exception.HResult -band 0xFFFF
+                if ($attempt -ge 39 -or $code -notin @(5, 32, 33)) { throw }
+                Start-Sleep -Milliseconds 50
+            }
+        }
         [IO.File]::AppendAllText($record.LogPath, "[$($record.UpdatedUtc)] $Status $Message`r`n")
+    }
+
+    function Read-InstallStatus {
+        param([string] $Path)
+        for ($attempt = 0; ; $attempt++) {
+            $stream = $null; $reader = $null
+            try {
+                $stream = [IO.FileStream]::new($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+                    ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+                $reader = [IO.StreamReader]::new($stream)
+                return $reader.ReadToEnd() | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+                # Atomic replacement can briefly deny new opens, even with delete sharing.
+                $exception = $_.Exception.GetBaseException()
+                $code = $exception.HResult -band 0xFFFF
+                if ($attempt -ge 39 -or $exception -isnot [IO.IOException] -or $code -notin @(2, 32, 33)) { throw }
+            }
+            finally {
+                if ($reader) { $reader.Dispose() }
+                elseif ($stream) { $stream.Dispose() }
+            }
+            Start-Sleep -Milliseconds 50
+        }
+    }
+
+    function Write-InstallFailureStatus {
+        param([string] $Status, [string] $Message, [bool] $Installed = $false)
+        try { Write-InstallStatus $Status $Message $Installed }
+        catch {
+            # Reporting a failure must not replace the original exception.
+            $fallback = "[$([DateTime]::UtcNow.ToString('o'))] $Status $Message Status publication failed: $($_.Exception.Message)"
+            try { [IO.File]::AppendAllText((Join-Path $request.RunPath 'install.log'), "$fallback`r`n") }
+            catch { [Console]::Error.WriteLine("Could not append installer diagnostics: $($_.Exception.Message)") }
+            [Console]::Error.WriteLine($fallback)
+        }
     }
 
     function Get-ProfileLockOwners {
@@ -241,7 +293,7 @@ namespace ProfileInstallerLocksV1 {
         }
         catch {
             $state = if ($installed) { 'InstalledWithCleanupPending' } else { 'Failed' }
-            Write-InstallStatus $state "$($_.Exception.Message) Replacement and diagnostics have been retained." $installed
+            Write-InstallFailureStatus $state "$($_.Exception.Message) Replacement and diagnostics have been retained." $installed
             throw
         }
         finally { if ($lockStream) { $lockStream.Dispose() } }
@@ -292,7 +344,7 @@ namespace ProfileInstallerLocksV1 {
             -RedirectStandardError (Join-Path $runPath 'worker.stderr.log')
         $ready = $false
         for ($attempt = 0; $attempt -lt 150; $attempt++) {
-            $state = Get-Content -LiteralPath (Join-Path $runPath 'status.json') -Raw | ConvertFrom-Json
+            $state = Read-InstallStatus (Join-Path $runPath 'status.json')
             if ($state.Status -eq 'WaitingForParent') { $ready = $true; break }
             if ($worker.HasExited -or $state.Status -eq 'Failed') { break }
             Start-Sleep -Milliseconds 100
@@ -305,7 +357,7 @@ namespace ProfileInstallerLocksV1 {
     }
     catch {
         if ($worker) { [IO.File]::WriteAllText((Join-Path $runPath 'cancel'), 'Handoff failed before caller exit.') }
-        Write-InstallStatus 'Failed' "$($_.Exception.Message) Staging retained at '$stage'."
+        Write-InstallFailureStatus 'Failed' "$($_.Exception.Message) Staging retained at '$stage'."
         throw
     }
 }

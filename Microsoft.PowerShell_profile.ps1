@@ -1,109 +1,38 @@
-<#
-.SYNOPSIS
-  MY POWERSHELL PROFILE!!!!
-.NOTES
-  INSTALL THIS PROFILE BY RUNNING THE FOLLOWING COMMAND:
-IEX (iwr https://gist.githubusercontent.com/Donovoi/5fd319a97c37f987a5bcb8362fe8b7c5/raw)
-
-#>
+#requires -Version 7.0
+# Startup configures installed tools. Installers run only when explicitly invoked.
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
-$ErrorActionPreference = 'continue'
 
-# # install the module called profiler if it is not installed
-# if (-not (Get-Module -Name profiler -ListAvailable -ErrorAction SilentlyContinue)) {
-#   Install-Module -Name profiler
-# }
+$documentsPowerShellProfilePath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell'
+$powerShell7ProfilePath = @($PSScriptRoot, $documentsPowerShellProfilePath) |
+  Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'functions') -PathType Container) } |
+  Select-Object -First 1
 
-# $trace = Trace-Script -ScriptBlock { & 'C:\Users\micha\PowerShell-Profile\Microsoft.PowerShell_profile.ps1' } -ExportPath icons
-
-$XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'").DriveLetter
-
-
-# Define the profile path, preferring the current profile root when it contains the repo content.
-$documentsPowerShellProfilePath = [System.Environment]::GetFolderPath('MyDocuments') + '\PowerShell'
-$profileRootCandidates = @(
-  $PSScriptRoot
-  $documentsPowerShellProfilePath
-) | Where-Object {
-  -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -Path $_)
-} | Select-Object -Unique
-
-$powerShell7ProfilePath = $profileRootCandidates |
-  Where-Object {
-    (Test-Path -Path (Join-Path -Path $_ -ChildPath 'functions')) -or
-    (Test-Path -Path (Join-Path -Path $_ -ChildPath 'Modules'))
-  } |
-    Select-Object -First 1
-
-if (-not $powerShell7ProfilePath) {
-  $powerShell7ProfilePath = $documentsPowerShellProfilePath
+if ($powerShell7ProfilePath) {
+  # Aggregate compatibility files remain usable directly; startup loads canonical files once.
+  $excludedFunctionFiles = @('Invoke-Whispercpp-SDL2-BACKUP.ps1', 'cmatrix.ps1', 'PSReflect.ps1', 'Copy-FileSystemUtilities.ps1')
+  foreach ($functionFile in (Get-ChildItem -LiteralPath (Join-Path $powerShell7ProfilePath 'functions') -Filter '*.ps1' -File -Recurse | Sort-Object FullName)) {
+    if ($functionFile.Name -in $excludedFunctionFiles) { continue }
+    try { . $functionFile.FullName }
+    catch { Write-Warning "Could not load '$($functionFile.FullName)': $($_.Exception.Message)" }
+  }
+  $moduleDirectory = Join-Path $powerShell7ProfilePath 'Modules'
+  if (Test-Path -LiteralPath $moduleDirectory -PathType Container) {
+    foreach ($moduleFile in (Get-ChildItem -LiteralPath $moduleDirectory -Filter '*.psd1' -File -Recurse | Sort-Object FullName)) {
+      try { Import-Module -Name $moduleFile.FullName -ErrorAction Stop }
+      catch { Write-Warning "Could not import '$($moduleFile.FullName)': $($_.Exception.Message)" }
+    }
+  }
 }
+else { Write-Warning 'Profile functions directory was not found.' }
 
-# Import all of my functions
-$FunctionsFolder = Get-ChildItem -Path (Join-Path -Path $powerShell7ProfilePath -ChildPath 'functions\*.ps*') -Recurse
-$FunctionsFolder.ForEach{ .$_.FullName }
-# Import all of my modules
-$ModulesFolder = Get-ChildItem -Path (Join-Path -Path $powerShell7ProfilePath -ChildPath 'Modules\*.psd1') -Recurse
-$ModulesFolder.ForEach{ Import-Module -Name $_.FullName -Force -ErrorAction SilentlyContinue }
-
-
-# Check if PowerShell 7 is installed
-if (-not (Get-Command -Name pwsh -ErrorAction SilentlyContinue)) {
-  Write-Logg -Message 'PowerShell 7 is not installed. Installing now...' -Level Warning
-  # Download and install PowerShell 7 (you might want to check the URL for the latest version)
-  winget install powershell
-  Write-Logg -Message 'PowerShell 7 installed successfully!' -Level Info
-}
-
-# Check and create profile folders for PowerShell 7
-if (-not (Test-Path -Path $powerShell7ProfilePath)) {
-  Write-Logg -Message 'PowerShell 7 profile folders do not exist. Creating now...' -Level Warning
-  New-Item -Path $PROFILE
-  Write-Logg -Message 'PowerShell 7 profile folders created successfully!' -Level Info
-}
-
-# Variables for the commandline
+try { $XWAYSUSB = (Get-CimInstance -ClassName Win32_Volume -Filter "Label LIKE 'X-Ways%'" -ErrorAction Stop).DriveLetter }
+catch { Write-Verbose "X-Ways volume discovery failed: $($_.Exception.Message)" }
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-
-
 Set-Alias -Name reboot -Value Get-NeededReboot -Option AllScope -Description 'Get-NeededReboot'
 
-# install oh-my-posh
-if (-not (Get-Command oh-my-posh -ErrorAction silentlycontinue)) {
-  Uninstall-Module oh-my-posh -AllVersions -ErrorAction SilentlyContinue
-  if (-not ([string]::IsNullOrEmpty($env:POSH_PATH))) {
-    Remove-Item $env:POSH_PATH -Force -Recurse -ErrorAction SilentlyContinue
-  }
-  winget install JanDeDobbeleer.OhMyPosh --force
+if ($Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and
+    (Get-Command Initialize-ProfileAppearance -ErrorAction Ignore)) {
+  Initialize-ProfileAppearance
 }
-# if path does not contain oh-my-posh, add it
-if ($env:Path -notcontains '\oh-my-posh\bin') {
-  $env:Path += ";$env:LOCALAPPDATA\Programs\oh-my-posh\bin"
-}
-
-# Invoke an awesome sample of PSReadline bindings
-Invoke-SamplePSReadLineProfile
-
-# Stop PSReadline from auto-completing certain characters
-Set-PSReadLineKeyHandler -Key '"' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key "'" -Function SelfInsert
-Set-PSReadLineKeyHandler -Key '(' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key ')' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key '{' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key '}' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key '[' -Function SelfInsert
-Set-PSReadLineKeyHandler -Key ']' -Function SelfInsert
-
-# Enable tab completion for tab
-Set-PSReadLineKeyHandler -Key Tab -Function Complete
-
-# allow for the use of the arrow keys to navigate through the current line
-Set-PSReadLineOption -EditMode Windows
-
-
-# Crazy oh my posh random theme function
-Invoke-OhMyPoshRandomTheme
-
-# $trace.Top50SelfDuration

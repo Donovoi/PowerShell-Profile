@@ -5,7 +5,7 @@
 .DESCRIPTION
     Install-Dependencies is a comprehensive dependency management function that handles:
     
-    - Automatic elevation to Administrator if required
+    - Current-user dependency installation without implicit session restart
     - Installation and configuration of package providers (NuGet, PowerShellGet)
     - PowerShell module installation from PSGallery or local cache
     - NuGet package installation and assembly loading
@@ -106,10 +106,10 @@
     All actions are logged via Write-Logg.
 
 .NOTES
-    - Automatically elevates to Administrator if not already elevated (via Invoke-RunAsAdmin)
+    - Installs dependencies for the current user without restarting the calling session
     - Installs package providers (NuGet, PowerShellGet) if missing
     - Refreshes environment variables at the end to pick up PATH changes
-    - Requires 14 helper cmdlets (automatically loaded via Initialize-CmdletDependencies)
+    - Automatically loads helper cmdlets via Initialize-CmdletDependencies
     - SaveLocally requires both LocalModulesDirectory and LocalNugetDirectory to be valid paths
     - This is the main entry point for comprehensive dependency setup
 #>
@@ -149,14 +149,13 @@ function Install-Dependencies {
             else {
                 Write-Warning "Initialize-CmdletDependencies.ps1 not found in $cmdletRoot"
                 Write-Warning 'Falling back to direct download'
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1' -ErrorAction Stop
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -ErrorAction Stop
                 $scriptBlock = [scriptblock]::Create($method)
                 . $scriptBlock
             }
         }
         catch {
-            Write-Warning "Failed to load Initialize-CmdletDependencies: $($_.Exception.Message)"
-            Write-Warning 'Some cmdlets may not be available'
+            throw
         }
     }
     
@@ -170,7 +169,6 @@ function Install-Dependencies {
         'Add-FileToAppDomain',
         'Invoke-AriaDownload',
         'Get-LongName',
-        'Invoke-RunAsAdmin',
         'Install-PackageProviders',
         'Add-Assemblies',
         'Install-NugetDeps',
@@ -188,7 +186,7 @@ function Install-Dependencies {
     
     if ($missingCmdlets.Count -gt 0) {
         Write-Verbose "Loading $($missingCmdlets.Count) missing cmdlets ($(($requiredCmdlets.Count - $missingCmdlets.Count)) already loaded)"
-        Initialize-CmdletDependencies -RequiredCmdlets $missingCmdlets -PreferLocal -Force -ErrorAction SilentlyContinue
+        Initialize-CmdletDependencies -RequiredCmdlets $missingCmdlets -PreferLocal -ErrorAction Stop
     }
     else {
         Write-Verbose "All $($requiredCmdlets.Count) required cmdlets already loaded, skipping initialization"
@@ -206,20 +204,6 @@ function Install-Dependencies {
         Write-Verbose "LocalNugetDirectory was empty, defaulting to: $LocalNugetDirectory"
     }
 
-    # (3) Run as admin if not already elevated - OPTIMIZED with caching
-    # Cache admin status to avoid repeated UAC checks (saves ~50-100ms per call)
-    if (-not $Script:IsAdminCached) {
-        $Script:IsAdminCached = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    
-    if (-not $Script:IsAdminCached) {
-        Write-Verbose 'Not running as administrator, attempting elevation...'
-        Invoke-RunAsAdmin
-    }
-    else {
-        Write-Verbose 'Already running as administrator, skipping elevation'
-    }
-
     # (4) Install or verify package providers - OPTIMIZED with early-exit
     # Skip if package providers are already registered (saves ~200-500ms)
     if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
@@ -231,7 +215,7 @@ function Install-Dependencies {
     }
 
     # (5) Install PowerShell modules unless suppressed
-    if (-not $NoPSModules -and ($PSModule.Count -gt 0)) {
+    if (-not $NoPSModules -and ($PSModule.Count -gt 0 -or $InstallDefaultPSModules)) {
         $null = Install-PSModule `
             -InstallDefaultPSModules:$InstallDefaultPSModules `
             -PSModule:$PSModule `

@@ -31,7 +31,7 @@ function Install-NugetDeps {
             else {
                 Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
                 Write-Warning 'Falling back to direct download'
-                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/cmdlets/Initialize-CmdletDependencies.ps1'
+                $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1'
                 $scriptBlock = [scriptblock]::Create($method)
                 . $scriptBlock
             }
@@ -76,7 +76,7 @@ function Install-NugetDeps {
             }
         }
         # Also add the default package if they dont exist in the hashtable
-        if ($InstallDefaultNugetPackage -and $NugetPackage) {
+        if ($InstallDefaultNugetPackage) {
             foreach ($p in $defaultPackages.GetEnumerator()) {
                 if (-not $deps.ContainsKey($p.Key)) {
                     $deps.Add($p.Key, $p.Value)

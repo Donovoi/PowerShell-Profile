@@ -1,0 +1,71 @@
+{
+  "AnalyzerVersion": "1.25.0",
+  "Scope": "C-G production changes; existing public names and profile exports retained for compatibility",
+  "Files": [
+    "functions/cmatrix.ps1",
+    "functions/ConvertFrom-NtfsRetrievalPointer.ps1",
+    "functions/ConvertTo-Aria2cCookies.ps1",
+    "functions/Copy-DirectoryRecursive.ps1",
+    "functions/Copy-DirectPath.ps1",
+    "functions/Copy-FileSystemArtifact.ps1",
+    "functions/Copy-FileSystemUtilities.ps1",
+    "functions/Copy-ForensicArtifact.ps1",
+    "functions/Copy-LockedFile.ps1",
+    "functions/Copy-NtfsExtentData.ps1",
+    "functions/Copy-RecursivePattern.ps1",
+    "functions/Copy-StandardFile.ps1",
+    "functions/Copy-WildcardPattern.ps1",
+    "functions/Extract-ZIpFile.ps1",
+    "functions/Find-FilesRust.ps1",
+    "functions/Find-FilesWithGlobPattern.ps1",
+    "functions/Find-RustyFile.ps1",
+    "functions/Get-FFmpeg.ps1",
+    "functions/Get-FileDownload.ps1",
+    "functions/Get-FinalOutputPath.ps1",
+    "functions/Get-GitPull.ps1",
+    "functions/Get-LatestGitHubRelease.ps1",
+    "functions/Get-OutputFilename.ps1",
+    "functions/Initialize-RawCopyNative.ps1",
+    "functions/Invoke-AriaDownload.ps1",
+    "functions/Invoke-AriaRPCDownload.ps1",
+    "functions/Invoke-EverythingSearch.ps1",
+    "functions/Invoke-GDriveDownload.ps1",
+    "functions/Invoke-RawCopy.ps1",
+    "functions/Invoke-ValidatedDownload.ps1",
+    "functions/PSReflect.ps1",
+    "functions/Set-StoredSecret.ps1",
+    "Microsoft.PowerShell_profile.ps1"
+  ],
+  "AllowedWarnings": [
+    {
+      "File": "functions/ConvertTo-Aria2cCookies.ps1",
+      "RuleName": "PSUseSingularNouns",
+      "Message": "The cmdlet 'ConvertTo-Aria2cCookies' uses a plural noun. A singular noun should be used instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Extract-ZIpFile.ps1",
+      "RuleName": "PSUseApprovedVerbs",
+      "Message": "The cmdlet 'Extract-ZipFile' uses an unapproved verb.",
+      "Count": 1
+    },
+    {
+      "File": "Microsoft.PowerShell_profile.ps1",
+      "RuleName": "PSUseDeclaredVarsMoreThanAssignments",
+      "Message": "The variable 'vsInstaller' is assigned but never used.",
+      "Count": 1
+    },
+    {
+      "File": "Microsoft.PowerShell_profile.ps1",
+      "RuleName": "PSUseDeclaredVarsMoreThanAssignments",
+      "Message": "The variable 'vswhere' is assigned but never used.",
+      "Count": 1
+    },
+    {
+      "File": "Microsoft.PowerShell_profile.ps1",
+      "RuleName": "PSUseDeclaredVarsMoreThanAssignments",
+      "Message": "The variable 'XWAYSUSB' is assigned but never used.",
+      "Count": 1
+    }
+  ]
+}

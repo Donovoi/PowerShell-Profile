@@ -1,4 +1,3 @@
-#requires -RunAsAdministrator
 
 function Start-CMatrix {
     param (

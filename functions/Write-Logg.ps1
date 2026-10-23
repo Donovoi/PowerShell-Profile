@@ -112,7 +112,11 @@ function Write-Logg {
 
         [Parameter(Mandatory = $false)]
         [switch]
-        $LogToFile
+        $LogToFile,
+
+        # Compatibility parameters used by existing callers.
+        [switch]$NoLogFile,
+        [Nullable[ConsoleColor]]$ForegroundColor
     )
 
     begin {
@@ -125,45 +129,29 @@ function Write-Logg {
             $useTUIPopUpMessage = $false
         }
 
-        # Set TLS 1.2 for secure connections
-        if ($PSVersionTable.PSVersion.Major -le 5) {
+        # Resolve optional dependencies only for the explicitly requested feature.
+        $optionalDependencies = @()
+        if ($useTUIPopUpMessage) { $optionalDependencies += @('Install-Dependencies', 'Show-TUIConfirmationDialog') }
+        if ($Level -eq 'LOLCAT') { $optionalDependencies += 'Install-Dependencies' }
+        if ($useWPFPopUpMessage) { $optionalDependencies += 'New-WPFMessageBox' }
+        if ($optionalDependencies.Count) {
             try {
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+                if (-not (Get-Command Initialize-CmdletDependencies -ErrorAction Ignore)) {
+                    $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
+                    if (Test-Path -LiteralPath $initScript -PathType Leaf) { . $initScript }
+                    else {
+                        $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -TimeoutSec 30 -ErrorAction Stop
+                        . ([scriptblock]::Create($method))
+                    }
+                }
+                Initialize-CmdletDependencies -RequiredCmdlets $optionalDependencies -PreferLocal -ErrorAction Stop
             }
             catch {
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Write-Warning "Optional logging feature unavailable: $($_.Exception.Message). Using console/file output."
+                $useWPFPopUpMessage = $false
+                $useTUIPopUpMessage = $false
+                if ($Level -eq 'LOLCAT') { $Level = 'INFO' }
             }
-        }
-
-        # Load shared dependency loader if not already available
-        if (-not (Get-Command -Name 'Initialize-CmdletDependencies' -ErrorAction SilentlyContinue)) {
-            $initScript = Join-Path $PSScriptRoot 'Initialize-CmdletDependencies.ps1'
-            if (Test-Path $initScript) {
-                . $initScript
-            }
-            else {
-                Write-Warning "Initialize-CmdletDependencies.ps1 not found in $PSScriptRoot"
-                Write-Warning 'Falling back to direct download'
-                try {
-                    $method = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -TimeoutSec 30 -UseBasicParsing
-                    $scriptBlock = [scriptblock]::Create($method)
-                    . $scriptBlock
-                }
-                catch {
-                    Write-Error "Failed to load Initialize-CmdletDependencies: $($_.Exception.Message)"
-                    Write-Warning 'Write-Logg will run with reduced functionality'
-                    return
-                }
-            }
-        }
-
-        # Load all required cmdlets once per invocation
-        try {
-            Initialize-CmdletDependencies -RequiredCmdlets @('Install-Dependencies', 'Show-TUIConfirmationDialog') -PreferLocal -ErrorAction Stop
-        }
-        catch {
-            Write-Warning "Failed to load some dependencies: $($_.Exception.Message)"
-            Write-Warning 'Write-Logg will continue with reduced functionality'
         }
 
         if ($useTUIPopUpMessage) {
@@ -257,13 +245,13 @@ function Write-Logg {
 
             switch ($resolvedLevel) {
                 'INFO' {
-                    Write-Host "$StructuredMessage`n" -ForegroundColor Green
+                    Write-Host "$StructuredMessage`n" -ForegroundColor $(if ($null -ne $ForegroundColor) { $ForegroundColor } else { [ConsoleColor]::Green })
                 }
                 'WARNING' {
-                    Write-Host "$StructuredMessage`n" -ForegroundColor Yellow
+                    Write-Host "$StructuredMessage`n" -ForegroundColor $(if ($null -ne $ForegroundColor) { $ForegroundColor } else { [ConsoleColor]::Yellow })
                 }
                 'ERROR' {
-                    Write-Host "$StructuredMessage`n" -ForegroundColor Red
+                    Write-Host "$StructuredMessage`n" -ForegroundColor $(if ($null -ne $ForegroundColor) { $ForegroundColor } else { [ConsoleColor]::Red })
                 }
                 'VERBOSE' {
                     Write-Verbose -Message "$StructuredMessage`n"
@@ -291,8 +279,8 @@ function Write-Logg {
 
         $logMessage = New-WriteLoggMessage -Text $textToWrite
 
-        if ($LogToFile) {
-            Add-Content -Path $LogFile -Value $logMessage
+        if ($LogToFile -and -not $NoLogFile) {
+            Add-Content -LiteralPath $LogFile -Value $logMessage -ErrorAction Stop
         }
 
         $useRawLolcat = $isPipelineInput -and ($resolvedLevel -like 'LOLCAT')
@@ -311,12 +299,12 @@ function Write-Logg {
                     }
                     catch {
                         Write-Warning "Failed to show TUI dialog: $($_.Exception.Message)"
-                        Write-Host $logMessage -ForegroundColor Yellow
+                        Write-Host $logMessage -ForegroundColor $(if ($null -ne $ForegroundColor) { $ForegroundColor } else { [ConsoleColor]::Yellow })
                     }
                 }
                 else {
                     Write-Warning 'Show-TUIConfirmationDialog not available, falling back to console output'
-                    Write-Host $logMessage -ForegroundColor Yellow
+                    Write-Host $logMessage -ForegroundColor $(if ($null -ne $ForegroundColor) { $ForegroundColor } else { [ConsoleColor]::Yellow })
                 }
             }
         }

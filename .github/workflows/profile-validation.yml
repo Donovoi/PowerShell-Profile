@@ -1,0 +1,50 @@
+name: PowerShell profile validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows-powershell:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install validation dependencies
+        run: |
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force -ErrorAction Stop
+          choco install aria2 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'aria2 installation failed' }
+          $env:ChocolateyInstall + '\bin' | Out-File $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Static analysis
+        run: ./tests/Invoke-ProfileStaticValidation.ps1 -OutputPath "$env:RUNNER_TEMP/profile-static.json"
+      - name: Windows regression suite
+        run: |
+          $root = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('ProfileValidation-' + [guid]::NewGuid().ToString('N'))
+          "PROFILE_VALIDATION_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          ./tests/Invoke-ProfileValidation.ps1 -TestRoot $root
+      - name: Collect validation logs
+        if: always()
+        run: |
+          $logs = Join-Path $env:RUNNER_TEMP 'profile-validation-logs'
+          $null = New-Item -ItemType Directory -Path $logs -Force
+          $static = Join-Path $env:RUNNER_TEMP 'profile-static.json'
+          if (Test-Path -LiteralPath $static) {
+            Copy-Item -LiteralPath $static -Destination $logs -ErrorAction Stop
+          }
+          if ($env:PROFILE_VALIDATION_ROOT -and (Test-Path -LiteralPath $env:PROFILE_VALIDATION_ROOT)) {
+            Get-ChildItem -LiteralPath $env:PROFILE_VALIDATION_ROOT -File |
+              Where-Object Extension -In '.json', '.log' |
+              Copy-Item -Destination $logs -ErrorAction Stop
+          }
+      - name: Retain validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: profile-validation
+          path: ${{ runner.temp }}/profile-validation-logs/

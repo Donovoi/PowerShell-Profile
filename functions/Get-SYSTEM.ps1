@@ -37,27 +37,11 @@ function Get-SYSTEM {
   #>
 
   begin {
-    # Detect PowerShell version and prefer pwsh if available
-    $preferPwsh = $PSVersionTable.PSVersion.Major -ge 6 -or (Get-Command pwsh -ErrorAction SilentlyContinue)
-
-    if ($preferPwsh) {
-      $pwshPath = Get-Command pwsh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-      if ($pwshPath) {
-        $PowerShellPath = $pwshPath
-        Write-Verbose "Using PowerShell 7+ (pwsh): $PowerShellPath"
-      }
-    } else {
-      Write-Verbose "Using Windows PowerShell 5.1: $PowerShellPath"
+    if (-not (Get-Command Test-IsAdministrator -ErrorAction Ignore)) {
+      . (Join-Path $PSScriptRoot 'Test-IsAdministrator.ps1')
     }
-
-    # Check if running as administrator
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-      # Restart as administrator
-      Write-Verbose 'Not running as administrator. Restarting with elevated privileges...'
-      $arguments = "& {Start-Process PowerShell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File `"$($MyInvocation.MyCommand.Path)`"' -Verb RunAs}"
-      Start-Process PowerShell -ArgumentList $arguments -Verb RunAs
-      return
+    if (-not (Test-IsAdministrator)) {
+      throw 'Get-SYSTEM requires an elevated PowerShell session. Run Start-AsAdmin first.'
     }
 
     # Check if NtObjectManager module is installed, install if not
