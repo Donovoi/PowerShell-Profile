@@ -34,6 +34,7 @@ $testNames=@(
     'ProfileAppearance.Behavior',
     'ProfileExecutableAnalysis.Behavior',
     'ProfileAnalysisBridge.Behavior',
+    'ProfileAnalysisApplication.Behavior',
     'ProfileAnalysisVm.Behavior',
     'ProfileAnalysisWindowsVm.Behavior',
     'ProfileCore.Behavior',

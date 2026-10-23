@@ -21,6 +21,12 @@ const integer = (key, fallback, minimum, maximum) => {
 };
 const timeoutMs = integer('timeoutSeconds', 300, 1, 86400) * 1000;
 const maxFunctions = integer('maxFunctions', 0, 0, 1000000);
+const maxJavaScriptFiles = integer('maxJavaScriptFiles', 40, 1, 10000);
+const maxJavaScriptBytes = integer('maxJavaScriptBytes', 33554432, 1024, 268435456);
+const maxJavaScriptHeapMB = integer('maxJavaScriptHeapMB', 1024, 128, 8192);
+const maxExtractionEntries = integer('maxExtractionEntries', 50000, 1, 100000);
+const archiveIntegrityPolicy = config.archiveIntegrityPolicy ?? 'fail';
+if (!['fail', 'record-and-continue'].includes(archiveIntegrityPolicy)) throw new Error('Invalid archiveIntegrityPolicy.');
 const maxEvidenceBytes = integer('maxEvidenceBytes', 67108864, 4096, 1073741824);
 const maxTotalBytes = integer('maxTotalEvidenceBytes', 1073741824, 4096, 17179869184);
 const deadline = Date.now() + integer('totalTimeoutSeconds', 3600, 1, 86400) * 1000;
@@ -146,14 +152,58 @@ async function invoke(name, args = {}, label = name, cleanup = false) {
     const result = await request('tools/call', { name, arguments: args }, cleanup ? Math.min(timeoutMs, 30000) : Math.min(timeoutMs, Math.max(1, deadline - Date.now())));
     const filename = `rea-raw/${String(++stageNumber).padStart(5, '0')}-${name}.json`;
     stage.EvidencePath = await retain(filename, json(result));
-    const payload = unpack(result);
-    if (result?.isError) { stage.Status = 'Failed'; stage.Error = JSON.stringify(payload).slice(0, 4096); return null; }
+    let payload = unpack(result);
+    if (result?.isError) {
+      const constraint = payload?.error;
+      const reference = constraint?.details?.reported_limits;
+      if (constraint?.code === 'resource_constraint' && constraint?.details?.resource === 'transport' && reference?.boundary === 'mcp-response' && /^ev_[a-f0-9]{64}$/.test(reference?.evidence_id ?? '') && name !== 'export_evidence_bundle') {
+        payload = await recoverRetainedRecord(name, reference.evidence_id, stage);
+      } else { stage.Status = 'Failed'; stage.Error = JSON.stringify(payload).slice(0, 4096); return null; }
+    }
     for (const item of payload?.limitations ?? []) if (typeof item === 'string') limitation(item);
     stage.Status = 'Succeeded';
+    const contradictions = payload?.normalized_result?.integrity_contradictions;
+    if (Array.isArray(contradictions) && contradictions.length) {
+      stage.Status = 'Partial';
+      manifest.ArchiveIntegrityContradictions ??= [];
+      manifest.ArchiveIntegrityContradictions.push({ Tool: name, EvidencePath: stage.EvidencePath, Contradictions: contradictions });
+      limitation(`${name} retained ${contradictions.length} archive integrity contradiction(s); observed bytes remain untrusted.`);
+    }
+    if (name === 'analyze_javascript_application') {
+      const normalized = payload?.normalized_result;
+      const coverage = normalized?.graph?.coverage ? { application: normalized.graph.coverage, semantic: normalized.semantic_graph?.coverage ?? null } : normalized?.summary?.coverage;
+      manifest.JavaScriptProviderCoverage = coverage ?? null;
+      manifest.JavaScriptSummary = normalized?.summary ?? { statistics: normalized?.statistics ?? null };
+      if (!coverage || coverage.application?.status !== 'complete' || coverage.semantic?.status !== 'complete') {
+        stage.Status = 'Partial';
+        limitation('JavaScript semantic coverage is partial or unverified; successful transport does not establish complete application analysis.');
+      }
+      if (normalized?.parent_evidence_id) stage.ParentEvidenceId = normalized.parent_evidence_id;
+    }
     stage.EvidenceId = payload?.evidence_id ?? null;
     return payload;
   } catch (error) { stage.Status = 'Failed'; stage.Error = String(error.message); limitation(`${label}: ${error.message}`); return null; }
   finally { stage.FinishedUtc = new Date().toISOString(); }
+}
+async function recoverRetainedRecord(operation, evidenceId, originalStage) {
+  const relative = `rea-raw/${String(++stageNumber).padStart(5, '0')}-retained-${operation}.json`;
+  const file = inside(relative);
+  const exported = await invoke('export_evidence_bundle', { path: file }, `recover_${operation}`);
+  if (!exported) throw new Error('The provider retained an oversized response but its evidence export failed.');
+  const stat = await fs.lstat(file);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size === 0) throw new Error('Retained-response export is not a nonempty regular file.');
+  if (stat.size > 268435456 || bytesWritten + stat.size > maxTotalBytes) throw new Error('Retained-response export exceeds its 256 MiB parsing or total evidence budget.');
+  manifest.Artifacts.push({ Path: relative, Kind: 'retained-evidence-recovery', Bytes: stat.size, SHA256: await hashFile(file) });
+  bytesWritten += stat.size;
+  const bundle = JSON.parse(decodeUtf8(await fs.readFile(file)));
+  if (!Array.isArray(bundle.records)) throw new Error('Retained-response export lacks an evidence record inventory.');
+  const matches = bundle.records.filter(record => record.evidence_id === evidenceId && record.operation === operation);
+  if (matches.length !== 1 || !Object.hasOwn(matches[0], 'normalized_result')) throw new Error('Retained-response export does not contain exactly the requested operation and evidence ID.');
+  originalStage.RecoveredFromRetainedEvidence = true;
+  originalStage.RetainedEvidencePath = relative;
+  originalStage.RetainedEvidenceId = evidenceId;
+  limitation(`${operation} exceeded the MCP response budget; its exact retained evidence record was recovered from ${relative}.`);
+  return matches[0];
 }
 async function detectFormat() {
   if (config.format && config.format !== 'auto') return config.format.toLowerCase();
@@ -184,6 +234,7 @@ async function detectFormat() {
   } finally { await file.close(); }
 }
 async function copyExtraction(payload) {
+  manifest.ExtractionBudget = { EntryLimit: maxExtractionEntries, FileByteLimit: maxEvidenceBytes, TotalEvidenceByteLimit: maxTotalBytes };
   const result = payload?.normalized_result;
   if (!result?.output_root || !path.isAbsolute(result.output_root)) throw new Error('REA extraction did not return an absolute output_root.');
   if (result.containment_verified !== true || !Array.isArray(result.artifacts)) throw new Error('REA extraction did not verify containment and its artifact inventory.');
@@ -201,7 +252,7 @@ async function copyExtraction(payload) {
   let count = 0;
   async function walk(directory, relative = '') {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
-      if (++count > 10000) throw new Error('Extraction copy exceeds the 10000-entry bound.');
+      if (++count > maxExtractionEntries) throw new Error(`Extraction copy exceeds the ${maxExtractionEntries}-entry bound.`);
       const source = path.join(directory, entry.name);
       const subpath = path.join(relative, entry.name);
       const actual = await fs.lstat(source);
@@ -224,6 +275,49 @@ async function copyExtraction(payload) {
   await walk(sourceRoot);
   if (copiedFiles.size !== expected.size) throw new Error('Not every inventoried extraction file was retained.');
   limitation(`REA's original temporary extraction is retained at ${sourceRoot}; verified regular files were also copied into rea-extracted.`);
+}
+async function retainArchive() {
+  const target = await invoke('open_binary', { path: config.inputPath });
+  if (!target) return false;
+  opened = true;
+  manifest.ArchiveIntegrityPolicy = archiveIntegrityPolicy;
+  const arguments_ = {};
+  if (archiveIntegrityPolicy !== 'fail') {
+    for (const tool of ['inspect_artifact', 'extract_artifact']) {
+      if (!tools.get(tool)?.inputSchema?.properties?.integrity_policy) { limitation('REA does not advertise the requested archive integrity policy.'); manifest.Stages.push({ Name: 'archive_integrity_policy', Status: 'Unavailable' }); return false; }
+    }
+    arguments_.integrity_policy = archiveIntegrityPolicy;
+  }
+  await invoke('inspect_artifact', arguments_);
+  const extraction = await invoke('extract_artifact', arguments_);
+  if (!extraction) return false;
+  const stage = { Name: 'retain_extracted_files', StartedUtc: new Date().toISOString(), Status: 'Pending' };
+  manifest.Stages.push(stage);
+  try { await copyExtraction(extraction); stage.Status = 'Succeeded'; return true; }
+  catch (error) { stage.Status = 'Failed'; stage.Error = error.message; limitation(`Extraction copy incomplete: ${error.message}`); return false; }
+  finally { stage.FinishedUtc = new Date().toISOString(); }
+}
+async function selectJavaScriptSources() {
+  const prefix = 'rea-extracted/';
+  const sources = manifest.Artifacts.filter(item => item.Kind === 'extracted').map(item => ({
+    path: item.Path.replaceAll('\\', '/').slice(prefix.length), bytes: item.Bytes,
+  })).filter(item => /\.(?:[cm]?js|jsx|tsx?|json|map)$/i.test(item.path));
+  let main = null;
+  const packageFile = sources.find(item => item.path === 'package.json' && item.bytes <= 1048576);
+  if (packageFile) {
+    try { const metadata = JSON.parse(decodeUtf8(await fs.readFile(inside('rea-extracted/package.json')))); if (typeof metadata.main === 'string') main = metadata.main.replace(/^\.\//, ''); }
+    catch { limitation('The root package.json was not valid bounded JSON; no entry-point declaration was trusted.'); }
+  }
+  const rank = item => item.path === 'package.json' ? 0 : item.path === main ? 1 : /(?:^|\/)[^/]*(?:main|preload)[^/]*\.[cm]?js$/i.test(item.path) ? 2 : item.path.includes('node_modules/') ? 5 : /\.map$/i.test(item.path) ? 4 : 3;
+  sources.sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path, 'en'));
+  const selected = []; let bytes = 0;
+  for (const item of sources) {
+    if (selected.length >= maxJavaScriptFiles || bytes + item.bytes > maxJavaScriptBytes) continue;
+    selected.push(item.path); bytes += item.bytes;
+  }
+  manifest.JavaScriptSelection = { DiscoveredSourceFiles: sources.length, SelectedSourceFiles: selected, SelectedSourceBytes: bytes, FileLimit: maxJavaScriptFiles, ByteLimit: maxJavaScriptBytes, Complete: selected.length === sources.length };
+  if (!manifest.JavaScriptSelection.Complete) limitation('JavaScript semantic analysis uses a bounded selection of retained source files; unselected sources and dependencies remain unknown. Extracted bytes have separate retention coverage.');
+  return selected;
 }
 async function nativeAnalysis() {
   const target = await invoke('open_binary', { path: config.inputPath, provider_id: config.provider ?? 'ghidra' });
@@ -298,6 +392,7 @@ async function run() {
     case 'javascript': {
       const standalone = ['.js', '.cjs', '.mjs'].includes(path.extname(config.inputPath).toLowerCase());
       let selected = config.inputPath;
+      let sourcePaths;
       if (standalone) {
         // Analyze only the caller-selected file; never silently inspect its sibling tree.
         selected = inside('rea-javascript-input');
@@ -309,7 +404,26 @@ async function run() {
         if (await hashFile(copied) !== manifest.InputSHA256Before) throw new Error('JavaScript input changed while creating its analysis copy.');
         limitation('Standalone JavaScript was analyzed in an isolated directory containing only its selected file; dependencies were not implicitly read.');
       }
-      await invoke('analyze_javascript_application', { input_path: selected, analysis_timeout_ms: timeoutMs });
+      if (!standalone && path.extname(config.inputPath).toLowerCase() === '.asar') {
+        // Retain source bytes even if subsequent semantic analysis exhausts its budget.
+        if (await retainArchive()) { sourcePaths = await selectJavaScriptSources(); selected = inside('rea-extracted'); }
+        else {
+          limitation('ASAR source retention failed; semantic analysis was not broadened to an unbounded application scan.');
+          break;
+        }
+        if (!sourcePaths.length) { limitation('No source file fits the configured JavaScript analysis limits.'); break; }
+      }
+      const arguments_ = { input_path: selected, analysis_timeout_ms: timeoutMs };
+      const properties = tools.get('analyze_javascript_application')?.inputSchema?.properties ?? {};
+      if (!properties.max_heap_mb) { limitation('REA does not advertise a JavaScript worker heap limit; semantic analysis is unavailable.'); manifest.Stages.push({ Name: 'javascript_heap_budget', Status: 'Unavailable' }); break; }
+      arguments_.max_heap_mb = maxJavaScriptHeapMB;
+      manifest.JavaScriptWorkerHeapMB = maxJavaScriptHeapMB;
+      if (sourcePaths) {
+        if (!properties.source_paths) { limitation('REA does not advertise bounded JavaScript source selection; semantic analysis is unavailable.'); manifest.Stages.push({ Name: 'javascript_source_selection', Status: 'Unavailable' }); break; }
+        arguments_.source_paths = sourcePaths;
+      }
+      if (properties.detail) arguments_.detail = 'summary';
+      await invoke('analyze_javascript_application', arguments_);
       if (standalone) {
         await invoke('recover_javascript_sources', { path: config.inputPath, output_directory: inside('rea-javascript'), extraction_mode: 'structural', rewrite_level: 'minimal' });
       }
@@ -319,19 +433,7 @@ async function run() {
       await invoke('inspect_android_package', selectedPath);
       // Package inventory/extraction is useful even without JADX.
     case 'archive': {
-      const target = await invoke('open_binary', selectedPath);
-      if (target) {
-        opened = true;
-        await invoke('inspect_artifact');
-        const extraction = await invoke('extract_artifact');
-        if (extraction) {
-          const stage = { Name: 'retain_extracted_files', StartedUtc: new Date().toISOString(), Status: 'Pending' };
-          manifest.Stages.push(stage);
-          try { await copyExtraction(extraction); stage.Status = 'Succeeded'; }
-          catch (error) { stage.Status = 'Failed'; stage.Error = error.message; limitation(`Extraction copy incomplete: ${error.message}`); }
-          finally { stage.FinishedUtc = new Date().toISOString(); }
-        }
-      }
+      await retainArchive();
       break;
     }
     case 'java':
@@ -381,8 +483,23 @@ finally {
     manifest.InputUnchanged = manifest.InputSHA256Before === manifest.InputSHA256After;
     if (!manifest.InputUnchanged) { manifest.Error = 'Input SHA-256 changed during analysis.'; limitation(manifest.Error); }
   } catch (error) { manifest.Error = `Input identity could not be reverified: ${error.message}`; }
+  const extracted = manifest.Artifacts.filter(artifact => artifact.Kind === 'extracted');
+  if (extracted.length) {
+    const stage = { Name: 'retained_source_integrity', Status: 'Succeeded', CheckedFiles: 0, Failures: [] };
+    manifest.Stages.push(stage);
+    for (const artifact of extracted) {
+      try {
+        const file = inside(artifact.Path); const stat = await fs.lstat(file); const resolved = await fs.realpath(file);
+        const samePath = process.platform === 'win32' ? resolved.toLowerCase() === file.toLowerCase() : resolved === file;
+        if (!stat.isFile() || stat.isSymbolicLink() || !samePath || stat.size !== artifact.Bytes || await hashFile(file) !== artifact.SHA256) throw new Error('Retained source identity changed.');
+      } catch (error) { stage.Failures.push({ Path: artifact.Path, Error: error.message }); }
+      stage.CheckedFiles++;
+    }
+    manifest.RetainedSourcesUnchanged = stage.Failures.length === 0;
+    if (!manifest.RetainedSourcesUnchanged) { stage.Status = 'Failed'; manifest.Error = 'Retained source files changed or became unavailable after analysis.'; limitation(manifest.Error); }
+  }
   manifest.FinishedUtc = new Date().toISOString();
-  manifest.Status = manifest.Error ? 'Failed' : manifest.Stages.some(stage => ['Failed', 'Unavailable', 'Skipped'].includes(stage.Status)) || (manifest.Format === 'native' && !manifest.Coverage.Complete) || ['unknown', 'java'].includes(manifest.Format) ? 'Partial' : 'Succeeded';
+  manifest.Status = manifest.Error ? 'Failed' : manifest.Stages.some(stage => ['Failed', 'Unavailable', 'Skipped', 'Partial'].includes(stage.Status)) || (manifest.Format === 'native' && !manifest.Coverage.Complete) || (manifest.Format === 'javascript' && (!manifest.JavaScriptProviderCoverage || manifest.JavaScriptSelection?.Complete === false)) || ['unknown', 'java'].includes(manifest.Format) ? 'Partial' : 'Succeeded';
   await fs.writeFile(inside('rea-result.json'), json(manifest), { flag: 'wx' });
   process.stdout.write(JSON.stringify({ Status: manifest.Status, ManifestPath: inside('rea-result.json'), Stages: manifest.Stages.length, DecompiledFunctions: manifest.Coverage.DecompiledFunctions }) + '\n');
   if (manifest.Status === 'Failed') process.exitCode = 1;
