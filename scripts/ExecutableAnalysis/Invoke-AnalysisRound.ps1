@@ -78,10 +78,12 @@ function Select-AnalysisEvidenceFile {
         if($relative -match '^basic[\\/]'){0}
         elseif($relative -match '^runtime[\\/]'){1}
         elseif($_.Name -in 'rea-result.json','ghidra-result.json','manifest.json' -or $_.Name -like '*.command.json'){2}
-        elseif($_.Name -match '-(binary_overview|list_strings|inspect_artifact|analyze_javascript_application)\.json$'){3}
-        elseif($_.Name -eq 'package.json' -or $_.Name -match '^(main|preload)([.-].*)?\.[cm]?js$'){4}
-        elseif($_.Extension -in '.c','.cs','.js','.mjs','.cjs','.jsx','.ts','.tsx','.wat','.java'){5}
-        else{6}
+        elseif($relative -match '^(?:rea|application[\\/]rea-\d+)[\\/]rea-extracted[\\/]package\.json$'){3}
+        elseif($_.Name -match '-(binary_overview|list_strings|inspect_artifact|analyze_javascript_application)\.json$'){4}
+        elseif($_.Name -match '^(main|preload)([.-].*)?\.[cm]?js$' -and $relative -notmatch '[\\/]node_modules[\\/]'){5}
+        elseif($_.Name -eq 'package.json'){6}
+        elseif($_.Extension -in '.c','.cs','.js','.mjs','.cjs','.jsx','.ts','.tsx','.wat','.java'){7}
+        else{8}
     }},FullName | Select-Object -First 40
 }
 

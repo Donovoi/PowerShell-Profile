@@ -185,9 +185,22 @@ $selection=Join-Path $TestRoot 'evidence-selection'
 foreach($folder in 'basic','runtime','logs','code','rea','application/rea-1/rea-raw'){$null=[IO.Directory]::CreateDirectory((Join-Path $selection $folder))}
 foreach($name in 'basic/identity.json','basic/application-context.json','runtime/runtime.json','runtime/stdout.txt','runtime/strace.log','logs/ilspy.command.json','rea/rea-result.json','application/rea-1/rea-raw/006-analyze_javascript_application.json'){[IO.File]::WriteAllText((Join-Path $selection $name),'fixture')}
 foreach($index in 1..55){[IO.File]::WriteAllText((Join-Path $selection "code/function-$index.c"),'return 42;')}
+foreach($archiveRoot in 'rea','application/rea-1'){
+    $extracted=Join-Path $selection ($archiveRoot+'/rea-extracted')
+    $null=[IO.Directory]::CreateDirectory($extracted)
+    [IO.File]::WriteAllText((Join-Path $extracted 'package.json'),'{"name":"root-app","main":"bootstrap.js"}')
+    foreach($index in 1..45){
+        $dependency=Join-Path $extracted ("node_modules/dependency-$index")
+        $null=[IO.Directory]::CreateDirectory($dependency)
+        [IO.File]::WriteAllText((Join-Path $dependency 'package.json'),'{"name":"dependency"}')
+    }
+}
 $selected=@(Select-AnalysisEvidenceFile -RunDirectory $selection)
 Assert-True ($selected.Count -eq 40) 'AI evidence file budget was lost.'
 foreach($name in 'identity.json','application-context.json','runtime.json','stdout.txt','strace.log','ilspy.command.json','rea-result.json','006-analyze_javascript_application.json'){Assert-True ($selected.Name -contains $name) ('Code volume crowded out required evidence: '+$name)}
+foreach($archiveRoot in 'rea','application/rea-1'){
+    Assert-True ($selected.FullName -contains (Join-Path $selection ($archiveRoot+'/rea-extracted/package.json'))) 'Dependency manifests crowded out the application root manifest.'
+}
 Write-Host 'PASS: large decompilations retain runtime observations, identity and invocation provenance in the AI review sample.'
 
 & {
