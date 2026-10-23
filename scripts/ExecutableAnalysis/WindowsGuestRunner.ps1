@@ -6,6 +6,18 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSHA256
 )
 $ErrorActionPreference='Stop'
+function Get-GuestExceptionDetail {
+    param([Parameter(Mandatory)][Exception]$Exception)
+    $cause=$Exception.GetBaseException()
+    $nativeCode=if($cause -is [ComponentModel.Win32Exception]){$cause.NativeErrorCode}else{$null}
+    [pscustomobject]@{
+        ExceptionType=$cause.GetType().FullName;Message=$cause.Message;WrapperMessage=$Exception.Message
+        HResult=$cause.HResult;HResultHex=('0x{0:X8}' -f $cause.HResult)
+        NativeErrorCode=$nativeCode
+        NativeErrorMessage=if($null -ne $nativeCode){[ComponentModel.Win32Exception]::new($nativeCode).Message}else{$null}
+        Operation=$cause.Data['Operation']
+    }
+}
 $target='C:\ProfileAnalysis\Work\target.exe'
 $output='C:\ProfileAnalysis\Results'
 $record=[ordered]@{SchemaVersion=1;Status='Failed';StartedUtc=[DateTime]::UtcNow.ToString('o');GuestUser=[Security.Principal.WindowsIdentity]::GetCurrent().Name;IsAdministrator=$null;ExpectedSHA256=$ExpectedSHA256;TargetSHA256=$null;TargetUnchanged=$null;Execution=$null;Validation=@{};Limitations=@('Execution is offline and without arguments or GUI interaction.','Process polling can miss very short-lived processes.','File observations cover the guest work and temporary directories, not every system volume.','Registry observations cover bounded HKCU Software values, not every registry hive.','Connection snapshots do not trace every failed network API call; no external network adapter is present.','A disposable VM is a containment measure, not a guarantee against hypervisor escape.')}
@@ -112,7 +124,9 @@ public static class ProfileAnalysisGuestJob {
  [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr process,out uint exitCode);
  [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr value,uint milliseconds);
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
- static void Require(bool success,string operation) { if(!success)throw new Win32Exception(Marshal.GetLastWin32Error(),operation); }
+ static void Require(bool success,string operation) {
+  if(!success) { int code=Marshal.GetLastWin32Error(); var error=new Win32Exception(code); error.Data["Operation"]=operation; throw error; }
+ }
  static bool Valid(IntPtr handle) { return handle!=IntPtr.Zero && handle!=new IntPtr(-1); }
  public static Result Run(string target,string directory,string output,int seconds) {
   IntPtr job=IntPtr.Zero,stdout=IntPtr.Zero,stderr=IntPtr.Zero,stdin=IntPtr.Zero,buffer=IntPtr.Zero;
@@ -169,7 +183,7 @@ public static class ProfileAnalysisGuestJob {
     Get-GuestRegistryInventory|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $output 'registry-before.json') -Encoding utf8
     $record.Execution=[ProfileAnalysisGuestJob]::Run($target,'C:\ProfileAnalysis\Work',$output,$TimeoutSeconds)
     $record.Status=if($record.Execution.Reason -eq 'Completed'){'Completed'}else{'Partial'}
-} catch {$record.Status='Failed';$record.Error=$_.Exception.Message}
+} catch {$record.Status='Failed';$record.Error=$_.Exception.Message;$record.ErrorDetails=Get-GuestExceptionDetail -Exception $_.Exception}
 finally {
     try{$record.TargetUnchanged=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $ExpectedSHA256}catch{$record.TargetUnchanged=$false}
     try{Get-GuestFileInventory|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $output 'files-after.json') -Encoding utf8}catch{$record.Limitations+=('Post-run file inventory failed: '+$_.Exception.Message)}
