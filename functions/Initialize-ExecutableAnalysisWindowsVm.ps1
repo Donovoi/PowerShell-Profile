@@ -84,6 +84,13 @@ function Initialize-ExecutableAnalysisWindowsVm {
         $null=Invoke-AnalysisWindowsVBox @('createmedium','disk','--filename',$disk,'--size','65536','--format','VDI')
         $null=Invoke-AnalysisWindowsVBox @('storagectl',$VirtualMachineName,'--name','SATA','--add','sata','--controller','IntelAhci','--portcount','4','--bootable','on')
         $null=Invoke-AnalysisWindowsVBox @('storageattach',$VirtualMachineName,'--storagectl','SATA','--port','0','--device','0','--type','hdd','--medium',$disk)
+        # Convert only Setup's first guest-requested reboot into a poweroff. This
+        # permits a CPU topology change at the reboot boundary, without cutting
+        # power to a running installer or changing host Hyper-V/VBS settings.
+        $null=Invoke-AnalysisWindowsVBox @('setextradata',$VirtualMachineName,'VBoxInternal2/TurnResetIntoPowerOff','1')
+        $manifest.ProvisioningPhase='WindowsPE'
+        $manifest.SetupCpuCount=4;$manifest.RuntimeCpuCount=1
+        $manifest|ConvertTo-Json -Depth 6|Set-Content -LiteralPath $manifestPath -Encoding utf8
         # The additions installer can leave VBoxService stopped until reboot. First
         # logon runs this fixed command elevated; publish readiness only after the
         # guest-control service is running. The encoded command contains no secret.
@@ -110,13 +117,33 @@ try {
         while($timer.Elapsed.TotalSeconds -lt $ProvisioningTimeoutSeconds) {
             Start-Sleep -Seconds 15
             $attempt++
+            $settings=ConvertFrom-AnalysisWindowsVmInfo (Invoke-AnalysisWindowsVBox @('showvminfo',$manifest.VirtualMachineId,'--machinereadable'))
+            if($settings.UUID -ne $manifest.VirtualMachineId){throw 'Provisioning VM identity changed.'}
+            if($manifest.ProvisioningPhase -eq 'WindowsPE'){
+                if($settings.VMState -eq 'running'){continue}
+                if($settings.VMState -ne 'poweroff'){throw "Unexpected installer VM state: $($settings.VMState)."}
+                $reason=Invoke-AnalysisWindowsVBox @('guestproperty','get',$manifest.VirtualMachineId,'/VirtualBox/HostInfo/VMPowerOffReason')
+                if($reason.Trim() -ne 'Value: Reset'){throw 'Windows Setup stopped without a verified guest-requested reboot.'}
+                $manifest.SetupRebootVerifiedUtc=[DateTime]::UtcNow.ToString('o')
+                $null=Invoke-AnalysisWindowsVBox @('setextradata',$manifest.VirtualMachineId,'VBoxInternal2/TurnResetIntoPowerOff')
+                $null=Invoke-AnalysisWindowsVBox @('modifyvm',$manifest.VirtualMachineId,'--cpus','1','--boot1','disk','--boot2','dvd')
+                $settings=ConvertFrom-AnalysisWindowsVmInfo (Invoke-AnalysisWindowsVBox @('showvminfo',$manifest.VirtualMachineId,'--machinereadable'))
+                if($settings.VMState -ne 'poweroff' -or $settings.cpus -ne '1'){throw 'First-boot CPU configuration was not verified.'}
+                $manifest.ProvisioningPhase='FirstBoot'
+                $manifest|ConvertTo-Json -Depth 6|Set-Content -LiteralPath $manifestPath -Encoding utf8
+                Write-Verbose 'Setup requested its first reboot; starting the installed disk with one CPU.'
+                $null=Invoke-AnalysisWindowsVBox @('startvm',$manifest.VirtualMachineId,'--type','headless')
+                continue
+            }
+            if($settings.VMState -ne 'running'){throw "Unexpected first-boot VM state: $($settings.VMState)."}
             try {
                 $probe=Invoke-AnalysisWindowsVBox (@('guestcontrol',$VirtualMachineName,'run')+$auth+@('--exe','C:\Windows\System32\cmd.exe','--timeout','10000','--wait-stdout','--','/d','/c','type C:\profile-setup-ready.txt')) -TimeoutSeconds 15
-                if($probe -match 'ready'){break}
+                if($probe.Trim() -eq 'ready'){break}
             } catch {Write-Verbose "Windows setup readiness probe $attempt is not ready."}
             if($attempt%4 -eq 0){Write-Progress -Activity 'Installing dedicated Windows analysis VM' -Status ('Waiting for guest provisioning ({0:N0} minutes)' -f $timer.Elapsed.TotalMinutes)}
         }
         if($timer.Elapsed.TotalSeconds -ge $ProvisioningTimeoutSeconds){throw 'Windows unattended installation did not reach the readiness marker before its deadline.'}
+        $manifest.ProvisioningPhase='AccountConfiguration'
         # Preserve both sides of a password rotation before touching the guest.
         # A timeout can occur after the guest accepted its new password. Pending
         # credentials are DPAPI-protected and retained on failure for recovery.
@@ -199,7 +226,7 @@ Write-Output 'Provisioned standard account and rotated bootstrap password.'
         $settings=ConvertFrom-AnalysisWindowsVmInfo (Invoke-AnalysisWindowsVBox @('showvminfo',$VirtualMachineName,'--machinereadable'))
         $manifest.SnapshotId=$settings.CurrentSnapshotUUID
         if($manifest.SnapshotId -notmatch '^[a-f0-9-]{36}$'){throw 'The clean snapshot UUID was not verified.'}
-        $manifest.Status='Ready';$manifest.CompletedUtc=[DateTime]::UtcNow.ToString('o');$ready=$true
+        $manifest.Status='Ready';$manifest.ProvisioningPhase='Complete';$manifest.CompletedUtc=[DateTime]::UtcNow.ToString('o');$ready=$true
         [pscustomobject]$manifest
     } catch {$manifest.Status='Failed';$manifest.Error=$_.Exception.Message;throw}
     finally {

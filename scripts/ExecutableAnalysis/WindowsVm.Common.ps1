@@ -40,6 +40,7 @@ function ConvertFrom-AnalysisWindowsVmInfo {
     $settings=@{}
     foreach($line in ($Text -split '\r?\n')) {
         if($line -match '^([^=]+)="(.*)"$'){$settings[$Matches[1].Trim('"')]=$Matches[2]}
+        elseif($line -match '^([^=]+)=([0-9]+)$'){$settings[$Matches[1].Trim('"')]=$Matches[2]}
     }
     $settings
 }
