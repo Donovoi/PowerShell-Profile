@@ -117,11 +117,26 @@ function Install-Profile {
 
     function Read-InstallStatus {
         param([string] $Path)
-        $stream = [IO.FileStream]::new($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read,
-            ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
-        $reader = [IO.StreamReader]::new($stream)
-        try { $reader.ReadToEnd() | ConvertFrom-Json -ErrorAction Stop }
-        finally { $reader.Dispose() }
+        for ($attempt = 0; ; $attempt++) {
+            $stream = $null; $reader = $null
+            try {
+                $stream = [IO.FileStream]::new($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+                    ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+                $reader = [IO.StreamReader]::new($stream)
+                return $reader.ReadToEnd() | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+                # Atomic replacement can briefly deny new opens, even with delete sharing.
+                $exception = $_.Exception.GetBaseException()
+                $code = $exception.HResult -band 0xFFFF
+                if ($attempt -ge 39 -or $exception -isnot [IO.IOException] -or $code -notin @(2, 32, 33)) { throw }
+            }
+            finally {
+                if ($reader) { $reader.Dispose() }
+                elseif ($stream) { $stream.Dispose() }
+            }
+            Start-Sleep -Milliseconds 50
+        }
     }
 
     function Write-InstallFailureStatus {
