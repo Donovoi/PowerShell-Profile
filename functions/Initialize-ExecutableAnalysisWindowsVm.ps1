@@ -63,13 +63,13 @@ function Initialize-ExecutableAnalysisWindowsVm {
     if(([IO.DriveInfo]::new([IO.Path]::GetPathRoot($storage))).AvailableFreeSpace -lt 30GB){throw 'At least 30 GiB of free disk is required for setup and snapshots.'}
     $bootstrapFile=Join-Path $storage 'bootstrap-password.tmp'
     $bootstrapPassword=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
-    $manifest=[ordered]@{Schema='PowerShellProfile.AnalysisWindowsVm.v1';VirtualMachineName=$VirtualMachineName;VirtualMachineId=$null;StoragePath=$storage;GuestOS='Windows 11 x64';GuestUser='analysis-user';AdminUser='analysis-admin';CredentialPath=(Join-Path $storage 'guest-credential.clixml');AdminCredentialPath=(Join-Path $storage 'admin-credential.clixml');SnapshotName='Profile-Clean-Windows';SnapshotId=$null;Status='Provisioning';IsoPath=$iso;IsoSHA256=(Get-FileHash -LiteralPath $iso -Algorithm SHA256).Hash;ImageIndex=$ImageIndex;StartedUtc=[DateTime]::UtcNow.ToString('o')}
+    $manifest=[ordered]@{Schema='PowerShellProfile.AnalysisWindowsVm.v1';VirtualMachineName=$VirtualMachineName;VirtualMachineId=$null;StoragePath=$storage;GuestOS='Windows 11 x64';GuestUser='analysis-user';AdminUser='Administrator';CredentialPath=(Join-Path $storage 'guest-credential.clixml');AdminCredentialPath=(Join-Path $storage 'admin-credential.clixml');SnapshotName='Profile-Clean-Windows';SnapshotId=$null;Status='Provisioning';IsoPath=$iso;IsoSHA256=(Get-FileHash -LiteralPath $iso -Algorithm SHA256).Hash;ImageIndex=$ImageIndex;StartedUtc=[DateTime]::UtcNow.ToString('o')}
     $created=$false;$ready=$false;$provisioningLock=$null;$provisioningFile=$null
     try {
         $provisioningLock=Enter-AnalysisWindowsVmLock $storage
         [IO.File]::WriteAllText($bootstrapFile,'');Protect-AnalysisWindowsPrivatePath $bootstrapFile
         [IO.File]::WriteAllText($bootstrapFile,$bootstrapPassword)
-        [pscredential]::new('analysis-admin',(ConvertTo-AnalysisWindowsSecureString $bootstrapPassword))|Export-Clixml -LiteralPath $manifest.AdminCredentialPath
+        [pscredential]::new('Administrator',(ConvertTo-AnalysisWindowsSecureString $bootstrapPassword))|Export-Clixml -LiteralPath $manifest.AdminCredentialPath
         Protect-AnalysisWindowsPrivatePath $manifest.AdminCredentialPath
         $null=Invoke-AnalysisWindowsVBox @('createvm','--name',$VirtualMachineName,'--platform-architecture','x86','--ostype','Windows11_64','--basefolder',$storage,'--register')
         $created=$true
@@ -84,10 +84,29 @@ function Initialize-ExecutableAnalysisWindowsVm {
         $null=Invoke-AnalysisWindowsVBox @('createmedium','disk','--filename',$disk,'--size','65536','--format','VDI')
         $null=Invoke-AnalysisWindowsVBox @('storagectl',$VirtualMachineName,'--name','SATA','--add','sata','--controller','IntelAhci','--portcount','4','--bootable','on')
         $null=Invoke-AnalysisWindowsVBox @('storageattach',$VirtualMachineName,'--storagectl','SATA','--port','0','--device','0','--type','hdd','--medium',$disk)
-        $null=Invoke-AnalysisWindowsVBox @('unattended','install',$VirtualMachineName,('--iso='+$iso),'--user=analysis-admin',('--user-password-file='+$bootstrapFile),('--admin-password-file='+$bootstrapFile),'--full-user-name=Profile Analysis Administrator',('--image-index='+$ImageIndex),'--hostname=profile-analysis-windows.local','--locale=en_US','--country=US','--time-zone=UTC','--install-additions',('--additions-iso='+$additions),('--auxiliary-base-path='+(Join-Path $storage 'Unattended-')),'--post-install-command=cmd.exe /c echo ready > C:\profile-setup-ready.txt','--start-vm=headless') -TimeoutSeconds 180
+        # The additions installer can leave VBoxService stopped until reboot. First
+        # logon runs this fixed command elevated; publish readiness only after the
+        # guest-control service is running. The encoded command contains no secret.
+        $postInstallScript=@'
+$ErrorActionPreference='Stop'
+try {
+    Start-Service -Name VBoxService -ErrorAction Stop
+    $service=Get-Service -Name VBoxService -ErrorAction Stop
+    $service.WaitForStatus([ServiceProcess.ServiceControllerStatus]::Running,[TimeSpan]::FromSeconds(30))
+    $service.Refresh()
+    if($service.Status -ne [ServiceProcess.ServiceControllerStatus]::Running){throw 'VBoxService is not running.'}
+    Set-Content -LiteralPath 'C:\profile-setup-ready.txt' -Value 'ready' -Encoding ascii
+} catch {
+    $_|Out-String|Set-Content -LiteralPath 'C:\profile-setup-error.txt' -Encoding utf8
+    throw
+}
+'@
+        $postInstallEncoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($postInstallScript))
+        $postInstallCommand='powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand '+$postInstallEncoded
+        $null=Invoke-AnalysisWindowsVBox @('unattended','install',$VirtualMachineName,('--iso='+$iso),'--user=Administrator',('--user-password-file='+$bootstrapFile),('--admin-password-file='+$bootstrapFile),'--full-user-name=Profile Analysis Administrator',('--image-index='+$ImageIndex),'--hostname=profile-analysis-windows.local','--locale=en_US','--country=US','--time-zone=UTC','--install-additions',('--additions-iso='+$additions),('--auxiliary-base-path='+(Join-Path $storage 'Unattended-')),('--post-install-command='+$postInstallCommand),'--start-vm=headless') -TimeoutSeconds 180
         Write-Verbose 'Windows installation started in the dedicated offline VM.'
         $timer=[Diagnostics.Stopwatch]::StartNew();$attempt=0
-        $auth=@('--username','analysis-admin','--passwordfile',$bootstrapFile)
+        $auth=@('--username','Administrator','--passwordfile',$bootstrapFile)
         while($timer.Elapsed.TotalSeconds -lt $ProvisioningTimeoutSeconds) {
             Start-Sleep -Seconds 15
             $attempt++
@@ -98,18 +117,39 @@ function Initialize-ExecutableAnalysisWindowsVm {
             if($attempt%4 -eq 0){Write-Progress -Activity 'Installing dedicated Windows analysis VM' -Status ('Waiting for guest provisioning ({0:N0} minutes)' -f $timer.Elapsed.TotalMinutes)}
         }
         if($timer.Elapsed.TotalSeconds -ge $ProvisioningTimeoutSeconds){throw 'Windows unattended installation did not reach the readiness marker before its deadline.'}
-        $guestPassword=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
-        $adminPassword=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
+        # Preserve both sides of a password rotation before touching the guest.
+        # A timeout can occur after the guest accepted its new password. Pending
+        # credentials are DPAPI-protected and retained on failure for recovery.
+        $manifest.BootstrapCredentialPath=Join-Path $storage 'bootstrap-credential.clixml'
+        $manifest.PendingGuestCredentialPath=Join-Path $storage 'pending-guest-credential.clixml'
+        $manifest.PendingAdminCredentialPath=Join-Path $storage 'pending-admin-credential.clixml'
+        if(-not(Test-Path -LiteralPath $manifest.BootstrapCredentialPath)){
+            Copy-Item -LiteralPath $manifest.AdminCredentialPath -Destination $manifest.BootstrapCredentialPath
+            Protect-AnalysisWindowsPrivatePath $manifest.BootstrapCredentialPath
+        }
+        foreach($item in @(@('analysis-user',$manifest.PendingGuestCredentialPath),@('Administrator',$manifest.PendingAdminCredentialPath))){
+            if(-not(Test-Path -LiteralPath $item[1])){
+                $randomPassword=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
+                [pscredential]::new($item[0],(ConvertTo-AnalysisWindowsSecureString $randomPassword))|Export-Clixml -LiteralPath $item[1]
+                Protect-AnalysisWindowsPrivatePath $item[1]
+                $randomPassword=$null
+            }
+            $pendingCredential=Import-Clixml -LiteralPath $item[1]
+            if($pendingCredential -isnot [pscredential] -or $pendingCredential.UserName -ne $item[0]){throw 'A retained pending credential did not match its expected guest account.'}
+            if($item[0] -eq 'analysis-user'){$guestPassword=$pendingCredential.GetNetworkCredential().Password}else{$adminPassword=$pendingCredential.GetNetworkCredential().Password}
+        }
+        $manifest|ConvertTo-Json -Depth 6|Set-Content -LiteralPath $manifestPath -Encoding utf8
         $provision=@"
 `$ErrorActionPreference='Stop'
+`$managementPrincipal=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if(-not `$managementPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Provisioning requires a full administrator management token.'}
 `$guest=ConvertTo-SecureString '$guestPassword' -AsPlainText -Force
-New-LocalUser -Name 'analysis-user' -Password `$guest -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
+if(Get-LocalUser -Name 'analysis-user' -ErrorAction SilentlyContinue){Set-LocalUser -Name 'analysis-user' -Password `$guest -PasswordNeverExpires `$true -UserMayChangePassword `$false}
+else{New-LocalUser -Name 'analysis-user' -Password `$guest -PasswordNeverExpires -UserMayNotChangePassword | Out-Null}
 if(-not (Get-LocalGroupMember -SID 'S-1-5-32-545' | Where-Object {`$_.Name -like '*\analysis-user'})){Add-LocalGroupMember -SID 'S-1-5-32-545' -Member 'analysis-user'}
-`$admin=ConvertTo-SecureString '$adminPassword' -AsPlainText -Force
-Set-LocalUser -Name 'analysis-admin' -Password `$admin
-`$builtInAdministrator=Get-LocalUser | Where-Object {`$_.SID.Value -match '-500$'}
-`$builtInAdministrator | Set-LocalUser -Password `$admin
-`$builtInAdministrator | Disable-LocalUser
+`$targetSid=(Get-LocalUser -Name 'analysis-user').SID.Value
+if(Get-LocalGroupMember -SID 'S-1-5-32-544' | Where-Object {`$_.SID.Value -eq `$targetSid}){Remove-LocalGroupMember -SID 'S-1-5-32-544' -Member 'analysis-user' -Confirm:`$false}
+if(Get-LocalGroupMember -SID 'S-1-5-32-544' | Where-Object {`$_.SID.Value -eq `$targetSid}){throw 'The analysis account is still a member of Administrators.'}
 New-Item -ItemType Directory -Path C:\ProfileAnalysis,C:\ProfileAnalysis\Work,C:\ProfileAnalysis\Results -Force | Out-Null
 & icacls.exe C:\ProfileAnalysis /inheritance:r /grant 'SYSTEM:(OI)(CI)F' 'Administrators:(OI)(CI)F' 'analysis-user:(OI)(CI)RX' | Out-Null
 if(`$LASTEXITCODE -ne 0){throw 'Failed to restrict the guest analysis directory.'}
@@ -119,6 +159,12 @@ if(`$LASTEXITCODE -ne 0){throw 'Failed to grant guest work access.'}
 if(`$LASTEXITCODE -ne 0){throw 'Failed to grant guest evidence access.'}
 Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' AutoAdminLogon '0'
 Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' DefaultPassword -ErrorAction SilentlyContinue
+Get-LocalUser -Name 'analysis-admin' -ErrorAction SilentlyContinue | Disable-LocalUser
+`$admin=ConvertTo-SecureString '$adminPassword' -AsPlainText -Force
+`$builtInAdministrator=Get-LocalUser | Where-Object {`$_.SID.Value -match '-500$'}
+`$builtInAdministrator | Set-LocalUser -Password `$admin
+`$builtInAdministrator | Enable-LocalUser
+Set-LocalUser -Name 'Administrator' -Password `$admin
 Write-Output 'Provisioned standard account and rotated bootstrap password.'
 "@
         # Credentials must not appear, even encoded, in host process arguments.
@@ -127,13 +173,13 @@ Write-Output 'Provisioned standard account and rotated bootstrap password.'
         $wrappedProvision="try {`n$provision`n} finally { Remove-Item -LiteralPath `$PSCommandPath -Force }"
         [IO.File]::WriteAllText($provisioningFile,$wrappedProvision)
         $null=Invoke-AnalysisWindowsVBox (@('guestcontrol',$VirtualMachineName,'copyto')+$auth+@($provisioningFile,'C:\Windows\Temp\ProfileAnalysisProvision.ps1'))
-        $null=Invoke-AnalysisWindowsVBox (@('guestcontrol',$VirtualMachineName,'run')+$auth+@('--exe','C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe','--timeout','60000','--wait-stdout','--wait-stderr','--','-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','C:\Windows\Temp\ProfileAnalysisProvision.ps1')) -TimeoutSeconds 70
-        foreach($item in @(@('analysis-user',$guestPassword,$manifest.CredentialPath),@('analysis-admin',$adminPassword,$manifest.AdminCredentialPath))) {
+        $null=Invoke-AnalysisWindowsVBox (@('guestcontrol',$VirtualMachineName,'run')+$auth+@('--exe','C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe','--timeout','300000','--wait-stdout','--wait-stderr','--','-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','C:\Windows\Temp\ProfileAnalysisProvision.ps1')) -TimeoutSeconds 310
+        foreach($item in @(@('analysis-user',$guestPassword,$manifest.CredentialPath),@('Administrator',$adminPassword,$manifest.AdminCredentialPath))) {
             $credential=[pscredential]::new($item[0],(ConvertTo-AnalysisWindowsSecureString $item[1]))
             $credential|Export-Clixml -LiteralPath $item[2];Protect-AnalysisWindowsPrivatePath $item[2]
         }
         [IO.File]::WriteAllText($bootstrapFile,$adminPassword)
-        $auth=@('--username','analysis-admin','--passwordfile',$bootstrapFile)
+        $auth=@('--username','Administrator','--passwordfile',$bootstrapFile)
         $runner=Join-Path $assets 'WindowsGuestRunner.ps1'
         if(-not(Test-Path -LiteralPath $runner)){throw 'The trusted Windows guest runner asset is missing.'}
         $null=Invoke-AnalysisWindowsVBox (@('guestcontrol',$VirtualMachineName,'copyto')+$auth+@($runner,'C:\ProfileAnalysis\Runner.ps1'))

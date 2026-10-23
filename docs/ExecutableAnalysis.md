@@ -71,9 +71,15 @@ The command selects `Profile-Analysis-Windows` for Windows x86/x64 PE executable
 
 The Linux adapter captures `strace`, stdout/stderr, exit status and bounded file metadata. The Windows adapter runs the target under a standard account in a bounded Windows Job and retains process/output and selected system observations. Neither adapter exercises GUI flows, arguments, networking or every execution path. macOS, other CPU architectures and unsupported guest formats require a corresponding runtime adapter. A VM is a containment measure, not a formal guarantee against escape.
 
+Programs requiring unavailable guest dependencies, elevated privileges, GUI interaction or networking may expose only a startup failure or timeout. Retaining that evidence does not establish successful feature coverage.
+
 `Initialize-ExecutableAnalysisVm` creates the dedicated Ubuntu 24.04 LTS VM, verifies the official cloud-image checksum, temporarily enables NAT only to install guest tools, then creates a powered-off isolated snapshot. It preserves unrelated VMs. Provisioning artifacts that contain bootstrap credentials are removed; the remaining credential is protected using Windows DPAPI.
 
-`Initialize-ExecutableAnalysisWindowsVm` creates a dedicated Windows 11 guest from a caller-supplied local x64 installation ISO and the installed VirtualBox Guest Additions ISO. Setup is offline. Windows media and any required license are supplied by the caller. On first use, provide the media explicitly:
+`Initialize-ExecutableAnalysisWindowsVm` creates a dedicated Windows 11 guest from a caller-supplied local x64 installation ISO and the installed VirtualBox Guest Additions ISO. Setup is offline. Windows media and any required license are supplied by the caller.
+
+The Windows guest uses a dedicated built-in Administrator management account for provisioning and evidence transfer, with a random password protected by Windows DPAPI on the host. Targets run as the separate `analysis-user` account, whose absence from the Administrators group is checked in addition to its token. UAC remains enabled. Protected recovery credentials are saved before guest password changes, so a provisioning timeout does not discard the credentials needed for recovery.
+
+On first use, provide the media explicitly:
 
 ```powershell
 Initialize-ExecutableAnalysisWindowsVm -IsoPath C:\Downloads\Windows11.iso
@@ -85,6 +91,10 @@ Invoke-ExecutableAnalysis C:\Samples\program.exe -Dynamic -WindowsIsoPath C:\Dow
 
 ## Budgets and validation
 
+Inputs default to a 1 GiB size limit. `-MaxInputBytes` can raise it explicitly, up to 2 GiB minus one byte; larger inputs are rejected before creating an analysis folder.
+
 `-MaxFunctions 0` attempts all discovered native functions within the overall evidence/time limits. A positive value bounds function attempts. `-TimeoutSeconds` bounds analyzer processes; `-AIReviewTimeoutSeconds` bounds each AI round; `-RuntimeSeconds` bounds the guest target. Basic string scanning is limited to 16 MiB, 20,000 strings and 8,192 characters per retained string, with truncation disclosed. Each process's combined stdout/stderr is capped at 64 MiB by a shared streaming budget.
+
+Runtime constraints can change a program's behavior. Windows permits at most 32 active processes, 512 MiB of committed memory per process and 1 GiB for the job. It checks combined stdout/stderr against an 8 MiB threshold every 100 ms, so output can overshoot before termination; host retention separately caps each guest artifact at 16 MiB. Linux uses a 1 GiB address-space limit, a 64-process user limit, a 1 MiB per-file size limit and a CPU-time limit matching the requested runtime. An allocation failure or early exit under these constraints does not establish how the program behaves without them.
 
 CI exercises deterministic local fixtures and a fake MCP peer; it does not claim to qualify live provider feeds, account authentication or guest OS installation. Separate real integration checks cover the actual REA/Ghidra/ILSpy/WABT/JADX tools and disposable VM behavior. Tests check meaningful recovered values/bytes and clean end states rather than only exit codes. See `tests/Validation.md` for the required regression commands.

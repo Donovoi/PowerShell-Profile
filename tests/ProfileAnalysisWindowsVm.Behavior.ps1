@@ -64,6 +64,10 @@ function Invoke-AnalysisWindowsVBox {
             'list' {return ''}
             'unattended' {
                 if($ArgumentList[1] -eq 'detect'){return "OSTypeId=`"Windows11_64`"`nImageIndex6=Windows 11 Pro"}
+                $postInstallArgument=@($ArgumentList|Where-Object {$_ -like '--post-install-command=*'})
+                Assert-True ($postInstallArgument.Count -eq 1 -and $postInstallArgument[0] -match ' -EncodedCommand ([A-Za-z0-9+/=]+)$') 'The fixed post-install command was not passed as one encoded argument.'
+                $script:postInstallRecipe=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($Matches[1]))
+                Assert-True ($script:postInstallRecipe.IndexOf('Start-Service') -lt $script:postInstallRecipe.IndexOf("Set-Content -LiteralPath 'C:\profile-setup-ready.txt'")) 'Readiness was published before starting the guest-control service.'
                 $script:vmSettings.VMState='running'
                 if($script:freshMode -eq 'unattended-failure'){throw 'Mock unattended installation failed'}
                 return ''
@@ -75,9 +79,15 @@ function Invoke-AnalysisWindowsVBox {
                     $script:provisioningFileObserved=$ArgumentList[-2]
                     Assert-True (Test-Path -LiteralPath $script:provisioningFileObserved) 'The protected provisioning file was not created.'
                     Assert-True ((Get-Acl -LiteralPath $script:provisioningFileObserved).AreAccessRulesProtected) 'The provisioning secret file inherited ambient access.'
+                    $pendingManifest=Get-Content -LiteralPath (Join-Path $script:freshStorage 'analysis-windows-vm.json') -Raw|ConvertFrom-Json
+                    foreach($pending in @(@($pendingManifest.PendingGuestCredentialPath,'analysis-user'),@($pendingManifest.PendingAdminCredentialPath,'Administrator'),@($pendingManifest.BootstrapCredentialPath,'Administrator'))){
+                        Assert-True ((Import-Clixml -LiteralPath $pending[0]).UserName -eq $pending[1]) 'Recoverable DPAPI credentials were not saved before guest mutation.'
+                        Assert-True ((Get-Acl -LiteralPath $pending[0]).AreAccessRulesProtected) 'A retained credential inherited ambient access.'
+                    }
                     return ''
                 }
                 if($ArgumentList -contains '-File'){
+                    Assert-True ($ArgumentList -contains '300000' -and $TimeoutSeconds -eq 310) 'Provisioning did not retain its bounded cold-start allowance.'
                     if($script:freshMode -eq 'manifest-write-failure'){
                         $readonly=Get-Item -LiteralPath (Join-Path $script:freshStorage 'analysis-windows-vm.json')
                         $readonly.IsReadOnly=$true
@@ -119,7 +129,7 @@ function Invoke-AnalysisWindowsVBox {
             Assert-True ($transfer -match '16777217') 'Evidence transfer lost its guest byte limit.'
             Assert-True ($MaxOutputCharacters -eq 23000000) 'Evidence transfer lost its host capture limit.'
             if($transfer -match 'runtime\.json'){
-                $data=@{Status=if($script:failGuest){'Failed'}else{'Completed'};IsAdministrator=$false;TargetSHA256=$inputHash;RunnerSHA256=(Get-FileHash -LiteralPath (Join-Path $script:fixtureAssets 'WindowsGuestRunner.ps1')).Hash;Validation=@{HashMatched=$true;NoNetworkAdapter=$true};Execution=@{JobAssigned=(-not $script:failGuest);JobClosed=$true;Reason='Completed';ExitCode=0}}|ConvertTo-Json -Depth 6 -Compress
+                $data=@{Status=if($script:failGuest){'Failed'}else{'Completed'};IsAdministrator=$false;TargetSHA256=$inputHash;RunnerSHA256=(Get-FileHash -LiteralPath (Join-Path $script:fixtureAssets 'WindowsGuestRunner.ps1')).Hash;Validation=@{AccountNotAdministrator=(-not $script:filteredAdmin);HashMatched=$true;NoNetworkAdapter=$true};Execution=@{JobAssigned=(-not $script:failGuest);JobClosed=$true;Reason='Completed';ExitCode=0}}|ConvertTo-Json -Depth 6 -Compress
             }else{$data='{}'}
             return [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($data))
         }
@@ -134,12 +144,13 @@ try{
 }finally{$held.Dispose()}
 Write-Host 'PASS: exclusive lock rejects a concurrent analysis without changing any VM state'
 
-foreach($case in @('success','guest-failure','cleanup-failure','paused-guest')){
-    $script:restores=0;$script:vmSettings=$valid.Clone();$script:failGuest=$case -in 'guest-failure','paused-guest';$script:failFinalRestore=$case -eq 'cleanup-failure';$script:pauseGuest=$case -eq 'paused-guest'
+foreach($case in @('success','guest-failure','cleanup-failure','paused-guest','filtered-admin')){
+    $script:restores=0;$script:vmSettings=$valid.Clone();$script:failGuest=$case -in 'guest-failure','paused-guest';$script:failFinalRestore=$case -eq 'cleanup-failure';$script:pauseGuest=$case -eq 'paused-guest';$script:filteredAdmin=$case -eq 'filtered-admin'
     $result=Invoke-ExecutableAnalysisWindowsVm -InputPath $inputPath -OutputPath (Join-Path $TestRoot $case) -VirtualMachineName $manifest.VirtualMachineName -TimeoutSeconds 1
     Assert-True ($script:restores -eq 2) "$case did not attempt both snapshot restores."
     Assert-True (@(Get-ChildItem -LiteralPath $owned -Filter 'runtime-*.tmp').Count -eq 0) "$case left plaintext credentials."
     Assert-True $result.Validation.SourceUnchanged "$case changed the input."
+    Assert-True ($result.Budgets.TargetTimeoutSeconds -eq 1 -and $result.Budgets.PreparationAndObservationAllowanceSeconds -eq 300 -and $result.Budgets.GuestRunnerTimeoutSeconds -eq 301) 'Preparation allowance changed the actual target timeout or was not reported.'
     if($case -eq 'success'){
         Assert-True ($result.Status -eq 'Completed') ('Successful mock did not complete: '+($result.Errors -join '; '))
         Assert-True ($result.Validation.CleanSnapshotRestoredAfter -and $result.Validation.PoweredOffAfter) 'Successful mock did not verify cleanup.'
@@ -185,7 +196,12 @@ foreach($mode in @('unattended-failure','provision-failure','manifest-write-fail
         Assert-Throws {Initialize-ExecutableAnalysisWindowsVm -VirtualMachineName ('Fresh-'+$mode) -IsoPath $script:fixtureIso -StoragePath $script:freshStorage} "$mode did not fail as expected."
         Assert-True (-not(Test-Path -LiteralPath (Join-Path $script:freshStorage 'bootstrap-password.tmp'))) "$mode retained its bootstrap password file."
         Assert-True (@(Get-ChildItem -LiteralPath $script:freshStorage -Filter 'provision-*.ps1').Count -eq 0) "$mode retained its provisioning secret file."
-        if($mode -ne 'unattended-failure'){Assert-True ([bool]$script:provisioningFileObserved) "$mode never reached the intended secret cleanup branch."}
+        if($mode -ne 'unattended-failure'){
+            Assert-True ([bool]$script:provisioningFileObserved) "$mode never reached the intended secret cleanup branch."
+            foreach($file in @('pending-guest-credential.clixml','pending-admin-credential.clixml','bootstrap-credential.clixml')){
+                Assert-True ((Import-Clixml -LiteralPath (Join-Path $script:freshStorage $file)) -is [pscredential]) "$mode lost a recoverable encrypted credential."
+            }
+        }
         $released=Enter-AnalysisWindowsVmLock $script:freshStorage;$released.Dispose()
         Assert-True ($script:vmSettings.VMState -eq 'poweroff') "$mode did not power off its owned mock VM."
     }finally{
@@ -195,6 +211,31 @@ foreach($mode in @('unattended-failure','provision-failure','manifest-write-fail
     }
 }
 Write-Host 'PASS: fresh initializer failures remove bootstrap/provisioning secrets and release the lock even when manifest persistence fails'
+
+# Execute the decoded production recipe with only service APIs and its two output
+# paths substituted. A failed service start must never publish a readiness marker.
+& {
+    $readyFile=Join-Path $TestRoot 'postinstall-ready.txt'
+    $errorFile=Join-Path $TestRoot 'postinstall-error.txt'
+    $recipe=$script:postInstallRecipe.Replace('C:\profile-setup-ready.txt',$readyFile.Replace("'","''")).Replace('C:\profile-setup-error.txt',$errorFile.Replace("'","''"))
+    $startFails=$true
+    function Start-Service {param([string]$Name,[string]$ErrorAction)if($Name -ne 'VBoxService' -or $startFails){throw 'Mock guest service start failed'}}
+    function Get-Service {
+        param([string]$Name,[string]$ErrorAction)
+        Assert-True ($Name -eq 'VBoxService') 'The recipe queried an unrelated service.'
+        $service=[pscustomobject]@{Status=[ServiceProcess.ServiceControllerStatus]::Running}
+        $service|Add-Member ScriptMethod WaitForStatus {param($Status,$Timeout)if($Timeout.TotalSeconds -ne 30){throw 'Unbounded readiness wait'}}
+        $service|Add-Member ScriptMethod Refresh {}
+        $service
+    }
+    Assert-Throws {& ([scriptblock]::Create($recipe))} 'A guest service failure was ignored.'
+    Assert-True (-not(Test-Path -LiteralPath $readyFile)) 'A failed guest service published readiness.'
+    Assert-True ((Get-Content -LiteralPath $errorFile -Raw) -match 'Mock guest service start failed') 'The service failure evidence was lost.'
+    $startFails=$false
+    & ([scriptblock]::Create($recipe))
+    Assert-True ((Get-Content -LiteralPath $readyFile -Raw).Trim() -eq 'ready') 'A running guest service did not publish readiness.'
+}
+Write-Host 'PASS: the exact decoded post-install recipe starts and verifies VBoxService before publishing readiness'
 
 $script:realEnterLock=(Get-Command Enter-AnalysisWindowsVmLock).ScriptBlock
 function Enter-AnalysisWindowsVmLock {
