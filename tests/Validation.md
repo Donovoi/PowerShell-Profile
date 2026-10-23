@@ -11,7 +11,11 @@ Use a new test directory. The runner preserves logs and fixtures, records the Po
 | Check | What executes |
 | --- | --- |
 | ProfileStartup.Behavior | Real function/profile imports with module imports, volume discovery and interactive UI commands mocked. Repeated import, caller preferences, optional tools, bindings, PATH, invocation-time admin guards and screen-event filtering. |
-| ProfileAppearance.Behavior | Store/MSIX installation metadata and generated prompt fixtures, built-in fallback, native failures, retry state, and actual PSReadLine Windows/history/Tab/bracket bindings. Network and installation are forbidden in local-startup fixtures. |
+| ProfileAppearance.Behavior | Store/MSIX installation metadata and generated prompt fixtures, built-in fallback, native failures, retry state, every custom PSReadLine binding and directory-bookmark preservation on reload. Network and installation are forbidden in local-startup fixtures. |
+| ProfileExecutableAnalysis.Behavior | Input preservation, exact artifact hashes, literal paths, default/unique output, WhatIf, format discrimination, decoding, OS routing with mocked VM helpers, native argument/timeout/output bounds, independent provider resolution and false AI-success rejection. |
+| ProfileAnalysisBridge.Behavior | A local fake MCP peer exercises session ownership, literal paths, actual coverage, function/evidence limits, timeouts, malformed UTF-8/JSON, provider errors, version mismatch, input mutation and failed extraction/evidence retention. Requires Node.js; no external provider or network. |
+| ProfileAnalysisVm.Behavior | Linux VM preflight, format rejection and containment checks with fixture state. Does not start or modify a real VM. |
+| ProfileAnalysisWindowsVm.Behavior | Windows PE rejection, isolation requirements, exclusive locks, guest success/failure, snapshot-restoration failure, credential cleanup and WhatIf with mocked VirtualBox. Does not start or modify a real VM. |
 | ProfileCore.Behavior | Dependency imports and caches with HTTP mocked; a fresh-session bootstrap; real native child processes for argument boundaries, stdout/stderr, exit codes, stream pressure, timeout cleanup and redirection; BOM fixtures; logger output; elevation payload executed unelevated. |
 | ProfileDependencies.Behavior | Actual orchestration and binding against current function signatures, with package installation and SYSTEM APIs mocked. Default and explicit package sets, CurrentUser scope, global imports and error propagation. |
 | Install-Profile.Status | Real file-sharing locks, atomic replacement, bounded retries and fallback error reporting. |
@@ -19,6 +23,23 @@ Use a new test directory. The runner preserves logs and fixtures, records the Po
 | Existing thumbnail checks | Import checks and mocked worker behavior; no real Windows thumbnail worker is stopped. |
 
 All script tests passed on PowerShell 7.6.7 / Windows 10.0.26300. Older PowerShell 7 minors, interactive console rendering, actual UAC/SYSTEM launches and live package feeds are not qualified by this suite. Mocked installers prove dispatch and failure handling, not provider/network availability.
+
+## Executable-analysis integration qualification
+
+Separate local checks on 23 October 2026 used real providers and benign, known-answer fixtures:
+
+| Integration | Verified result |
+| --- | --- |
+| REA 6.7.0 / Ghidra 12.1 native PE | Discovered and decompiled the fixture function returning 42; retained evidence and unchanged input hash. |
+| Direct Ghidra ELF and thin Mach-O | Recovered the corresponding function returning 42, including literal metacharacters in input paths. REA's Windows admission failure remains recorded separately. |
+| Managed PE / ILSpy 11.1.0.9782 | Exported the expected C# project, greeting and addition method, with input hash and invocation provenance. |
+| WABT 1.0.42 / WASM | Retained WAT with the expected exported function and `i32.const 42`. |
+| JADX 1.5.6 / Java class | Recovered the expected Java method returning 42 and its fixture string. The unavailable REA class-file route remains explicit. |
+| REA ZIP extraction | Retained `hello.txt` with exact expected bytes and provider-inventory hash/length checks. |
+| Codex CLI 0.163.0 | Actual completed web retrieval, analysis, independent detractor review and reconciliation; the latest complete managed-fixture run recorded eight web searches. Provider/tool errors and fabricated research success are separately tested as failures/partial results. |
+| Linux VirtualBox runtime | Fresh Ubuntu provisioning, expected stdout/exit from a benign ELF, timeout termination, hash and offline/unprivileged checks, clean snapshot restoration and powered-off end state. Lock contention and failed-preflight lock release were also checked. |
+
+These fixtures qualify the exercised adapters, not all input formats, arbitrary protected programs, every guest execution path or complete semantic recovery. Real interactive installed-profile checks separately verify Oh My Posh rendering and custom keybindings; CI uses controlled startup fixtures.
 
 ## Intentional API corrections
 
@@ -32,7 +53,7 @@ Run focused static validation with PSScriptAnalyzer 1.25.0:
 ./tests/Invoke-ProfileStaticValidation.ps1 -OutputPath ./static-results.json
 ```
 
-The checked-in baseline covers C–G production files and the three appearance helpers. Existing warnings are explicitly recorded, including compatibility names, exported variables and inherited sample/helper code. New warnings and all errors fail. Public-command validation rejects duplicate file-level definitions without confusing nested helper functions with public commands. GitHub Actions runs the static gate and Windows regression suite.
+The checked-in baseline covers C–G production files, the appearance helpers and executable-analysis PowerShell code. Existing warnings are explicitly recorded, including compatibility names, exported variables and inherited sample/helper code. New warnings and all errors fail. Public-command validation rejects duplicate file-level definitions without confusing nested helper functions with public commands. GitHub Actions runs the static gate and Windows regression suite.
 
 | Added test | Evidence |
 | --- | --- |
@@ -43,7 +64,7 @@ The checked-in baseline covers C–G production files and the three appearance h
 | ProfileSearch.Behavior | Reference filename/content fixtures, Unicode, recursive glob behavior, junction avoidance and mocked Everything ownership. |
 | ProfileRawCopy.Behavior | ABI layout, malformed buffers, sparse/multiple extents, partial clusters, EOF, large logical lengths, real file retrieval IOCTL, and mocked VSS cleanup. No raw-device reads. |
 | ProfileForensicCopy.Behavior | Regular/LOG/empty file bytes and hashes; partial totals, locked failures, verified adapter contract, stale-output rejection and import order. |
-| ProfilePublicCommands.Behavior | Unique public definitions and compatibility imports. |
+| ProfilePublicCommands.Behavior | Unique public definitions, all 265 original public commands, compatibility imports, ImageForensics module, aliases and variables. |
 
 Downloads emit one path per successful URL. Existing outputs require `-Force`; a failed transfer keeps the prior file. `-AllowEmpty` explicitly allows zero-byte output. `-ExpectedLength` and `-ExpectedSHA256` verify before publication. aria2 URL files accept plain URLs, not arbitrary per-item options. Native cookie authentication uses `-WebSession`; Netscape files require aria2. Google Drive must supply a direct download URL/session; interactive confirmation pages are not handled by this generic downloader.
 

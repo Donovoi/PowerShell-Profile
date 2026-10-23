@@ -32,6 +32,10 @@ if($parseFailures.Count) { throw ($parseFailures -join [Environment]::NewLine) }
 $testNames=@(
     'ProfileStartup.Behavior',
     'ProfileAppearance.Behavior',
+    'ProfileExecutableAnalysis.Behavior',
+    'ProfileAnalysisBridge.Behavior',
+    'ProfileAnalysisVm.Behavior',
+    'ProfileAnalysisWindowsVm.Behavior',
     'ProfileCore.Behavior',
     'ProfileDependencies.Behavior',
     'ProfileArchive.Behavior',
