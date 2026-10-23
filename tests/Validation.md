@@ -11,6 +11,7 @@ Use a new test directory. The runner preserves logs and fixtures, records the Po
 | Check | What executes |
 | --- | --- |
 | ProfileStartup.Behavior | Real function/profile imports with module imports, volume discovery and interactive UI commands mocked. Repeated import, caller preferences, optional tools, bindings, PATH, invocation-time admin guards and screen-event filtering. |
+| ProfileAppearance.Behavior | Store/MSIX installation metadata and generated prompt fixtures, built-in fallback, native failures, retry state, and actual PSReadLine Windows/history/Tab/bracket bindings. Network and installation are forbidden in local-startup fixtures. |
 | ProfileCore.Behavior | Dependency imports and caches with HTTP mocked; a fresh-session bootstrap; real native child processes for argument boundaries, stdout/stderr, exit codes, stream pressure, timeout cleanup and redirection; BOM fixtures; logger output; elevation payload executed unelevated. |
 | ProfileDependencies.Behavior | Actual orchestration and binding against current function signatures, with package installation and SYSTEM APIs mocked. Default and explicit package sets, CurrentUser scope, global imports and error propagation. |
 | Install-Profile.Status | Real file-sharing locks, atomic replacement, bounded retries and fallback error reporting. |
@@ -31,7 +32,7 @@ Run focused static validation with PSScriptAnalyzer 1.25.0:
 ./tests/Invoke-ProfileStaticValidation.ps1 -OutputPath ./static-results.json
 ```
 
-The checked-in baseline covers C–G production files. It permits five existing warnings: two compatibility command names and three intentionally exported profile variables. New warnings and all errors fail. Public-command validation rejects duplicate file-level definitions without confusing nested helper functions with public commands. GitHub Actions runs the static gate and Windows regression suite; hosted CI has not run until these commits are pushed.
+The checked-in baseline covers C–G production files and the three appearance helpers. Existing warnings are explicitly recorded, including compatibility names, exported variables and inherited sample/helper code. New warnings and all errors fail. Public-command validation rejects duplicate file-level definitions without confusing nested helper functions with public commands. GitHub Actions runs the static gate and Windows regression suite.
 
 | Added test | Evidence |
 | --- | --- |

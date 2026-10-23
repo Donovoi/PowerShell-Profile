@@ -1,6 +1,6 @@
 {
   "AnalyzerVersion": "1.25.0",
-  "Scope": "C-G production changes; existing public names and profile exports retained for compatibility",
+  "Scope": "C-G production changes and profile appearance regression fixes; existing compatibility warnings retained",
   "Files": [
     "functions/cmatrix.ps1",
     "functions/ConvertFrom-NtfsRetrievalPointer.ps1",
@@ -34,7 +34,10 @@
     "functions/Invoke-ValidatedDownload.ps1",
     "functions/PSReflect.ps1",
     "functions/Set-StoredSecret.ps1",
-    "Microsoft.PowerShell_profile.ps1"
+    "Microsoft.PowerShell_profile.ps1",
+    "functions/Initialize-ProfileAppearance.ps1",
+    "functions/Invoke-OhMyPoshRandomTheme.ps1",
+    "functions/Invoke-SamplePSReadLineProfile.ps1"
   ],
   "AllowedWarnings": [
     {
@@ -66,6 +69,96 @@
       "RuleName": "PSUseDeclaredVarsMoreThanAssignments",
       "Message": "The variable 'XWAYSUSB' is assigned but never used.",
       "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSAvoidDefaultValueSwitchParameter",
+      "Message": "File 'Invoke-OhMyPoshRandomTheme.ps1' has a switch parameter default to true.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSAvoidUsingEmptyCatchBlock",
+      "Message": "Empty catch block is used. Please use Write-Error or throw statements in catch blocks.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSAvoidUsingInvokeExpression",
+      "Message": "Invoke-Expression is used. Please remove Invoke-Expression from script and find other options instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSAvoidUsingWriteHost",
+      "Message": "File 'Invoke-OhMyPoshRandomTheme.ps1' uses Write-Host. Avoid using Write-Host because it might not work in all hosts, does not work when there is no host, and (prior to PS 5.0) cannot be suppressed, captured, or redirected. Instead, use Write-Output, Write-Verbose, or Write-Information.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSReviewUnusedParameter",
+      "Message": "The parameter 'AuthenticateIfNeeded' has been declared but not used.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSReviewUnusedParameter",
+      "Message": "The parameter 'ThemeListCacheDays' has been declared but not used.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSUseApprovedVerbs",
+      "Message": "The cmdlet 'Ensure-GitHubCliAuthentication' uses an unapproved verb.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSUseSingularNouns",
+      "Message": "The cmdlet 'Get-CachedOhMyPoshThemeNames' uses a plural noun. A singular noun should be used instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSUseSingularNouns",
+      "Message": "The cmdlet 'Get-LocalOhMyPoshThemes' uses a plural noun. A singular noun should be used instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSUseSingularNouns",
+      "Message": "The cmdlet 'Get-RemoteOhMyPoshThemeNames' uses a plural noun. A singular noun should be used instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-OhMyPoshRandomTheme.ps1",
+      "RuleName": "PSUseSingularNouns",
+      "Message": "The cmdlet 'Save-CachedOhMyPoshThemeNames' uses a plural noun. A singular noun should be used instead.",
+      "Count": 1
+    },
+    {
+      "File": "functions/Invoke-SamplePSReadLineProfile.ps1",
+      "RuleName": "PSAvoidGlobalVars",
+      "Message": "Found global variable 'global:PSReadLineMarks'.",
+      "Count": 4
+    },
+    {
+      "File": "functions/Invoke-SamplePSReadLineProfile.ps1",
+      "RuleName": "PSPossibleIncorrectComparisonWithNull",
+      "Message": "$null should be on the left side of equality comparisons.",
+      "Count": 7
+    },
+    {
+      "File": "functions/Invoke-SamplePSReadLineProfile.ps1",
+      "RuleName": "PSReviewUnusedParameter",
+      "Message": "The parameter 'arg' has been declared but not used.",
+      "Count": 12
+    },
+    {
+      "File": "functions/Invoke-SamplePSReadLineProfile.ps1",
+      "RuleName": "PSReviewUnusedParameter",
+      "Message": "The parameter 'key' has been declared but not used.",
+      "Count": 8
     }
   ]
 }
