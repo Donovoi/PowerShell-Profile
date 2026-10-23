@@ -4,7 +4,8 @@ function Initialize-ProfileAppearance {
     Configures installed prompt and keyboard tools without installing dependencies.
     .DESCRIPTION
     Safe to call repeatedly. Invoke-OhMyPoshRandomTheme can be called directly to
-    install Oh My Posh or obtain remote themes when no local theme is available.
+    install Oh My Posh or obtain remote themes. Startup finds Store/MSIX themes
+    and uses the executable's built-in default if no local theme is available.
     #>
     [CmdletBinding()]
     param()
@@ -17,8 +18,7 @@ function Initialize-ProfileAppearance {
     if (Get-Command Set-PSReadLineKeyHandler -ErrorAction Ignore) {
         try {
             # Set the mode first because changing it resets the key map.
-            Set-PSReadLineOption -EditMode Windows -ErrorAction Stop
-            Invoke-SamplePSReadLineProfile
+            Invoke-SamplePSReadLineProfile -EditMode Windows -ErrorAction Stop
             foreach ($key in @('"', "'", '(', ')', '{', '}', '[', ']')) {
                 Set-PSReadLineKeyHandler -Key $key -Function SelfInsert -ErrorAction Stop
             }
@@ -28,8 +28,7 @@ function Initialize-ProfileAppearance {
     }
     if (-not $script:ProfilePromptInitialized -and (Get-Command oh-my-posh -CommandType Application -ErrorAction Ignore)) {
         try {
-            Invoke-OhMyPoshRandomTheme -LocalOnly -ErrorAction Stop
-            $script:ProfilePromptInitialized = $true
+            $script:ProfilePromptInitialized = [bool](Invoke-OhMyPoshRandomTheme -LocalOnly -PassThru -ErrorAction Stop)
         }
         catch { Write-Warning "Prompt configuration failed: $($_.Exception.Message)" }
     }

@@ -14,9 +14,8 @@ using namespace System.Management.Automation.Language
 function Invoke-SamplePSReadLineProfile {
     [CmdletBinding()]
     param(
-        # [Parameter(Mandatory=$true)]
-        # [string]
-        # $parameter_name
+        [ValidateSet('Windows', 'Emacs', 'Vi')]
+        [string]$EditMode = 'Emacs'
     )
     process {
         # This is an example profile for PSReadLine.
@@ -26,7 +25,7 @@ function Invoke-SamplePSReadLineProfile {
 
         Import-Module PSReadLine
 
-        Set-PSReadLineOption -EditMode Emacs
+        Set-PSReadLineOption -EditMode $EditMode
 
         # Searching for commands with up/down arrow is really handy.  The
         # option "moves to end" is useful if you want the cursor at the end
