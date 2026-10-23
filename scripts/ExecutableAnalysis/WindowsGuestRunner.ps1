@@ -61,6 +61,11 @@ try {
     $currentUserSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     if(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction Stop | Where-Object {$_.SID.Value -eq $currentUserSid}){throw 'Target execution refuses an account in Administrators, including a filtered administrator token.'}
     $record.Validation.AccountNotAdministrator=$true
+    if(-not(Test-Path -LiteralPath ('Registry::HKEY_USERS\'+$currentUserSid))){throw 'The standard user registry profile was not loaded.'}
+    $userSoftware=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software',$true)
+    if($null -eq $userSoftware){throw 'The standard user HKCU Software hive is not writable.'}
+    $userSoftware.Dispose();$record.Validation.UserProfileLoaded=$true
+    $record.UserEnvironment=@{UserProfile=$env:USERPROFILE;AppData=$env:APPDATA;LocalAppData=$env:LOCALAPPDATA;Temp=$env:TEMP;UserName=$env:USERNAME;UserDomain=$env:USERDOMAIN;LoadedHiveSid=$currentUserSid}
     $record.TargetSHA256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
     if($record.TargetSHA256 -ne $ExpectedSHA256){throw 'Guest input SHA256 differs from the host snapshot.'}
     $record.Validation.HashMatched=$true
@@ -80,6 +85,13 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 public static class ProfileAnalysisGuestJob {
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetLongPathName(string path,StringBuilder buffer,uint length);
+ public static string ExpandExistingPath(string path){
+  StringBuilder buffer=new StringBuilder(32768);uint length=GetLongPathName(path,buffer,(uint)buffer.Capacity);
+  if(length==0)throw new Win32Exception(Marshal.GetLastWin32Error(),"Resolve guest environment path");
+  if(length>=buffer.Capacity)throw new IOException("The guest environment path exceeded its length limit.");
+  return buffer.ToString();
+ }
  [StructLayout(LayoutKind.Sequential)] struct Security { public int Length; public IntPtr Descriptor; [MarshalAs(UnmanagedType.Bool)] public bool Inherit; }
  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct Startup { public uint Size; public string Reserved; public string Desktop; public string Title; public uint X,Y,XSize,YSize,XChars,YChars,Fill,Flags; public ushort Show,ReservedSize; public IntPtr ReservedData,Input,Output,Error; }
  [StructLayout(LayoutKind.Sequential)] struct ProcessInfo { public IntPtr Process,Thread; public uint ProcessId,ThreadId; }
@@ -149,6 +161,8 @@ public static class ProfileAnalysisGuestJob {
 }
 '@
     Add-Type -TypeDefinition $native -Language CSharp
+    $record.UserEnvironment.CanonicalUserProfile=[ProfileAnalysisGuestJob]::ExpandExistingPath($env:USERPROFILE)
+    $record.UserEnvironment.CanonicalTemp=[ProfileAnalysisGuestJob]::ExpandExistingPath($env:TEMP)
     # Compile the trusted observer before the baseline so its temporary compiler
     # artifacts are not presented as changes caused by the supplied executable.
     Get-GuestFileInventory|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $output 'files-before.json') -Encoding utf8
