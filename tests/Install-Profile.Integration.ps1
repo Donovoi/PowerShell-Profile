@@ -36,11 +36,21 @@ function Wait-Status([string] $StateRoot) {
     $latest = Get-Content -LiteralPath (Join-Path $StateRoot 'latest.json') -Raw | ConvertFrom-Json
     for ($i=0; $i -lt 300; $i++) {
         # Permit the worker to atomically replace the status while we read it.
-        $stream = [IO.FileStream]::new($latest.StatusPath, [IO.FileMode]::Open, [IO.FileAccess]::Read,
-            ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
-        $reader = [IO.StreamReader]::new($stream)
-        try { $status = $reader.ReadToEnd() | ConvertFrom-Json }
-        finally { $reader.Dispose() }
+        $stream=$null; $reader=$null; $status=$null
+        try {
+            $stream = [IO.FileStream]::new($latest.StatusPath, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+            $reader = [IO.StreamReader]::new($stream)
+            $status = $reader.ReadToEnd() | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            $exception=$_.Exception.GetBaseException()
+            if ($exception -isnot [IO.IOException] -or ($exception.HResult -band 0xFFFF) -notin @(2,32,33)) { throw }
+        }
+        finally {
+            if ($reader) { $reader.Dispose() }
+            elseif ($stream) { $stream.Dispose() }
+        }
         if ($status.Status -in @('Installed','Failed','InstalledWithCleanupPending')) { return $status }
         Start-Sleep -Milliseconds 100
     }

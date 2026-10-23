@@ -48,6 +48,28 @@ try {
 finally { $reader.Dispose() }
 $checks.Add('Readers with delete sharing see consistent old or new snapshots')
 
+# Opening a new reader can race an atomic replacement or an exclusive file holder.
+$exclusive=[IO.FileStream]::new($statusPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+$release=[ProfileStatusTestReader]::ReleaseAfter($exclusive,300)
+$watch.Restart()
+$status=Read-InstallStatus $statusPath
+$null=$release.GetAwaiter().GetResult()
+Assert-True ($watch.ElapsedMilliseconds -ge 200 -and $status.Status -eq 'Installed') 'Status read did not retry a real sharing violation.'
+$checks.Add('A new status reader retries a real exclusive lock and returns complete JSON after release')
+
+$exclusive=[IO.FileStream]::new($statusPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+try {
+    $watch.Restart(); $caught=$false
+    try { Read-InstallStatus $statusPath | Out-Null } catch { $caught=$true }
+    Assert-True ($caught -and $watch.Elapsed.TotalSeconds -lt 5) 'A persistent read blocker did not fail within the retry budget.'
+} finally { $exclusive.Dispose() }
+$invalidPath=Join-Path $root 'invalid-status.json'
+[IO.File]::WriteAllText($invalidPath,'{invalid')
+$caught=$false
+try { Read-InstallStatus $invalidPath | Out-Null } catch { $caught=$true }
+Assert-True $caught 'Malformed status JSON was accepted or suppressed.'
+$checks.Add('Persistent read locks are bounded and malformed JSON still fails')
+
 $stream=[IO.FileStream]::new($statusPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
 try {
     $watch.Restart()
