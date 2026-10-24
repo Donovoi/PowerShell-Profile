@@ -141,6 +141,7 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
     # replaced. The fixture never runs the selected PE, a provider or an installer.
     $script:analysisFixtureAssets=Join-Path $repo 'scripts/ExecutableAnalysis'
     . (Join-Path $script:analysisFixtureAssets 'Get-AnalysisApplicationContext.ps1')
+    . (Join-Path $script:analysisFixtureAssets 'Get-AnalysisFirmwareContext.ps1')
     $source=[IO.File]::ReadAllText((Join-Path $repo 'functions/Invoke-ExecutableAnalysis.ps1'))
     $source=$source.Replace("`$assets=Join-Path (Split-Path `$PSScriptRoot -Parent) 'scripts/ExecutableAnalysis'",'$assets=$script:analysisFixtureAssets')
     $source=$source.Replace('. $helperPath','# Actual pure helpers are already imported; mock external boundaries below.')

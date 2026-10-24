@@ -17,11 +17,16 @@ function Get-AnalysisIdentity {
         $pe = [BitConverter]::ToInt32($bytes,60)
         if ($pe -ge 64 -and $pe -le $count-24 -and [BitConverter]::ToUInt32($bytes,$pe) -eq 0x4550) {
             $format = 'PE'; $machine = [BitConverter]::ToUInt16($bytes,$pe+4)
+            $header.Subsystem=$null; $header.IsEfi=$false
             $architecture = switch ($machine) { 0x8664 {'x86_64'} 0x14c {'x86'} 0xaa64 {'arm64'} default {'Unknown'} }
             $optionalSize = [BitConverter]::ToUInt16($bytes,$pe+20)
             $optional = $pe+24
             if ($optionalSize -ge 2 -and $optional+$optionalSize -le $count) {
                 $kind = [BitConverter]::ToUInt16($bytes,$optional)
+                if($kind -in 0x10b,0x20b -and $optionalSize -ge 70){
+                    $header.Subsystem=[BitConverter]::ToUInt16($bytes,$optional+68)
+                    $header.IsEfi=$header.Subsystem -in 10,11,12,13
+                }
                 $directories = if ($kind -eq 0x20b) {112} elseif ($kind -eq 0x10b) {96} else {0}
                 if ($directories -and $optionalSize -ge $directories+120) {
                     $directoryCount = [BitConverter]::ToUInt32($bytes,$optional+$directories-4)
