@@ -68,7 +68,7 @@ function Select-AnalysisEvidenceFile {
     param([Parameter(Mandatory)][string]$RunDirectory)
     # Reserve identity, runtime observations and invocation provenance before code.
     # A large function export must not crowd actual guest behavior out of the review.
-    $roots=@('basic','runtime','logs','code','rea','application')|ForEach-Object{Join-Path $RunDirectory $_}|Where-Object{Test-Path -LiteralPath $_ -PathType Container}
+    $roots=@('basic','runtime','logs','code','rea','application','firmware')|ForEach-Object{Join-Path $RunDirectory $_}|Where-Object{Test-Path -LiteralPath $_ -PathType Container}
     Get-ChildItem -LiteralPath $roots -Recurse -File | Where-Object {
         $_.Extension -in '.c','.cs','.js','.mjs','.cjs','.jsx','.ts','.tsx','.wat','.java','.json','.log','.txt','.stdout','.stderr','.trace' -and
         $_.Name -notmatch 'tools-list|catalog' -and -not($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -and
@@ -77,7 +77,9 @@ function Select-AnalysisEvidenceFile {
         $relative=[IO.Path]::GetRelativePath($RunDirectory,$_.FullName)
         if($relative -match '^basic[\\/]'){0}
         elseif($relative -match '^runtime[\\/]'){1}
-        elseif($_.Name -in 'rea-result.json','ghidra-result.json','manifest.json' -or $_.Name -like '*.command.json'){2}
+        elseif($_.Name -in 'rea-result.json','ghidra-result.json','manifest.json','firmware-result.json','numeric-validation.json' -or $_.Name -like '*.command.json'){2}
+        elseif($_.Name -eq 'menu-summary.json'){3}
+        elseif($_.Name -like '*.ifr.txt'){4}
         elseif($relative -match '^(?:rea|application[\\/]rea-\d+)[\\/]rea-extracted[\\/]package\.json$'){3}
         elseif($_.Name -match '-(binary_overview|list_strings|inspect_artifact|analyze_javascript_application)\.json$'){4}
         elseif($_.Name -match '^(main|preload)([.-].*)?\.[cm]?js$' -and $relative -notmatch '[\\/]node_modules[\\/]'){5}

@@ -98,6 +98,9 @@ function Invoke-ExecutableAnalysisWindowsVm {
     $inputItem=Get-Item -LiteralPath $InputPath -ErrorAction Stop
     if($inputItem.PSIsContainer -or ($inputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'InputPath must name a regular executable file.'}
     $source=$inputItem.FullName
+    . (Join-Path $assets 'Get-AnalysisFirmwareContext.ps1')
+    $firmware=Get-AnalysisFirmwareContext -SourcePath $source
+    if($firmware.RequiresStaticOnly){throw 'Firmware updater candidates require static analysis; runtime execution and flashing are not supported.'}
     if(-not(Test-AnalysisWindowsPe $source)){throw 'Windows runtime analysis supports x86/x64 PE executables; DLLs, nonexecutables, and other formats require a different harness.'}
     $sourceHash=(Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
     if($ExpectedInputSHA256 -and $sourceHash -ne $ExpectedInputSHA256){throw 'The runtime source differs from the selected analysis input.'}
