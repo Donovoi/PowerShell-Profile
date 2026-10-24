@@ -54,6 +54,8 @@ HII declarations describe possible menus, defaults and conditional controls. The
 
 IFRExtractor verbose mode exports English forms and raw opcodes; other language strings are not exhaustively exported.
 
+IFRExtractor 1.6.1 has a confirmed numeric decoding defect in its EDK2 Label, Timeout, Class and SubClass extensions: the high byte is multiplied by decimal 100 instead of 256 ([upstream source](https://github.com/LongSoft/IFRExtractor-RS/blob/v1.6.1/src/main.rs#L1878-L1910)). The original text is preserved. A separate bounded `firmware/numeric-validation.json` compares these opcodes with the retained module bytes before recording independent little-endian values. Mismatches, unverified offsets and incomplete validation remain Partial. This narrow check does not validate every opcode or establish writable BIOS settings.
+
 ## Formats and actual providers
 
 | Target | Analysis route | Important boundary |

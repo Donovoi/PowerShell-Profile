@@ -75,7 +75,7 @@ function Invoke-AnalysisFirmware {
     if($manifest -and $process){
         $status=Get-AnalysisProviderStatus -Process $process -Manifest $manifest -ExpectedSHA256 $before
         if($after -ne $before -or $manifest.TargetExecuted -ne $false){$status='Failed'}
-        return [pscustomobject]@{Status=$status;Manifest=$manifest;ManifestPath=$manifestPath;Process=$process;TargetExecuted=$false;InputUnchanged=($after -eq $before);Reason=$failure;MenuSummaryPath=$manifest.MenuSummaryPath;FormPackageTextPaths=@($manifest.FormPackageTextPaths)}
+        return [pscustomobject]@{Status=$status;Manifest=$manifest;ManifestPath=$manifestPath;Process=$process;TargetExecuted=$false;InputUnchanged=($after -eq $before);Reason=$failure;MenuSummaryPath=$manifest.MenuSummaryPath;NumericValidationPath=$manifest.NumericValidationPath;FormPackageTextPaths=@($manifest.FormPackageTextPaths)}
     }
     # A killed worker may not reach its finalizer. Preserve that evidence gap and
     # the independently verified input hash without inventing an inventory.

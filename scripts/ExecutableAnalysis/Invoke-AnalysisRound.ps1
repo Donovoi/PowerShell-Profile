@@ -77,7 +77,7 @@ function Select-AnalysisEvidenceFile {
         $relative=[IO.Path]::GetRelativePath($RunDirectory,$_.FullName)
         if($relative -match '^basic[\\/]'){0}
         elseif($relative -match '^runtime[\\/]'){1}
-        elseif($_.Name -in 'rea-result.json','ghidra-result.json','manifest.json','firmware-result.json' -or $_.Name -like '*.command.json'){2}
+        elseif($_.Name -in 'rea-result.json','ghidra-result.json','manifest.json','firmware-result.json','numeric-validation.json' -or $_.Name -like '*.command.json'){2}
         elseif($_.Name -eq 'menu-summary.json'){3}
         elseif($_.Name -like '*.ifr.txt'){4}
         elseif($relative -match '^(?:rea|application[\\/]rea-\d+)[\\/]rea-extracted[\\/]package\.json$'){3}
