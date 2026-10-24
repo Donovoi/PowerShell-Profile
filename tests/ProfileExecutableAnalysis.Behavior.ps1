@@ -55,7 +55,7 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     function Initialize-ExecutableAnalysisVm { param($VirtualMachineName) $calls.Add(@{Kind='InitializeLinux';Name=$VirtualMachineName}) }
     function Initialize-ExecutableAnalysisWindowsVm { param($VirtualMachineName,$IsoPath) $calls.Add(@{Kind='InitializeWindows';Name=$VirtualMachineName;IsoPath=$IsoPath}) }
     function Invoke-ExecutableAnalysisVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Linux';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Complete'} }
-    function Invoke-ExecutableAnalysisWindowsVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Windows';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Completed';GuestResult=@{Execution=@{ExitCode=7;Reason='Completed'}}} }
+    function Invoke-ExecutableAnalysisWindowsVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds,$ExpectedInputSHA256,$ApplicationRoot,$MaxPackageBytes,$MaxPackageFiles,$LaunchMode,$PackageArchivePath,$PackageLicensePath) $calls.Add(@{Kind='Windows';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds;ExpectedSHA256=$ExpectedInputSHA256;Root=$ApplicationRoot;MaxPackageBytes=$MaxPackageBytes;MaxPackageFiles=$MaxPackageFiles;LaunchMode=$LaunchMode;PackageArchivePath=$PackageArchivePath;PackageLicensePath=$PackageLicensePath});[pscustomobject]@{Status='Completed';GuestResult=@{Execution=@{ExitCode=7;Reason='Completed'}}} }
     $standalone=Join-Path $TestRoot 'pwsh.exe'
     Copy-Item -LiteralPath (Join-Path $PSHOME 'pwsh.exe') -Destination $standalone
     $linux=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -RuntimeSeconds 7
@@ -65,6 +65,7 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     Assert-True ((Get-Content -LiteralPath $windows.ReportPath -Raw) -match 'Target exit code: 7; reason: Completed') 'Runtime report concealed the target exit code.'
     $null=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -VirtualMachineName 'Owned-Custom-VM'
     Assert-True ($calls.Count -eq 5 -and $calls[4].Name -eq 'Owned-Custom-VM' -and $calls[4].Input -like '*analysis-*\input\pwsh.exe') 'NoInstall, explicit VM selection or retained-copy handoff failed.'
+    Assert-True ($calls[4].ExpectedSHA256 -eq (Get-FileHash -LiteralPath $standalone).Hash) 'Standalone runtime lost the preserved input identity.'
     $unsupported=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'wasm') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
     Assert-True ($unsupported.Status -eq 'Partial' -and $calls.Count -eq 5 -and @($unsupported.Stages|Where-Object Status -EQ 'Unsupported').Count -eq 1) 'Unsupported runtime format invoked a VM or appeared complete.'
     $dll=Join-Path $TestRoot 'header-only-library.dll'
@@ -77,15 +78,29 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     Copy-Item -LiteralPath $standalone -Destination (Join-Path $packaged 'entry.exe')
     [IO.File]::WriteAllText((Join-Path $packaged 'resources/app.asar'),'fixture archive; never executed')
     [IO.File]::WriteAllText((Join-Path $packaged 'AppxManifest.xml'),'<Package><Applications><Application Id="App" Executable="entry.exe"/></Applications></Package>')
-    $packageResult=Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
-    Assert-True ($packageResult.Status -eq 'Partial' -and $calls.Count -eq 5 -and @($packageResult.Stages|Where-Object { $_.Name -eq 'Runtime' -and $_.Status -eq 'Unsupported' }).Count -eq 1) 'Packaged application initialized or invoked the single-file runtime adapter.'
+    $packageResult=Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -MaxRuntimePackageBytes 4MB -MaxRuntimePackageFiles 17
+    Assert-True ($packageResult.Status -eq 'Partial' -and @($packageResult.Stages|Where-Object {$_.Name -eq 'Runtime' -and $_.Status -eq 'Completed'}).Count -eq 1 -and $calls.Count -eq 7 -and $calls[5].Kind -eq 'InitializeWindows' -and $calls[6].Input -eq (Join-Path $packaged 'entry.exe') -and $calls[6].ExpectedSHA256 -eq (Get-FileHash -LiteralPath $standalone).Hash -and $calls[6].MaxPackageBytes -eq 4MB -and $calls[6].MaxPackageFiles -eq 17) 'Packaged runtime lost the original layout source, its identity, explicit package budgets, or honest BasicOnly coverage.'
     $packageContext=Get-Content -LiteralPath (Join-Path $packageResult.OutputDirectory 'basic/application-context.json') -Raw|ConvertFrom-Json
     Assert-True ($packageContext.Detected -and $packageContext.EntryPoints[0].DeclaredPath -eq 'entry.exe' -and $packageContext.EntryPoints[0].SelectedInput) 'PE application context or declared entry point was lost.'
+    $explicit=Join-Path $TestRoot 'explicit-layout';$null=[IO.Directory]::CreateDirectory($explicit)
+    Copy-Item -LiteralPath $standalone -Destination (Join-Path $explicit 'entry.exe')
+    $explicitResult=Invoke-ExecutableAnalysis (Join-Path $explicit 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -WindowsApplicationRoot $explicit
+    Assert-True ($explicitResult.Status -eq 'CompletedWithLimitations' -and $calls.Count -eq 8 -and $calls[7].Input -eq (Join-Path $explicit 'entry.exe') -and $calls[7].Root -eq $explicit) 'Explicit application layout did not preserve the original source/root or bypass initialization under NoInstall.'
     $linked=Join-Path $TestRoot 'linked-source'
     $null=New-Item -ItemType Junction -Path $linked -Target $packaged
     $unverified=Invoke-ExecutableAnalysis (Join-Path $linked 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
     $unverifiedContext=Get-Content -LiteralPath (Join-Path $unverified.OutputDirectory 'basic/application-context.json') -Raw|ConvertFrom-Json
-    Assert-True ($unverifiedContext.Status -eq 'Partial' -and -not $unverifiedContext.Detected -and $calls.Count -eq 5 -and @($unverified.Stages|Where-Object { $_.Name -eq 'Runtime' -and $_.Status -eq 'Unsupported' }).Count -eq 1) 'Unverifiable adjacent context was accepted as a standalone runtime target.'
+    Assert-True ($unverifiedContext.Status -eq 'Partial' -and -not $unverifiedContext.Detected -and $calls.Count -eq 8 -and @($unverified.Stages|Where-Object { $_.Name -eq 'Runtime' -and $_.Status -eq 'Unsupported' }).Count -eq 1) 'Unverifiable adjacent context was accepted as a standalone runtime target.'
+    Assert-True ($calls[6].LaunchMode -eq 'DesktopLayout') 'Desktop layout is no longer the default Windows launch mode.'
+    $registered=Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -WindowsLaunchMode RegisteredPackage
+    Assert-True ($registered.Status -eq 'Partial' -and $calls.Count -eq 9 -and $calls[8].LaunchMode -eq 'RegisteredPackage' -and $calls[8].Input -eq (Join-Path $packaged 'entry.exe') -and $calls[8].ExpectedSHA256 -eq (Get-FileHash -LiteralPath $standalone).Hash) 'Registered package mode lost its original input/hash or initialized despite NoInstall.'
+    $archivePath=Join-Path $TestRoot 'signed [original].msix';$licensePath=Join-Path $TestRoot 'vendor [license].xml'
+    $licensed=Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -WindowsLaunchMode RegisteredPackage -WindowsPackageArchivePath $archivePath -WindowsPackageLicensePath $licensePath
+    Assert-True ($licensed.Status -eq 'Partial' -and $calls.Count -eq 10 -and $calls[9].PackageArchivePath -ceq $archivePath -and $calls[9].PackageLicensePath -ceq $licensePath -and $calls[9].Input -ceq (Join-Path $packaged 'entry.exe')) 'Licensed package inputs lost literal routing or their selected executable.'
+    foreach($invalid in @(@{WindowsPackageArchivePath=$archivePath;Dynamic=$true;WindowsLaunchMode='RegisteredPackage'},@{WindowsPackageArchivePath=$archivePath;WindowsPackageLicensePath=$licensePath;Dynamic=$true},@{WindowsPackageArchivePath=$archivePath;WindowsPackageLicensePath=$licensePath;WindowsLaunchMode='RegisteredPackage'})){
+        $failure=$null;try{Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI @invalid}catch{$failure=$_}
+        Assert-True ($null -ne $failure -and $calls.Count -eq 10) 'Invalid paired licensed input reached a VM helper.'
+    }
 }
 Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit VM names and unsupported formats (VM helpers mocked).'
 

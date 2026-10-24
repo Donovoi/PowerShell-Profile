@@ -21,6 +21,26 @@ try {
     $observation.CredentialRemovedBeforeLaunch=$true
     Write-Output 'PROFILE_ANALYSIS_LAUNCH_CREDENTIAL_REMOVED=True'
     if($configuration.UserName -notmatch '^[A-Za-z0-9._-]{1,64}$' -or $configuration.ExpectedSHA256 -notmatch '^[a-fA-F0-9]{64}$' -or $configuration.TimeoutSeconds -lt 1 -or $configuration.TimeoutSeconds -gt 600){throw 'Invalid fixed guest launch configuration.'}
+    $interactive=[bool]$configuration.InteractiveSessionId
+    if($interactive){
+        $observation.InteractiveSession=& 'C:\ProfileAnalysis\Private\WindowsGuestSession.ps1' -Mode Verify -ExpectedUser $configuration.UserName|ConvertFrom-Json
+        if($observation.InteractiveSession.Status -ne 'Ready' -or $observation.InteractiveSession.SessionId -ne $configuration.InteractiveSessionId -or $observation.InteractiveSession.RunId -ne $configuration.InteractiveSessionRunId){throw 'The interactive console changed before target preparation.'}
+    }
+    if($configuration.PayloadManifestSHA256){
+        if($configuration.PayloadManifestSHA256 -notmatch '^[a-fA-F0-9]{64}$'){throw 'Invalid payload manifest identity.'}
+        Write-ControllerProgress 'VerifyAndExpandPayload'
+        . 'C:\ProfileAnalysis\Private\Expand-AnalysisWindowsPayload.ps1'
+        $observation.PayloadVerification=Expand-AnalysisWindowsPayload -ManifestPath 'C:\ProfileAnalysis\payload-manifest.json' -ExpectedManifestSHA256 $configuration.PayloadManifestSHA256 -ArchivePath 'C:\ProfileAnalysis\Private\payload.zip' -OutputDirectory 'C:\ProfileAnalysis\Work\Application'
+    }
+    if($configuration.LaunchMode -eq 'RegisteredPackage'){
+        if(-not $interactive -or $observation.PayloadVerification.Status -ne 'Completed'){throw 'Signed package deployment requires verified payload and interactive-user preparation.'}
+        $configuration.UserPassword=$null
+        Write-ControllerProgress 'DeployOriginalSignedPackage'
+        $deploymentParameters=@{Mode='Stage';PayloadManifestSHA256=$configuration.PayloadManifestSHA256}
+        if($configuration.PackageArchiveSHA256 -or $configuration.PackageLicenseSHA256){$deploymentParameters.PackageArchiveSHA256=$configuration.PackageArchiveSHA256;$deploymentParameters.PackageLicenseSHA256=$configuration.PackageLicenseSHA256}
+        $observation.PackageDeployment=& 'C:\ProfileAnalysis\WindowsGuestPackage.ps1' @deploymentParameters
+        if($observation.PackageDeployment.Status -ne 'Completed'){throw 'Signed package staging was not verified.'}
+    }
     # Password-logon tasks receive a Windows user profile and supported desktop.
     # Credentials are never placed in a process command line or task action.
     Write-ControllerProgress 'ConnectTaskScheduler'
@@ -28,28 +48,43 @@ try {
     $scheduler.Connect()
     $folder=$scheduler.GetFolder('\')
     if(@($folder.GetTasks(1)|Where-Object Name -EQ $taskName).Count){throw 'The clean baseline unexpectedly contains the analysis task.'}
-    $command="& 'C:\ProfileAnalysis\Runner.ps1' -TimeoutSeconds "+[int]$configuration.TimeoutSeconds+" -ExpectedSHA256 '"+$configuration.ExpectedSHA256+"' 1> 'C:\ProfileAnalysis\Results\runner-stdout.txt' 2> 'C:\ProfileAnalysis\Results\runner-stderr.txt'"
+    $command="& 'C:\ProfileAnalysis\Runner.ps1' -OwnedRunner -TimeoutSeconds "+[int]$configuration.TimeoutSeconds+" -ExpectedSHA256 '"+$configuration.ExpectedSHA256+"' 1> 'C:\ProfileAnalysis\Results\runner-stdout.txt' 2> 'C:\ProfileAnalysis\Results\runner-stderr.txt'"
+    $runnerOptions=''
+    if($configuration.PayloadManifestSHA256){$runnerOptions+=" -PayloadManifestSHA256 '"+$configuration.PayloadManifestSHA256+"'"}
+    if($configuration.LaunchMode -eq 'RegisteredPackage'){
+        if($observation.PackageDeployment.PackageFullName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{2,255}$'){throw 'The staged package identity cannot be passed safely to its runner.'}
+        $runnerOptions+=" -LaunchMode RegisteredPackage -ExpectedPackageFullName '"+$observation.PackageDeployment.PackageFullName+"'"
+    }
+    if($configuration.MaxProcessMemoryMB){
+        if($configuration.MaxProcessMemoryMB -lt 128 -or $configuration.MaxProcessMemoryMB -gt 8192 -or $configuration.MaxJobMemoryMB -lt $configuration.MaxProcessMemoryMB -or $configuration.MaxJobMemoryMB -gt 16384){throw 'Invalid target memory budgets.'}
+        $runnerOptions+=' -MaxProcessMemoryMB '+[int]$configuration.MaxProcessMemoryMB+' -MaxJobMemoryMB '+[int]$configuration.MaxJobMemoryMB
+    }
+    $command=$command.Replace(" 1> ",$runnerOptions+" 1> ")
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
     $definition=$scheduler.NewTask(0)
     $definition.Principal.UserId=$env:COMPUTERNAME+'\'+$configuration.UserName
-    $definition.Principal.LogonType=1 # TASK_LOGON_PASSWORD
+    $logonType=if($interactive){3}else{1} # INTERACTIVE_TOKEN or PASSWORD
+    $definition.Principal.LogonType=$logonType
     $definition.Principal.RunLevel=0 # TASK_RUNLEVEL_LUA
     $definition.Settings.Enabled=$true
     $definition.Settings.AllowDemandStart=$true
     $definition.Settings.DisallowStartIfOnBatteries=$false
     $definition.Settings.StopIfGoingOnBatteries=$false
     $definition.Settings.MultipleInstances=2 # TASK_INSTANCES_IGNORE_NEW
-    $definition.Settings.ExecutionTimeLimit='PT'+([int]$configuration.TimeoutSeconds+300)+'S'
+    $runnerPreparationAllowance=if($configuration.PayloadManifestSHA256){600}else{300}
+    $observation.RunnerPreparationAllowanceSeconds=$runnerPreparationAllowance
+    $definition.Settings.ExecutionTimeLimit='PT'+([int]$configuration.TimeoutSeconds+$runnerPreparationAllowance)+'S'
     $action=$definition.Actions.Create(0) # TASK_ACTION_EXEC
     $action.Path='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
     $action.Arguments='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand '+$encoded
     $action.WorkingDirectory='C:\ProfileAnalysis\Work'
     # TASK_CREATE (2), never UPDATE: a colliding task must not be overwritten.
     Write-ControllerProgress 'RegisterLimitedTask'
-    $registered=$folder.RegisterTaskDefinition($taskName,$definition,2,$definition.Principal.UserId,$configuration.UserPassword,1)
+    $taskPassword=if($interactive){$null}else{$configuration.UserPassword}
+    $registered=$folder.RegisterTaskDefinition($taskName,$definition,2,$definition.Principal.UserId,$taskPassword,$logonType)
     $taskCreated=$true
     $taskPrincipal=$registered.Definition.Principal
-    if($taskPrincipal.LogonType -ne 1 -or $taskPrincipal.RunLevel -ne 0){throw 'The analysis task did not retain limited password-logon settings.'}
+    if($taskPrincipal.LogonType -ne $logonType -or $taskPrincipal.RunLevel -ne 0){throw 'The analysis task did not retain its limited logon settings.'}
     $expectedAccountName=$env:COMPUTERNAME+'\'+$configuration.UserName
     $expectedAccount=New-Object Security.Principal.NTAccount($expectedAccountName)
     $registeredSid=if($taskPrincipal.UserId -match '^S-1-'){
@@ -61,7 +96,8 @@ try {
     $expectedSid=$expectedAccount.Translate([Security.Principal.SecurityIdentifier]).Value
     if($registeredSid -ne $expectedSid){throw 'The analysis task principal does not match the owned standard account SID.'}
     if(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction Stop|Where-Object {$_.SID.Value -eq $expectedSid}){throw 'The controller refuses an Administrators member, including a filtered administrator token.'}
-    $observation.TaskPrincipal=@{UserId=$expectedAccountName;RegisteredUserId=$taskPrincipal.UserId;UserSid=$registeredSid;ExpectedUserSid=$expectedSid;LogonType='Password';RunLevel='Limited'}
+    $observation.TaskPrincipal=@{UserId=$expectedAccountName;RegisteredUserId=$taskPrincipal.UserId;UserSid=$registeredSid;ExpectedUserSid=$expectedSid;LogonType=$(if($interactive){'InteractiveToken'}else{'Password'});RunLevel='Limited'}
+    if(-not $interactive){
     Write-ControllerProgress 'VerifyGuestBatchLogonRight'
     # This grants one logon right to the verified standard account inside the
     # disposable guest. It grants no administrator membership or process privilege.
@@ -116,20 +152,24 @@ public static class ProfileAnalysisBatchLogon {
     [type]$batchLogonType=Add-Type -TypeDefinition $batchLogonNative -Language CSharp -PassThru|Where-Object {$_.IsPublic -and $_.GetMethod('Grant')}
     if(-not $batchLogonType::Grant($registeredSid,$configuration.UserName,$env:COMPUTERNAME,$configuration.UserPassword)){throw 'The dedicated account batch-logon right could not be verified.'}
     $observation.BatchLogonRightVerified=$true
-    if($registered.Xml.Contains([string]$configuration.UserPassword)){throw 'The analysis task definition unexpectedly exposed its credential.'}
+    }
+    if($configuration.UserPassword -and $registered.Xml.Contains([string]$configuration.UserPassword)){throw 'The analysis task definition unexpectedly exposed its credential.'}
     $configuration.UserPassword=$null
     Write-ControllerProgress 'StartLimitedTask'
     $before=$registered.LastRunTime
-    $null=$registered.Run($null)
+    if($interactive){$null=$registered.RunEx($null,4,[int]$configuration.InteractiveSessionId,$null)}else{$null=$registered.Run($null)}
     Write-ControllerProgress 'ObserveTask'
     $timer=[Diagnostics.Stopwatch]::StartNew()
     while($true){
         $task=$folder.GetTask($taskName)
-        if($task.State -eq 4 -or $task.LastRunTime -gt $before){$observation.RunnerStarted=$true}
+        if(-not $observation.RunnerStarted -and ($task.State -eq 4 -or $task.LastRunTime -gt $before)){
+            $observation.RunnerStarted=$true
+            Write-ControllerProgress 'RunnerStarted'
+        }
         if($observation.RunnerStarted -and $task.State -notin 2,4){$observation.RunnerExitCode=$task.LastTaskResult;break}
         if(-not $observation.RunnerStarted -and $task.State -notin 2,4 -and $task.LastTaskResult -notin 0,267011,267009,267045){throw ('The task failed to start. Native task result: '+$task.LastTaskResult)}
         if(-not $observation.RunnerStarted -and $timer.Elapsed.TotalSeconds -gt 30){throw ('The task did not start within 30 seconds. Last task result: '+$task.LastTaskResult)}
-        if($timer.Elapsed.TotalSeconds -gt ([int]$configuration.TimeoutSeconds+300)){throw 'The trusted guest runner exceeded its preparation, target, and observation deadline.'}
+        if($timer.Elapsed.TotalSeconds -gt ([int]$configuration.TimeoutSeconds+$runnerPreparationAllowance)){throw 'The trusted guest runner exceeded its preparation, target, and observation deadline.'}
         Start-Sleep -Milliseconds 500
     }
     Write-ControllerProgress 'ValidateRunnerOutcome'
@@ -140,7 +180,21 @@ public static class ProfileAnalysisBatchLogon {
     $result=Get-Content -LiteralPath $report.FullName -Raw|ConvertFrom-Json
     if($result.Status -notin 'Completed','Partial','Failed'){throw 'The guest runtime status is invalid.'}
     Write-Output ('PROFILE_ANALYSIS_RUNTIME='+$result.Status)
-} catch {$observation.Error=$_.Exception.Message;throw} finally {
+} catch {$cause=$_.Exception.GetBaseException();$observation.Error=$cause.Message;$observation.HResult=$cause.HResult;throw} finally {
+    if($configuration.LaunchMode -eq 'RegisteredPackage' -and $observation.RunnerStarted -and $observation.PackageDeployment.Status -eq 'Completed'){
+        try{
+            . 'C:\ProfileAnalysis\Private\WindowsGuestActivationDiagnostics.ps1'
+            $activation=Get-AnalysisWindowsActivationDiagnostic -PackageFullName $observation.PackageDeployment.PackageFullName -PackageFamilyName $observation.PackageDeployment.PackageFamilyName -StartedUtc ([datetime]$observation.PackageDeployment.FinishedUtc)
+            $activation|ConvertTo-Json -Depth 10|Set-Content -LiteralPath 'C:\ProfileAnalysis\Private\activation-events.json' -Encoding utf8
+            $observation.ActivationDiagnostics=@{Status=$activation.Status;Artifact='activation-events.json';Channels=@($activation.Channels).Count}
+        }catch{
+            $diagnosticCause=$_.Exception.GetBaseException()
+            $diagnosticMessage=$diagnosticCause.Message.Substring(0,[Math]::Min(2048,$diagnosticCause.Message.Length))
+            $observation.ActivationDiagnostics=@{Status='Failed';Error=$diagnosticMessage;HResult=$diagnosticCause.HResult}
+            # Optional diagnostic failures must not replace the launch error or prevent task cleanup.
+            try{$observation.ActivationDiagnostics|ConvertTo-Json|Set-Content -LiteralPath 'C:\ProfileAnalysis\Private\activation-events.json' -Encoding utf8}catch{$observation.ActivationDiagnostics.ArtifactWriteHResult=$_.Exception.GetBaseException().HResult}
+        }
+    }
     try {
         if($taskCreated){
             $observation.Phases+=@{Name='RemoveOwnedTask';Utc=[DateTime]::UtcNow.ToString('o')}
@@ -151,7 +205,11 @@ public static class ProfileAnalysisBatchLogon {
                 $observation.TaskRemoved=$true
             }
         }
-    } catch {$observation.Error=$_.Exception.Message;throw} finally {
+    } catch {
+        $cleanupCause=$_.Exception.GetBaseException()
+        $observation.CleanupError=$cleanupCause.Message;$observation.CleanupHResult=$cleanupCause.HResult
+        if(-not $observation.Error){$observation.Error=$cleanupCause.Message;$observation.HResult=$cleanupCause.HResult;throw}
+    } finally {
         try{if(Test-Path -LiteralPath $configurationPath){Remove-Item -LiteralPath $configurationPath -Force}}
         finally{
             if(-not $observation.Error -and $observation.TaskRemoved -and $observation.RunnerStarted -and $observation.RunnerExitCode -eq 0){$observation.Status='Completed'}
