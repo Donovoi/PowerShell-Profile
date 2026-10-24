@@ -283,6 +283,11 @@ Research current primary documentation for reverse engineering a $($identity.For
                                 $runtimeParameters.MaxPackageBytes=$MaxRuntimePackageBytes;$runtimeParameters.MaxPackageFiles=$MaxRuntimePackageFiles
                                 if($WindowsApplicationRoot -or ($applicationContext -and $applicationContext.Detected)){$runtimeParameters.InputPath=$source.FullName}
                                 if($WindowsApplicationRoot){$runtimeParameters.ApplicationRoot=$WindowsApplicationRoot}
+                                elseif($applicationContext -and $applicationContext.Detected){
+                                    # Preserve the detector's complete filesystem root, including
+                                    # metadata-only layouts the VM adapter cannot rediscover.
+                                    $runtimeParameters.ApplicationRoot=if($applicationContext.PackageRoot){$applicationContext.PackageRoot}else{$applicationContext.ApplicationRoot}
+                                }
                                 if($WindowsPackageArchivePath){$runtimeParameters.PackageArchivePath=$WindowsPackageArchivePath;$runtimeParameters.PackageLicensePath=$WindowsPackageLicensePath}
                             }
                             $vm=& $runtimeCommand @runtimeParameters

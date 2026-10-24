@@ -101,6 +101,38 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
         $failure=$null;try{Invoke-ExecutableAnalysis (Join-Path $packaged 'entry.exe') -OutputDirectory $TestRoot -BasicOnly -SkipAI @invalid}catch{$failure=$_}
         Assert-True ($null -ne $failure -and $calls.Count -eq 10) 'Invalid paired licensed input reached a VM helper.'
     }
+    # Exercise the real context detector and payload builder across the mocked VM
+    # boundary: detected companions must survive the actual archive, not just routing.
+    . (Join-Path $repo 'scripts/ExecutableAnalysis/New-AnalysisWindowsPayload.ps1')
+    $layoutCases=@('package.json','owl-shell-runtime.json','owl-electron-app.json','owl-app.ini','resources/package.json','resources/owl-shell-runtime.json','resources/owl-electron-app.json','resources/owl-app.ini','resources/app.asar.unpacked/sidecar.bin','AppxManifest.xml')
+    foreach($marker in $layoutCases){
+        $fixtureRoot=Join-Path $TestRoot ('metadata-layout-'+[guid]::NewGuid().ToString('N'))
+        $nestedPackage=$marker -eq 'AppxManifest.xml'
+        $entry=Join-Path $fixtureRoot $(if($nestedPackage){'app/entry.exe'}else{'entry.exe'})
+        $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($entry))
+        Copy-Item -LiteralPath $standalone -Destination $entry
+        $companion=Join-Path $fixtureRoot $marker
+        $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($companion))
+        $markerContent=if($nestedPackage){'<Package><Identity Name="Fixture.App" Version="1.0.0.0"/><Applications><Application Id="App" Executable="app/entry.exe"/></Applications></Package>'}else{'fixture companion; never executed'}
+        [IO.File]::WriteAllText($companion,$markerContent)
+        $before=$calls.Count
+        $routed=Invoke-ExecutableAnalysis $entry -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic
+        Assert-True ($calls.Count -eq $before+2 -and $calls[$before].Kind -eq 'InitializeWindows') ('Detected layout was not routed to Windows: '+$marker)
+        $call=$calls[$before+1]
+        Assert-True ($call.Input -eq $entry -and $call.Root -eq $fixtureRoot -and $call.ExpectedSHA256 -eq (Get-FileHash -LiteralPath $entry).Hash) ('Detected layout lost its complete root or input identity: '+$marker)
+        Assert-True (@($routed.Stages|Where-Object {$_.Name -eq 'Runtime' -and $_.Status -eq 'Completed'}).Count -eq 1) ('Detected layout lost the VM result: '+$marker)
+        $payload=New-AnalysisWindowsPayload -InputPath $call.Input -ApplicationRoot $call.Root -OutputDirectory (Join-Path $routed.OutputDirectory 'verified-payload') -MaxPackageBytes $call.MaxPackageBytes -MaxPackageFiles $call.MaxPackageFiles
+        Assert-True ($payload.Files.Count -eq 2 -and $payload.SourceSHA256 -eq $call.ExpectedSHA256) ('Payload omitted or changed a detected companion: '+$marker)
+        $zip=[IO.Compression.ZipFile]::OpenRead($payload.ArchivePath)
+        try{
+            Assert-True ($zip.Entries.Count -eq 2 -and $null -ne $zip.GetEntry($marker)) ('Archive omitted detected metadata: '+$marker)
+            foreach($file in $payload.Files){
+                $stream=$zip.GetEntry($file.Path).Open();$sha=[Security.Cryptography.SHA256]::Create()
+                try{$archiveHash=[Convert]::ToHexString($sha.ComputeHash($stream))}finally{$sha.Dispose();$stream.Dispose()}
+                Assert-True ($archiveHash -eq $file.SHA256 -and $archiveHash -eq (Get-FileHash -LiteralPath (Join-Path $fixtureRoot $file.Path)).Hash) ('Archived layout bytes differ: '+$marker)
+            }
+        }finally{$zip.Dispose()}
+    }
 }
 Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit VM names and unsupported formats (VM helpers mocked).'
 
