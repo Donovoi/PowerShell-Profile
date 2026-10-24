@@ -27,6 +27,7 @@ Use PowerShell 7.2 or newer on Windows. Startup only defines the command. Its su
 - `input/`: a byte-verified copy of the source. Providers work on this copy; the original and the copy are checked again at completion.
 - `basic/`: format/header observations, bounded ASCII/UTF-16 strings, Base64 decoding candidates, PE version declarations and Windows signature status where applicable.
 - `basic/application-context.json` and `application/`: bounded adjacent package metadata, declared entry points, preserved ASAR and unpacked companions, plus a separate REA stage for the application archive. Original and retained companion hashes are checked at completion.
+- `basic/firmware-context.json` and `firmware/`: recognized Dell PFS wrapper offsets, extracted components, UEFI sections, complete recovered HII form text, a bounded declaration summary, diagnostics and artifact hashes. These are static observations, not unlocked BIOS settings.
 - `rea/`: complete retained REA evidence, the actual advertised tool catalog, extracted resources and native pseudocode/WAT where supported.
 - `code/`: reconstructed C# projects, Java sources or direct Ghidra output. These are reconstructions, not the original source tree.
 - `logs/`: exact executable/argument records, executable hashes, stdout/stderr, exit status and elapsed time. Native arguments are passed individually without a shell.
@@ -36,6 +37,24 @@ Use PowerShell 7.2 or newer on Windows. Startup only defines the command. Its su
 Each invocation creates a new folder; it does not overwrite previous reports. The command returns one object with `Status`, `OutputDirectory`, `ReportPath`, `JsonPath`, `SHA256`, `SourceUnchanged` and `Stages`.
 
 `CompletedWithLimitations` means the requested supported stages completed. It never means every behavior was recovered or that the program is safe. `Partial` preserves successful evidence while identifying unavailable providers, failed operations, limits or incomplete research. Invalid input arguments fail before analysis begins.
+
+## Dell firmware update packages
+
+```powershell
+Invoke-ExecutableAnalysis .\XPS_9640_1.26.0.exe -OutputDirectory C:\Analysis
+```
+
+Dell compressed PFS wrappers are recognized from bounded structural checks rather than filenames. A recognized wrapper routes to pinned BIOSUtilities, UEFIExtract and IFRExtractor builds in a separate private cache. Python 3.10 or newer must already be available; Python dependencies are isolated in that cache. Automatic installation occurs only on invocation, and `-NoInstall` forbids downloads. Archives and the complete installed file tree are hash-checked before reuse. Corrupt or incomplete caches are preserved and rejected.
+
+The firmware worker never launches the updater or extracted programs. It preserves the original input hash, scans all extracted BIOS variants within the budgets, deduplicates PE32 sections by hash and retains complete recovered IFR text. `MaxFirmwareBytes` (1 GiB), `MaxFirmwareFiles` (30000), `MaxFirmwareModules` (1024) and `TimeoutSeconds` bound work. Output growth is monitored, not constrained by a filesystem quota; the limit can be exceeded briefly before stopping. Worker process memory has a separate 2 GiB limit. Limits, parser warnings, reconstructed gaps and unknown structures remain visible in the status and diagnostics. `-BasicOnly` performs wrapper recognition without extracting firmware.
+
+Firmware updater candidates and EFI PE subsystems are refused by runtime routing. Detection currently covers Dell compressed PFS wrappers; it is not a universal firmware classifier. An incomplete wrapper scan conservatively refuses runtime. The direct Windows VM command applies the same guard before inspecting a VM.
+
+HII declarations describe possible menus, defaults and conditional controls. They do not prove current settings, write access, hardware support or that a menu can be reached through the vendor frontend. Shared forms may describe other machines. Signed update images can include reconstructed gaps and are not complete SPI backups. No firmware patching, flashing, NVRAM edits, signature bypass or menu-unlock operation is implemented. Native decompilation outside `firmware/` describes the outer updater; embedded firmware retains separate provenance. Codex research, analysis and detractor rounds receive this distinction and bounded firmware evidence explicitly.
+
+IFRExtractor verbose mode exports English forms and raw opcodes; other language strings are not exhaustively exported.
+
+IFRExtractor 1.6.1 has a confirmed numeric decoding defect in its EDK2 Label, Timeout, Class and SubClass extensions: the high byte is multiplied by decimal 100 instead of 256 ([upstream source](https://github.com/LongSoft/IFRExtractor-RS/blob/v1.6.1/src/main.rs#L1878-L1910)). The original text is preserved. A separate bounded `firmware/numeric-validation.json` compares these opcodes with the retained module bytes before recording independent little-endian values. Mismatches, unverified offsets and incomplete validation remain Partial. This narrow check does not validate every opcode or establish writable BIOS settings.
 
 ## Formats and actual providers
 
