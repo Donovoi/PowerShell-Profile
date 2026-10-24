@@ -222,6 +222,10 @@ root.mkdir()
 spec = importlib.util.spec_from_file_location('firmware_worker', worker_path)
 worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
+assert not worker.beneath(pathlib.Path(r'D:\tools\extractor.exe'), pathlib.Path(r'C:\outputs\firmware'))
+assert not worker.beneath(pathlib.Path(r'C:\outputs\firmware-other\file.bin'), pathlib.Path(r'C:\outputs\firmware'))
+assert worker.beneath(pathlib.Path(r'C:\outputs\firmware\child\file.bin'), pathlib.Path(r'C:\outputs\firmware'))
+print('PASS: cross-drive, sibling-prefix and descendant Windows path containment.')
 prefix = bytes.fromhex('5F 15 35 17 0B 0F A0 87 93 41 B2 66 53 8C 38 AF 48 CE')
 guid = '0F0B1735-87A0-4193-B266-538C38AF48CE'
 def fixture(name, extension, field, code, offset, value, rendered, source_delta=0):
