@@ -49,7 +49,11 @@ def plain_path(path):
 
 
 def beneath(path, root):
-    return os.path.commonpath((str(path), str(root))) == str(root)
+    try:
+        return os.path.commonpath((str(path), str(root))) == str(root)
+    except ValueError:
+        # Normal Windows tool/cache and output paths may be on different drives.
+        return False
 
 
 def inventory(root, max_files, max_bytes, deadline=None):
