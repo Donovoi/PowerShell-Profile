@@ -10,6 +10,9 @@ function Invoke-ExecutableAnalysis {
     limits remain in report.json/report.md. Recovered pseudocode is not original source.
     The source program is never executed on the host. Dynamic analysis is a separate,
     opt-in disposable VM stage. No tool runs or installs when this function is imported.
+    Windows runtime can preserve a complete application layout for an interactive
+    standard-user launch. Explicit registered-package mode can deploy privileged
+    services inside the offline VM and uses a whole-VM deadline instead of Job limits.
     .PARAMETER Path
     Literal path to one executable, library or application package. Non-Windows formats
     are supported for static analysis. File extensions alone are not proof of format.
@@ -30,6 +33,33 @@ function Invoke-ExecutableAnalysis {
     and x86-64 ELF selects Profile-Analysis-Linux.
     .PARAMETER WindowsIsoPath
     Local Windows 11 x64 installation ISO for first-time Windows VM provisioning.
+    .PARAMETER WindowsApplicationRoot
+    Complete application directory containing the selected executable. Runtime copies
+    its bounded files and directories with hash verification, without copying host user
+    profiles, external credentials, ACLs or package-registration state. By default an
+    adjacent Appx manifest or resources/app.asar determines the root when available.
+    .PARAMETER WindowsLaunchMode
+    DesktopLayout preserves neighboring files and launches under a standard-user Job.
+    RegisteredPackage explicitly attempts signed Appx registration and AUMID activation;
+    declared services may run with elevated privileges inside the isolated VM. It uses
+    an independent whole-VM deadline and does not capture target stdout/stderr or apply
+    per-process Job memory limits. Missing offline dependencies/licenses remain failures.
+    .PARAMETER WindowsPackageArchivePath
+    Original signed MSIX/AppX container matching every file in the selected layout.
+    Requires WindowsPackageLicensePath and RegisteredPackage mode for licensed deployment.
+    .PARAMETER WindowsPackageLicensePath
+    Vendor-issued offline XML license for the supplied Windows package container.
+    Windows validates the license inside the isolated guest.
+    .PARAMETER MaxRuntimePackageBytes
+    Total Windows runtime payload budget, independent of static companion budgets.
+    Defaults to 8 GiB; maximum 64 GiB. Exceeding the budget prevents deployment.
+    .PARAMETER MaxRuntimePackageFiles
+    Maximum files in the Windows runtime payload. Defaults to 10000; maximum 50000.
+    .PARAMETER RuntimeSeconds
+    Guest observation allowance, from 1 to 600 seconds. A Windows application payload
+    also has a host watchdog covering transfer, deployment and evidence collection,
+    with a deadline of RuntimeSeconds plus 1200 seconds, or plus 1500 seconds when
+    an original signed container and offline license are supplied. Cleanup restores the snapshot.
     .PARAMETER MaxFunctions
     Maximum native functions to decompile; zero attempts every discovered function within
     the time and evidence limits. Any unprocessed functions remain explicit in coverage.
@@ -53,6 +83,8 @@ function Invoke-ExecutableAnalysis {
     Invoke-ExecutableAnalysis ./linux-program -OutputDirectory C:\Analysis -Dynamic
     .EXAMPLE
     Invoke-ExecutableAnalysis ./library.dll -BasicOnly -SkipAI -NoInstall
+    .EXAMPLE
+    Invoke-ExecutableAnalysis 'C:\Apps\Example\app\Example.exe' -Dynamic -WindowsApplicationRoot 'C:\Apps\Example' -WindowsLaunchMode RegisteredPackage
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]
@@ -66,6 +98,12 @@ function Invoke-ExecutableAnalysis {
         [switch]$Dynamic,
         [ValidateNotNullOrEmpty()][string]$VirtualMachineName,
         [string]$WindowsIsoPath,
+        [string]$WindowsApplicationRoot,
+        [ValidateSet('DesktopLayout','RegisteredPackage')][string]$WindowsLaunchMode='DesktopLayout',
+        [string]$WindowsPackageArchivePath,
+        [string]$WindowsPackageLicensePath,
+        [ValidateRange(1,68719476736)][long]$MaxRuntimePackageBytes=8GB,
+        [ValidateRange(1,50000)][int]$MaxRuntimePackageFiles=10000,
         [ValidateRange(0,1000000)][int]$MaxFunctions = 0,
         [ValidateRange(10,86370)][int]$TimeoutSeconds = 1800,
         [ValidateRange(30,7200)][int]$AIReviewTimeoutSeconds = 600,
@@ -90,6 +128,7 @@ function Invoke-ExecutableAnalysis {
     }
     process {
         $ErrorActionPreference='Stop'
+        if([bool]$WindowsPackageArchivePath -ne [bool]$WindowsPackageLicensePath -or (($WindowsPackageArchivePath -or $WindowsPackageLicensePath) -and (-not $Dynamic -or $WindowsLaunchMode -ne 'RegisteredPackage'))){throw 'Windows package archive and license paths require each other, Dynamic and RegisteredPackage mode.'}
         $source=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
         if($source.PSProvider.Name -ne 'FileSystem' -or $source.PSIsContainer){throw 'Path must identify one filesystem file.'}
         if($source.Length -eq 0){throw 'An empty input cannot be analyzed.'}
@@ -218,8 +257,10 @@ Research current primary documentation for reverse engineering a $($identity.For
             if($Dynamic) {
                 $windowsTarget=$identity.Format -eq 'PE' -and $identity.Architecture -in 'x86','x86_64' -and $identity.Header.ExecutableImage -and -not $identity.Header.IsDll
                 $linuxTarget=$identity.Format -eq 'ELF' -and $identity.Architecture -eq 'x86_64' -and $identity.Header.Class -eq 2 -and $identity.Header.Endianness -eq 1 -and $identity.Header.Type -in 2,3
-                if(($applicationContext -and ($applicationContext.Detected -or $applicationContext.Status -eq 'Partial')) -or @($stages|Where-Object {$_.Name -eq 'ApplicationContext' -and $_.Status -eq 'Failed'}).Count) {
-                    $reason='Application companions or package activation metadata were detected, or their context could not be verified. The VM adapter transfers one executable; a missing-dependency exit would not establish application behavior. Packaged application runtime is not supported by this adapter.'
+                if($WindowsPackageArchivePath -and -not $windowsTarget){
+                    $stages.Add([pscustomobject]@{Name='Runtime';Status='Unsupported';Reason='Windows package archive and license inputs require a supported Windows executable.'})
+                }elseif(($applicationContext -and (($applicationContext.Status -eq 'Partial' -and -not $applicationContext.Detected) -or ($applicationContext.Detected -and -not $windowsTarget))) -or @($stages|Where-Object {$_.Name -eq 'ApplicationContext' -and $_.Status -eq 'Failed'}).Count) {
+                    $reason='Application context could not be verified, or this guest adapter does not preserve the detected application layout. Runtime execution was refused.'
                     $stages.Add([pscustomobject]@{Name='Runtime';Status='Unsupported';Reason=$reason})
                     $limits.Add($reason)
                 } elseif(-not $windowsTarget -and -not $linuxTarget) {
@@ -235,7 +276,21 @@ Research current primary documentation for reverse engineering a $($identity.For
                                 if($windowsTarget -and $WindowsIsoPath){$initializeParameters.IsoPath=$WindowsIsoPath}
                                 $null=& $initializeCommand @initializeParameters
                             }
-                            $vm=& $runtimeCommand -InputPath $copy -OutputPath (Join-Path $run 'runtime') -VirtualMachineName $vmName -TimeoutSeconds $RuntimeSeconds
+                            $runtimeParameters=@{InputPath=$copy;OutputPath=(Join-Path $run 'runtime');VirtualMachineName=$vmName;TimeoutSeconds=$RuntimeSeconds}
+                            if($windowsTarget){
+                                $runtimeParameters.ExpectedInputSHA256=$originalHash
+                                $runtimeParameters.LaunchMode=$WindowsLaunchMode
+                                $runtimeParameters.MaxPackageBytes=$MaxRuntimePackageBytes;$runtimeParameters.MaxPackageFiles=$MaxRuntimePackageFiles
+                                if($WindowsApplicationRoot -or ($applicationContext -and $applicationContext.Detected)){$runtimeParameters.InputPath=$source.FullName}
+                                if($WindowsApplicationRoot){$runtimeParameters.ApplicationRoot=$WindowsApplicationRoot}
+                                elseif($applicationContext -and $applicationContext.Detected){
+                                    # Preserve the detector's complete filesystem root, including
+                                    # metadata-only layouts the VM adapter cannot rediscover.
+                                    $runtimeParameters.ApplicationRoot=if($applicationContext.PackageRoot){$applicationContext.PackageRoot}else{$applicationContext.ApplicationRoot}
+                                }
+                                if($WindowsPackageArchivePath){$runtimeParameters.PackageArchivePath=$WindowsPackageArchivePath;$runtimeParameters.PackageLicensePath=$WindowsPackageLicensePath}
+                            }
+                            $vm=& $runtimeCommand @runtimeParameters
                             $stages.Add([pscustomobject]@{Name='Runtime';Status=$vm.Status;VirtualMachineName=$vmName;Result=$vm})
                         } catch{$stages.Add([pscustomobject]@{Name='Runtime';Status='Failed';VirtualMachineName=$vmName;Error=$_.Exception.Message})}
                     } else {$stages.Add([pscustomobject]@{Name='Runtime';Status='Unavailable';Reason="VM helper $runtimeCommand is missing from this profile installation."})}

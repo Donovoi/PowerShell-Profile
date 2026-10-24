@@ -34,6 +34,85 @@ function Invoke-AnalysisWindowsVBox {
     } finally {if($started -and -not $process.HasExited){$process.Kill($true);$null=$process.WaitForExit(5000)};$process.Dispose()}
 }
 
+function Start-AnalysisWindowsWatchdog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions','',Justification='Internal containment helper runs only after the public runtime command approves ShouldProcess; independently skipping its deadline would leave execution unbounded.')]
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$VirtualMachineId,[Parameter(Mandatory)][string]$OwnershipManifestPath,[Parameter(Mandatory)][string]$EvidenceDirectory,[ValidateRange(1,2100)][int]$DeadlineSeconds=720)
+    $info=[Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME 'pwsh.exe'))
+    $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+    foreach($argument in @('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'WindowsVm.Watchdog.ps1'),'-VirtualMachineId',$VirtualMachineId,'-OwnershipManifestPath',$OwnershipManifestPath,'-EvidenceDirectory',$EvidenceDirectory,'-DeadlineSeconds',$DeadlineSeconds.ToString())){$info.ArgumentList.Add($argument)}
+    $process=[Diagnostics.Process]::new();$process.StartInfo=$info;$started=$false
+    try{
+        if(-not $process.Start()){throw 'The independent VM watchdog did not start.'}
+        $started=$true
+        $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync()
+        $timer=[Diagnostics.Stopwatch]::StartNew();$readyPath=Join-Path $EvidenceDirectory 'ready.json'
+        while($timer.Elapsed.TotalSeconds -lt 45 -and -not $process.HasExited){
+            if(Test-Path -LiteralPath $readyPath){
+                try{
+                    if((Get-Item -LiteralPath $readyPath).Length -gt 65536){throw 'Watchdog readiness exceeds its limit.'}
+                    $ready=Get-Content -LiteralPath $readyPath -Raw|ConvertFrom-Json
+                    if($ready.Status -eq 'Ready' -and $ready.BoundUUID -eq $VirtualMachineId -and $ready.PID -eq $process.Id -and $ready.WatchdogId -match '^[a-f0-9]{32}$' -and $ready.DeadlineSeconds -eq $DeadlineSeconds){
+                        return [pscustomobject]@{Process=$process;Ready=$ready;EvidenceDirectory=$EvidenceDirectory;StandardOutput=$stdout;StandardError=$stderr;DeadlineSeconds=$DeadlineSeconds;DeadlineTimer=[Diagnostics.Stopwatch]::StartNew()}
+                    }
+                }catch{Write-Verbose 'Waiting for a complete watchdog readiness record.'}
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        if($process.HasExited){throw ('The independent VM watchdog failed before target preparation: '+$stderr.GetAwaiter().GetResult())}
+        throw 'The independent VM watchdog did not establish its deadline.'
+    }catch{if($started -and -not $process.HasExited){$process.Kill($true);$null=$process.WaitForExit(5000)};$process.Dispose();throw}
+}
+
+function Stop-AnalysisWindowsWatchdog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions','',Justification='Internal cleanup must always complete after an approved runtime operation, including when execution fails.')]
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Context,[switch]$WaitForExpiry)
+    try{
+        if(-not $Context.Process.HasExited){
+            if($WaitForExpiry){
+                if($Context.DeadlineSeconds -isnot [int] -or $Context.DeadlineSeconds -lt 1 -or $Context.DeadlineSeconds -gt 2100 -or -not $Context.DeadlineTimer){throw 'The watchdog has no validated bounded deadline context.'}
+                # Start's monotonic clock begins at the validated readiness handshake.
+                # The extra 75 seconds covers the three 15-second VBox calls and
+                # bounded process termination/record writing at deadline expiry.
+                while(-not $Context.Process.HasExited){
+                    $remaining=($Context.DeadlineSeconds+75)-$Context.DeadlineTimer.Elapsed.TotalSeconds
+                    if($remaining -le 0){throw 'The watchdog remains active after its bounded expiry wait; the VM must be quarantined.'}
+                    $null=$Context.Process.WaitForExit([int][Math]::Min(1000,[Math]::Ceiling($remaining*1000)))
+                }
+            }else{
+            $temporary=Join-Path $Context.EvidenceDirectory ('cancel-'+[guid]::NewGuid().ToString('N')+'.tmp')
+            [IO.File]::WriteAllText($temporary,(@{Cancel=$true;BoundUUID=$Context.Ready.BoundUUID;WatchdogId=$Context.Ready.WatchdogId}|ConvertTo-Json -Compress))
+            [IO.File]::Move($temporary,(Join-Path $Context.EvidenceDirectory 'cancel.json'))
+            if(-not $Context.Process.WaitForExit(10000)){$Context.Process.Kill($true);$null=$Context.Process.WaitForExit(5000);throw 'The independent watchdog did not stop; VM cleanup must still run.'}
+            }
+        }
+        $resultPath=Join-Path $Context.EvidenceDirectory 'result.json'
+        if(-not(Test-Path -LiteralPath $resultPath) -or (Get-Item -LiteralPath $resultPath).Length -gt 65536){throw 'The watchdog produced no bounded completion record.'}
+        $result=Get-Content -LiteralPath $resultPath -Raw|ConvertFrom-Json
+        if($result.BoundUUID -ne $Context.Ready.BoundUUID -or $result.WatchdogId -ne $Context.Ready.WatchdogId -or $result.Status -notin 'Cancelled','Expired','Failed'){throw 'The watchdog completion record is invalid.'}
+        $result
+    }finally{
+        $exited=$Context.Process.HasExited
+        $Context|Add-Member -NotePropertyName Exited -NotePropertyValue $exited -Force
+        if($exited){$Context.Process.Dispose()}
+    }
+}
+
+function Set-AnalysisWindowsVmQuarantine {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions','',Justification='Fail-closed ownership guard prevents another run while an unresolved watchdog could still power off this VM.')]
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$StoragePath,[Parameter(Mandatory)]$Context)
+    $path=Join-Path $StoragePath 'runtime-quarantine.json'
+    $record=[ordered]@{Status='Quarantined';BoundUUID=$Context.Ready.BoundUUID;WatchdogId=$Context.Ready.WatchdogId;WatchdogProcessId=$Context.Ready.PID;CreatedUtc=[DateTime]::UtcNow.ToString('o');Recovery='Manually verify this exact VM is powered off and the recorded watchdog has exited before removing this marker.'}
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($record|ConvertTo-Json -Compress))
+    if($bytes.Length -gt 4096){throw 'The quarantine record exceeded its fixed limit.'}
+    $stream=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$stream.Write($bytes,0,$bytes.Length)}finally{$stream.Dispose()}
+    Protect-AnalysisWindowsPrivatePath $path
+    $path
+}
+
 function ConvertFrom-AnalysisWindowsVmInfo {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Text)
@@ -47,13 +126,19 @@ function ConvertFrom-AnalysisWindowsVmInfo {
 
 function Enter-AnalysisWindowsVmLock {
     [CmdletBinding()]
+    [OutputType([IO.FileStream])]
     param([Parameter(Mandatory)][string]$StoragePath)
     $path=Join-Path $StoragePath 'runtime.lock'
     if(Test-Path -LiteralPath $path){
         if((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'The Windows VM lock must be a regular file.'}
     }
-    try{[IO.File]::Open($path,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
+    try{$lock=[IO.File]::Open($path,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
     catch{throw 'This Windows analysis VM is busy or its exclusive lock is unavailable. No VM state was changed.'}
+    try{
+        $quarantine=Join-Path $StoragePath 'runtime-quarantine.json'
+        if(Test-Path -LiteralPath $quarantine){throw ('The Windows analysis VM is quarantined after an unresolved watchdog. Verify power-off and watchdog termination before manually removing '+$quarantine)}
+        $lock
+    }catch{$lock.Dispose();throw}
 }
 
 function Assert-AnalysisWindowsVmIsolation {
@@ -62,6 +147,7 @@ function Assert-AnalysisWindowsVmIsolation {
     if($Manifest.Schema -ne 'PowerShellProfile.AnalysisWindowsVm.v1' -or $Manifest.GuestOS -ne 'Windows 11 x64'){throw 'The manifest does not identify an owned Windows analysis VM.'}
     if($Settings.UUID -ne $Manifest.VirtualMachineId -or $Settings.name -ne $Manifest.VirtualMachineName){throw 'VM name or UUID differs from its ownership manifest.'}
     foreach($index in 1..8){if($Settings["nic$index"] -ne 'none'){throw "Isolation failed: NIC $index is enabled or unknown."}}
+    foreach($key in @($Settings.Keys|Where-Object {$_ -match '^nic[0-9]+$'})){if($Settings[$key] -ne 'none'){throw "Isolation failed: $key is enabled."}}
     foreach($key in @('usb','ehci','xhci','vrde','audio_in','audio_out','nested-hw-virt','teleporterenabled')){if($Settings[$key] -ne 'off'){throw "Isolation failed: $key is enabled or unknown."}}
     foreach($key in @('clipboard','draganddrop')){if($Settings[$key] -ne 'disabled'){throw "Isolation failed: $key is enabled or unknown."}}
     if($Settings.clipboard_file_transfers -ne 'off'){throw 'Isolation failed: clipboard file transfers are enabled or unknown.'}
