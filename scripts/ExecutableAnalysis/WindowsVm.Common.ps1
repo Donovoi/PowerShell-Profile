@@ -201,6 +201,12 @@ function Test-AnalysisWindowsPe {
         if($stream.Read($pe,0,24) -ne 24 -or [BitConverter]::ToUInt32($pe,0) -ne 0x4550){return $false}
         $machine=[BitConverter]::ToUInt16($pe,4)
         $flags=[BitConverter]::ToUInt16($pe,22)
+        $optionalSize=[BitConverter]::ToUInt16($pe,20)
+        if($optionalSize -ge 70 -and $stream.Length-$stream.Position -ge $optionalSize){
+            $optional=[byte[]]::new(70)
+            if($stream.Read($optional,0,70) -ne 70){return $false}
+            if([BitConverter]::ToUInt16($optional,0) -in 0x10b,0x20b -and [BitConverter]::ToUInt16($optional,68) -in 10,11,12,13){return $false}
+        }
         # DLLs and nonexecutable COFF objects need an explicit harness, not direct launch.
         return $machine -in 0x14c,0x8664 -and ($flags -band 2) -ne 0 -and ($flags -band 0x2000) -eq 0
     } finally {$stream.Dispose()}
