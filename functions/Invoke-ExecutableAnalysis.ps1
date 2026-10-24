@@ -406,6 +406,7 @@ Research current primary documentation for reverse engineering a $($identity.For
                 $lines.Add('Detection and compressed-region offsets: basic/firmware-context.json. Recognition of a wrapper is not validation of its payload.')
                 if(Test-Path -LiteralPath (Join-Path $run 'firmware/firmware-result.json') -PathType Leaf){$lines.Add('Extraction status, available inventory, tool provenance and diagnostics: firmware/firmware-result.json.')}
                 if(Test-Path -LiteralPath (Join-Path $run 'firmware/menu-summary.json') -PathType Leaf){$lines.Add('Bounded HII declarations: firmware/menu-summary.json. Consult its FormPackageTextPaths for full recovered form text.')}
+                if(Test-Path -LiteralPath (Join-Path $run 'firmware/numeric-validation.json') -PathType Leaf){$lines.Add('Independent checks of EDK2 Label/Timeout/Class/SubClass values: firmware/numeric-validation.json. IFRExtractor 1.6.1 has a high-byte decoding defect in these fields; original text is retained, and separate corrected values require a source-byte match.')}
                 $lines.Add('Recovered declarations and defaults do not establish active settings, menu accessibility, hardware applicability or write access. Native analysis outside firmware/ concerns the updater wrapper.')
             }
             $lines.Add('');$lines.Add('## Stages');$lines.Add('')

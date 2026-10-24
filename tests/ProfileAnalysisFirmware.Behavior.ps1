@@ -152,6 +152,7 @@ try{
     Assert-True ($result.Status -eq 'Succeeded' -and $result.Manifest.InputUnchanged -and -not $result.TargetExecuted) ('Successful fixture pipeline failed: '+($result.Manifest.Diagnostics|ConvertTo-Json -Compress))
     Assert-True ($result.Manifest.Variants.Count -eq 2 -and $result.Manifest.Summary.PE32Bodies -eq 4 -and $result.Manifest.Summary.UniqueIFRModulesScanned -eq 2) 'Variant preservation or PE32 hash deduplication failed.'
     Assert-True ($result.FormPackageTextPaths.Count -eq 2 -and (Test-Path -LiteralPath $result.MenuSummaryPath)) 'IFR outputs or bounded menu summary were not returned.'
+    Assert-True ((Test-Path -LiteralPath $result.NumericValidationPath) -and $result.Manifest.Summary.NumericValidationCoverageComplete -and $result.Manifest.Summary.NumericValidationChecked -eq 0) 'Separate numeric-validation scope/coverage was not returned for a fixture without GUID extensions.'
     Assert-True ($result.Manifest.ToolCalls.Count -eq 5 -and $result.Manifest.Summary.InventoryComplete) 'Tool call provenance or inventory is incomplete.'
     foreach($file in $result.Manifest.Files){
         Assert-True ((Get-FileHash -LiteralPath (Join-Path (Join-Path $TestRoot 'success') $file.Path)).Hash -eq $file.SHA256) 'Recorded artifact hash does not match bytes.'
@@ -212,3 +213,72 @@ try{
     [IO.File]::WriteAllBytes($target,$original)
     foreach($name in $saved.Keys){[Environment]::SetEnvironmentVariable($name,$saved[$name])}
 }
+
+$numericTest=Join-Path $TestRoot 'NumericValidationTests.py'
+[IO.File]::WriteAllText($numericTest,@'
+import hashlib, importlib.util, pathlib, sys
+worker_path, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+root.mkdir()
+spec = importlib.util.spec_from_file_location('firmware_worker', worker_path)
+worker = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(worker)
+prefix = bytes.fromhex('5F 15 35 17 0B 0F A0 87 93 41 B2 66 53 8C 38 AF 48 CE')
+guid = '0F0B1735-87A0-4193-B266-538C38AF48CE'
+def fixture(name, extension, field, code, offset, value, rendered, source_delta=0):
+    folder = root / name
+    folder.mkdir()
+    opcode = prefix + bytes([code]) + value.to_bytes(2, 'little')
+    module = bytearray(offset + len(opcode))
+    module[offset:offset + len(opcode)] = opcode
+    module[offset] ^= source_delta
+    (folder / 'module.bin').write_bytes(module)
+    text = folder / 'module.bin.0.0.en-US.uefi.ifr.txt'
+    text.write_text(f'0x{offset:X}: \tGuid Guid: {guid}, ExtendedOpCode: {extension}, {field}: 0x{rendered:X} {{ {opcode.hex(" ").upper()} }}\n')
+    return text
+
+# Exact verified offsets/values captured from the pinned Dell package output:
+# module-0008 line3; module-0013 line3; module-0021 .4.0 line14.
+captured = [fixture('captured-class-0655', 'Class', 'Class', 3, 0x947F, 0x655, 0x2AD),
+            fixture('captured-class-0786', 'Class', 'Class', 3, 0x3B2F, 0x786, 0x342),
+            fixture('captured-label-1000', 'Label', 'LabelNumber', 0, 0x8C3FB, 0x1000, 0x640)]
+sources = [item for text in captured for item in (text, text.parent / 'module.bin')]
+before = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in sources}
+result = worker.validate_ifr_numeric_values(root, captured)
+assert result['Status'] == 'Partial' and result['Checked'] == 3 and result['Mismatches'] == 3 and result['CoverageComplete']
+assert [row['ActualLEValue'] for row in result['Records']] == [0x655, 0x786, 0x1000]
+assert all(row['SourceBytesVerified'] and row['ModuleSHA256'] for row in result['Records'])
+assert {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in sources} == before
+
+other_extensions = [fixture('timeout', 'Timeout', 'Timeout', 2, 32, 0x100, 0x64),
+                    fixture('subclass', 'SubClass', 'SubClass', 4, 32, 0x200, 0xC8)]
+result = worker.validate_ifr_numeric_values(root, other_extensions)
+assert result['Checked'] == 2 and result['Mismatches'] == 2 and result['CoverageComplete']
+
+good = [fixture('good-class', 'Class', 'Class', 3, 8, 0x60, 0x60),
+        fixture('good-timeout', 'Timeout', 'Timeout', 2, 8, 7, 7),
+        fixture('good-subclass', 'SubClass', 'SubClass', 4, 8, 2, 2)]
+result = worker.validate_ifr_numeric_values(root, good)
+assert result['Status'] == 'Succeeded' and result['Checked'] == 3 and result['Matches'] == 3 and result['Records'] == []
+
+bad = fixture('wrong-source-offset', 'Class', 'Class', 3, 32, 0x655, 0x2AD, source_delta=1)
+result = worker.validate_ifr_numeric_values(root, [bad])
+assert result['Status'] == 'Partial' and result['Checked'] == 0 and result['Unverified'] == 1
+assert result['Records'][0]['ActualLEValue'] is None and not result['Records'][0]['SourceBytesVerified']
+assert 'does not match module bytes' in result['Records'][0]['Reason']
+
+result = worker.validate_ifr_numeric_values(root, captured, read_limit=100)
+assert result['Status'] == 'Partial' and not result['ScanComplete'] and not result['CoverageComplete']
+assert result['ReadBytes'] == 101 and result['ReadSentinelBytes'] == 1 and result['Checked'] == 0
+result = worker.validate_ifr_numeric_values(root, captured, max_records=1)
+assert result['Checked'] == 3 and result['Mismatches'] == 3 and len(result['Records']) == 1
+assert result['SkippedBeyondCap'] == 2 and not result['CoverageComplete'] and result['ScanComplete']
+
+long_file = root / 'long.ifr.txt'
+long_file.write_bytes(b'X' * 1000 + b'\n')
+result = worker.validate_ifr_numeric_values(root, [long_file], line_limit=128)
+assert result['ReadBytes'] == 1001 and result['SkippedLongLines'] == 1 and not result['CoverageComplete']
+assert result['ScanComplete'] and result['Checked'] == 0
+print('PASS: captured numeric rendering mismatches, all four GUID fields, matching values, source-byte verification, preservation, bounded reads/lines/records and explicit coverage.')
+'@)
+& $PythonPath -I -S -B $numericTest (Join-Path $repo 'scripts/ExecutableAnalysis/firmware-worker.py') (Join-Path $TestRoot 'numeric-fixtures')
+Assert-True ($LASTEXITCODE -eq 0) 'Numeric validation regressions failed.'

@@ -189,6 +189,119 @@ def firmware_volumes(path):
     return found
 
 
+def validate_ifr_numeric_values(root, packages, read_limit=32 * 1024 * 1024,
+                                max_records=2048, line_limit=65536, deadline=None):
+    """Check four known IFRExtractor 1.6.1 GUID UINT16 rendering defects.
+
+    Raw text is evidence, never rewritten. A decoded value is reported only
+    after the full 21-byte opcode matches the preserved module at its offset.
+    """
+    guid = "0F0B1735-87A0-4193-B266-538C38AF48CE"
+    raw_guid = bytes.fromhex("35 17 0B 0F A0 87 93 41 B2 66 53 8C 38 AF 48 CE")
+    extensions = {"Label": (0, "LabelNumber"), "Timeout": (2, "Timeout"),
+                  "Class": (3, "Class"), "SubClass": (4, "SubClass")}
+    report = {"SchemaVersion": 1, "Status": "Succeeded",
+              "Scope": "Only Label, Timeout, Class and SubClass UINT16 fields in the Tiano/EDK2 GUID extension are checked; other IFR fields and runtime semantics are not validated.",
+              "KnownIssue": "IFRExtractor 1.6.1 renders these fields as low_byte + high_byte * 100; the encoded UINT16 is little-endian (low_byte + high_byte * 256). Original IFR text is preserved.",
+              "Guid": guid, "Records": [], "FilesTotal": len(packages), "FilesFullyRead": 0,
+              "ReadLimitBytes": read_limit, "ReadBytes": 0, "ReadSentinelBytes": 0,
+              "LineLimitBytes": line_limit, "RecordLimit": max_records, "LinesRead": 0,
+              "Candidates": 0, "Checked": 0, "Matches": 0, "Mismatches": 0,
+              "Unverified": 0, "SkippedLongLines": 0, "SkippedBeyondCap": 0,
+              "ScanComplete": True, "CoverageComplete": True}
+    module_hashes = {}
+    for package in packages:
+        plain_path(package)
+        with open(package, "rb") as stream:
+            line_number = 0
+            while True:
+                if deadline is not None and time.monotonic() >= deadline:
+                    report["ScanComplete"] = False
+                    report["StopReason"] = "Numeric validation time limit reached"
+                    break
+                raw = stream.readline(min(line_limit + 1, max(0, read_limit - report["ReadBytes"]) + 1))
+                if not raw:
+                    report["FilesFullyRead"] += 1
+                    break
+                line_number += 1
+                report["LinesRead"] += 1
+                report["ReadBytes"] += len(raw)
+                if report["ReadBytes"] > read_limit:
+                    report["ScanComplete"] = False
+                    report["StopReason"] = "Numeric validation byte limit reached"
+                    break
+                if len(raw) > line_limit:
+                    report["SkippedLongLines"] += 1
+                    # Discard the remainder in bounded chunks without treating
+                    # line fragments as separate opcodes or hiding bytes read.
+                    while raw and not raw.endswith(b"\n"):
+                        raw = stream.readline(min(line_limit + 1, max(0, read_limit - report["ReadBytes"]) + 1))
+                        report["ReadBytes"] += len(raw)
+                        if report["ReadBytes"] > read_limit:
+                            report["ScanComplete"] = False
+                            report["StopReason"] = "Numeric validation byte limit reached"
+                            break
+                    if not report["ScanComplete"]:
+                        break
+                    continue
+                line = raw.decode("utf-8", errors="replace").strip()
+                extension = re.search(r"\bExtendedOpCode:\s*(Label|Timeout|Class|SubClass)\b", line)
+                if guid not in line or not extension:
+                    continue
+                report["Candidates"] += 1
+                kind = extension.group(1)
+                code, field = extensions[kind]
+                module = plain_path(package.parent / "module.bin")
+                record = {"TextPath": str(package.relative_to(root)), "ModulePath": str(module.relative_to(root)),
+                          "Line": line_number, "Extension": kind, "Field": field,
+                          "Offset": None, "RenderedValue": None, "ActualLEValue": None,
+                          "SourceBytesVerified": False, "Status": "Unverified"}
+                try:
+                    offset_match = re.match(r"^0x([0-9A-Fa-f]{1,16}):", line)
+                    value_match = re.search(r"\b" + field + r":\s*0x([0-9A-Fa-f]{1,4})\b", line)
+                    block = re.search(r"\{\s*([0-9A-Fa-f\s]+)\s*\}\s*$", line)
+                    if not offset_match or not value_match or not block:
+                        raise ValueError("Malformed offset, rendered UINT16 or raw opcode block")
+                    record["Offset"] = int(offset_match.group(1), 16)
+                    record["RenderedValue"] = int(value_match.group(1), 16)
+                    opcode = bytes.fromhex(block.group(1))
+                    if len(opcode) != 21 or opcode[:2] != b"\x5f\x15" or opcode[2:18] != raw_guid or opcode[18] != code:
+                        raise ValueError("Raw opcode is not the expected 21-byte GUID extension")
+                    record["RawOpcodeHex"] = opcode.hex(" ").upper()
+                    with open(module, "rb") as source:
+                        source.seek(record["Offset"])
+                        actual_opcode = source.read(21)
+                    if actual_opcode != opcode:
+                        raise ValueError("Rendered raw opcode does not match module bytes at the stated offset")
+                    module_key = str(module)
+                    if module_key not in module_hashes:
+                        module_hashes[module_key] = digest(module, deadline)
+                    actual_value = int.from_bytes(actual_opcode[19:21], "little")
+                    record.update(SourceBytesVerified=True, ModuleSHA256=module_hashes[module_key],
+                                  ActualLEValue=actual_value, ActualLEHex=f"0x{actual_value:X}",
+                                  RenderedHex=f"0x{record['RenderedValue']:X}")
+                    report["Checked"] += 1
+                    if actual_value == record["RenderedValue"]:
+                        report["Matches"] += 1
+                        continue
+                    report["Mismatches"] += 1
+                    record["Status"] = "Mismatch"
+                except (OSError, ValueError, OverflowError) as error:
+                    report["Unverified"] += 1
+                    record["Reason"] = str(error)
+                if len(report["Records"]) < max_records:
+                    report["Records"].append(record)
+                else:
+                    report["SkippedBeyondCap"] += 1
+        if not report["ScanComplete"]:
+            break
+    report["ReadSentinelBytes"] = max(0, report["ReadBytes"] - read_limit)
+    report["CoverageComplete"] = report["ScanComplete"] and not any(report[key] for key in ("Unverified", "SkippedLongLines", "SkippedBeyondCap"))
+    if report["Mismatches"] or not report["CoverageComplete"]:
+        report["Status"] = "Partial"
+    return report
+
+
 class Pipeline:
     def __init__(self, args):
         self.args = args
@@ -422,6 +535,18 @@ class Pipeline:
         entries, _ = self.check()
         packages = sorted(path for path, _ in entries if beneath(path, self.root / "ifr") and path.name.endswith(".ifr.txt"))
         self.result["FormPackageTextPaths"] = [str(path) for path in packages]
+        validation = validate_ifr_numeric_values(self.root, packages, deadline=self.started + self.args.timeout)
+        validation_path = self.root / "numeric-validation.json"
+        with open(validation_path, "x", encoding="utf-8") as stream:
+            json.dump(validation, stream, indent=2)
+        self.result["NumericValidationPath"] = str(validation_path)
+        self.result["Summary"].update(NumericValidationChecked=validation["Checked"],
+                                      NumericValidationMismatches=validation["Mismatches"],
+                                      NumericValidationUnverified=validation["Unverified"],
+                                      NumericValidationCoverageComplete=validation["CoverageComplete"],
+                                      NumericValidationSkippedBeyondCap=validation["SkippedBeyondCap"])
+        if validation["Status"] == "Partial":
+            self.note(f"Numeric IFR validation found {validation['Mismatches']} source-byte-verified rendering mismatches, {validation['Unverified']} unverified records; coverage complete: {validation['CoverageComplete']}. See numeric-validation.json; raw IFR is unchanged.", "IFRNumericValidation")
         rows, read_bytes, truncated = [], 0, False
         read_limit = 32 * 1024 * 1024
         for package in packages:
@@ -444,7 +569,8 @@ class Pipeline:
                                      "Declaration": line.split(" { ", 1)[0][:768]})
             if truncated:
                 break
-        summary = {"Scope": "Extracted HII declarations; visibility, conditions, defaults and hardware applicability require review of the full IFR.",
+        summary = {"Scope": "Extracted HII declarations; visibility, conditions, defaults and hardware applicability require review of the full IFR. Known GUID-extension UINT16 rendering defects are reported separately in numeric-validation.json.",
+                   "NumericValidationPath": str(validation_path),
                    "FormPackageTextPaths": self.result["FormPackageTextPaths"], "Declarations": rows,
                    "Truncated": truncated, "ReadLimitBytes": read_limit, "ReadBytes": read_bytes,
                    "ReadSentinelBytes": max(0, read_bytes - read_limit)}
