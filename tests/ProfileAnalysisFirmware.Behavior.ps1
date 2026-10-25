@@ -40,7 +40,7 @@ public class ToolFixture {
                 File.WriteAllText(args[0] + ".0.0.en-US.uefi.ifr.txt", new string('X', 34 * 1024 * 1024));
                 return 0;
             }
-            File.WriteAllText(args[0] + ".0.0.en-US.uefi.ifr.txt", "0x100: FormSet Guid: 1234, Title: \"Fixture\" { 00 }\n0x120: Form FormId: 0x1, Title: \"Setup\" { 00 }\n0x130: OneOf Prompt: \"Boot mode\", Help: \"Fixture only\" { 00 }\n");
+            File.WriteAllText(args[0] + ".0.0.en-US.uefi.ifr.txt", "0x4: FormSet Guid: 11111111-1111-1111-1111-111111111111, Title: \"Fixture\" { 0E A7 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 01 00 02 00 01 22 22 22 22 22 22 22 22 22 22 22 22 22 22 22 22 }\n0x2B: Form FormId: 0x1, Title: \"Setup\" { 01 86 01 00 01 00 }\n0x31: End { 29 02 }\n0x33: End { 29 02 }\n");
         } else {
             if (mode == "uefi-warning") {
                 // Exact warning excerpts from UEFIExtract NE A75 on the Dell package.
@@ -50,7 +50,16 @@ public class ToolFixture {
             for (int n = 0; n < 2; n++) {
                 string dir = Path.Combine(args[0] + ".dump", n + " Setup", "2 PE32 image section");
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "body.bin"), "PE32 STATIC FIXTURE " + n);
+                byte[] module = new byte[54];
+                module[0] = 53; module[3] = 2; // UEFI forms-package header.
+                module[4] = 0x0E; module[5] = 0xA7;
+                for (int i = 6; i < 22; i++) module[i] = 0x11;
+                module[22] = 1; module[24] = 2; module[26] = 1;
+                for (int i = 27; i < 43; i++) module[i] = 0x22;
+                module[43] = 1; module[44] = 0x86; module[45] = 1; module[47] = 1;
+                module[49] = 0x29; module[50] = 2; module[51] = 0x29; module[52] = 2;
+                module[53] = (byte)n; // Different source identity outside the package.
+                File.WriteAllBytes(Path.Combine(dir, "body.bin"), module);
             }
         }
         return 0;
@@ -153,6 +162,7 @@ try{
     Assert-True ($result.Manifest.Variants.Count -eq 2 -and $result.Manifest.Summary.PE32Bodies -eq 4 -and $result.Manifest.Summary.UniqueIFRModulesScanned -eq 2) 'Variant preservation or PE32 hash deduplication failed.'
     Assert-True ($result.FormPackageTextPaths.Count -eq 2 -and (Test-Path -LiteralPath $result.MenuSummaryPath)) 'IFR outputs or bounded menu summary were not returned.'
     Assert-True ((Test-Path -LiteralPath $result.NumericValidationPath) -and $result.Manifest.Summary.NumericValidationCoverageComplete -and $result.Manifest.Summary.NumericValidationChecked -eq 0) 'Separate numeric-validation scope/coverage was not returned for a fixture without GUID extensions.'
+    Assert-True ((Test-Path -LiteralPath $result.Manifest.FormNavigationPath) -and $result.Manifest.Summary.NavigationCoverageComplete -and $result.Manifest.Summary.NavigationForms -eq 2) 'Source-byte form navigation evidence was not returned.'
     Assert-True ($result.Manifest.ToolCalls.Count -eq 5 -and $result.Manifest.Summary.InventoryComplete) 'Tool call provenance or inventory is incomplete.'
     foreach($file in $result.Manifest.Files){
         Assert-True ((Get-FileHash -LiteralPath (Join-Path (Join-Path $TestRoot 'success') $file.Path)).Hash -eq $file.SHA256) 'Recorded artifact hash does not match bytes.'
@@ -286,3 +296,98 @@ print('PASS: captured numeric rendering mismatches, all four GUID fields, matchi
 '@)
 & $PythonPath -I -S -B $numericTest (Join-Path $repo 'scripts/ExecutableAnalysis/firmware-worker.py') (Join-Path $TestRoot 'numeric-fixtures')
 Assert-True ($LASTEXITCODE -eq 0) 'Numeric validation regressions failed.'
+
+$navigationTest=Join-Path $TestRoot 'FormNavigationTests.py'
+[IO.File]::WriteAllText($navigationTest,@'
+import hashlib, importlib.util, pathlib, struct, sys, time, uuid
+worker_path, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+root.mkdir()
+spec = importlib.util.spec_from_file_location('firmware_worker_navigation', worker_path)
+worker = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(worker)
+guid = uuid.UUID('E14F04FA-8706-4353-92F2-9C2424746F9F')
+class_guid = uuid.UUID('E58809F8-FBC1-48E2-883A-A30FDC4B441E')
+formset = b'\x0e\xa7' + guid.bytes_le + struct.pack('<HHB', 0x1934, 0x1935, 1) + class_guid.bytes_le
+end = b'\x29\x02'
+form1 = b'\x01\x86\x01\x10\x34\x19'
+form2 = b'\x01\x86\x02\x10\x35\x19'
+
+def ref(kind=1, target=0x1002, target_guid=None, device=0):
+    question = struct.pack('<HHHHHB', 10, 11, 0x3456, 0, 0xffff, 4)
+    extra = b'' if kind == 5 else struct.pack('<H', target)
+    if kind in (2, 3, 4): extra += struct.pack('<H', 0x4567)
+    if kind in (3, 4): extra += (target_guid or guid).bytes_le
+    if kind == 4: extra += struct.pack('<H', device)
+    return bytes([15, 2 + len(question) + len(extra)]) + question + extra
+
+def fixture(name, body, anchor=formset, header_delta=0, source_delta=0, text_extra=''):
+    folder = root / name
+    folder.mkdir()
+    blob = bytearray((len(body) + 4).to_bytes(3, 'little') + b'\x02' + body)
+    blob[3] ^= header_delta
+    blob[4] ^= source_delta
+    (folder / 'module.bin').write_bytes(blob)
+    path = folder / 'module.bin.0.0.en-US.uefi.ifr.txt'
+    path.write_text(f'Program version: fixture\n0x4: FormSet Guid: {guid}, Title: "first\nsecond" {{ {anchor.hex(" ").upper()} }}\n' + text_extra)
+    return path
+
+# Whole-form condition, separate per-link condition and three independent
+# reference representations. Strings after the anchor deliberately lie: only
+# the source opcode bytes supply IDs, flags, GUIDs and target addresses.
+body = (formset + b'\x0a\x82\x46\x02' + form1 + b'\x19\x82\x47\x02' + ref() + end + end + end
+        + form2 + ref(2, 0) + ref(3, target_guid=uuid.UUID(int=0))
+        + ref(3, target_guid=uuid.UUID(int=3)) + ref(4, device=42) + ref(5) + ref(1, 0x9999) + end + end)
+path = fixture('complete', body, text_extra='0x99: Form FormId: 0xDEAD, Title: "False text" { 01 86 AD DE 00 00 }\n')
+sources = [path, path.parent / 'module.bin']
+before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
+result = worker.analyze_form_navigation(root, [path])
+assert result['Status'] == 'Succeeded' and result['CoverageComplete'] and result['PackagesComplete'] == 1
+p = result['Packages'][0]
+assert p['SourceBytesVerified'] and p['ModuleSHA256'] == before[str(sources[1])].upper()
+assert p['FormSetGuid'] == str(guid).upper() and p['ClassGuids'] == [str(class_guid).upper()]
+assert [f['FormId'] for f in p['Forms']] == [0x1001, 0x1002]
+assert len(p['Forms'][0]['EnclosingConditionOffsets']) == 1 and not p['Forms'][1]['EnclosingConditionOffsets']
+assert len(p['References'][0]['EnclosingConditionOffsets']) == 2
+assert all(c['EndOffsetExclusive'] > c['Offset'] for c in p['Conditions'])
+assert [r['TargetResolution'] for r in p['References']] == ['InPackageDeclaration', 'InPackageDeclaration', 'InPackageDeclaration', 'ExternalFormSetUnresolved', 'DevicePathUnresolved', 'DynamicValueUnresolved', 'AmbiguousOrMissingForm']
+assert p['References'][0]['QuestionId'] == 0x3456 and p['References'][0]['QuestionFlags'] == 4
+assert p['References'][1]['TargetQuestionId'] == 0x4567 and p['References'][1]['SourceFormId'] == 0x1002
+assert {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources} == before
+
+# A standard FormMap and DisableIf still preserve the true source structure.
+formmap = b'\x5d\x96\x03\x10' + struct.pack('<H', 7) + class_guid.bytes_le
+path_map = fixture('formmap', formset + b'\x1e\x82\x46\x02' + formmap + end + end + end)
+rmap = worker.analyze_form_navigation(root, [path_map])
+assert rmap['CoverageComplete'] and rmap['Packages'][0]['Forms'][0]['Kind'] == 'FormMap'
+assert rmap['Packages'][0]['Forms'][0]['Methods'][0]['Guid'] == str(class_guid).upper()
+assert rmap['Packages'][0]['Conditions'][0]['Kind'] == 'DisableIf'
+
+bad_paths = [fixture('wrong-source', body, source_delta=1), fixture('wrong-package-type', body, header_delta=1),
+             fixture('opcode-length-zero', formset + b'\x01\x00' + end),
+             fixture('opcode-crosses-boundary', formset + b'\x01\x86' + end),
+             fixture('unclosed-scope', formset + form1 + end),
+             fixture('trailing-bytes', formset + form1 + end + end + b'\x00\x00'),
+             fixture('wrong-class-count', formset[:22] + b'\x02' + formset[23:] + end,
+                     anchor=formset[:22] + b'\x02' + formset[23:])]
+for bad in bad_paths:
+    result = worker.analyze_form_navigation(root, [bad])
+    assert result['Status'] == 'Partial' and not result['CoverageComplete'] and result['Packages'][0]['Reason'], bad
+
+for kwargs in ({'record_limit': 1}, {'byte_limit': 1}, {'depth_limit': 1}, {'deadline': time.monotonic() - 1}):
+    result = worker.analyze_form_navigation(root, [path], **kwargs)
+    assert result['Status'] == 'Partial' and not result['CoverageComplete'], kwargs
+large = root / 'large.ifr.txt'
+large.write_bytes(b'X' * 1000000)
+result = worker.analyze_form_navigation(root, [large])
+assert result['Status'] == 'Partial' and result['AnchorBytesRead'] == 65536
+assert result['OpcodeBytesDecoded'] == 0 and not result['Packages'][0]['SourceBytesVerified']
+partial = fixture('partial-with-guard', formset + b'\x0a\x82\x46\x02' + form1 + ref() + b'\x01\x00')
+result = worker.analyze_form_navigation(root, [partial])
+partial_package = result['Packages'][0]
+assert not result['CoverageComplete'] and len(partial_package['Conditions']) == 1
+assert partial_package['Conditions'][0]['Offset'] == partial_package['Forms'][0]['EnclosingConditionOffsets'][0]
+assert partial_package['Conditions'][0]['EndOffsetExclusive'] is None
+print('PASS: source-verified FormSet/ClassGuids/Form/FormMap/REF1-5 decoding, whole-form versus link conditions, scope matching, incomplete boundaries, bounded resources and source preservation.')
+'@)
+& $PythonPath -I -S -B $navigationTest (Join-Path $repo 'scripts/ExecutableAnalysis/firmware-worker.py') (Join-Path $TestRoot 'navigation-fixtures')
+Assert-True ($LASTEXITCODE -eq 0) 'Form navigation regressions failed.'

@@ -10,6 +10,9 @@ import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolIterator;
+import ghidra.program.model.symbol.Reference;
+import ghidra.program.model.symbol.ReferenceIterator;
+import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
 import com.google.gson.GsonBuilder;
@@ -75,6 +78,9 @@ public class ExportProgram extends GhidraScript {
         List<Map<String, Object>> strings = new ArrayList<>();
         int discovered = 0, attempted = 0, succeeded = 0, failed = 0, external = 0;
         boolean truncated = false;
+        boolean referenceScanComplete = false;
+        int referencesScanned = 0;
+        Map<String, Map<String, Object>> codeReferenceGaps = new LinkedHashMap<>();
         DecompInterface decompiler = new DecompInterface();
         try {
             SymbolIterator importSymbols = currentProgram.getSymbolTable().getExternalSymbols();
@@ -143,16 +149,52 @@ public class ExportProgram extends GhidraScript {
         } catch (Exception error) { result.put("Status", "Failed"); result.put("Error", error.toString()); }
         finally {
             decompiler.dispose();
+            // Data pointers can reach callbacks that Ghidra disassembled but did
+            // not define as functions. Inventory coverage must not hide them.
+            try {
+                ReferenceIterator references = currentProgram.getReferenceManager().getReferenceIterator(currentProgram.getMinAddress());
+                while (references.hasNext()) {
+                    monitor.checkCancelled();
+                    if (referencesScanned >= 1000000 || codeReferenceGaps.size() >= 2048 || System.nanoTime() >= deadline) break;
+                    Reference reference = references.next();
+                    referencesScanned++;
+                    if (!reference.getReferenceType().isData()) continue;
+                    Address target = reference.getToAddress();
+                    MemoryBlock block = currentProgram.getMemory().getBlock(target);
+                    if (block == null || !block.isExecute() || currentProgram.getFunctionManager().getFunctionContaining(target) != null ||
+                        currentProgram.getListing().getInstructionAt(target) == null) continue;
+                    codeReferenceGaps.putIfAbsent(target.toString(), row("TargetAddress", target.toString(),
+                        "FirstSourceAddress", reference.getFromAddress().toString(), "ReferenceType", reference.getReferenceType().toString()));
+                }
+                referenceScanComplete = !references.hasNext();
+            } catch (Exception error) {
+                limitations.add("Code-reference scan could not complete: " + error.getClass().getSimpleName());
+            }
+            if (!referenceScanComplete) {
+                limitations.add("Code-reference scan stopped before completion; remaining referenced entry points are unknown.");
+                if (!"Failed".equals(result.get("Status"))) result.put("Status", "Partial");
+            }
+            if (!codeReferenceGaps.isEmpty()) {
+                limitations.add("Data references reach executable instructions outside discovered functions. See code-reference-gaps.json; these are candidates, not verified function starts.");
+                if (!"Failed".equals(result.get("Status"))) result.put("Status", "Partial");
+            }
             if (truncated) limitations.add("A function, row, text, time or byte budget limited coverage; omitted data is unknown, not absent.");
             limitations.add("Pseudocode is Ghidra's reconstruction, not original source. Imported symbol names and strings are untrusted artifact data.");
             limitations.add("Function coverage is relative to Ghidra's discovered function inventory; packed code, indirect targets and runtime-generated code can remain unknown.");
             result.put("FinishedUtc", Instant.now().toString());
-            result.put("Coverage", row("DiscoveredFunctions", discovered, "AttemptedFunctions", attempted, "DecompiledFunctions", succeeded, "FailedFunctions", failed, "ExternalFunctions", external,
+            result.put("Coverage", row("Scope", "GhidraDiscoveredFunctions", "DiscoveredFunctions", discovered, "AttemptedFunctions", attempted, "DecompiledFunctions", succeeded, "FailedFunctions", failed, "ExternalFunctions", external,
+                "UnrecoveredCodeReferenceCandidates", codeReferenceGaps.size(), "CodeReferenceScanComplete", referenceScanComplete,
                 "Complete", !truncated && failed == 0 && attempted + external == discovered && !"Failed".equals(result.get("Status"))));
             result.put("Functions", functions); result.put("CodeBytes", codeBytes);
             writeJson(output.resolve("imports.json"), imports);
             writeJson(output.resolve("exports.json"), exports);
             writeJson(output.resolve("strings.json"), strings);
+            writeJson(output.resolve("code-reference-gaps.json"), row("SchemaVersion", 1, "TargetExecuted", false,
+                "ExecutableSHA256", currentProgram.getExecutableSHA256(), "ScanComplete", referenceScanComplete,
+                "ReferencesScanned", referencesScanned, "ReferenceLimit", 1000000, "CandidateLimit", 2048,
+                "CandidateCount", codeReferenceGaps.size(), "Candidates", new ArrayList<>(codeReferenceGaps.values()),
+                "Limitations", List.of("Only existing data references to executable instructions outside defined functions are considered. No code is executed or automatically reclassified.",
+                    "An empty candidate list does not establish complete code discovery. Complete in Coverage refers only to the discovered function inventory.")));
             writeJson(output.resolve("ghidra-result.json"), result);
             println("ExecutableAnalysis export: " + result.get("Status") + "; " + succeeded + "/" + attempted + " functions decompiled.");
         }
