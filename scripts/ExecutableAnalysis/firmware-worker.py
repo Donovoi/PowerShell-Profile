@@ -19,6 +19,7 @@ import struct
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 
 
@@ -306,6 +307,214 @@ def validate_ifr_numeric_values(root, packages, read_limit=32 * 1024 * 1024,
     return report
 
 
+def analyze_form_navigation(root, packages, byte_limit=32 * 1024 * 1024,
+                            record_limit=32768, depth_limit=256, deadline=None):
+    """Decode declared HII navigation from source bytes, never runtime state.
+
+    IFR text locates a FormSet only. Its opcode and the preceding forms-package
+    header must match module.bin before the bounded binary walk begins. String
+    IDs are retained rather than trusting presentation text as decoded values.
+    """
+    root = plain_path(root)
+    packages = [plain_path(package) for package in packages]
+    report = {"SchemaVersion": 1, "Status": "Succeeded", "TargetExecuted": False,
+              "Scope": "Source-byte-decoded forms, explicit references and enclosing conditional scopes in anchored UEFI forms packages; no expression evaluation or frontend reachability proof.",
+              "Specification": "https://uefi.org/specs/UEFI/2.10/33_Human_Interface_Infrastructure.html#efi-ifr-ref",
+              "Packages": [], "PackagesTotal": len(packages), "PackagesComplete": 0,
+              "OpcodeBytesDecoded": 0, "OpcodeByteLimit": byte_limit,
+              "AnchorBytesRead": 0, "AnchorByteLimitPerFile": 65536,
+              "ModuleSizeLimitBytes": 64 * 1024 * 1024,
+              "RecordLimit": record_limit, "Records": 0, "ScopeDepthLimit": depth_limit,
+              "FormSets": 0, "Forms": 0, "References": 0, "ConditionalScopes": 0,
+              "CoverageComplete": True,
+              "Limitations": [
+                  "Only the FormSet anchored by each retained IFR text is decoded; unrecovered packages and other firmware storage layouts remain outside scope.",
+                  "No strings, expressions, current variables, callbacks, hardware applicability, frontend allowlists or firmware writes are evaluated.",
+                  "Enclosing conditions on a form apply to that entire form; conditions inside the form are not treated as whole-form gates.",
+                  "A declared reference or a form without an enclosing condition does not prove it is reachable, visible or usable.",
+                  "In-package reference matches do not establish HII handles or resolve external device paths and dynamic REF5 targets."]}
+    module_hashes = {}
+    guards = {0x0A: "SuppressIf", 0x19: "GrayOutIf", 0x1E: "DisableIf"}
+
+    def bounded():
+        if deadline is not None and time.monotonic() >= deadline:
+            raise BoundError("Form navigation time limit reached")
+
+    def retain():
+        if report["Records"] >= record_limit:
+            raise BoundError("Form navigation record limit reached")
+        report["Records"] += 1
+
+    for package in packages:
+        if len(report["Packages"]) >= 4096:
+            report["StopReason"] = "Form navigation package limit reached"
+            break
+        item = {"TextPath": str(package.relative_to(root)), "Status": "Partial",
+                "SourceBytesVerified": False, "Complete": False,
+                "Forms": [], "References": [], "Conditions": [], "OpcodesRead": 0}
+        report["Packages"].append(item)
+        global_limit = False
+        try:
+            bounded()
+            plain_path(package)
+            # Read at most 64 KiB: enough for the opening declaration without
+            # reading or splitting the full (potentially hostile) text file.
+            with open(package, "rb") as text_stream:
+                anchor_text = text_stream.read(report["AnchorByteLimitPerFile"])
+            report["AnchorBytesRead"] += len(anchor_text)
+            match = re.search(rb"^0x([0-9A-Fa-f]{1,16}):[ \t]*FormSet\b[\s\S]*?\{[ \t]*((?:[0-9A-Fa-f]{2}[ \t]+)+)\}[ \t]*(?:\r?\n|$)", anchor_text, re.M)
+            if not match:
+                raise ValueError("No complete FormSet anchor within the bounded text prefix")
+            start = int(match.group(1), 16)
+            anchor = bytes.fromhex(match.group(2).decode("ascii"))
+            module = plain_path(package.parent / "module.bin")
+            item["ModulePath"] = str(module.relative_to(root))
+            size = module.stat().st_size
+            if size > report["ModuleSizeLimitBytes"]:
+                raise BoundError("Form navigation module size limit reached")
+            if start < 4 or start + len(anchor) > size or len(anchor) < 23:
+                raise ValueError("FormSet anchor is outside the source or too short")
+            with open(module, "rb") as source:
+                source.seek(start - 4)
+                header = source.read(4)
+                actual = source.read(len(anchor))
+                package_length = int.from_bytes(header[:3], "little")
+                end = start - 4 + package_length
+                if actual != anchor or anchor[0] != 0x0E or not anchor[1] & 0x80 or (anchor[1] & 0x7F) != len(anchor):
+                    raise ValueError("FormSet anchor opcode does not match source bytes")
+                if header[3] != 2 or package_length < len(anchor) + 6 or end > size:
+                    raise ValueError("Preceding UEFI forms-package header is invalid or unsupported")
+                key = str(module)
+                if key not in module_hashes:
+                    module_hashes[key] = digest(module, deadline)
+                item.update(ModuleSHA256=module_hashes[key], SourceBytesVerified=True,
+                            PackageHeaderOffset=start - 4, PackageLength=package_length,
+                            FormSetOffset=start, FormSetGuid=str(uuid.UUID(bytes_le=anchor[2:18])).upper(),
+                            TitleStringId=int.from_bytes(anchor[18:20], "little"),
+                            ClassGuids=[])
+                class_count = anchor[22] & 3
+                if len(anchor) != 23 + class_count * 16:
+                    raise ValueError("FormSet class-GUID count does not match its encoded length")
+                item["ClassGuids"] = [str(uuid.UUID(bytes_le=anchor[23 + i * 16:39 + i * 16])).upper() for i in range(class_count)]
+                retain()
+                report["FormSets"] += 1
+                stack, offset, used_conditions = [], start, {}
+
+                def keep_entry(condition_stack):
+                    new_conditions = [condition for condition in condition_stack if condition["Offset"] not in used_conditions]
+                    if report["Records"] + 1 + len(new_conditions) > record_limit:
+                        raise BoundError("Form navigation record limit reached")
+                    for condition in new_conditions:
+                        retain()
+                        used_conditions[condition["Offset"]] = condition
+                        item["Conditions"].append(condition)
+                        report["ConditionalScopes"] += 1
+                    retain()
+
+                while offset < end:
+                    bounded()
+                    source.seek(offset)
+                    op_header = source.read(2)
+                    if len(op_header) != 2:
+                        raise ValueError("Truncated opcode header")
+                    code, length, scoped = op_header[0], op_header[1] & 0x7F, bool(op_header[1] & 0x80)
+                    if length < 2 or offset + length > end:
+                        raise ValueError("Opcode length crosses the forms-package boundary")
+                    if report["OpcodeBytesDecoded"] + length > byte_limit:
+                        raise BoundError("Form navigation source-byte limit reached")
+                    raw = op_header + source.read(length - 2)
+                    if len(raw) != length:
+                        raise ValueError("Truncated opcode")
+                    report["OpcodeBytesDecoded"] += length
+                    item["OpcodesRead"] += 1
+                    if code == 0x29:
+                        if length != 2 or scoped or not stack:
+                            raise ValueError("Invalid or unmatched End opcode")
+                        closed = stack.pop()
+                        closed["EndOffsetExclusive"] = offset + length
+                        if not stack:
+                            offset += length
+                            if offset != end:
+                                raise ValueError("Trailing bytes or additional FormSets after the anchored FormSet")
+                            break
+                    else:
+                        if code == 0x0E and offset != start:
+                            raise ValueError("Nested FormSet is unsupported")
+                        condition_stack = [entry for entry in stack if entry["Opcode"] in guards]
+                        parent_form = next((entry.get("FormId") for entry in reversed(stack) if entry["Opcode"] in (0x01, 0x5D)), None)
+                        entry = {"Offset": offset, "Opcode": code, "EndOffsetExclusive": None if scoped else offset + length}
+                        if code in guards:
+                            if length != 2 or not scoped:
+                                raise ValueError("Invalid conditional-scope opcode")
+                            entry["Kind"] = guards[code]
+                            entry["RawOpcodeHex"] = raw.hex(" ").upper()
+                        if code in (0x01, 0x5D, 0x0F):
+                            entry["EnclosingConditionOffsets"] = [condition["Offset"] for condition in condition_stack]
+                            entry["RawOpcodeHex"] = raw.hex(" ").upper()
+                        if code in (0x01, 0x5D):
+                            if not scoped or (code == 1 and length != 6) or (code == 0x5D and (length < 22 or (length - 4) % 18)):
+                                raise ValueError("Invalid Form or FormMap layout")
+                            entry.update(Kind="Form" if code == 1 else "FormMap", FormId=int.from_bytes(raw[2:4], "little"))
+                            if code == 1:
+                                entry["TitleStringId"] = int.from_bytes(raw[4:6], "little")
+                            else:
+                                entry["Methods"] = [{"TitleStringId": int.from_bytes(raw[i:i + 2], "little"), "Guid": str(uuid.UUID(bytes_le=raw[i + 2:i + 18])).upper()} for i in range(4, length, 18)]
+                            keep_entry(condition_stack)
+                            item["Forms"].append(entry)
+                            report["Forms"] += 1
+                        elif code == 0x0F:
+                            if length not in (13, 15, 17, 33, 35):
+                                raise ValueError("Unsupported REF opcode length")
+                            entry.update(Kind={13: "Ref5", 15: "Ref", 17: "Ref2", 33: "Ref3", 35: "Ref4"}[length],
+                                         SourceFormId=parent_form, PromptStringId=int.from_bytes(raw[2:4], "little"),
+                                         QuestionId=int.from_bytes(raw[6:8], "little"), QuestionFlags=raw[12],
+                                         TargetFormId=int.from_bytes(raw[13:15], "little") if length >= 15 else None,
+                                         TargetQuestionId=int.from_bytes(raw[15:17], "little") if length >= 17 else None,
+                                         TargetFormSetGuid=str(uuid.UUID(bytes_le=raw[17:33])).upper() if length >= 33 else None,
+                                         DevicePathStringId=int.from_bytes(raw[33:35], "little") if length == 35 else None,
+                                         TargetResolution="Unresolved")
+                            keep_entry(condition_stack)
+                            item["References"].append(entry)
+                            report["References"] += 1
+                        if scoped:
+                            if len(stack) >= depth_limit:
+                                raise BoundError("Form navigation scope-depth limit reached")
+                            stack.append(entry)
+                    offset += length
+                if stack:
+                    raise ValueError("Forms package ended with unclosed scopes")
+                forms_by_id = {}
+                for form in item["Forms"]:
+                    forms_by_id.setdefault(form["FormId"], []).append(form["Offset"])
+                for ref in item["References"]:
+                    if ref["Kind"] == "Ref5":
+                        ref["TargetResolution"] = "DynamicValueUnresolved"
+                    elif ref["DevicePathStringId"]:
+                        ref["TargetResolution"] = "DevicePathUnresolved"
+                    elif ref["TargetFormSetGuid"] not in (None, "00000000-0000-0000-0000-000000000000", item["FormSetGuid"]):
+                        ref["TargetResolution"] = "ExternalFormSetUnresolved"
+                    else:
+                        target = ref["TargetFormId"] or ref["SourceFormId"]
+                        matches = forms_by_id.get(target, [])
+                        ref["DeclaredTargetFormOffsets"] = matches
+                        ref["TargetResolution"] = "InPackageDeclaration" if len(matches) == 1 else "AmbiguousOrMissingForm"
+                item.update(Status="Succeeded", Complete=True, ScopeBalanced=True)
+                report["PackagesComplete"] += 1
+        except (OSError, ValueError, OverflowError, BoundError) as error:
+            item["Reason"] = str(error)
+            item["ScopeBalanced"] = False
+            global_limit = str(error) in ("Form navigation record limit reached", "Form navigation source-byte limit reached", "Form navigation time limit reached")
+        if not item["Complete"]:
+            report["CoverageComplete"] = False
+        if global_limit or report["Records"] >= record_limit or report["OpcodeBytesDecoded"] >= byte_limit or (deadline is not None and time.monotonic() >= deadline):
+            report["StopReason"] = item.get("Reason", "Form navigation budget reached")
+            break
+    report["CoverageComplete"] = report["CoverageComplete"] and report["PackagesComplete"] == len(packages)
+    if not report["CoverageComplete"]:
+        report["Status"] = "Partial"
+    return report
+
+
 class Pipeline:
     def __init__(self, args):
         self.args = args
@@ -551,6 +760,17 @@ class Pipeline:
                                       NumericValidationSkippedBeyondCap=validation["SkippedBeyondCap"])
         if validation["Status"] == "Partial":
             self.note(f"Numeric IFR validation found {validation['Mismatches']} source-byte-verified rendering mismatches, {validation['Unverified']} unverified records; coverage complete: {validation['CoverageComplete']}. See numeric-validation.json; raw IFR is unchanged.", "IFRNumericValidation")
+        navigation = analyze_form_navigation(self.root, packages, deadline=self.started + self.args.timeout)
+        navigation_path = self.root / "form-navigation.json"
+        with open(navigation_path, "x", encoding="utf-8") as stream:
+            json.dump(navigation, stream, indent=2)
+        self.result["FormNavigationPath"] = str(navigation_path)
+        self.result["Summary"].update(NavigationFormSets=navigation["FormSets"], NavigationForms=navigation["Forms"],
+                                      NavigationReferences=navigation["References"],
+                                      NavigationConditionalScopes=navigation["ConditionalScopes"],
+                                      NavigationCoverageComplete=navigation["CoverageComplete"])
+        if navigation["Status"] == "Partial":
+            self.note(f"Form navigation decoded {navigation['PackagesComplete']} of {navigation['PackagesTotal']} anchored form packages completely; see form-navigation.json for exact bounds and unresolved structures.", "IFRNavigation")
         rows, read_bytes, truncated = [], 0, False
         read_limit = 32 * 1024 * 1024
         for package in packages:
@@ -575,6 +795,7 @@ class Pipeline:
                 break
         summary = {"Scope": "Extracted HII declarations; visibility, conditions, defaults and hardware applicability require review of the full IFR. Known GUID-extension UINT16 rendering defects are reported separately in numeric-validation.json.",
                    "NumericValidationPath": str(validation_path),
+                   "FormNavigationPath": str(navigation_path),
                    "FormPackageTextPaths": self.result["FormPackageTextPaths"], "Declarations": rows,
                    "Truncated": truncated, "ReadLimitBytes": read_limit, "ReadBytes": read_bytes,
                    "ReadSentinelBytes": max(0, read_bytes - read_limit)}
