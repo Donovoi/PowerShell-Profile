@@ -231,7 +231,7 @@ Write-Host 'PASS: successful provider manifests cannot override failed processes
 
 $selection=Join-Path $TestRoot 'evidence-selection'
 foreach($folder in 'basic','runtime','logs','code','rea','firmware','application/rea-1/rea-raw'){$null=[IO.Directory]::CreateDirectory((Join-Path $selection $folder))}
-foreach($name in 'basic/identity.json','basic/application-context.json','runtime/runtime.json','runtime/stdout.txt','runtime/strace.log','logs/ilspy.command.json','rea/rea-result.json','firmware/numeric-validation.json','application/rea-1/rea-raw/006-analyze_javascript_application.json'){[IO.File]::WriteAllText((Join-Path $selection $name),'fixture')}
+foreach($name in 'basic/identity.json','basic/application-context.json','runtime/runtime.json','runtime/stdout.txt','runtime/strace.log','logs/ilspy.command.json','rea/rea-result.json','rea/code-reference-gaps.json','firmware/numeric-validation.json','firmware/form-navigation.json','application/rea-1/rea-raw/006-analyze_javascript_application.json'){[IO.File]::WriteAllText((Join-Path $selection $name),'fixture')}
 foreach($index in 1..55){[IO.File]::WriteAllText((Join-Path $selection "code/function-$index.c"),'return 42;')}
 foreach($archiveRoot in 'rea','application/rea-1'){
     $extracted=Join-Path $selection ($archiveRoot+'/rea-extracted')
@@ -245,7 +245,7 @@ foreach($archiveRoot in 'rea','application/rea-1'){
 }
 $selected=@(Select-AnalysisEvidenceFile -RunDirectory $selection)
 Assert-True ($selected.Count -eq 40) 'AI evidence file budget was lost.'
-foreach($name in 'identity.json','application-context.json','runtime.json','stdout.txt','strace.log','ilspy.command.json','rea-result.json','numeric-validation.json','006-analyze_javascript_application.json'){Assert-True ($selected.Name -contains $name) ('Code volume crowded out required evidence: '+$name)}
+foreach($name in 'identity.json','application-context.json','runtime.json','stdout.txt','strace.log','ilspy.command.json','rea-result.json','code-reference-gaps.json','numeric-validation.json','form-navigation.json','006-analyze_javascript_application.json'){Assert-True ($selected.Name -contains $name) ('Code volume crowded out required evidence: '+$name)}
 foreach($archiveRoot in 'rea','application/rea-1'){
     Assert-True ($selected.FullName -contains (Join-Path $selection ($archiveRoot+'/rea-extracted/package.json'))) 'Dependency manifests crowded out the application root manifest.'
 }

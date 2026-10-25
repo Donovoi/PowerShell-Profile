@@ -38,6 +38,8 @@ Each invocation creates a new folder; it does not overwrite previous reports. Th
 
 `CompletedWithLimitations` means the requested supported stages completed. It never means every behavior was recovered or that the program is safe. `Partial` preserves successful evidence while identifying unavailable providers, failed operations, limits or incomplete research. Invalid input arguments fail before analysis begins.
 
+Direct Ghidra export labels its function coverage `GhidraDiscoveredFunctions`. `code-reference-gaps.json` separately records existing data references to executable instructions outside that function inventory. These are candidates for analyst review, including possible indirect callbacks; they are not automatically promoted to functions. Candidates or an incomplete bounded scan keep the export Partial even when every discovered function was decompiled. This check does not detect every missing function or establish complete code coverage.
+
 ## Dell firmware update packages
 
 ```powershell
@@ -53,6 +55,10 @@ Firmware updater candidates and EFI PE subsystems are refused by runtime routing
 HII declarations describe possible menus, defaults and conditional controls. They do not prove current settings, write access, hardware support or that a menu can be reached through the vendor frontend. Shared forms may describe other machines. Signed update images can include reconstructed gaps and are not complete SPI backups. No firmware patching, flashing, NVRAM edits, signature bypass or menu-unlock operation is implemented. Native decompilation outside `firmware/` describes the outer updater; embedded firmware retains separate provenance. Codex research, analysis and detractor rounds receive this distinction and bounded firmware evidence explicitly.
 
 IFRExtractor verbose mode exports English forms and raw opcodes; other language strings are not exhaustively exported.
+
+`firmware/form-navigation.json` independently decodes FormSet GUIDs and class GUIDs, Form/FormMap identifiers, explicit REF targets and enclosing SuppressIf, GrayOutIf and DisableIf scopes from the retained module bytes. The first FormSet opcode must match the bounded IFR text anchor and a valid preceding UEFI forms-package header. Source hashes, file offsets, raw form/reference opcodes, scope ends and exact coverage are retained. String IDs are decoded; rendered titles are not treated as source authority. References to other formsets or device paths, dynamic REF5 values, and ambiguous or absent targets remain unresolved. A unique form declaration is only a static target match, not proof of runtime navigation. Whole-form conditions are distinguished from conditions attached only to a link.
+
+Navigation decoding has independent caps: 64 KiB text anchor per file, 64 MiB per source module, 32 MiB decoded opcode bytes, 32768 retained records, 4096 packages and 256 nested scopes, plus the worker deadline. Malformed opcodes, unclosed scopes, unsupported package layouts and reached limits remain Partial. No expressions, callbacks, current BIOS values or vendor frontend policies are evaluated; the report does not expose or modify hidden menus.
 
 IFRExtractor 1.6.1 has a confirmed numeric decoding defect in its EDK2 Label, Timeout, Class and SubClass extensions: the high byte is multiplied by decimal 100 instead of 256 ([upstream source](https://github.com/LongSoft/IFRExtractor-RS/blob/v1.6.1/src/main.rs#L1878-L1910)). The original text is preserved. A separate bounded `firmware/numeric-validation.json` compares these opcodes with the retained module bytes before recording independent little-endian values. Mismatches, unverified offsets and incomplete validation remain Partial. This narrow check does not validate every opcode or establish writable BIOS settings.
 
