@@ -171,6 +171,18 @@ async function invoke(name, args = {}, label = name, cleanup = false) {
         limitation('Rust compiler-path markers were found in this input; the commit hashes are inferred from embedded paths and do not prove compiler identity.');
         if (!normalized?.auditable_metadata) limitation('No .dep-v0 dependency metadata was recovered from this input despite its Rust compiler-path markers; dependency coverage remains incomplete.');
       }
+    } else if (manifest.Format === 'native' && ['inspect_pe_resources','open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code'].includes(name)) {
+      // Engine transport, address syntax and supported-platform notes describe
+      // the provider, not a finding about this input. Preserve them in raw JSON.
+      for (const item of payload?.limitations ?? []) {
+        if (typeof item !== 'string') continue;
+        const note=item.replace(/^Ghidra \([^)]*\) [^:]+: /,'');
+        if (/The Ghidra Program references PDB /.test(note)) limitation(note);
+        if (/Ghidra Listing reports a terminal call at /.test(note) && /no resolved callee|hasNoReturn=false|basis is unknown|reason.*not established/i.test(note)) {
+          manifest.NativeFlowWarnings ??= [];
+          if (!manifest.NativeFlowWarnings.some(row=>row.Note===note)) manifest.NativeFlowWarnings.push({EvidencePath:stage.EvidencePath,Note:note});
+        }
+      }
     } else {
       for (const item of payload?.limitations ?? []) if (typeof item === 'string') limitation(item);
     }
@@ -511,6 +523,7 @@ finally {
     manifest.RetainedSourcesUnchanged = stage.Failures.length === 0;
     if (!manifest.RetainedSourcesUnchanged) { stage.Status = 'Failed'; manifest.Error = 'Retained source files changed or became unavailable after analysis.'; limitation(manifest.Error); }
   }
+  if (manifest.NativeFlowWarnings?.length) limitation(`Ghidra reported ${manifest.NativeFlowWarnings.length} terminal-call sites with an unresolved or unestablished no-return basis in this input; inspect NativeFlowWarnings and its raw evidence paths in rea-result.json before relying on those function boundaries.`);
   manifest.FinishedUtc = new Date().toISOString();
   manifest.Status = manifest.Error ? 'Failed' : manifest.Stages.some(stage => ['Failed', 'Unavailable', 'Skipped', 'Partial'].includes(stage.Status)) || (manifest.Format === 'native' && !manifest.Coverage.Complete) || (manifest.Format === 'javascript' && (!manifest.JavaScriptProviderCoverage || manifest.JavaScriptSelection?.Complete === false)) || ['unknown', 'java'].includes(manifest.Format) ? 'Partial' : 'Succeeded';
   await fs.writeFile(inside('rea-result.json'), json(manifest), { flag: 'wx' });

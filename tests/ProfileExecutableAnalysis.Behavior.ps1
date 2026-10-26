@@ -168,6 +168,7 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
     function Resolve-AnalysisTool { param($LogDirectory,$ReaScriptPath,$NoInstall,$Managed,$Native,$Wasm,$Java) [pscustomobject]@{ReaScript='fixture-rea.mjs';Node='fixture-node.exe';Ghidra='fixture-ghidra';Limitations=@()} }
     function Invoke-AnalysisTool {
         param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$Environment)
+        if($ArgumentList[0] -like '*evidence-server.mjs'){@{function_count=0;functions=@()}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'functions.json');return [pscustomobject]@{Status='Completed'}}
         $config=Get-Content -LiteralPath $ArgumentList[1] -Raw|ConvertFrom-Json
         Assert-True ($config.timeoutSeconds -eq 601 -and $config.archiveIntegrityPolicy -eq 'record-and-continue' -and $config.maxJavaScriptHeapMB -eq 2048 -and $config.maxTotalEvidenceBytes -eq 2GB) 'Requested timeout or explicit integrity policy was not forwarded.'
         @{Status=$script:nativeFixture.Status;InputUnchanged=$true;InputSHA256Before=(Get-FileHash -LiteralPath $config.inputPath).Hash;Coverage=@{DecompiledFunctions=$script:nativeFixture.Count};Limitations=@()}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $config.outputDirectory 'rea-result.json')
@@ -231,6 +232,28 @@ function Invoke-AnalysisTool {
 $round=Invoke-AnalysisRound -Name 'mock-research' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -Research
 Assert-True ($round.Status -eq 'Partial' -and $round.WebSearches -eq 0 -and $round.ToolErrors.Count -eq 2) 'Research with provider failure or no retrieval falsely passed.'
 Write-Host 'PASS: AI provider errors and unverified research remain partial, even with exit zero and a final message.'
+
+& {
+    $script:fixtureEvidenceEvents=''
+    function Invoke-AnalysisTool {
+        param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$InputText)
+        Assert-True (($ArgumentList -join ' ') -match 'analysis_evidence' -and ($ArgumentList -join ' ') -match 'required=true' -and $ArgumentList -contains 'shell_tool') 'Scoped review tools or execution boundaries were lost.'
+        $output=$ArgumentList[[array]::IndexOf($ArgumentList,'-o')+1]
+        'Fixture findings from a real-looking tool event; this fixture never calls a model.'|Set-Content -LiteralPath $output
+        $script:fixtureEvidenceEvents|Set-Content -LiteralPath ($LogPath+'.stdout')
+        [pscustomobject]@{Status='Completed';StandardOutputPath=$LogPath+'.stdout';StandardErrorPath=$LogPath+'.stderr'}
+    }
+    $round=Invoke-AnalysisRound -Name 'missing-tools' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Partial' -and $round.SuccessfulEvidenceToolCalls -eq 0) 'An excerpt-only response passed as tool-assisted review.'
+    '{"function_count":2}'|Set-Content -LiteralPath (Join-Path $TestRoot 'functions.json')
+    $script:fixtureEvidenceEvents='{"type":"item.completed","item":{"type":"mcp_tool_call","server":"analysis_evidence","tool":"analysis_summary","arguments":{},"status":"completed","result":{}}}'
+    $round=Invoke-AnalysisRound -Name 'summary-only' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Partial' -and $round.CodeInspectionCalls -eq 0) 'A summary-only response passed despite available function bodies.'
+    $script:fixtureEvidenceEvents='{"type":"item.completed","item":{"type":"mcp_tool_call","server":"analysis_evidence","tool":"read_function","arguments":{"query":"entry"},"status":"completed","result":{"structured_content":{"path":"rea/rea-code/entry.c","offset":0,"next_offset":null}}}}'
+    $round=Invoke-AnalysisRound -Name 'recorded-tools' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Completed' -and $round.SuccessfulEvidenceToolCalls -eq 1 -and $round.CodeInspectionCalls -eq 1 -and $round.EvidenceToolCalls[0].ReadPath -eq 'rea/rea-code/entry.c') 'Actual tool events were not retained with their artifact path.'
+}
+Write-Host 'PASS: tool-assisted review requires successful evidence calls and records actual artifact reads.'
 
 foreach($case in @(
     @{Process='Completed';Manifest='Succeeded';Expected='Succeeded'},
