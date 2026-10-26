@@ -78,10 +78,26 @@ test('native proxy filters tools, pins the input and rejects a changed hash',asy
   await fs.writeFile(mock,`import readline from 'node:readline';for await(const line of readline.createInterface({input:process.stdin})){const r=JSON.parse(line);if(r.id===undefined)continue;const result=r.method==='tools/list'?{tools:[{name:'open_binary'},{name:'read_function_instructions'},{name:'set_address_name'}]}:{content:[{type:'text',text:JSON.stringify(r.params??{})}],structuredContent:r.params??{}};process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:r.id,result})+'\\n');}`);
   const proxy=fileURLToPath(new URL('../scripts/ExecutableAnalysis/native-review-server.mjs',import.meta.url));
   const input=path.join(root,'input/inert.exe'),hash=sha(await fs.readFile(input));
-  async function run(expected){
-    const child=spawn(process.execPath,[proxy,mock,input,expected,''],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);const exit=new Promise(resolve=>child.on('close',resolve));
-    for(const [id,method,params]of [[1,'tools/list',{}],[2,'tools/call',{name:'open_binary',arguments:{path:input}}],[3,'tools/call',{name:'open_binary',arguments:{path:path.join(root,'outside.exe')}}],[4,'tools/call',{name:'set_address_name',arguments:{address:'0x1',name:'write'}}]])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();assert.equal(await exit,0,stderr);return new Map(stdout.trim().split('\n').map(x=>{const r=JSON.parse(x);return[r.id,r.result];}));
+  async function run(expected,selected=input){
+    const child=spawn(process.execPath,[proxy,mock,selected,expected,''],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);const exit=new Promise(resolve=>child.on('close',resolve));
+    for(const [id,method,params]of [[1,'tools/list',{}],[2,'tools/call',{name:'open_binary',arguments:{path:selected}}],[3,'tools/call',{name:'open_binary',arguments:{path:path.join(root,'outside.exe')}}],[4,'tools/call',{name:'set_address_name',arguments:{address:'0x1',name:'write'}}]])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();assert.equal(await exit,0,stderr);return new Map(stdout.trim().split('\n').map(x=>{const r=JSON.parse(x);return[r.id,r.result];}));
   }
-  const results=await run(hash);assert.deepEqual(results.get(1).tools.map(x=>x.name),['open_binary','read_function_instructions']);assert.equal(results.get(2).structuredContent.arguments.path,input);assert.equal(results.get(3).isError,true);assert.equal(results.get(4).isError,true);
+  const results=await run(hash);assert.deepEqual(results.get(1).tools.map(x=>x.name),['open_binary','read_function_instructions']);assert.ok(results.get(2).structuredContent,JSON.stringify(results.get(2)));assert.equal(results.get(2).structuredContent.arguments.path,await fs.realpath(input));assert.equal(results.get(3).isError,true);assert.equal(results.get(4).isError,true);
+  const alias=path.join(root,'input-alias');await fs.symlink(path.join(root,'input'),alias,process.platform==='win32'?'junction':'dir');
+  const aliased=await run(hash,path.join(alias,'inert.exe'));assert.ok(aliased.get(2).structuredContent,JSON.stringify(aliased.get(2)));assert.equal(aliased.get(2).structuredContent.arguments.path,await fs.realpath(input));
+  // Retargeting the selected directory after startup must still fail, even if
+  // the replacement file has identical bytes and therefore the same SHA256.
+  const alternate=path.join(root,'alternate-input');await fs.mkdir(alternate);await fs.copyFile(input,path.join(alternate,'inert.exe'));
+  const selected=path.join(alias,'inert.exe');
+  const pinned=spawn(process.execPath,[proxy,mock,selected,hash,''],{stdio:['pipe','pipe','pipe'],windowsHide:true});
+  let buffer='';const waiting=new Map();const finished=new Promise(resolve=>pinned.on('close',resolve));
+  pinned.stdout.on('data',chunk=>{buffer+=chunk;let end;while((end=buffer.indexOf('\n'))>=0){const reply=JSON.parse(buffer.slice(0,end));buffer=buffer.slice(end+1);waiting.get(reply.id)?.(reply.result);waiting.delete(reply.id);}});
+  const request=(id,method,params)=>new Promise(resolve=>{waiting.set(id,resolve);pinned.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');});
+  try{
+    await request(1,'tools/list',{});
+    await fs.unlink(alias);await fs.symlink(alternate,alias,process.platform==='win32'?'junction':'dir');
+    const refused=await request(2,'tools/call',{name:'open_binary',arguments:{path:selected}});
+    assert.equal(refused.isError,true);assert.match(refused.content[0].text,/path changed/);
+  }finally{pinned.stdin.end();assert.equal(await finished,0);}
   const changed=await run('0'.repeat(64));assert.equal(changed.get(2).isError,true);assert.match(changed.get(2).content[0].text,/hash changed/);
 });

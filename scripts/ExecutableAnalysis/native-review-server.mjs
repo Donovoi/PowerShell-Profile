@@ -5,8 +5,13 @@ import readline from 'node:readline';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-const [reaScript,input,expectedHash,ghidra]=process.argv.slice(2);
-if(!path.isAbsolute(reaScript??'')||!path.isAbsolute(input??'')||!/^[a-f0-9]{64}$/i.test(expectedHash??''))throw new Error('Trusted REA script, preserved input and SHA256 are required.');
+const [reaScript,selectedInputArgument,expectedHash,ghidra]=process.argv.slice(2);
+if(!path.isAbsolute(reaScript??'')||!path.isAbsolute(selectedInputArgument??'')||!/^[a-f0-9]{64}$/i.test(expectedHash??''))throw new Error('Trusted REA script, preserved input and SHA256 are required.');
+const selectedInput=path.resolve(selectedInputArgument);
+// Windows short names and directory aliases can legitimately resolve to a
+// different spelling. Pin the physical target once, then recheck it and its hash.
+const input=await fs.realpath(selectedInput);
+const samePath=(a,b)=>process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b;
 const allowed=new Set(['binary_session','open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code','read_function_instructions','read_bytes','xrefs','resolve_containing_procedure','resolve_native_call_targets','trace_call_path','trace_native_values','close_binary']);
 const pending=new Map();
 const child=spawn(process.execPath,[reaScript,'--mcp'],{cwd:path.dirname(input),windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],env:{...process.env,...(ghidra?{GHIDRA_INSTALL_DIR:ghidra}:{})}});
@@ -15,8 +20,8 @@ let stderrBytes=0,closing=false;
 child.stderr.on('data',data=>{if(stderrBytes<65536){const part=data.subarray(0,65536-stderrBytes);process.stderr.write(part);stderrBytes+=part.length;}});
 child.on('error',error=>{process.stderr.write(error.message+'\n');process.exitCode=1;});
 async function validateInput(){
-  const info=await fs.lstat(input);if(!info.isFile()||info.isSymbolicLink()||info.size>536870912)throw new Error('Preserved input is not a bounded regular file.');
-  const real=await fs.realpath(input);if(real.toLowerCase()!==path.resolve(input).toLowerCase())throw new Error('Preserved input path changed.');
+  const info=await fs.lstat(selectedInput);if(!info.isFile()||info.isSymbolicLink()||info.size>536870912)throw new Error('Preserved input is not a bounded regular file.');
+  const real=await fs.realpath(selectedInput);if(!samePath(real,input))throw new Error('Preserved input path changed.');
   if(createHash('sha256').update(await fs.readFile(input)).digest('hex')!==expectedHash.toLowerCase())throw new Error('Preserved input hash changed; native opening was refused.');
 }
 const replies=(async()=>{
@@ -39,7 +44,7 @@ try{
         if(!allowed.has(name))throw new Error('Only the scoped static native tools are available.');
         if(name==='open_binary'){
           const arguments_=request.params.arguments??{};
-          if(arguments_.path&&path.resolve(arguments_.path).toLowerCase()!==path.resolve(input).toLowerCase())throw new Error('Native queries are pinned to the selected preserved input.');
+          if(arguments_.path&&!samePath(path.resolve(arguments_.path),selectedInput)&&!samePath(path.resolve(arguments_.path),input))throw new Error('Native queries are pinned to the selected preserved input.');
           if(arguments_.provider_id&&arguments_.provider_id!=='ghidra')throw new Error('Native provider is pinned to Ghidra.');
           await validateInput();request.params.arguments={path:input,provider_id:'ghidra'};
         }
