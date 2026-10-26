@@ -17,6 +17,14 @@ function Invoke-ExecutableAnalysisVm {
         Dedicated VM created by Initialize-ExecutableAnalysisVm.
     .PARAMETER TimeoutSeconds
         Execution limit, excluding the bounded VM boot and cleanup stages.
+    .PARAMETER VirtualDisplay
+        Start an offline Xvfb display for the target, under the same unprivileged
+        resource limits. Requires Xvfb, xvfb-run and xauth in the clean guest image.
+        No keyboard/mouse interaction is supplied and no host display is connected.
+    .PARAMETER MaxAddressSpaceMB
+        Per-process virtual-address-space limit in MiB (128-131072; default 1024).
+        Includes reserved mappings, not just resident RAM. Raising it does not
+        increase the VM's assigned RAM or the other execution limits.
     .EXAMPLE
         Invoke-ExecutableAnalysisVm -InputPath ./program -OutputPath ./runtime
     #>
@@ -26,7 +34,9 @@ function Invoke-ExecutableAnalysisVm {
         [Parameter(Mandatory)][string]$OutputPath,
         [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')]
         [string]$VirtualMachineName = 'Profile-Analysis-Linux',
-        [ValidateRange(1, 600)][int]$TimeoutSeconds = 120
+        [ValidateRange(1, 600)][int]$TimeoutSeconds = 120,
+        [switch]$VirtualDisplay,
+        [ValidateRange(128,131072)][int]$MaxAddressSpaceMB = 1024
     )
     $ErrorActionPreference = 'Stop'
     $inputFile = Get-Item -LiteralPath $InputPath -ErrorAction Stop
@@ -34,7 +44,7 @@ function Invoke-ExecutableAnalysisVm {
     if ($inputFile.Length -gt 512MB) { throw 'Runtime analysis currently limits inputs to 512 MiB.' }
     $outputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
     $hash = (Get-FileHash -LiteralPath $inputFile.FullName -Algorithm SHA256).Hash
-    $validation = [ordered]@{ RestoredBefore = $false; HostIsolation = $false; GuestIsolation = $false; TargetHashMatched = $false; RestoredAfter = $false; PoweredOffAfter = $false }
+    $validation = [ordered]@{ RestoredBefore = $false; HostIsolation = $false; GuestIsolation = $false; TargetHashMatched = $false; RunnerHashMatched = $false; RestoredAfter = $false; PoweredOffAfter = $false }
     $result = [ordered]@{ Status = 'Unsupported'; OutputPath = $outputDirectory; GuestOS = 'Ubuntu 24.04 LTS x86-64'; TargetSHA256 = $hash; Validation = $validation; Limitations = @('Only offline, unprivileged x86-64 Linux ELF execution is supported.', 'No arguments, GUI interaction, or network behavior are exercised.', 'A clean VM reduces exposure but does not guarantee containment or complete behavior coverage.') }
     $header = [byte[]]::new(20)
     $stream = [IO.File]::OpenRead($inputFile.FullName)
@@ -43,6 +53,13 @@ function Invoke-ExecutableAnalysisVm {
         return [pscustomobject]$result
     }
     if (-not $IsWindows) { throw 'This VM adapter requires PowerShell 7 on Windows with VirtualBox.' }
+    $runnerPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts/ExecutableAnalysis/LinuxGuestRunner.py'
+    $runnerFile = Get-Item -LiteralPath $runnerPath -ErrorAction Stop
+    if ($runnerFile.PSIsContainer -or ($runnerFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'The trusted Linux guest runner must be a regular file.' }
+    $runnerHash = (Get-FileHash -LiteralPath $runnerFile.FullName -Algorithm SHA256).Hash
+    $result.RunnerSHA256 = $runnerHash
+    $result.VirtualDisplayRequested = [bool]$VirtualDisplay
+    $result.MaxAddressSpaceMB = $MaxAddressSpaceMB
     if (Test-Path -LiteralPath $outputDirectory) {
         if (-not (Test-Path -LiteralPath $outputDirectory -PathType Container) -or @(Get-ChildItem -LiteralPath $outputDirectory -Force).Count) { throw 'OutputPath must be a new or empty directory; existing artifacts will not be overwritten.' }
     }
@@ -101,6 +118,16 @@ function Invoke-ExecutableAnalysisVm {
         try { [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
         catch [IO.IOException] { throw 'The analysis VM is busy, or its exclusive runtime lock is unavailable. No VM changes were made.' }
     }
+    function Get-AnalysisVmRunnerArgument {
+        param([int]$TimeoutSeconds, [int]$MaxAddressSpaceMB, [switch]$VirtualDisplay)
+        $arguments = @('/usr/bin/python3', '/opt/profile-analysis/run.py', '--owned-runner', [string]$TimeoutSeconds, '--max-address-space-mb', [string]$MaxAddressSpaceMB)
+        if ($VirtualDisplay) { $arguments += '--virtual-display' }
+        $arguments
+    }
+    function Assert-AnalysisVmRuntimeEvidence {
+        param($Runtime, [string]$TargetHash, [string]$RunnerHash, [bool]$VirtualDisplay, [int]$MaxAddressSpaceMB)
+        if ($Runtime.target.sha256 -ne $TargetHash -or $Runtime.runnerSHA256 -ne $RunnerHash -or $Runtime.virtualDisplay.requested -ne $VirtualDisplay -or $Runtime.maxAddressSpaceMB -ne $MaxAddressSpaceMB -or $Runtime.target.routes.Trim() -or @($Runtime.target.network -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^lo\s' }).Count) { throw 'Guest runtime evidence failed target/runner identity, launch mode, address-space budget or isolation verification.' }
+    }
     $metadata = Invoke-VBoxAnalysis -Arguments @('getextradata', $VirtualMachineName, 'PowerShellProfile.AnalysisVm.Manifest')
     if ($metadata -notmatch '^Value: (.+)\n?$') { throw 'The selected VM has no analysis ownership manifest. Use Initialize-ExecutableAnalysisVm; unrelated VMs will not be modified.' }
     $manifestPath = $Matches[1].TrimEnd("`r", "`n")
@@ -143,20 +170,30 @@ function Invoke-ExecutableAnalysisVm {
                 $guestReady = $true
             } catch { if ([datetime]::UtcNow -ge $deadline) { throw "Analysis guest did not become ready: $($_.Exception.Message)" }; Start-Sleep -Seconds 2 }
         } while (-not $guestReady)
+        # Use the current trusted asset even when an owned snapshot predates it.
+        # Hash-check the transferred copy before root installs or invokes it.
+        Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'copyto') + $auth + @($runnerFile.FullName, '/home/analysis-admin/LinuxGuestRunner.py')) | Out-Null
+        $guestRunnerHash = Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sha256sum') + $auth + @('--timeout', '10000', '--wait-stdout', '--', '/home/analysis-admin/LinuxGuestRunner.py'))
+        if ($guestRunnerHash -notmatch ('(?i)^' + $runnerHash + '\s')) { throw 'The trusted Linux guest runner changed during transfer; target execution was refused.' }
+        Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sudo') + $auth + @('--timeout', '10000', '--', '/usr/bin/install', '-o', 'root', '-g', 'root', '-m', '0755', '/home/analysis-admin/LinuxGuestRunner.py', '/opt/profile-analysis/run.py')) | Out-Null
+        $installedRunnerHash = Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sha256sum') + $auth + @('--timeout', '10000', '--wait-stdout', '--', '/opt/profile-analysis/run.py'))
+        if ($installedRunnerHash -notmatch ('(?i)^' + $runnerHash + '\s')) { throw 'The installed Linux guest runner failed identity verification; target execution was refused.' }
+        $validation.RunnerHashMatched = $true
         Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'copyto') + $auth + @($inputFile.FullName, '/home/analysis-admin/input.bin')) | Out-Null
         $guestHashOutput = Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sha256sum') + $auth + @('--timeout', '10000', '--wait-stdout', '--', '/home/analysis-admin/input.bin'))
         if ($guestHashOutput -notmatch ('(?i)^' + $hash + '\s')) { throw 'The target SHA256 changed during guest transfer; execution was refused.' }
         $validation.TargetHashMatched = $true
-        $guestResult = Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sudo') + $auth + @('--timeout', [string](($TimeoutSeconds + 15) * 1000), '--wait-stdout', '--wait-stderr', '--', '/usr/bin/python3', '/opt/profile-analysis/run.py', [string]$TimeoutSeconds)) -CommandTimeoutSeconds ($TimeoutSeconds + 25)
+        $runnerArguments = @(Get-AnalysisVmRunnerArgument -TimeoutSeconds $TimeoutSeconds -MaxAddressSpaceMB $MaxAddressSpaceMB -VirtualDisplay:$VirtualDisplay)
+        $guestResult = Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'run', '--exe', '/usr/bin/sudo') + $auth + @('--timeout', [string](($TimeoutSeconds + 15) * 1000), '--wait-stdout', '--wait-stderr', '--') + $runnerArguments) -CommandTimeoutSeconds ($TimeoutSeconds + 25)
         [IO.File]::WriteAllText((Join-Path $outputDirectory 'guest-runner.txt'), $guestResult)
         foreach ($fileName in @('stdout.txt', 'stderr.txt', 'strace.log', 'runtime.json')) {
             Invoke-VBoxAnalysis -Arguments (@('guestcontrol', $VirtualMachineName, 'copyfrom') + $auth + @("/home/analysis-admin/results/$fileName", (Join-Path $outputDirectory $fileName))) | Out-Null
             if ((Get-Item -LiteralPath (Join-Path $outputDirectory $fileName)).Length -gt 12MB) { throw "Guest artifact '$fileName' exceeded its size limit." }
         }
         $runtime = Get-Content -LiteralPath (Join-Path $outputDirectory 'runtime.json') -Raw | ConvertFrom-Json
-        if ($runtime.target.sha256 -ne $hash -or $runtime.target.routes.Trim() -or @($runtime.target.network -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^lo\s' }).Count) { throw 'Guest runtime evidence failed hash or isolation verification.' }
+        Assert-AnalysisVmRuntimeEvidence -Runtime $runtime -TargetHash $hash -RunnerHash $runnerHash -VirtualDisplay ([bool]$VirtualDisplay) -MaxAddressSpaceMB $MaxAddressSpaceMB
         $validation.GuestIsolation = $true
-        $result.Status = if ($runtime.termination -eq 'Exited' -and $runtime.exitCode -eq 0) { 'Complete' } else { 'Partial' }
+        $result.Status = if ($runtime.termination -eq 'Unavailable') { 'Unavailable' } elseif ($runtime.termination -eq 'Exited' -and $runtime.exitCode -eq 0 -and $runtime.targetExecObserved) { 'Complete' } else { 'Partial' }
         $result.Runtime = $runtime
     }
     catch { $runError = $_; $result.Status = 'Failed'; $result.Error = $_.Exception.Message }
