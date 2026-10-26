@@ -39,6 +39,7 @@ for await(const line of readline.createInterface({input:process.stdin})) {
  if(name==='export_evidence_bundle'&&mode!=='missingexport')await fs.writeFile(args.path,mode==='oversizedexport'?'A'.repeat(100000):JSON.stringify({schema_version:1,records:retainedRecords}),{flag:'wx'});
  let normalized_result=name==='list_procedures'?[{address:'0x1000',value:'$(NeverExecuteThis)',procedure:{external:false}},{address:'0x2000',value:'second',procedure:{external:false}}]:name==='procedure_pseudo_code'?'int fixture(void) { return 42; }':name==='open_binary'?{ReceivedPath:args.path}:{};
  if(mode==='limit'&&name==='list_strings')normalized_result='A'.repeat(12000);
+ if(mode==='emptycode'&&name==='procedure_pseudo_code')normalized_result='';
  if(mode==='extraction'&&name==='extract_artifact')normalized_result={output_root:path.join(process.cwd(),'fixture-missing-extraction')};
  if(mode.startsWith('asar')&&name==='extract_artifact'){
   if(['asarstrict','asarcontradiction'].includes(mode)&&args.integrity_policy!=='record-and-continue'){send(request.id,{isError:true,structuredContent:{error:{code:'artifact_integrity_mismatch',message:'Fixture declared integrity mismatch'}}});continue;}
@@ -57,7 +58,19 @@ for await(const line of readline.createInterface({input:process.stdin})) {
  if(name==='analyze_javascript_application')normalized_result={summary:{coverage:{application:{status:mode==='asarpartial'?'partial':'complete'},semantic:{status:'complete'}}},ReceivedArguments:args};
  if(mode==='asarunknown'&&name==='analyze_javascript_application')delete normalized_result.summary.coverage.semantic;
  if(mode==='asarmutation'&&name==='analyze_javascript_application')await fs.appendFile(path.join(args.input_path,'main.js'),'changed by fixture provider');
- send(request.id,{structuredContent:{normalized_result,evidence_id:name,limitations:[]},content:[]});
+ let limitations=[];
+ if(['open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code'].includes(name))limitations=['UNRELATED_TRANSPORT_POLICY'];
+ if(mode==='flow-warning'&&name==='procedure_pseudo_code')limitations.push('Ghidra Listing reports a terminal call at 0x140010c7a with no resolved callee; its no-return basis is unknown.');
+ if(mode==='metadata-pdb'&&name==='binary_overview')limitations.push('The Ghidra Program references PDB fixture.pdb; Ghidra reports load state unknown.');
+ if(name==='inspect_go_binary'){
+  normalized_result={build_info:mode==='metadata-go'?{version:'go-fixture'}:null};
+  limitations=['GO_UNRELATED_GENERIC_CAVEAT'];
+ }
+ if(name==='inspect_rust_binary'){
+  normalized_result={auditable_metadata:mode==='metadata-rust-auditable'?{packages:[]}:null,rustc_commit:mode.startsWith('metadata-rust')?{hashes:[{hash:'a'.repeat(40)}]}:null};
+  limitations=['RUST_UNRELATED_GENERIC_CAVEAT'];
+ }
+ send(request.id,{structuredContent:{normalized_result,evidence_id:name,limitations},content:[]});
 }
 '@
 $mockPath=Join-Path $TestRoot 'mock-rea.mjs'
@@ -109,6 +122,27 @@ Assert ($openRecord.structuredContent.normalized_result.ReceivedPath -ceq $contr
 Assert ($control.Record.Cleanup -eq 'ProviderClosed') 'Control provider did not close'
 Assert (-not(Test-Path -LiteralPath (Join-Path $TestRoot 'NeverExecuteThis'))) 'Target-derived content became a command'
 Write-Host 'PASS: one owned protocol session, complete fixture coverage, literal metacharacter path, untrusted symbol data and provider close'
+
+Assert (($control.Record.Limitations -join ' ') -notmatch 'Go|Rust|GENERIC_CAVEAT|dep-v0') 'Negative language probes polluted native report limitations'
+Assert (($control.Record.Limitations -join ' ') -notmatch 'UNRELATED_TRANSPORT_POLICY') 'Native provider transport policy polluted target limitations'
+$flow=Invoke-BridgeCase 'flow-warning'
+Assert ($flow.Record.NativeFlowWarnings.Count -eq 1 -and ($flow.Record.Limitations -join ' ') -match '1 terminal-call sites') 'A target-specific native flow uncertainty was lost or duplicated'
+$pdb=Invoke-BridgeCase 'metadata-pdb'
+Assert (($pdb.Record.Limitations -join ' ') -match 'references PDB fixture.pdb' -and ($pdb.Record.Limitations -join ' ') -notmatch 'UNRELATED_TRANSPORT_POLICY') 'Observed PDB uncertainty was lost with provider boilerplate'
+$emptyCode=Invoke-BridgeCase 'emptycode'
+Assert ($emptyCode.Record.Status -eq 'Partial' -and ($emptyCode.Record.Limitations -join ' ') -notmatch 'pseudocode is a decompiler reconstruction') 'A decompiled-code caveat was reported when no pseudocode was recovered'
+foreach($mode in 'metadata-go','metadata-rust','metadata-rust-auditable'){
+    $metadata=Invoke-BridgeCase $mode
+    $limits=$metadata.Record.Limitations -join ' '
+    Assert ($limits -notmatch 'GENERIC_CAVEAT') 'Generic provider capability caveats escaped raw evidence'
+    if($mode -eq 'metadata-go'){
+        Assert ($limits -match 'Go build metadata was recovered' -and $limits -notmatch 'Rust|dep-v0') 'Go report did not select only observed Go limitations'
+    }else{
+        Assert ($limits -match 'Rust compiler-path markers' -and $limits -notmatch 'Go build') 'Rust report did not select only observed Rust limitations'
+        Assert (($limits -match 'No .dep-v0') -eq ($mode -eq 'metadata-rust')) 'Missing Rust dependency metadata was reported despite a recovered section'
+    }
+}
+Write-Host 'PASS: language metadata limitations require a positive finding; unrelated probe diagnostics remain in raw evidence'
 
 $limited=Invoke-BridgeCase 'functionlimit'
 Assert ($limited.Record.Status -eq 'Partial' -and -not $limited.Record.Coverage.Complete) 'Function limit was reported as complete'
@@ -192,3 +226,5 @@ Assert ($missingRecord.Record.Status -eq 'Partial' -and @($missingRecord.Record.
 $mutatedSource=Invoke-BridgeCase 'asarmutation'
 Assert ($mutatedSource.Record.Status -eq 'Failed' -and $mutatedSource.Process.Status -eq 'Failed' -and $mutatedSource.Record.RetainedSourcesUnchanged -eq $false) 'Semantic provider mutation left stale source hashes with a success status'
 Write-Host 'PASS: ASAR source retention, exact unpacked bytes, bounded entry-point selection and honest semantic coverage'
+& $node.Source --test (Join-Path $PSScriptRoot 'test_analysis_evidence.mjs')
+if($LASTEXITCODE -ne 0){throw 'Read-only analysis evidence tools failed their regression checks.'}

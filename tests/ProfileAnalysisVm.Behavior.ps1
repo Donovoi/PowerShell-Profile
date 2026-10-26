@@ -34,6 +34,9 @@ $header[18]=62; $header[16]=1
 Assert-True ((Invoke-ExecutableAnalysisVm -InputPath $path -OutputPath $output).Status -eq 'Unsupported') 'A relocatable ELF object was accepted for execution.'
 Assert-Throws { Invoke-ExecutableAnalysisVm -InputPath $TestRoot -OutputPath $output } 'Directory input was accepted.'
 Assert-Throws { Invoke-ExecutableAnalysisVm -InputPath $path -OutputPath $output -TimeoutSeconds 0 } 'An unbounded timeout was accepted.'
+foreach($invalidBudget in @(0,127,131073)) {
+    Assert-Throws { Invoke-ExecutableAnalysisVm -InputPath $path -OutputPath $output -MaxAddressSpaceMB $invalidBudget } 'An invalid address-space budget was accepted.'
+}
 Write-Host 'PASS: unsupported formats, architectures, objects, paths and invalid time limits fail before any execution'
 
 # Exercise the actual nested isolation validator without requiring VirtualBox in CI.
@@ -65,6 +68,21 @@ $unknown=$valid.Clone(); $unknown.Remove('nic7')
 Assert-Throws { Assert-AnalysisVmIsolation -Settings $unknown } 'Unknown NIC state was accepted.'
 Write-Host 'PASS: actual isolation validator rejects network, host integration, shared folder, identity and storage boundary failures'
 
+# Exercise the real controller/runner protocol and evidence guard without a VM.
+foreach($name in @('Get-AnalysisVmRunnerArgument','Assert-AnalysisVmRuntimeEvidence')) {
+    $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
+    Assert-True ($null -ne $definition) "Runtime protocol helper missing: $name"
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$runnerArguments=@(Get-AnalysisVmRunnerArgument -TimeoutSeconds 7 -MaxAddressSpaceMB 131072 -VirtualDisplay)
+Assert-True (($runnerArguments -join '|') -ceq '/usr/bin/python3|/opt/profile-analysis/run.py|--owned-runner|7|--max-address-space-mb|131072|--virtual-display') 'Controller changed the literal runner argument protocol.'
+$runtimeEvidence=[pscustomobject]@{target=[pscustomobject]@{sha256='target-hash';routes='';network="lo UNKNOWN 127.0.0.1/8`n"};runnerSHA256='runner-hash';virtualDisplay=[pscustomobject]@{requested=$true};maxAddressSpaceMB=131072}
+Assert-AnalysisVmRuntimeEvidence -Runtime $runtimeEvidence -TargetHash 'target-hash' -RunnerHash 'runner-hash' -VirtualDisplay $true -MaxAddressSpaceMB 131072
+Assert-Throws {Assert-AnalysisVmRuntimeEvidence -Runtime $runtimeEvidence -TargetHash 'target-hash' -RunnerHash 'runner-hash' -VirtualDisplay $true -MaxAddressSpaceMB 1024} 'Guest evidence with a different budget was accepted.'
+$runtimeEvidence.PSObject.Properties.Remove('maxAddressSpaceMB')
+Assert-Throws {Assert-AnalysisVmRuntimeEvidence -Runtime $runtimeEvidence -TargetHash 'target-hash' -RunnerHash 'runner-hash' -VirtualDisplay $true -MaxAddressSpaceMB 131072} 'Guest evidence omitted its address-space budget without rejection.'
+Write-Host 'PASS: Linux controller forwards the explicit budget and rejects missing or mismatched guest evidence'
+
 $lockDefinition = $ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Enter-AnalysisVmLock'}, $true)
 Assert-True ($null -ne $lockDefinition) 'Exclusive runtime lock is unavailable.'
 . ([scriptblock]::Create($lockDefinition.Extent.Text))
@@ -77,6 +95,12 @@ Write-Host 'PASS: real exclusive file lock rejects contention and can be acquire
 
 $command=Get-Command Invoke-ExecutableAnalysisVm
 Assert-True ($command.Parameters.ContainsKey('WhatIf') -and $command.Parameters.ContainsKey('Confirm')) 'Runtime operation lacks ShouldProcess support.'
+Assert-True ($command.Parameters.ContainsKey('VirtualDisplay')) 'Linux runtime lacks its explicit virtual-display option.'
 $command=Get-Command Initialize-ExecutableAnalysisVm
 Assert-True ($command.Parameters.ContainsKey('WhatIf')) 'VM creation lacks ShouldProcess support.'
 Write-Host 'PASS: VM lifecycle entry points expose PowerShell preview and confirmation parameters'
+
+$python=(Get-Command python -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source
+& $python -I -S -B (Join-Path $PSScriptRoot 'test_linux_guest_runner.py') (Join-Path $repo 'scripts/ExecutableAnalysis/LinuxGuestRunner.py')
+Assert-True ($LASTEXITCODE -eq 0) 'Linux guest command or missing-display preflight failed.'
+Write-Host 'PASS: Linux display launch preserves isolation/limits and missing dependencies prevent target execution'

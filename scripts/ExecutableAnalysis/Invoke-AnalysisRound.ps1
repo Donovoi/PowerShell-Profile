@@ -91,14 +91,30 @@ function Select-AnalysisEvidenceFile {
 
 function Invoke-AnalysisRound {
     [CmdletBinding()]
-    param([string]$Name,[string]$Prompt,[string]$OutputDirectory,[string]$CodexPath,[int]$TimeoutSeconds=600,[switch]$Research)
+    param([string]$Name,[string]$Prompt,[string]$OutputDirectory,[string]$CodexPath,[int]$TimeoutSeconds=600,[switch]$Research,[string]$EvidenceDirectory,[string]$NativeReaScriptPath,[string]$NativeInputPath,[string]$NativeInputSHA256,[string]$NativeGhidraPath)
     $output=Join-Path $OutputDirectory ($Name+'.md')
     $promptPath=Join-Path $OutputDirectory ($Name+'.prompt.txt')
     [IO.File]::WriteAllText($promptPath,$Prompt)
-    # Give the model evidence as data through stdin. It has no shell, MCP, application,
-    # browser-control, patching or subagent tools with which to execute target content.
+    # Reviews can inspect the complete run through scoped read-only evidence tools.
+    # The model still has no general shell or target-execution capability.
+    $mcp='mcp_servers={}'
+    if($EvidenceDirectory -and -not $Research){
+        $node=(Get-Command node -CommandType Application -ErrorAction Stop|Select-Object -First 1).Source
+        $evidenceRoot=(Get-Item -LiteralPath $EvidenceDirectory -ErrorAction Stop).FullName
+        $server=Join-Path $PSScriptRoot 'evidence-server.mjs'
+        $mcp='mcp_servers={analysis_evidence={command='+($node|ConvertTo-Json -Compress)+',args=['+($server|ConvertTo-Json -Compress)+','+($evidenceRoot|ConvertTo-Json -Compress)+'],required=true,startup_timeout_sec=30,tool_timeout_sec=60}}'
+        if($NativeReaScriptPath){
+            $nativeServer=Join-Path $PSScriptRoot 'native-review-server.mjs'
+            $nativeArguments=@($nativeServer,$NativeReaScriptPath,$NativeInputPath,$NativeInputSHA256,$NativeGhidraPath)|ForEach-Object {ConvertTo-Json -InputObject ([string]$_) -Compress}
+            $staticTools=@('binary_session','open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code','read_function_instructions','read_bytes','xrefs','resolve_containing_procedure','resolve_native_call_targets','trace_call_path','trace_native_values','close_binary')|ForEach-Object {$_+'={approval_mode="approve"}'}
+            $java=(Get-Command java -CommandType Application -ErrorAction Ignore|Select-Object -First 1).Source
+            $jdk=if($java){Split-Path (Split-Path $java -Parent) -Parent}else{$null}
+            $nativeEnvironment=if($jdk -and (Test-Path -LiteralPath (Join-Path $jdk 'bin/javac.exe'))){',env={JAVA_HOME='+($jdk|ConvertTo-Json -Compress)+'}'}else{''}
+            $mcp=$mcp.Substring(0,$mcp.Length-1)+',analysis_native={command='+($node|ConvertTo-Json -Compress)+',args=['+($nativeArguments -join ',')+'],required=true,startup_timeout_sec=30,tool_timeout_sec=180'+$nativeEnvironment+',tools={'+($staticTools -join ',')+'}}}'
+        }
+    }
     $arguments=@('exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--color','never','--json','-C',$OutputDirectory,'-o',$output,
-        '-c','approval_policy="never"','-c','project_doc_max_bytes=0','-c','project_root_markers=[]','-c','mcp_servers={}',
+        '-c','approval_policy="never"','-c','project_doc_max_bytes=0','-c','project_root_markers=[]','-c',$mcp,
         '-c',('web_search="'+$(if($Research){'live'}else{'disabled'})+'"'))
     foreach($feature in @('shell_tool','unified_exec','apps','plugins','hooks','multi_agent','memories','browser_use','browser_use_external','computer_use','apply_patch_freeform','in_app_browser')) {$arguments+=@('--disable',$feature)}
     $arguments+='-'
@@ -106,13 +122,27 @@ function Invoke-AnalysisRound {
     $valid=$result.Status -eq 'Completed' -and (Test-Path -LiteralPath $output) -and (Get-Item -LiteralPath $output).Length -gt 20
     $eventErrors=[Collections.Generic.List[string]]::new()
     $webSearches=0
+    $evidenceCalls=[Collections.Generic.List[object]]::new()
     if(Test-Path -LiteralPath $result.StandardOutputPath) {
         foreach($line in [IO.File]::ReadLines($result.StandardOutputPath)) {
             try{$cliEvent=$line|ConvertFrom-Json -ErrorAction Stop}catch{continue}
             if($cliEvent.type -in 'error','turn.failed' -or $cliEvent.item.type -eq 'error'){$eventErrors.Add($line.Substring(0,[Math]::Min(1000,$line.Length)))}
             if($cliEvent.type -eq 'item.completed' -and $cliEvent.item.type -eq 'web_search' -and $cliEvent.item.results){$webSearches++}
+            if($cliEvent.type -eq 'item.completed' -and $cliEvent.item.type -eq 'mcp_tool_call' -and $cliEvent.item.server -in 'analysis_evidence','analysis_native'){
+                $success=$cliEvent.item.status -eq 'completed' -and -not $cliEvent.item.error -and -not $cliEvent.item.result.isError -and -not $cliEvent.item.result.is_error
+                $data=$cliEvent.item.result.structured_content
+                $evidenceCalls.Add([pscustomobject]@{Server=$cliEvent.item.server;Tool=$cliEvent.item.tool;Arguments=$cliEvent.item.arguments;Succeeded=$success;ReadPath=$data.path;Offset=$data.offset;NextOffset=$data.next_offset})
+                if(-not $success){$eventErrors.Add('Evidence tool failed: '+[string]$cliEvent.item.tool)}
+            }
         }
     }
     if($Research -and -not $webSearches){$eventErrors.Add('No completed web search with returned results was recorded; current-documentation research is unverified.')}
-    [pscustomobject]@{Name=$Name;Status=if(-not $valid){'Failed'}elseif($eventErrors.Count){'Partial'}else{'Completed'};Result=$result;OutputPath=if($valid){$output}else{$null};PromptPath=$promptPath;WebSearches=$webSearches;ToolErrors=$eventErrors.ToArray()}
+    $successfulEvidenceCalls=@($evidenceCalls|Where-Object Succeeded).Count
+    if($EvidenceDirectory -and -not $Research -and -not $successfulEvidenceCalls){$eventErrors.Add('No successful evidence tool call was recorded; an excerpt-only answer does not qualify as tool-assisted review.')}
+    $bodyInspections=@($evidenceCalls|Where-Object {$_.Succeeded -and ($_.Tool -in 'read_function','read_function_instructions','procedure_pseudo_code' -or ($_.Tool -eq 'read_evidence' -and $_.ReadPath -match '\.(c|cs|java|wat|js|mjs|cjs|ts|tsx|jsx)$'))}).Count
+    if($EvidenceDirectory -and -not $Research -and (Test-Path -LiteralPath (Join-Path $EvidenceDirectory 'functions.json'))){
+        $functionIndex=Get-Content -LiteralPath (Join-Path $EvidenceDirectory 'functions.json') -Raw|ConvertFrom-Json
+        if($functionIndex.function_count -gt 0 -and -not $bodyInspections){$eventErrors.Add('Recovered functions exist, but no function body or native instructions were inspected; metadata-only review is incomplete.')}
+    }
+    [pscustomobject]@{Name=$Name;Status=if(-not $valid){'Failed'}elseif($eventErrors.Count){'Partial'}else{'Completed'};Result=$result;OutputPath=if($valid){$output}else{$null};PromptPath=$promptPath;WebSearches=$webSearches;EvidenceToolCalls=$evidenceCalls.ToArray();SuccessfulEvidenceToolCalls=$successfulEvidenceCalls;CodeInspectionCalls=$bodyInspections;ToolErrors=$eventErrors.ToArray()}
 }
