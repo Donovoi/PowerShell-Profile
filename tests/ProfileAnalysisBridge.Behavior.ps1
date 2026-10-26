@@ -59,6 +59,9 @@ for await(const line of readline.createInterface({input:process.stdin})) {
  if(mode==='asarunknown'&&name==='analyze_javascript_application')delete normalized_result.summary.coverage.semantic;
  if(mode==='asarmutation'&&name==='analyze_javascript_application')await fs.appendFile(path.join(args.input_path,'main.js'),'changed by fixture provider');
  let limitations=[];
+ if(['open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code'].includes(name))limitations=['UNRELATED_TRANSPORT_POLICY'];
+ if(mode==='flow-warning'&&name==='procedure_pseudo_code')limitations.push('Ghidra Listing reports a terminal call at 0x140010c7a with no resolved callee; its no-return basis is unknown.');
+ if(mode==='metadata-pdb'&&name==='binary_overview')limitations.push('The Ghidra Program references PDB fixture.pdb; Ghidra reports load state unknown.');
  if(name==='inspect_go_binary'){
   normalized_result={build_info:mode==='metadata-go'?{version:'go-fixture'}:null};
   limitations=['GO_UNRELATED_GENERIC_CAVEAT'];
@@ -121,6 +124,11 @@ Assert (-not(Test-Path -LiteralPath (Join-Path $TestRoot 'NeverExecuteThis'))) '
 Write-Host 'PASS: one owned protocol session, complete fixture coverage, literal metacharacter path, untrusted symbol data and provider close'
 
 Assert (($control.Record.Limitations -join ' ') -notmatch 'Go|Rust|GENERIC_CAVEAT|dep-v0') 'Negative language probes polluted native report limitations'
+Assert (($control.Record.Limitations -join ' ') -notmatch 'UNRELATED_TRANSPORT_POLICY') 'Native provider transport policy polluted target limitations'
+$flow=Invoke-BridgeCase 'flow-warning'
+Assert ($flow.Record.NativeFlowWarnings.Count -eq 1 -and ($flow.Record.Limitations -join ' ') -match '1 terminal-call sites') 'A target-specific native flow uncertainty was lost or duplicated'
+$pdb=Invoke-BridgeCase 'metadata-pdb'
+Assert (($pdb.Record.Limitations -join ' ') -match 'references PDB fixture.pdb' -and ($pdb.Record.Limitations -join ' ') -notmatch 'UNRELATED_TRANSPORT_POLICY') 'Observed PDB uncertainty was lost with provider boilerplate'
 $emptyCode=Invoke-BridgeCase 'emptycode'
 Assert ($emptyCode.Record.Status -eq 'Partial' -and ($emptyCode.Record.Limitations -join ' ') -notmatch 'pseudocode is a decompiler reconstruction') 'A decompiled-code caveat was reported when no pseudocode was recovered'
 foreach($mode in 'metadata-go','metadata-rust','metadata-rust-auditable'){
@@ -218,3 +226,5 @@ Assert ($missingRecord.Record.Status -eq 'Partial' -and @($missingRecord.Record.
 $mutatedSource=Invoke-BridgeCase 'asarmutation'
 Assert ($mutatedSource.Record.Status -eq 'Failed' -and $mutatedSource.Process.Status -eq 'Failed' -and $mutatedSource.Record.RetainedSourcesUnchanged -eq $false) 'Semantic provider mutation left stale source hashes with a success status'
 Write-Host 'PASS: ASAR source retention, exact unpacked bytes, bounded entry-point selection and honest semantic coverage'
+& $node.Source --test (Join-Path $PSScriptRoot 'test_analysis_evidence.mjs')
+if($LASTEXITCODE -ne 0){throw 'Read-only analysis evidence tools failed their regression checks.'}
