@@ -160,7 +160,20 @@ async function invoke(name, args = {}, label = name, cleanup = false) {
         payload = await recoverRetainedRecord(name, reference.evidence_id, stage);
       } else { stage.Status = 'Failed'; stage.Error = JSON.stringify(payload).slice(0, 4096); return null; }
     }
-    for (const item of payload?.limitations ?? []) if (typeof item === 'string') limitation(item);
+    // Metadata probes run for every native input. Keep their full diagnostics in
+    // raw evidence, but surface language-specific caveats only for actual hits.
+    const normalized = payload?.normalized_result;
+    if (name === 'inspect_go_binary') {
+      if (normalized?.build_info) limitation('Go build metadata was recovered from this input; it does not authenticate the compiler or the declared dependencies.');
+    } else if (name === 'inspect_rust_binary') {
+      if (normalized?.auditable_metadata) limitation('Rust dependency metadata was recovered from this input; its package and version declarations are not authenticated.');
+      if (normalized?.rustc_commit?.hashes?.length) {
+        limitation('Rust compiler-path markers were found in this input; the commit hashes are inferred from embedded paths and do not prove compiler identity.');
+        if (!normalized?.auditable_metadata) limitation('No .dep-v0 dependency metadata was recovered from this input despite its Rust compiler-path markers; dependency coverage remains incomplete.');
+      }
+    } else {
+      for (const item of payload?.limitations ?? []) if (typeof item === 'string') limitation(item);
+    }
     stage.Status = 'Succeeded';
     const contradictions = payload?.normalized_result?.integrity_contradictions;
     if (Array.isArray(contradictions) && contradictions.length) {
@@ -344,7 +357,7 @@ async function nativeAnalysis() {
     } else manifest.Coverage.FailedFunctions++;
   }
   manifest.Coverage.Complete = manifest.Coverage.AttemptedFunctions + manifest.Coverage.ExternalFunctions === list.length && manifest.Coverage.FailedFunctions === 0;
-  limitation('Native pseudocode is a decompiler reconstruction, not original source. Coverage refers only to functions discovered by the provider.');
+  if (manifest.Coverage.DecompiledFunctions > 0) limitation('Native pseudocode is a decompiler reconstruction, not original source. Coverage refers only to functions discovered by the provider.');
 }
 async function run() {
   const reaInfo = await fs.stat(config.reaScript);

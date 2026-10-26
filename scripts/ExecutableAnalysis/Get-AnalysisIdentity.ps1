@@ -70,6 +70,7 @@ function Export-AnalysisString {
     $records=[Collections.Generic.List[object]]::new()
     $decode=[Collections.Generic.List[object]]::new()
     $truncatedStrings=0
+    $decodeAttempts=0; $invalidBase64=0; $invalidUtf8=0; $nonPrintable=0
     $pattern='[\x20-\x7e]{5,}|(?:[\x20-\x7e]\x00){5,}'
     $stringMatches=[regex]::Matches($text,$pattern,[Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds(15))
     foreach($match in $stringMatches) {
@@ -79,16 +80,18 @@ function Export-AnalysisString {
         if($value.Length -gt 8192){$value=$value.Substring(0,8192);$truncatedStrings++}
         $records.Add([pscustomobject]@{Offset=$match.Index;Encoding=if($match.Value.Contains([char]0)){'UTF-16LE'}else{'ASCII'};OriginalCharacters=$originalLength;TextTruncated=($originalLength -gt $value.Length);Text=$value})
         if($decode.Count -lt 1000 -and $value -cmatch '^[A-Za-z0-9+/]{16,}={0,2}$' -and $value.Length%4 -eq 0) {
+            $decodeAttempts++
             try {
                 $decoded=[Convert]::FromBase64String($value)
                 $utf8=[Text.UTF8Encoding]::new($false,$true).GetString($decoded)
                 if($utf8 -match '^[\x09\x0a\x0d\x20-\x7e]+$'){
                     $decode.Add([pscustomobject]@{Offset=$match.Index;Transform='Base64';Text=$utf8;Confidence='Candidate; valid encoding does not establish intent'})
-                }
-            } catch [FormatException] { Write-Verbose 'Rejected an invalid Base64 candidate.' } catch [Text.DecoderFallbackException] { Write-Verbose 'Decoded bytes are not valid UTF-8 text.' }
+                }else{$nonPrintable++}
+            } catch [FormatException] { $invalidBase64++ } catch [Text.DecoderFallbackException] { $invalidUtf8++ }
         }
     }
+    if($decodeAttempts){Write-Verbose "Base64 candidates: $decodeAttempts attempted, $($decode.Count) retained; rejected $invalidBase64 invalid encodings, $invalidUtf8 invalid UTF-8 values and $nonPrintable non-printable values."}
     ConvertTo-Json -InputObject $records.ToArray() -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'strings.json') -Encoding utf8
     ConvertTo-Json -InputObject $decode.ToArray() -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'decoded-candidates.json') -Encoding utf8
-    [pscustomobject]@{Count=$records.Count;DecodedCandidates=$decode.Count;ScannedBytes=$bytes.Length;TotalMatches=$stringMatches.Count;TruncatedStrings=$truncatedStrings;Truncated=($truncatedStrings -gt 0 -or $stringMatches.Count -gt $MaxStrings -or $bytes.Length -lt (Get-Item -LiteralPath $LiteralPath).Length)}
+    [pscustomobject]@{Count=$records.Count;DecodedCandidates=$decode.Count;DecodeAttempts=$decodeAttempts;RejectedBase64=$invalidBase64;RejectedUtf8=$invalidUtf8;RejectedNonPrintable=$nonPrintable;ScannedBytes=$bytes.Length;TotalMatches=$stringMatches.Count;TruncatedStrings=$truncatedStrings;Truncated=($truncatedStrings -gt 0 -or $stringMatches.Count -gt $MaxStrings -or $bytes.Length -lt (Get-Item -LiteralPath $LiteralPath).Length)}
 }

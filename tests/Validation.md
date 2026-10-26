@@ -1,6 +1,6 @@
 # Profile reliability checks
 
-Run from a PowerShell 7 session on Windows. No Pester installation is required.
+Run from a PowerShell 7 session on Windows with Git and Python 3.10 or newer on PATH. Python runs the Linux guest runner's isolated fixture checks; no target executable is launched by those tests. No Pester installation is required.
 
 ~~~powershell
 pwsh -NoProfile -File .\tests\Invoke-ProfileValidation.ps1 -TestRoot "$([Environment]::GetFolderPath('MyDocuments'))\ProfileValidation-$(Get-Date -Format yyyyMMdd-HHmmss)"
