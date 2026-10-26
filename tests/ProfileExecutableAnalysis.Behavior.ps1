@@ -27,6 +27,9 @@ Assert-True ($first.Status -eq 'CompletedWithLimitations') ('Basic run failed: '
 Assert-True ($first.SourceUnchanged -and (Get-FileHash -LiteralPath $target).Hash -eq $hash) 'Input changed.'
 Assert-True ($first.OutputDirectory -ne $second.OutputDirectory) 'Repeated run reused its output.'
 $record=Get-Content -LiteralPath $first.JsonPath -Raw|ConvertFrom-Json
+Assert-True ($record.Limitations.Count -eq 1 -and $record.Limitations[0] -match 'Runtime execution was not requested') 'Basic analysis included unrelated generic limitations.'
+$reportLimits=([regex]::Match((Get-Content -LiteralPath $first.ReportPath -Raw),'(?s)## Limits and unknowns\r?\n(.*?)(?=\r?\nFull commands|\z)')).Groups[1].Value
+Assert-True ($reportLimits -notmatch 'Encryption|decompiled code|Go build|Rust compiler|firmware|first 16 MiB') 'Basic report disclosed capabilities or limits that did not apply.'
 foreach($artifact in $record.Artifacts){Assert-True ((Get-FileHash -LiteralPath (Join-Path $first.OutputDirectory $artifact.Path)).Hash -eq $artifact.SHA256) 'Artifact hash mismatch.'}
 $strings=Get-Content -LiteralPath (Join-Path $first.OutputDirectory 'basic/strings.json') -Raw|ConvertFrom-Json
 Assert-True (@($strings|Where-Object Text -EQ 'UNICODE_MARKER').Count -eq 1) 'UTF-16 extraction failed.'
@@ -39,6 +42,15 @@ $decodeFolder=Join-Path $TestRoot 'decode';$null=[IO.Directory]::CreateDirectory
 $null=Export-AnalysisString $encoded $decodeFolder
 $decoded=Get-Content -LiteralPath (Join-Path $decodeFolder 'decoded-candidates.json') -Raw|ConvertFrom-Json
 Assert-True ($decoded[0].Text -eq 'Hello evidence') 'Base64 decoding changed content.'
+$noisy=Join-Path $TestRoot 'noisy-encoded.bin'
+[IO.File]::WriteAllText($noisy,(('////////////////' + "`n")*1000)+'SGVsbG8gZXZpZGVuY2U=')
+$noisyFolder=Join-Path $TestRoot 'noisy-decode';$null=[IO.Directory]::CreateDirectory($noisyFolder)
+$noisyOutput=@(Export-AnalysisString $noisy $noisyFolder -Verbose 4>&1)
+$noiseSummary=@($noisyOutput|Where-Object {$_ -isnot [System.Management.Automation.VerboseRecord]})
+Assert-True (@($noisyOutput|Where-Object {$_ -is [System.Management.Automation.VerboseRecord]}).Count -eq 1) 'Rejected decoding candidates flooded verbose output.'
+Assert-True ($noiseSummary.Count -eq 1 -and $noiseSummary[0].DecodeAttempts -eq 1001 -and $noiseSummary[0].RejectedUtf8 -eq 1000) 'Decoding rejection coverage was lost.'
+$noisyDecoded=Get-Content -LiteralPath (Join-Path $noisyFolder 'decoded-candidates.json') -Raw|ConvertFrom-Json
+Assert-True ($noisyDecoded.Count -eq 1 -and $noisyDecoded[0].Text -eq 'Hello evidence') 'Rejected candidates prevented recovery of valid text.'
 foreach($case in @(
     @{Name='elf';Bytes=[byte[]]@(0x7f,69,76,70,2,1,1,0,0,0,0,0,0,0,0,0,2,0,62,0);Format='ELF'},
     @{Name='wasm';Bytes=[byte[]]@(0,97,115,109,1,0,0,0);Format='WASM'},
@@ -54,12 +66,14 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     $calls=[Collections.Generic.List[object]]::new()
     function Initialize-ExecutableAnalysisVm { param($VirtualMachineName) $calls.Add(@{Kind='InitializeLinux';Name=$VirtualMachineName}) }
     function Initialize-ExecutableAnalysisWindowsVm { param($VirtualMachineName,$IsoPath) $calls.Add(@{Kind='InitializeWindows';Name=$VirtualMachineName;IsoPath=$IsoPath}) }
-    function Invoke-ExecutableAnalysisVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds) $calls.Add(@{Kind='Linux';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds});[pscustomobject]@{Status='Complete'} }
+    function Invoke-ExecutableAnalysisVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds,[switch]$VirtualDisplay,$MaxAddressSpaceMB) $calls.Add(@{Kind='Linux';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds;VirtualDisplay=[bool]$VirtualDisplay;MaxAddressSpaceMB=$MaxAddressSpaceMB});[pscustomobject]@{Status='Complete'} }
     function Invoke-ExecutableAnalysisWindowsVm { param($InputPath,$OutputPath,$VirtualMachineName,$TimeoutSeconds,$ExpectedInputSHA256,$ApplicationRoot,$MaxPackageBytes,$MaxPackageFiles,$LaunchMode,$PackageArchivePath,$PackageLicensePath) $calls.Add(@{Kind='Windows';Name=$VirtualMachineName;Input=$InputPath;Seconds=$TimeoutSeconds;ExpectedSHA256=$ExpectedInputSHA256;Root=$ApplicationRoot;MaxPackageBytes=$MaxPackageBytes;MaxPackageFiles=$MaxPackageFiles;LaunchMode=$LaunchMode;PackageArchivePath=$PackageArchivePath;PackageLicensePath=$PackageLicensePath});[pscustomobject]@{Status='Completed';GuestResult=@{Execution=@{ExitCode=7;Reason='Completed'}}} }
     $standalone=Join-Path $TestRoot 'pwsh.exe'
     Copy-Item -LiteralPath (Join-Path $PSHOME 'pwsh.exe') -Destination $standalone
-    $linux=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -RuntimeSeconds 7
-    Assert-True ($linux.Status -eq 'CompletedWithLimitations' -and $calls.Count -eq 2 -and $calls[0].Kind -eq 'InitializeLinux' -and $calls[1].Name -eq 'Profile-Analysis-Linux' -and $calls[1].Seconds -eq 7) 'Linux runtime routing or initialization failed.'
+    $linux=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -RuntimeSeconds 7 -LinuxVirtualDisplay -LinuxMaxAddressSpaceMB 65536
+    $linuxReport=Get-Content -LiteralPath $linux.JsonPath -Raw|ConvertFrom-Json
+    Assert-True ($linuxReport.Limitations.Count -eq 0 -and (Get-Content -LiteralPath $linux.ReportPath -Raw) -notmatch '## Limits and unknowns') 'An empty limits section or irrelevant static/decryption caveat was emitted for a runtime-observed basic run.'
+    Assert-True ($linux.Status -eq 'CompletedWithLimitations' -and $calls.Count -eq 2 -and $calls[0].Kind -eq 'InitializeLinux' -and $calls[1].Name -eq 'Profile-Analysis-Linux' -and $calls[1].Seconds -eq 7 -and $calls[1].VirtualDisplay -and $calls[1].MaxAddressSpaceMB -eq 65536) 'Linux runtime routing, display/budget request or initialization failed.'
     $windows=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -WindowsIsoPath 'fixture-media.iso'
     Assert-True ($windows.Status -eq 'CompletedWithLimitations' -and $calls[2].Kind -eq 'InitializeWindows' -and $calls[2].IsoPath -eq 'fixture-media.iso' -and $calls[3].Name -eq 'Profile-Analysis-Windows') 'Windows runtime routing or ISO forwarding failed.'
     Assert-True ((Get-Content -LiteralPath $windows.ReportPath -Raw) -match 'Target exit code: 7; reason: Completed') 'Runtime report concealed the target exit code.'
@@ -133,6 +147,11 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
             }
         }finally{$zip.Dispose()}
     }
+    $null=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall
+    Assert-True ($calls[$calls.Count-1].Kind -eq 'Linux' -and $calls[$calls.Count-1].MaxAddressSpaceMB -eq 1024) 'Default Linux address-space budget changed.'
+    foreach($invalidBudget in @(0,127,131073)) {
+        Assert-Throws {Invoke-ExecutableAnalysis (Join-Path $TestRoot 'elf') -OutputDirectory $TestRoot -LinuxMaxAddressSpaceMB $invalidBudget} 'LinuxMaxAddressSpaceMB'
+    }
 }
 Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit VM names and unsupported formats (VM helpers mocked).'
 
@@ -149,6 +168,7 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
     function Resolve-AnalysisTool { param($LogDirectory,$ReaScriptPath,$NoInstall,$Managed,$Native,$Wasm,$Java) [pscustomobject]@{ReaScript='fixture-rea.mjs';Node='fixture-node.exe';Ghidra='fixture-ghidra';Limitations=@()} }
     function Invoke-AnalysisTool {
         param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$Environment)
+        if($ArgumentList[0] -like '*evidence-server.mjs'){@{function_count=0;functions=@()}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'functions.json');return [pscustomobject]@{Status='Completed'}}
         $config=Get-Content -LiteralPath $ArgumentList[1] -Raw|ConvertFrom-Json
         Assert-True ($config.timeoutSeconds -eq 601 -and $config.archiveIntegrityPolicy -eq 'record-and-continue' -and $config.maxJavaScriptHeapMB -eq 2048 -and $config.maxTotalEvidenceBytes -eq 2GB) 'Requested timeout or explicit integrity policy was not forwarded.'
         @{Status=$script:nativeFixture.Status;InputUnchanged=$true;InputSHA256Before=(Get-FileHash -LiteralPath $config.inputPath).Hash;Coverage=@{DecompiledFunctions=$script:nativeFixture.Count};Limitations=@()}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $config.outputDirectory 'rea-result.json')
@@ -212,6 +232,28 @@ function Invoke-AnalysisTool {
 $round=Invoke-AnalysisRound -Name 'mock-research' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -Research
 Assert-True ($round.Status -eq 'Partial' -and $round.WebSearches -eq 0 -and $round.ToolErrors.Count -eq 2) 'Research with provider failure or no retrieval falsely passed.'
 Write-Host 'PASS: AI provider errors and unverified research remain partial, even with exit zero and a final message.'
+
+& {
+    $script:fixtureEvidenceEvents=''
+    function Invoke-AnalysisTool {
+        param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$InputText)
+        Assert-True (($ArgumentList -join ' ') -match 'analysis_evidence' -and ($ArgumentList -join ' ') -match 'required=true' -and $ArgumentList -contains 'shell_tool') 'Scoped review tools or execution boundaries were lost.'
+        $output=$ArgumentList[[array]::IndexOf($ArgumentList,'-o')+1]
+        'Fixture findings from a real-looking tool event; this fixture never calls a model.'|Set-Content -LiteralPath $output
+        $script:fixtureEvidenceEvents|Set-Content -LiteralPath ($LogPath+'.stdout')
+        [pscustomobject]@{Status='Completed';StandardOutputPath=$LogPath+'.stdout';StandardErrorPath=$LogPath+'.stderr'}
+    }
+    $round=Invoke-AnalysisRound -Name 'missing-tools' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Partial' -and $round.SuccessfulEvidenceToolCalls -eq 0) 'An excerpt-only response passed as tool-assisted review.'
+    '{"function_count":2}'|Set-Content -LiteralPath (Join-Path $TestRoot 'functions.json')
+    $script:fixtureEvidenceEvents='{"type":"item.completed","item":{"type":"mcp_tool_call","server":"analysis_evidence","tool":"analysis_summary","arguments":{},"status":"completed","result":{}}}'
+    $round=Invoke-AnalysisRound -Name 'summary-only' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Partial' -and $round.CodeInspectionCalls -eq 0) 'A summary-only response passed despite available function bodies.'
+    $script:fixtureEvidenceEvents='{"type":"item.completed","item":{"type":"mcp_tool_call","server":"analysis_evidence","tool":"read_function","arguments":{"query":"entry"},"status":"completed","result":{"structured_content":{"path":"rea/rea-code/entry.c","offset":0,"next_offset":null}}}}'
+    $round=Invoke-AnalysisRound -Name 'recorded-tools' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -EvidenceDirectory $TestRoot
+    Assert-True ($round.Status -eq 'Completed' -and $round.SuccessfulEvidenceToolCalls -eq 1 -and $round.CodeInspectionCalls -eq 1 -and $round.EvidenceToolCalls[0].ReadPath -eq 'rea/rea-code/entry.c') 'Actual tool events were not retained with their artifact path.'
+}
+Write-Host 'PASS: tool-assisted review requires successful evidence calls and records actual artifact reads.'
 
 foreach($case in @(
     @{Process='Completed';Manifest='Succeeded';Expected='Succeeded'},
@@ -308,3 +350,59 @@ Write-Host 'PASS: failed/missing Codex candidates remain isolated, shell shims a
     Assert-True (-not(Test-Path -LiteralPath $sentinel)) 'An unsafe shell launcher was executed.'
 }
 Write-Host 'PASS: shell launchers are refused before execution and cannot reinterpret caller arguments.'
+
+& {
+    # Build the actual Ghidra invocation with only process discovery/execution mocked.
+    # No provider or target executable runs in this fixture.
+    . (Join-Path $repo 'scripts/ExecutableAnalysis/Invoke-AnalysisGhidra.ps1')
+    function Get-Command { param($Name,$CommandType,$ErrorAction) [pscustomobject]@{Source='fixture-java.exe'} }
+    function Invoke-AnalysisTool {
+        param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds)
+        $ghidraCalls.Add([pscustomobject]@{Arguments=$ArgumentList;TimeoutSeconds=$TimeoutSeconds})
+        if($ArgumentList -contains 'LaunchSupport'){
+            $vmargs=Join-Path $WorkingDirectory 'fixture-vmargs.txt'
+            [IO.File]::WriteAllText($vmargs,'-Dfixture=true')
+            return [pscustomobject]@{Status='Completed';StandardOutputPath=$vmargs}
+        }
+        if($ghidraCase.Manifest){
+            $null=[IO.Directory]::CreateDirectory($fixtureOutput)
+            [IO.File]::WriteAllText((Join-Path $fixtureOutput 'retained.c'),'/* retained static fixture */')
+            $record=@{Status='Succeeded';ExecutableSHA256=if($ghidraCase.BadHash){'0'*64}else{(Get-FileHash -LiteralPath $fixtureInput).Hash};Coverage=@{Complete=$true;DecompiledFunctions=1}}
+            if(-not $ghidraCase.UnknownAnalysis){$record.AutoAnalysis=@{TimedOut=[bool]$ghidraCase.AnalysisTimedOut}}
+            $record|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $fixtureOutput 'ghidra-result.json')
+        }
+        [pscustomobject]@{Status=$ghidraCase.ProcessStatus;ExitCode=if($ghidraCase.ProcessStatus -eq 'Completed'){0}else{1}}
+    }
+    $cases=@(
+        @{Budget=10;Manifest=$true;ProcessStatus='Completed';Expected='Succeeded'},
+        @{Budget=60;Manifest=$true;ProcessStatus='Completed';AnalysisTimedOut=$true;Expected='Partial'},
+        @{Budget=1800;Manifest=$true;ProcessStatus='Timeout';Expected='Partial'},
+        @{Budget=60;Manifest=$true;ProcessStatus='Completed';UnknownAnalysis=$true;Expected='Partial'},
+        @{Budget=60;Manifest=$true;ProcessStatus='Failed';Expected='Failed'},
+        @{Budget=60;Manifest=$true;ProcessStatus='Timeout';BadHash=$true;Expected='Failed'},
+        @{Budget=60;Manifest=$false;ProcessStatus='Timeout';Expected='Failed'}
+    )
+    $caseIndex=0
+    foreach($ghidraCase in $cases){
+        $caseIndex++
+        $fixtureRoot=Join-Path $TestRoot ('ghidra-budget-'+$caseIndex)
+        $null=[IO.Directory]::CreateDirectory($fixtureRoot)
+        $fixtureInput=Join-Path $fixtureRoot 'inert.bin';[IO.File]::WriteAllText($fixtureInput,'not executable')
+        $fixtureOutput=Join-Path $fixtureRoot 'output'
+        $ghidraCalls=[Collections.Generic.List[object]]::new()
+        $beforeDeadline=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $result=Invoke-AnalysisGhidra -InputPath $fixtureInput -OutputDirectory $fixtureOutput -GhidraPath $fixtureRoot -AssetDirectory $fixtureRoot -LogDirectory $fixtureRoot -MaxFunctions 19 -TimeoutSeconds $ghidraCase.Budget
+        Assert-True ($ghidraCalls.Count -eq 2 -and $result.Status -eq $ghidraCase.Expected) 'Ghidra process/analysis timeout or identity qualification was incorrect.'
+        $argv=$ghidraCalls[1].Arguments
+        $post=[Array]::IndexOf($argv,'ExportProgram.java')
+        $analysis=[int]$argv[[Array]::IndexOf($argv,'-analysisTimeoutPerFile')+1]
+        $export=[int]$argv[$post+4]
+        $deadline=[long]$argv[$post+5]
+        Assert-True ($argv[$post+1] -ceq $fixtureOutput -and $argv[$post+2] -eq '19' -and $argv[$post+3] -eq '60') 'Ghidra exporter path/function limits changed.'
+        Assert-True ($analysis -ge 1 -and $export -ge 1 -and $analysis+$export+$result.Budgets.ImportAndFinalizationReserveSeconds -le $ghidraCalls[1].TimeoutSeconds -and $ghidraCalls[1].TimeoutSeconds -le $ghidraCase.Budget) 'Ghidra phase budgets exceed the shared process budget.'
+        Assert-True ($deadline -gt $beforeDeadline -and $deadline -le $beforeDeadline+$ghidraCase.Budget*1000) 'Ghidra export deadline escapes the overall budget.'
+        if($ghidraCase.Manifest){Assert-True (Test-Path -LiteralPath (Join-Path $fixtureOutput 'retained.c')) 'Ghidra discarded retained partial code.'}
+        if($result.Manifest -and $result.Status -ne 'Succeeded'){Assert-True (-not $result.Manifest.Coverage.Complete) 'Interrupted or incomplete auto-analysis claimed complete coverage.'}
+    }
+}
+Write-Host 'PASS: Ghidra analysis/export share a bounded deadline; interrupted exports retain evidence with honest coverage and input identity.'

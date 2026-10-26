@@ -96,58 +96,8 @@ function Initialize-ExecutableAnalysisVm {
     $credential = [pscredential]::new('analysis-admin', $securePassword)
     $credential | Export-Clixml -LiteralPath $credentialPath
     [IO.Directory]::CreateDirectory($seedDirectory) | Out-Null
-    $runner = @'
-#!/usr/bin/python3
-import hashlib, json, os, pathlib, signal, stat, subprocess, sys, time
-source = pathlib.Path('/home/analysis-admin/input.bin')
-out = pathlib.Path('/home/analysis-admin/results')
-out.mkdir(mode=0o755, exist_ok=False)
-timeout = int(sys.argv[1])
-if not 1 <= timeout <= 600: raise ValueError('invalid timeout')
-data = source.read_bytes()
-if data[:6] != b'\x7fELF\x02\x01' or int.from_bytes(data[18:20], 'little') != 62: raise ValueError('only little-endian x86-64 ELF is supported')
-target = pathlib.Path('/opt/profile-analysis/target.bin')
-target.write_bytes(data); target.chmod(0o555)
-work = pathlib.Path('/var/tmp/profile-analysis-work')
-work.mkdir(mode=0o700); os.chown(work, 65534, 65534)
-before = {'sha256': hashlib.sha256(data).hexdigest(), 'network': subprocess.check_output(['/usr/sbin/ip', '-brief', 'address'], text=True), 'routes': subprocess.check_output(['/usr/sbin/ip', 'route'], text=True)}
-if any(line.split()[0] != 'lo' for line in before['network'].splitlines()) or before['routes'].strip(): raise RuntimeError('guest network isolation check failed')
-cmd = ['/usr/bin/strace', '-f', '-qq', '-s', '256', '-o', str(out / 'strace.log'), '/usr/bin/setpriv', '--reuid=65534', '--regid=65534', '--clear-groups', '--no-new-privs', '/usr/bin/prlimit', '--as=1073741824', '--nproc=64', '--fsize=1048576', '--cpu=' + str(timeout), '--', str(target)]
-start = time.monotonic(); reason = 'Exited'
-with (out / 'stdout.txt').open('wb') as stdout, (out / 'stderr.txt').open('wb') as stderr:
-    child = subprocess.Popen(cmd, cwd=work, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr, start_new_session=True, env={'PATH':'/usr/bin:/bin','HOME':str(work),'LANG':'C.UTF-8'})
-    while child.poll() is None:
-        if time.monotonic() - start >= timeout: reason = 'Timeout'
-        if sum(p.stat().st_size for p in out.iterdir() if p.is_file()) > 12 * 1024 * 1024: reason = 'OutputLimit'
-        if reason != 'Exited':
-            os.killpg(child.pid, signal.SIGTERM)
-            try: child.wait(timeout=3)
-            except subprocess.TimeoutExpired: os.killpg(child.pid, signal.SIGKILL); child.wait(timeout=3)
-            break
-        time.sleep(.1)
-    # Descendants may detach from the traced process group; VM power-off is the final boundary.
-    exitcode = child.returncode
-files = []
-for directory, dirs, names in os.walk(work, followlinks=False):
-    dirs[:] = dirs[:100]
-    for name in names:
-        p = pathlib.Path(directory) / name
-        try:
-            info = p.lstat()
-            item = {'path':str(p.relative_to(work)), 'bytes':info.st_size, 'symlink':stat.S_ISLNK(info.st_mode)}
-            if stat.S_ISREG(info.st_mode) and info.st_size <= 1048576: item['sha256'] = hashlib.sha256(p.read_bytes()).hexdigest()
-            files.append(item)
-        except OSError: pass
-        if len(files) >= 1000: break
-    if len(files) >= 1000: break
-report = {'schema':1, 'target':before, 'exitCode':exitcode, 'termination':reason, 'elapsedSeconds':round(time.monotonic()-start,3), 'createdFiles':files, 'uid':65534, 'limitations':['Offline, unprivileged x86-64 Linux execution only.', 'No command-line arguments or GUI interaction.', 'Guest observations are evidence, not proof of complete behavior.']}
-(out / 'runtime.json').write_text(json.dumps(report, indent=2))
-for p in out.iterdir():
-    if p.stat().st_size > 12 * 1024 * 1024:
-        with p.open('r+b') as f: f.truncate(12 * 1024 * 1024)
-    p.chmod(0o644)
-print(json.dumps({'status':'Complete', 'sha256':before['sha256']}))
-'@
+    $runnerPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts/ExecutableAnalysis/LinuxGuestRunner.py'
+    $runner = Get-Content -LiteralPath $runnerPath -Raw -ErrorAction Stop
     $runnerLines = ($runner -replace "`r`n", "`n") -split "`n" | ForEach-Object { '      ' + $_ }
     $cloudConfig = @"
 #cloud-config

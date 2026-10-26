@@ -1,6 +1,6 @@
 // Export static program evidence from an owned, read-only headless Ghidra import.
 // @category ExecutableAnalysis
-import ghidra.app.script.GhidraScript;
+import ghidra.app.util.headless.HeadlessScript;
 import ghidra.framework.Application;
 import ghidra.app.decompiler.DecompInterface;
 import ghidra.app.decompiler.DecompileResults;
@@ -27,7 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ExportProgram extends GhidraScript {
+public class ExportProgram extends HeadlessScript {
     private static final int ROW_LIMIT = 100000;
     private static final long CODE_BYTE_LIMIT = 536870912L;
     private static final int TEXT_BYTE_LIMIT = 16777216;
@@ -56,22 +56,31 @@ public class ExportProgram extends GhidraScript {
     @Override
     protected void run() throws Exception {
         String[] arguments = getScriptArgs();
-        if (arguments.length < 3 || arguments.length > 4) throw new IllegalArgumentException("Usage: ExportProgram.java ABSENT_OUTPUT_DIRECTORY MAX_FUNCTIONS TIMEOUT_SECONDS [TOTAL_SECONDS]");
+        if (arguments.length < 3 || arguments.length > 5) throw new IllegalArgumentException("Usage: ExportProgram.java ABSENT_OUTPUT_DIRECTORY MAX_FUNCTIONS TIMEOUT_SECONDS [TOTAL_SECONDS [WORKFLOW_DEADLINE_UNIX_MILLISECONDS]]");
         Path output = Path.of(arguments[0]);
         if (!output.isAbsolute()) throw new IllegalArgumentException("Output directory must be absolute.");
         int maxFunctions = Integer.parseInt(arguments[1]);
         int functionTimeout = Integer.parseInt(arguments[2]);
-        int totalSeconds = arguments.length == 4 ? Integer.parseInt(arguments[3]) : 3600;
+        int totalSeconds = arguments.length >= 4 ? Integer.parseInt(arguments[3]) : 3600;
+        Long workflowDeadline = arguments.length == 5 ? Long.parseLong(arguments[4]) : null;
         if (maxFunctions < 0 || functionTimeout < 1 || functionTimeout > 86400 || totalSeconds < 1 || totalSeconds > 86400) throw new IllegalArgumentException("Invalid analysis budget.");
         Files.createDirectory(output);
         Path code = Files.createDirectory(output.resolve("code"));
         long deadline = System.nanoTime() + totalSeconds * 1000000000L;
+        if (workflowDeadline != null) {
+            if (workflowDeadline < 1) throw new IllegalArgumentException("Invalid workflow deadline.");
+            long remainingMillis = Math.max(0L, workflowDeadline - System.currentTimeMillis());
+            deadline = Math.min(deadline, System.nanoTime() + Math.min(remainingMillis, 86400000L) * 1000000L);
+        }
+        Boolean analysisTimedOut = isRunningHeadless() ? analysisTimeoutOccurred() : null;
+        if (!Boolean.FALSE.equals(analysisTimedOut)) limitations.add("Auto-analysis timed out or its timeout status is unknown. Discovered functions do not establish a complete function inventory.");
         Map<String, Object> result = row("SchemaVersion", 1, "StartedUtc", Instant.now().toString(), "Status", "Running", "TargetExecuted", false,
             "Provider", "Ghidra", "ProviderVersion", Application.getApplicationVersion(),
             "Name", currentProgram.getName(), "ExecutablePath", currentProgram.getExecutablePath(), "ExecutableSHA256", currentProgram.getExecutableSHA256(),
             "Language", currentProgram.getLanguageID().toString(), "CompilerSpec", currentProgram.getCompilerSpec().getCompilerSpecID().toString(),
             "ImageBase", currentProgram.getImageBase().toString(), "FunctionLimit", maxFunctions == 0 ? null : maxFunctions,
-            "PerFunctionTimeoutSeconds", functionTimeout, "TotalTimeoutSeconds", totalSeconds, "Limitations", limitations);
+            "PerFunctionTimeoutSeconds", functionTimeout, "TotalTimeoutSeconds", totalSeconds, "WorkflowDeadlineUnixMilliseconds", workflowDeadline,
+            "AutoAnalysis", row("TimedOut", analysisTimedOut), "Limitations", limitations);
         List<Map<String, Object>> functions = new ArrayList<>();
         List<Map<String, Object>> imports = new ArrayList<>();
         List<Map<String, Object>> exports = new ArrayList<>();
@@ -145,7 +154,7 @@ public class ExportProgram extends GhidraScript {
                     succeeded++;
                 } catch (Exception error) { failed++; item.put("Status", "Failed"); item.put("Error", error.toString()); }
             }
-            result.put("Status", failed > 0 || truncated ? "Partial" : "Succeeded");
+            result.put("Status", failed > 0 || truncated || !Boolean.FALSE.equals(analysisTimedOut) ? "Partial" : "Succeeded");
         } catch (Exception error) { result.put("Status", "Failed"); result.put("Error", error.toString()); }
         finally {
             decompiler.dispose();
@@ -184,7 +193,7 @@ public class ExportProgram extends GhidraScript {
             result.put("FinishedUtc", Instant.now().toString());
             result.put("Coverage", row("Scope", "GhidraDiscoveredFunctions", "DiscoveredFunctions", discovered, "AttemptedFunctions", attempted, "DecompiledFunctions", succeeded, "FailedFunctions", failed, "ExternalFunctions", external,
                 "UnrecoveredCodeReferenceCandidates", codeReferenceGaps.size(), "CodeReferenceScanComplete", referenceScanComplete,
-                "Complete", !truncated && failed == 0 && attempted + external == discovered && !"Failed".equals(result.get("Status"))));
+                "Complete", Boolean.FALSE.equals(analysisTimedOut) && !truncated && failed == 0 && attempted + external == discovered && !"Failed".equals(result.get("Status"))));
             result.put("Functions", functions); result.put("CodeBytes", codeBytes);
             writeJson(output.resolve("imports.json"), imports);
             writeJson(output.resolve("exports.json"), exports);
