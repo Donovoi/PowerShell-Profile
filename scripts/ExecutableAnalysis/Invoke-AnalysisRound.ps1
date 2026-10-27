@@ -105,7 +105,7 @@ function Invoke-AnalysisRound {
         $mcp='mcp_servers={analysis_evidence={command='+($node|ConvertTo-Json -Compress)+',args=['+($server|ConvertTo-Json -Compress)+','+($evidenceRoot|ConvertTo-Json -Compress)+'],required=true,startup_timeout_sec=30,tool_timeout_sec=60}}'
         if($NativeReaScriptPath){
             $nativeServer=Join-Path $PSScriptRoot 'native-review-server.mjs'
-            $nativeArguments=@($nativeServer,$NativeReaScriptPath,$NativeInputPath,$NativeInputSHA256,$NativeGhidraPath)|ForEach-Object {ConvertTo-Json -InputObject ([string]$_) -Compress}
+            $nativeArguments=@($nativeServer,$NativeReaScriptPath,$NativeInputPath,$NativeInputSHA256,$NativeGhidraPath,$evidenceRoot)|ForEach-Object {ConvertTo-Json -InputObject ([string]$_) -Compress}
             $staticTools=@('binary_session','open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code','read_function_instructions','read_bytes','xrefs','resolve_containing_procedure','resolve_native_call_targets','trace_call_path','trace_native_values','close_binary')|ForEach-Object {$_+'={approval_mode="approve"}'}
             $java=(Get-Command java -CommandType Application -ErrorAction Ignore|Select-Object -First 1).Source
             $jdk=if($java){Split-Path (Split-Path $java -Parent) -Parent}else{$null}

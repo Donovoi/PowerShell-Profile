@@ -5,13 +5,21 @@ import readline from 'node:readline';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-const [reaScript,selectedInputArgument,expectedHash,ghidra]=process.argv.slice(2);
+const [reaScript,selectedInputArgument,expectedHash,ghidra,evidenceRoot]=process.argv.slice(2);
 if(!path.isAbsolute(reaScript??'')||!path.isAbsolute(selectedInputArgument??'')||!/^[a-f0-9]{64}$/i.test(expectedHash??''))throw new Error('Trusted REA script, preserved input and SHA256 are required.');
 const selectedInput=path.resolve(selectedInputArgument);
 // Windows short names and directory aliases can legitimately resolve to a
 // different spelling. Pin the physical target once, then recheck it and its hash.
 const input=await fs.realpath(selectedInput);
 const samePath=(a,b)=>process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b;
+const aliases=new Map();
+if(evidenceRoot){
+  const root=await fs.realpath(evidenceRoot);
+  if(!samePath(path.dirname(path.dirname(input)),root))throw new Error('Native symbol aliases must belong to the selected input run.');
+  const indexPath=path.join(root,'functions.json');const indexStat=await fs.lstat(indexPath);if(indexStat.isSymbolicLink()||!indexStat.isFile()||indexStat.size>16777216)throw new Error('Symbol index must be a bounded regular file.');
+  const bytes=await fs.readFile(indexPath);if(bytes.length>16777216)throw new Error('Symbol index exceeds its bound.');
+  for(const body of JSON.parse(bytes).functions??[]){if(body.input_sha256?.toLowerCase()!==expectedHash.toLowerCase()||!/^0x[0-9a-f]{1,16}$/i.test(body.address??''))continue;for(const name of [body.name,...(body.aliases??[])]){if(typeof name!=='string')continue;const key=name.toLowerCase();aliases.set(key,aliases.has(key)&&aliases.get(key)!==body.address?null:body.address);}}
+}
 const allowed=new Set(['binary_session','open_binary','binary_overview','list_procedures','list_strings','procedure_pseudo_code','read_function_instructions','read_bytes','xrefs','resolve_containing_procedure','resolve_native_call_targets','trace_call_path','trace_native_values','close_binary']);
 const pending=new Map();
 const child=spawn(process.execPath,[reaScript,'--mcp'],{cwd:path.dirname(input),windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],env:{...process.env,...(ghidra?{GHIDRA_INSTALL_DIR:ghidra}:{})}});
@@ -42,6 +50,8 @@ try{
       const name=request.params?.name;
       try{
         if(!allowed.has(name))throw new Error('Only the scoped static native tools are available.');
+        const fields=name==='trace_call_path'?['from','to']:['procedure_pseudo_code','read_function_instructions','trace_native_values'].includes(name)?['procedure']:[];
+        for(const field of fields){const value=request.params.arguments?.[field];if(typeof value==='string'&&aliases.get(value.toLowerCase()))request.params.arguments[field]=aliases.get(value.toLowerCase());}
         if(name==='open_binary'){
           const arguments_=request.params.arguments??{};
           if(arguments_.path&&!samePath(path.resolve(arguments_.path),selectedInput)&&!samePath(path.resolve(arguments_.path),input))throw new Error('Native queries are pinned to the selected preserved input.');
