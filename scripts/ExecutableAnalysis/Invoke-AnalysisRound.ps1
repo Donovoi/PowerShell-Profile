@@ -89,6 +89,36 @@ function Select-AnalysisEvidenceFile {
     }},FullName | Select-Object -First 40
 }
 
+function Get-AnalysisReviewSkillConfig {
+    [CmdletBinding()]
+    param([string]$WorkingDirectory,[string[]]$SkillRoots)
+    if(-not $PSBoundParameters.ContainsKey('SkillRoots')){
+        $userDirectory=[Environment]::GetFolderPath('UserProfile')
+        $codexDirectory=if($env:CODEX_HOME){$env:CODEX_HOME}else{Join-Path $userDirectory '.codex'}
+        $SkillRoots=@((Join-Path $codexDirectory 'skills'),(Join-Path $userDirectory '.agents/skills'),'/etc/codex/skills')
+        for($parent=[IO.DirectoryInfo]::new([IO.Path]::GetFullPath($WorkingDirectory));$parent;$parent=$parent.Parent){$SkillRoots+=Join-Path $parent.FullName '.agents/skills'}
+    }
+    $visited=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $files=[Collections.Generic.SortedSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $queue=[Collections.Generic.Queue[string]]::new()
+    foreach($root in $SkillRoots){if($root){$queue.Enqueue([IO.Path]::GetFullPath($root))}}
+    while($queue.Count){
+        $directory=$queue.Dequeue()
+        if(-not $visited.Add($directory)){continue}
+        if($visited.Count -gt 2048){throw 'Review skill-directory inventory exceeded its 2048-directory bound.'}
+        if(-not(Test-Path -LiteralPath $directory -PathType Container)){continue}
+        $skill=Join-Path $directory 'SKILL.md'
+        if(Test-Path -LiteralPath $skill -PathType Leaf){[void]$files.Add($skill);continue}
+        $item=Get-Item -LiteralPath $directory -Force -ErrorAction Stop
+        if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){continue}
+        foreach($child in Get-ChildItem -LiteralPath $directory -Directory -Force -ErrorAction Stop){$queue.Enqueue($child.FullName)}
+    }
+    $entries=@($files|ForEach-Object{'{path='+($_|ConvertTo-Json -Compress)+',enabled=false}'})
+    $config='skills.config=['+($entries -join ',')+']'
+    if($files.Count -gt 64 -or $config.Length -gt 16000){throw 'Review skill overrides exceeded their 64-skill/16000-character bound.'}
+    return $config
+}
+
 function Invoke-AnalysisRound {
     [CmdletBinding()]
     param([string]$Name,[string]$Prompt,[string]$OutputDirectory,[string]$CodexPath,[int]$TimeoutSeconds=600,[switch]$Research,[string]$EvidenceDirectory,[string]$NativeReaScriptPath,[string]$NativeInputPath,[string]$NativeInputSHA256,[string]$NativeGhidraPath)
@@ -113,10 +143,13 @@ function Invoke-AnalysisRound {
             $mcp=$mcp.Substring(0,$mcp.Length-1)+',analysis_native={command='+($node|ConvertTo-Json -Compress)+',args=['+($nativeArguments -join ',')+'],required=true,startup_timeout_sec=30,tool_timeout_sec=180'+$nativeEnvironment+',tools={'+($staticTools -join ',')+'}}}'
         }
     }
+    # Disable discovered host skills only in this MCP-only child. Its evidence
+    # reader deliberately cannot load arbitrary host instruction files.
+    $skillConfig=Get-AnalysisReviewSkillConfig -WorkingDirectory $OutputDirectory
     $arguments=@('exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--color','never','--json','-C',$OutputDirectory,'-o',$output,
-        '-c','approval_policy="never"','-c','project_doc_max_bytes=0','-c','project_root_markers=[]','-c',$mcp,
+        '-c','approval_policy="never"','-c','project_doc_max_bytes=0','-c','project_root_markers=[]','-c',$skillConfig,'-c',$mcp,
         '-c',('web_search="'+$(if($Research){'live'}else{'disabled'})+'"'))
-    foreach($feature in @('shell_tool','unified_exec','apps','plugins','hooks','multi_agent','memories','browser_use','browser_use_external','computer_use','apply_patch_freeform','in_app_browser')) {$arguments+=@('--disable',$feature)}
+    foreach($feature in @('shell_tool','unified_exec','apps','plugins','hooks','multi_agent','memories','browser_use','browser_use_external','computer_use','apply_patch_freeform','in_app_browser','skill_search','skill_mcp_dependency_install')) {$arguments+=@('--disable',$feature)}
     $arguments+='-'
     $result=Invoke-AnalysisTool $CodexPath $arguments -LogPath (Join-Path $OutputDirectory $Name) -WorkingDirectory $OutputDirectory -TimeoutSeconds $TimeoutSeconds -InputText $Prompt
     $valid=$result.Status -eq 'Completed' -and (Test-Path -LiteralPath $output) -and (Get-Item -LiteralPath $output).Length -gt 20
