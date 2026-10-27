@@ -170,20 +170,27 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
         param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$Environment)
         if($ArgumentList[0] -like '*evidence-server.mjs'){@{function_count=0;functions=@()}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'functions.json');return [pscustomobject]@{Status='Completed'}}
         $config=Get-Content -LiteralPath $ArgumentList[1] -Raw|ConvertFrom-Json
+        if($ArgumentList[0] -like '*pdb-context.mjs'){
+            $context=@{Status='NoRsdsReference';Reference=$null;Loaded=$false;Limitations=@()}
+            if($script:nativeFixture.Pdb){$context.Status='Matched';$context.Reference=@{Name='fixture.pdb';Guid='fixture';Age=1};$context.RetainedPath=Join-Path $WorkingDirectory 'fixture.pdb';[IO.File]::WriteAllText($context.RetainedPath,'inert symbol fixture')}
+            $context|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'basic/pdb-context.json');return [pscustomobject]@{Status='Completed'}
+        }
         Assert-True ($config.timeoutSeconds -eq 601 -and $config.archiveIntegrityPolicy -eq 'record-and-continue' -and $config.maxJavaScriptHeapMB -eq 2048 -and $config.maxTotalEvidenceBytes -eq 2GB) 'Requested timeout or explicit integrity policy was not forwarded.'
         @{Status=$script:nativeFixture.Status;InputUnchanged=$true;InputSHA256Before=(Get-FileHash -LiteralPath $config.inputPath).Hash;Coverage=@{DecompiledFunctions=$script:nativeFixture.Count};Limitations=@()}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $config.outputDirectory 'rea-result.json')
         [pscustomobject]@{Status='Completed'}
     }
     function Invoke-AnalysisGhidra {
-        param($InputPath,$OutputDirectory,$GhidraPath,$AssetDirectory,$LogDirectory,$MaxFunctions,$TimeoutSeconds)
+        param($InputPath,$OutputDirectory,$GhidraPath,$AssetDirectory,$LogDirectory,$MaxFunctions,$TimeoutSeconds,$PdbPath,$TerminalSitesPath)
         $fallbackCalls.Add($InputPath)
         Assert-True ($InputPath -like '*analysis-*\input\pwsh.exe' -and $MaxFunctions -eq 80 -and $TimeoutSeconds -eq 601) 'Fallback did not use retained input and caller budgets.'
-        [pscustomobject]@{Status='Partial';Manifest=@{Coverage=@{DecompiledFunctions=80;Complete=$false}}}
+        if($script:nativeFixture.Pdb){Assert-True ($PdbPath -like '*analysis-*\fixture.pdb' -and (Test-Path -LiteralPath $PdbPath)) 'Matched PDB was not forwarded to the owned import.'}
+        [pscustomobject]@{Status='Partial';InputUnchanged=$true;Manifest=@{Coverage=@{DecompiledFunctions=80;Complete=$false};Pdb=@{Loaded=[bool]$script:nativeFixture.Pdb};TerminalFlow=@{Complete=$true;TotalSites=0;ResolvedSites=0;UnresolvedSites=0;BaselineSitesRequested=0};Limitations=@()}}
     }
-    foreach($case in @(@{Status='Partial';Count=0;Fallback=$true},@{Status='Failed';Count=0;Fallback=$true},@{Status='Partial';Count=1;Fallback=$false},@{Status='Succeeded';Count=2;Fallback=$false})){
+    foreach($case in @(@{Status='Partial';Count=0;Fallback=$true},@{Status='Failed';Count=0;Fallback=$true},@{Status='Partial';Count=1;Fallback=$true},@{Status='Succeeded';Count=2;Fallback=$true;Pdb=$true})){
         $script:nativeFixture=$case;$fallbackCalls=[Collections.Generic.List[string]]::new()
         $result=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'pwsh.exe') -OutputDirectory $TestRoot -SkipAI -NoInstall -TimeoutSeconds 601 -MaxFunctions 80 -ArchiveIntegrityPolicy RecordAndContinue -MaxJavaScriptHeapMB 2048 -MaxProviderEvidenceBytes 2GB
-        Assert-True (($fallbackCalls.Count -eq 1) -eq $case.Fallback) 'Direct Ghidra fallback policy did not match failed/partial REA code recovery.'
+        Assert-True (($fallbackCalls.Count -eq 1) -eq $case.Fallback) 'Native PE recovery did not inspect symbols/terminal flow after retaining REA evidence.'
+        if($case.Pdb){Assert-True ($result.PdbLoaded -eq $true -and (Test-Path -LiteralPath $result.PdbContextPath) -and $result.TerminalFlowUnresolved -eq 0) 'Automatic symbol/flow results were not exposed on the command result.'}
         Assert-True ($result.SourceUnchanged -and @($result.Stages|Where-Object Name -EQ 'REA').Count -eq 1) 'Fallback lost source identity or original REA evidence.'
         Assert-True (@($result.Stages|Where-Object Name -EQ 'Orchestration').Count -eq 0) 'Mocked fallback orchestration failed.'
     }
