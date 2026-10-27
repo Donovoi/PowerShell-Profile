@@ -171,7 +171,8 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
         if($ArgumentList[0] -like '*evidence-server.mjs'){@{function_count=0;functions=@()}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'functions.json');return [pscustomobject]@{Status='Completed'}}
         $config=Get-Content -LiteralPath $ArgumentList[1] -Raw|ConvertFrom-Json
         if($ArgumentList[0] -like '*pdb-context.mjs'){
-            $context=@{Status='NoRsdsReference';Reference=$null;Loaded=$false;Limitations=@()}
+            Assert-True ($config.cacheDirectory -ceq (Join-Path $TestRoot 'fresh symbol cache') -and $config.proxy -ceq 'socks5h://127.0.0.1:19050' -and $config.downloadTimeoutSeconds -eq 42 -and $TimeoutSeconds -eq 102 -and $config.allowDownload -eq (-not [bool]$script:nativeFixture.NoDownload)) 'Symbol cache, proxy, offline option or download/process deadlines were not forwarded.'
+            $context=@{Status='NoRsdsReference';Reference=$null;Loaded=$false;Limitations=@();Source='Download';Download=@{Status='Validated'};CachePath=Join-Path $config.cacheDirectory 'fixture.pdb'}
             if($script:nativeFixture.Pdb){$context.Status='Matched';$context.Reference=@{Name='fixture.pdb';Guid='fixture';Age=1};$context.RetainedPath=Join-Path $WorkingDirectory 'fixture.pdb';[IO.File]::WriteAllText($context.RetainedPath,'inert symbol fixture')}
             $context|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $WorkingDirectory 'basic/pdb-context.json');return [pscustomobject]@{Status='Completed'}
         }
@@ -186,11 +187,11 @@ Write-Host 'PASS: OS-specific runtime routing, provisioning, NoInstall, explicit
         if($script:nativeFixture.Pdb){Assert-True ($PdbPath -like '*analysis-*\fixture.pdb' -and (Test-Path -LiteralPath $PdbPath)) 'Matched PDB was not forwarded to the owned import.'}
         [pscustomobject]@{Status='Partial';InputUnchanged=$true;Manifest=@{Coverage=@{DecompiledFunctions=80;Complete=$false};Pdb=@{Loaded=[bool]$script:nativeFixture.Pdb};TerminalFlow=@{Complete=$true;TotalSites=0;ResolvedSites=0;UnresolvedSites=0;BaselineSitesRequested=0};Limitations=@()}}
     }
-    foreach($case in @(@{Status='Partial';Count=0;Fallback=$true},@{Status='Failed';Count=0;Fallback=$true},@{Status='Partial';Count=1;Fallback=$true},@{Status='Succeeded';Count=2;Fallback=$true;Pdb=$true})){
+    foreach($case in @(@{Status='Partial';Count=0;Fallback=$true;NoDownload=$true},@{Status='Failed';Count=0;Fallback=$true},@{Status='Partial';Count=1;Fallback=$true},@{Status='Succeeded';Count=2;Fallback=$true;Pdb=$true})){
         $script:nativeFixture=$case;$fallbackCalls=[Collections.Generic.List[string]]::new()
-        $result=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'pwsh.exe') -OutputDirectory $TestRoot -SkipAI -NoInstall -TimeoutSeconds 601 -MaxFunctions 80 -ArchiveIntegrityPolicy RecordAndContinue -MaxJavaScriptHeapMB 2048 -MaxProviderEvidenceBytes 2GB
+        $result=Invoke-ExecutableAnalysis (Join-Path $TestRoot 'pwsh.exe') -OutputDirectory $TestRoot -SkipAI -NoInstall -TimeoutSeconds 601 -MaxFunctions 80 -ArchiveIntegrityPolicy RecordAndContinue -MaxJavaScriptHeapMB 2048 -MaxProviderEvidenceBytes 2GB -SymbolCacheDirectory (Join-Path $TestRoot 'fresh symbol cache') -SymbolProxy 'socks5h://127.0.0.1:19050' -PdbDownloadTimeoutSeconds 42 -NoSymbolDownload:([bool]$case.NoDownload)
         Assert-True (($fallbackCalls.Count -eq 1) -eq $case.Fallback) 'Native PE recovery did not inspect symbols/terminal flow after retaining REA evidence.'
-        if($case.Pdb){Assert-True ($result.PdbLoaded -eq $true -and (Test-Path -LiteralPath $result.PdbContextPath) -and $result.TerminalFlowUnresolved -eq 0) 'Automatic symbol/flow results were not exposed on the command result.'}
+        if($case.Pdb){Assert-True ($result.PdbLoaded -eq $true -and $result.PdbSource -eq 'Download' -and $result.PdbDownloadStatus -eq 'Validated' -and $result.PdbCachePath -ceq (Join-Path (Join-Path $TestRoot 'fresh symbol cache') 'fixture.pdb') -and (Test-Path -LiteralPath $result.PdbContextPath) -and $result.TerminalFlowUnresolved -eq 0) 'Automatic symbol/flow/download results were not exposed on the command result.'}
         Assert-True ($result.SourceUnchanged -and @($result.Stages|Where-Object Name -EQ 'REA').Count -eq 1) 'Fallback lost source identity or original REA evidence.'
         Assert-True (@($result.Stages|Where-Object Name -EQ 'Orchestration').Count -eq 0) 'Mocked fallback orchestration failed.'
     }
