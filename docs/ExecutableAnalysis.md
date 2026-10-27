@@ -40,6 +40,8 @@ Use PowerShell 7.2 or newer on Windows. Startup only defines the command. Its su
 
 Each invocation creates a new folder; it does not overwrite previous reports. The command returns one object with `Status`, `OutputDirectory`, `ReportPath`, `JsonPath`, `SHA256`, `SourceUnchanged` and `Stages`.
 
+The review tools `read_evidence` and `read_function` return 20,000 characters by default and cap each page at 24,000 characters. A larger positive safe-integer `limit` succeeds with a capped page, `limit_clamped: true`, the requested/applied limits, returned character count and `next_offset`. Follow `next_offset` until it is null to read the complete artifact. Invalid sizes, unsafe paths and files exceeding the existing 16 MiB read budget still fail; actual tool errors remain recorded in the review status.
+
 `CompletedWithLimitations` means the requested supported stages completed. It never means every behavior was recovered or that the program is safe. `Partial` preserves successful evidence while identifying unavailable providers, failed operations, limits or incomplete research. Invalid input arguments fail before analysis begins.
 
 Direct Ghidra export labels its function coverage `GhidraDiscoveredFunctions`. `code-reference-gaps.json` separately records existing data references to executable instructions outside that function inventory. These are candidates for analyst review, including possible indirect callbacks; they are not automatically promoted to functions. Candidates or an incomplete bounded scan keep the export Partial even when every discovered function was decompiled. This check does not detect every missing function or establish complete code coverage.
