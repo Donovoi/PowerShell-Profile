@@ -1,8 +1,9 @@
 function Invoke-AnalysisGhidra {
     [CmdletBinding()]
-    param([string]$InputPath,[string]$OutputDirectory,[string]$GhidraPath,[string]$AssetDirectory,[string]$LogDirectory,[int]$MaxFunctions=0,[ValidateRange(10,86370)][int]$TimeoutSeconds=1800)
+    param([string]$InputPath,[string]$OutputDirectory,[string]$GhidraPath,[string]$AssetDirectory,[string]$LogDirectory,[int]$MaxFunctions=0,[ValidateRange(10,86370)][int]$TimeoutSeconds=1800,[string]$PdbPath,[string]$TerminalSitesPath)
     $timer=[Diagnostics.Stopwatch]::StartNew()
     $inputHash=(Get-FileHash -LiteralPath $InputPath -Algorithm SHA256).Hash
+    $pdbHash=if($PdbPath){(Get-FileHash -LiteralPath $PdbPath -Algorithm SHA256).Hash}else{$null}
     $java=Get-Command java -CommandType Application -ErrorAction Ignore|Select-Object -First 1
     if(-not $java){return [pscustomobject]@{Status='Unavailable';Reason='Ghidra requires a compatible Java JDK.'}}
     $configurationSeconds=[Math]::Min(30,[Math]::Max(1,[int][Math]::Floor($TimeoutSeconds/10)))
@@ -23,7 +24,7 @@ function Invoke-AnalysisGhidra {
     $exportDeadline=[DateTimeOffset]::UtcNow.AddSeconds($remainingSeconds-[Math]::Min(5,$overheadSeconds)).ToUnixTimeMilliseconds()
     $budgets=[ordered]@{TotalSeconds=$TimeoutSeconds;ConfigurationTimeoutSeconds=$configurationSeconds;HeadlessTimeoutSeconds=$remainingSeconds;AutoAnalysisSeconds=$analysisSeconds;ExportSeconds=$exportSeconds;ImportAndFinalizationReserveSeconds=$overheadSeconds;ExportDeadlineUnixMilliseconds=$exportDeadline}
     $arguments=@([IO.File]::ReadAllLines($vm.StandardOutputPath)|Where-Object {$_})
-    $arguments+=@('-Xmx2G','-Djava.awt.headless=true',('-Duser.home='+$userDirectory),('-Djava.io.tmpdir='+$tempDirectory),'-cp',(Join-Path $GhidraPath 'Ghidra/Framework/Utility/lib/Utility.jar'),'ghidra.Ghidra','ghidra.app.util.headless.AnalyzeHeadless',$project,'ProfileAnalysis','-import',$InputPath,'-readOnly','-scriptPath',$AssetDirectory,'-postScript','ExportProgram.java',$OutputDirectory,[string]$MaxFunctions,'60',[string]$exportSeconds,[string]$exportDeadline,'-analysisTimeoutPerFile',[string]$analysisSeconds,'-log',(Join-Path $LogDirectory 'ghidra-analysis.log'),'-scriptlog',(Join-Path $LogDirectory 'ghidra-export.log'))
+    $arguments+=@('-Xmx2G','-Djava.awt.headless=true',('-Duser.home='+$userDirectory),('-Djava.io.tmpdir='+$tempDirectory),'-cp',(Join-Path $GhidraPath 'Ghidra/Framework/Utility/lib/Utility.jar'),'ghidra.Ghidra','ghidra.app.util.headless.AnalyzeHeadless',$project,'ProfileAnalysis','-import',$InputPath,'-readOnly','-scriptPath',$AssetDirectory,'-preScript','PrepareProgram.java',$(if($PdbPath){$PdbPath}else{'none'}),$(if($TerminalSitesPath){$TerminalSitesPath}else{'none'}),'-postScript','ExportProgram.java',$OutputDirectory,[string]$MaxFunctions,'60',[string]$exportSeconds,[string]$exportDeadline,'-analysisTimeoutPerFile',[string]$analysisSeconds,'-log',(Join-Path $LogDirectory 'ghidra-analysis.log'),'-scriptlog',(Join-Path $LogDirectory 'ghidra-export.log'))
     $result=Invoke-AnalysisTool $java.Source $arguments -LogPath (Join-Path $LogDirectory 'ghidra') -WorkingDirectory $LogDirectory -TimeoutSeconds $remainingSeconds
     $manifest=Join-Path $OutputDirectory 'ghidra-result.json'
     if(Test-Path -LiteralPath $manifest -PathType Leaf){
@@ -34,6 +35,9 @@ function Invoke-AnalysisGhidra {
             return [pscustomobject]@{Status='Failed';Reason='Ghidra manifest identity/status or source preservation verification failed.';Process=$result;Budgets=$budgets}
         }
         $status=$record.Status
+        if($PdbPath -and (Get-FileHash -LiteralPath $PdbPath -Algorithm SHA256).Hash -ne $pdbHash){return [pscustomobject]@{Status='Failed';Reason='Retained PDB changed during analysis.';Manifest=$record;Process=$result;Budgets=$budgets}}
+        $pdbReason=$null
+        if($PdbPath -and ($record.Pdb.Loaded -ne $true -or $record.Pdb.Preparation.Status -ne 'Matched' -or $record.Pdb.Preparation.IdentityMatched -ne $true -or $record.Pdb.Preparation.SHA256 -ne $pdbHash)){$pdbReason='The retained matching PDB was not applied with verified preparation identity/hash; see its preparation and analysis logs.';if($status -ne 'Failed'){$status='Partial'}}
         $validation=[ordered]@{ProviderReportedStatus=$record.Status;ProviderReportedCoverageComplete=$record.Coverage.Complete;ProcessCompleted=($result.Status -eq 'Completed');InputUnchanged=$true}
         # An interrupted process or incomplete/unknown auto-analysis cannot be
         # upgraded by a successful export of only the functions discovered so far.
@@ -43,7 +47,7 @@ function Invoke-AnalysisGhidra {
             $record.Status=$status
             $record.Coverage|Add-Member -NotePropertyName Complete -NotePropertyValue $false -Force
         }
-        return [pscustomobject]@{Status=$status;Manifest=$record;RawManifestPath=$manifest;Validation=$validation;Process=$result;Budgets=$budgets;InputUnchanged=$true;InputSHA256Before=$inputHash;InputSHA256After=$afterHash}
+        return [pscustomobject]@{Status=$status;Reason=$pdbReason;Manifest=$record;RawManifestPath=$manifest;Validation=$validation;Process=$result;Budgets=$budgets;InputUnchanged=$true;InputSHA256Before=$inputHash;InputSHA256After=$afterHash;PdbUnchanged=if($PdbPath){$true}else{$null}}
     }
     [pscustomobject]@{Status='Failed';Reason='Ghidra did not produce a verified manifest. Any partial exports and logs were retained.';Process=$result;Budgets=$budgets}
 }

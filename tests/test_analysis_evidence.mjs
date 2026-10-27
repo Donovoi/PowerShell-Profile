@@ -87,6 +87,22 @@ test('direct Ghidra function manifests map code paths and canonical addresses',a
   await fs.writeFile(path.join(root,'code/native/ghidra-result.json'),JSON.stringify({Status:'Succeeded',Coverage:{DecompiledFunctions:1,Complete:true},Functions:[{Address:'00001000',Name:'ghidra_entry',Path:'code/entry.c',Bytes:Buffer.byteLength(code),SHA256:sha(code),Status:'Succeeded'}]}));
   const direct=await EvidenceStore.create(root);const body=await direct.call('read_function',{query:'0x1000'});assert.equal(body.text,code);assert.equal(body.path,'code/native/code/entry.c');assert.equal((await direct.call('audit_decompilation')).checked,3);
 });
+test('PDB-aware recovery deduplicates only the same input and retains hash-checked native instructions',async()=>{
+  const identity=sha(await fs.readFile(path.join(root,'input/inert.exe')));
+  const reaPath=path.join(root,'rea/rea-result.json'),rea=JSON.parse(await fs.readFile(reaPath,'utf8'));rea.InputSHA256Before=identity;await fs.writeFile(reaPath,JSON.stringify(rea));
+  await fs.mkdir(path.join(root,'code/native/code'),{recursive:true});await fs.mkdir(path.join(root,'code/native/instructions'));
+  const code='int wmain(void) { return target(); }',assembly='0x140001000: CALL 0x140001010\n0x140001005: RET\n';
+  await fs.writeFile(path.join(root,'code/native/code/wmain.c'),code);await fs.writeFile(path.join(root,'code/native/instructions/wmain.asm'),assembly);
+  const manifest={Status:'Succeeded',ExecutableSHA256:identity,Pdb:{Loaded:true},TerminalFlow:{Complete:true},Functions:[{Address:'140001000',Name:'wmain',Path:'code/wmain.c',Bytes:Buffer.byteLength(code),SHA256:sha(code),InstructionsPath:'instructions/wmain.asm',InstructionsBytes:Buffer.byteLength(assembly),InstructionsSHA256:sha(assembly),InstructionsComplete:true,Status:'Succeeded'}]};
+  await fs.writeFile(path.join(root,'code/native/ghidra-result.json'),JSON.stringify(manifest));
+  const merged=await EvidenceStore.create(root);assert.equal(merged.bodies.length,2);assert.equal(merged.providers.length,2);
+  assert.equal((await merged.call('read_function',{query:'entry'})).function.name,'wmain');
+  const instructions=await merged.call('read_function_instructions',{query:'wmain',limit:250000});assert.equal(instructions.text,assembly);assert.equal(instructions.limit_clamped,true);
+  assert.equal((await merged.call('read_function_instructions',{procedure:'wmain'})).text,assembly);await assert.rejects(merged.call('read_function_instructions',{query:'wmain',procedure:'target'}),/one function selector/);
+  assert.equal((await merged.call('audit_decompilation')).complete,true);
+  manifest.ExecutableSHA256='f'.repeat(64);await fs.writeFile(path.join(root,'code/native/ghidra-result.json'),JSON.stringify(manifest));assert.equal((await EvidenceStore.create(root)).bodies.length,3);
+  await fs.appendFile(path.join(root,'code/native/instructions/wmain.asm'),'modified');assert.equal((await merged.call('audit_decompilation')).failure_count,1);await assert.rejects(merged.call('read_function_instructions',{query:'wmain'}),/manifest hash/);
+});
 test('text probes find actual callers and clearly distinguish lexical evidence',async()=>{
   const result=await store.call('search_evidence',{query:'target()',prefix:'rea/rea-code/',limit:1});assert.equal(result.matches[0].line,1);assert.match(result.interpretation,/not verified native call/);assert.equal(result.search_complete,true);
   await assert.rejects(store.call('search_evidence',{query:''}),/literal query/);
@@ -128,11 +144,13 @@ test('native proxy filters tools, pins the input and rejects a changed hash',asy
   await fs.writeFile(mock,`import readline from 'node:readline';for await(const line of readline.createInterface({input:process.stdin})){const r=JSON.parse(line);if(r.id===undefined)continue;const result=r.method==='tools/list'?{tools:[{name:'open_binary'},{name:'read_function_instructions'},{name:'set_address_name'}]}:{content:[{type:'text',text:JSON.stringify(r.params??{})}],structuredContent:r.params??{}};process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:r.id,result})+'\\n');}`);
   const proxy=fileURLToPath(new URL('../scripts/ExecutableAnalysis/native-review-server.mjs',import.meta.url));
   const input=path.join(root,'input/inert.exe'),hash=sha(await fs.readFile(input));
-  async function run(expected,selected=input){
-    const child=spawn(process.execPath,[proxy,mock,selected,expected,''],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);const exit=new Promise(resolve=>child.on('close',resolve));
-    for(const [id,method,params]of [[1,'tools/list',{}],[2,'tools/call',{name:'open_binary',arguments:{path:selected}}],[3,'tools/call',{name:'open_binary',arguments:{path:path.join(root,'outside.exe')}}],[4,'tools/call',{name:'set_address_name',arguments:{address:'0x1',name:'write'}}]])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();assert.equal(await exit,0,stderr);return new Map(stdout.trim().split('\n').map(x=>{const r=JSON.parse(x);return[r.id,r.result];}));
+  async function run(expected,selected=input,evidence){
+    const child=spawn(process.execPath,[proxy,mock,selected,expected,'',...(evidence?[evidence]:[])],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);const exit=new Promise(resolve=>child.on('close',resolve));
+    for(const [id,method,params]of [[1,'tools/list',{}],[2,'tools/call',{name:'open_binary',arguments:{path:selected}}],[3,'tools/call',{name:'open_binary',arguments:{path:path.join(root,'outside.exe')}}],[4,'tools/call',{name:'set_address_name',arguments:{address:'0x1',name:'write'}}],[5,'tools/call',{name:'read_function_instructions',arguments:{procedure:'PublicEntry'}}],[6,'tools/call',{name:'read_function_instructions',arguments:{procedure:'OtherInput'}}]])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();assert.equal(await exit,0,stderr);return new Map(stdout.trim().split('\n').map(x=>{const r=JSON.parse(x);return[r.id,r.result];}));
   }
   const results=await run(hash);assert.deepEqual(results.get(1).tools.map(x=>x.name),['open_binary','read_function_instructions']);assert.ok(results.get(2).structuredContent,JSON.stringify(results.get(2)));assert.equal(results.get(2).structuredContent.arguments.path,await fs.realpath(input));assert.equal(results.get(3).isError,true);assert.equal(results.get(4).isError,true);
+  await fs.writeFile(path.join(root,'functions.json'),JSON.stringify({functions:[{name:'PublicEntry',aliases:[],address:'0x140001000',input_sha256:hash},{name:'OtherInput',address:'0x140001010',input_sha256:'f'.repeat(64)}]}));
+  const named=await run(hash,input,root);assert.equal(named.get(5).structuredContent.arguments.procedure,'0x140001000');assert.equal(named.get(6).structuredContent.arguments.procedure,'OtherInput');
   const alias=path.join(root,'input-alias');await fs.symlink(path.join(root,'input'),alias,process.platform==='win32'?'junction':'dir');
   const aliased=await run(hash,path.join(alias,'inert.exe'));assert.ok(aliased.get(2).structuredContent,JSON.stringify(aliased.get(2)));assert.equal(aliased.get(2).structuredContent.arguments.path,await fs.realpath(input));
   // Retargeting the selected directory after startup must still fail, even if
