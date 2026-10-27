@@ -1,8 +1,9 @@
-// Match local RSDS/MSF7 companions by identity, never by filename alone. No network or target execution.
+// Match RSDS/MSF7 companions by identity before retaining, caching or loading. Never execute the target.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
+import {downloadSymbol,cacheSymbol} from './pdb-download.mjs';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const guid=bytes=>[bytes.readUInt32LE(0).toString(16).padStart(8,'0'),bytes.readUInt16LE(4).toString(16).padStart(4,'0'),bytes.readUInt16LE(6).toString(16).padStart(4,'0'),bytes.subarray(8,10).toString('hex'),bytes.subarray(10,16).toString('hex')].join('-');
 const range=(offset,length,size)=>{if(!Number.isSafeInteger(offset)||!Number.isSafeInteger(length)||offset<0||length<0||offset+length>size)throw new Error('Binary range exceeds its bounded file.');};
@@ -69,8 +70,8 @@ async function localFile(selected,maxBytes){
   const physical=await fs.realpath(full),handle=await fs.open(full,'r');
   try{const stat=await handle.stat();if(!stat.isFile()||stat.size>maxBytes)throw new Error('PDB file exceeds its byte budget or is not regular.');const bytes=await handle.readFile();const after=await handle.stat();if(stat.size!==after.size||stat.mtimeMs!==after.mtimeMs||bytes.length!==stat.size||physical!==await fs.realpath(full))throw new Error('PDB changed during inspection.');return bytes;}finally{await handle.close();}
 }
-export async function resolvePdb(config){
-  const record={SchemaVersion:1,Status:'NotFound',Reference:null,Loaded:false,SearchComplete:true,CandidatesInspected:0,RejectedCandidates:[],Limitations:[]};
+export async function resolvePdb(config,transport){
+  const record={SchemaVersion:2,Status:'NotFound',Reference:null,Loaded:false,SearchComplete:true,CandidatesInspected:0,RejectedCandidates:[],Limitations:[],Download:{Attempted:false,Status:'NotNeeded'}};
   const handle=await fs.open(config.inputPath,'r');
   try{const stat=await handle.stat();record.Reference=await inspectPeDebug(async(offset,length)=>{range(offset,length,stat.size);const bytes=Buffer.alloc(length);const result=await handle.read(bytes,0,length,offset);if(result.bytesRead!==length)throw new Error('PE changed during inspection.');return bytes;},stat.size);}finally{await handle.close();}
   if(!record.Reference){record.Status='NoRsdsReference';return record;}
@@ -81,22 +82,39 @@ export async function resolvePdb(config){
     const files=path.extname(root).toLowerCase()==='.pdb'?[root]:[path.join(root,record.Reference.Name),path.join(root,record.Reference.Name,record.Reference.SymbolKey,record.Reference.Name)];
     for(const file of files){const key=process.platform==='win32'?file.toLowerCase():file;if(!seen.has(key)){seen.add(key);candidates.push(file);}}
   }
+  const retain=async(bytes,identity,selected,source)=>{
+    const directory=path.join(config.outputDirectory,'symbols');await fs.mkdir(directory,{recursive:true});
+    const retained=path.join(directory,record.Reference.Name);await fs.writeFile(retained,bytes,{flag:'wx'});
+    if(sha(await localFile(retained,config.maxPdbBytes??268435456))!==sha(bytes))throw new Error('Retained PDB hash differs.');
+    Object.assign(record,{Status:'Matched',Source:source,SelectedPath:selected||retained,RetainedPath:retained,RelativePath:'symbols/'+record.Reference.Name,Bytes:bytes.length,SHA256:sha(bytes),Identity:identity});
+    if(identity.TpiTypeRecords===0)record.Limitations.push('The matching PDB contains zero TPI type records; private structure layouts and local types are not supplied by that companion.');
+    return record;
+  };
   for(const file of candidates){
     if(record.CandidatesInspected>=128){record.SearchComplete=false;break;}
+    let bytes,identity;
     try{
       try{if((await fs.lstat(file)).isDirectory())continue;}catch(error){if(error.code==='ENOENT'||error.code==='ENOTDIR')continue;throw error;}
       record.CandidatesInspected++;
-      const bytes=await localFile(file,config.maxPdbBytes??268435456),identity=inspectPdb(bytes);
+      bytes=await localFile(file,config.maxPdbBytes??268435456);identity=inspectPdb(bytes);
       if(identity.Guid!==record.Reference.Guid||identity.Age!==record.Reference.Age){record.RejectedCandidates.push({Path:file,Reason:'GUID/age mismatch'});continue;}
-      const directory=path.join(config.outputDirectory,'symbols');await fs.mkdir(directory,{recursive:true});
-      const retained=path.join(directory,record.Reference.Name);await fs.writeFile(retained,bytes,{flag:'wx'});
-      if(sha(await fs.readFile(retained))!==sha(bytes))throw new Error('Retained PDB hash differs.');
-      Object.assign(record,{Status:'Matched',SelectedPath:file,RetainedPath:retained,RelativePath:'symbols/'+record.Reference.Name,Bytes:bytes.length,SHA256:sha(bytes),Identity:identity});
-      if(identity.TpiTypeRecords===0)record.Limitations.push('The matching PDB contains zero TPI type records; private structure layouts and local types are not supplied by that companion.');
-      return record;
-    }catch(error){if(record.RejectedCandidates.length<128)record.RejectedCandidates.push({Path:file,Reason:error.message});}
+    }catch(error){if(record.RejectedCandidates.length<128)record.RejectedCandidates.push({Path:file,Reason:error.message});continue;}
+    return retain(bytes,identity,file,'Local');
   }
-  record.Limitations.push('This input references '+record.Reference.Name+' ('+record.Reference.Guid+', age '+record.Reference.Age+'), but no matching available local PDB was retained.');
+  const download=await downloadSymbol(record.Reference,config,transport?.request);record.Download=download.receipt;
+  if(download.bytes){
+    let identity;
+    try{identity=inspectPdb(download.bytes);if(identity.Guid!==record.Reference.Guid||identity.Age!==record.Reference.Age)throw new Error('Downloaded PDB GUID/age does not match the input RSDS identity.');}
+    catch(error){record.Download.Status='Rejected';record.Download.Error=error.message;}
+    if(identity&&record.Download.Status!=='Rejected'){
+      record.Download.Status='Validated';record.Download.SHA256=sha(download.bytes);record.Download.Identity=identity;
+      let cached=null;
+      try{cached=await cacheSymbol(download.bytes,record.Reference,config.cacheDirectory);if(sha(await localFile(cached,config.maxPdbBytes??268435456))!==sha(download.bytes))throw new Error('Cached PDB hash differs.');record.CachePath=cached;record.Download.CacheStatus='Stored';}
+      catch(error){cached=null;record.Download.CacheStatus='NotWritten';record.Download.CacheError=error.message;}
+      return retain(download.bytes,identity,cached,'Download');
+    }
+  }
+  record.Limitations.push('This input references '+record.Reference.Name+' ('+record.Reference.Guid+', age '+record.Reference.Age+'), but no matching PDB was retained after local lookup and '+(record.Download.Attempted?'the Microsoft symbol download ('+record.Download.Status+').':'symbol download was '+record.Download.Status.toLowerCase()+'.'));
   return record;
 }
 if(process.argv[1]&&pathToFileURL(path.resolve(process.argv[1])).href===import.meta.url){
