@@ -228,3 +228,5 @@ Assert ($mutatedSource.Record.Status -eq 'Failed' -and $mutatedSource.Process.St
 Write-Host 'PASS: ASAR source retention, exact unpacked bytes, bounded entry-point selection and honest semantic coverage'
 & $node.Source --test (Join-Path $PSScriptRoot 'test_analysis_evidence.mjs')
 if($LASTEXITCODE -ne 0){throw 'Read-only analysis evidence tools failed their regression checks.'}
+& $node.Source --test (Join-Path $PSScriptRoot 'test_analysis_pdb.mjs')
+if($LASTEXITCODE -ne 0){throw 'Local PDB identity/resolution regression checks failed.'}

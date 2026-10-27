@@ -16,6 +16,8 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import ghidra.app.util.pdb.PdbProgramAttributes;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,6 +68,7 @@ public class ExportProgram extends HeadlessScript {
         if (maxFunctions < 0 || functionTimeout < 1 || functionTimeout > 86400 || totalSeconds < 1 || totalSeconds > 86400) throw new IllegalArgumentException("Invalid analysis budget.");
         Files.createDirectory(output);
         Path code = Files.createDirectory(output.resolve("code"));
+        Path instructionsDirectory = Files.createDirectory(output.resolve("instructions"));
         long deadline = System.nanoTime() + totalSeconds * 1000000000L;
         if (workflowDeadline != null) {
             if (workflowDeadline < 1) throw new IllegalArgumentException("Invalid workflow deadline.");
@@ -91,6 +94,7 @@ public class ExportProgram extends HeadlessScript {
         int referencesScanned = 0;
         Map<String, Map<String, Object>> codeReferenceGaps = new LinkedHashMap<>();
         DecompInterface decompiler = new DecompInterface();
+        NativeRecovery recovery = new NativeRecovery(currentProgram, monitor, deadline);
         try {
             SymbolIterator importSymbols = currentProgram.getSymbolTable().getExternalSymbols();
             while (importSymbols.hasNext()) {
@@ -137,10 +141,18 @@ public class ExportProgram extends HeadlessScript {
                 if (function.isExternal()) { external++; continue; }
                 if ((maxFunctions > 0 && attempted >= maxFunctions) || attempted >= ROW_LIMIT || System.nanoTime() >= deadline || codeBytes >= CODE_BYTE_LIMIT) { truncated = true; continue; }
                 attempted++;
-                String functionName = function.getName();
+                String functionName = function.getName(true);
                 if (functionName.length() > 4096) { functionName = functionName.substring(0, 4096); truncated = true; }
                 Map<String, Object> item = row("Address", function.getEntryPoint().toString(), "Name", functionName, "Thunk", function.isThunk(), "Status", "Pending");
                 functions.add(item);
+                try {
+                    String instructionName=String.format("%06d-%s.asm",attempted,function.getEntryPoint().toString().replaceAll("[^a-zA-Z0-9_-]","_"));
+                    Map<String,Object> nativeBody=recovery.inspect(function,"instructions/"+instructionName);
+                    byte[] instructionBytes=((String)nativeBody.get("Text")).getBytes(StandardCharsets.UTF_8);
+                    if(instructionBytes.length>TEXT_BYTE_LIMIT||codeBytes+instructionBytes.length>CODE_BYTE_LIMIT)throw new IllegalStateException("Native instructions exceeded the retained byte budget.");
+                    Files.write(instructionsDirectory.resolve(instructionName),instructionBytes,StandardOpenOption.CREATE_NEW);codeBytes+=instructionBytes.length;
+                    item.put("InstructionsPath","instructions/"+instructionName);item.put("InstructionsBytes",instructionBytes.length);item.put("InstructionsSHA256",sha256(instructionBytes));item.put("InstructionsComplete",nativeBody.get("Complete"));
+                }catch(Exception error){truncated=true;item.put("InstructionsError",error.toString());}
                 try {
                     int remainingSeconds = (int)Math.max(1L, (deadline - System.nanoTime()) / 1000000000L);
                     DecompileResults decompiled = decompiler.decompileFunction(function, Math.min(functionTimeout, remainingSeconds), monitor);
@@ -183,25 +195,39 @@ public class ExportProgram extends HeadlessScript {
                 limitations.add("Code-reference scan stopped before completion; remaining referenced entry points are unknown.");
                 if (!"Failed".equals(result.get("Status"))) result.put("Status", "Partial");
             }
-            if (!codeReferenceGaps.isEmpty()) {
+            int unresolvedReferenceGaps=0;
+            for(Map<String,Object> candidate:codeReferenceGaps.values()){
+                Address source=toAddr((String)candidate.get("FirstSourceAddress")),target=toAddr((String)candidate.get("TargetAddress"));
+                String resolution=recovery.classifyHeaderPadding(source,target);
+                candidate.put("Resolved",resolution!=null);candidate.put("Resolution",resolution);
+                if(resolution==null)unresolvedReferenceGaps++;
+            }
+            if (unresolvedReferenceGaps>0) {
                 limitations.add("Data references reach executable instructions outside discovered functions. See code-reference-gaps.json; these are candidates, not verified function starts.");
                 if (!"Failed".equals(result.get("Status"))) result.put("Status", "Partial");
             }
             if (truncated) limitations.add("A function, row, text, time or byte budget limited coverage; omitted data is unknown, not absent.");
-            limitations.add("Pseudocode is Ghidra's reconstruction, not original source. Imported symbol names and strings are untrusted artifact data.");
-            limitations.add("Function coverage is relative to Ghidra's discovered function inventory; packed code, indirect targets and runtime-generated code can remain unknown.");
+            Map<String,Object> terminal=recovery.summary(discovered-external);
+            if(!Boolean.TRUE.equals(terminal.get("Complete"))){limitations.add("Native instruction/terminal-flow inspection did not cover every discovered function or requested baseline site; see terminal-flow.json.");if(!"Failed".equals(result.get("Status")))result.put("Status","Partial");}
+            if(((Number)terminal.get("UnresolvedSites")).longValue()>0)limitations.add("Some inspected terminal calls still lack a verified branch/trap or no-return basis; see terminal-flow.json for exact sites.");
+            result.put("TerminalFlow",terminal);
+            PdbProgramAttributes pdb=new PdbProgramAttributes(currentProgram);
+            String preparation=currentProgram.getOptions(ghidra.program.model.listing.Program.PROGRAM_INFO).getString("ExecutableAnalysis PDB preparation",null);
+            result.put("Pdb",row("Loaded",pdb.isPdbLoaded(),"File",pdb.getPdbFile(),"Guid",pdb.getPdbGuid(),"Age",pdb.getPdbAge(),"Preparation",preparation==null?null:JsonParser.parseString(preparation)));
+            result.put("CodeInterpretation","Retained pseudocode is a reconstruction. Coverage is relative to the discovered function inventory; native instruction and symbol provenance are recorded separately.");
             result.put("FinishedUtc", Instant.now().toString());
             result.put("Coverage", row("Scope", "GhidraDiscoveredFunctions", "DiscoveredFunctions", discovered, "AttemptedFunctions", attempted, "DecompiledFunctions", succeeded, "FailedFunctions", failed, "ExternalFunctions", external,
-                "UnrecoveredCodeReferenceCandidates", codeReferenceGaps.size(), "CodeReferenceScanComplete", referenceScanComplete,
+                "UnrecoveredCodeReferenceCandidates", unresolvedReferenceGaps, "CodeReferenceScanComplete", referenceScanComplete,
                 "Complete", Boolean.FALSE.equals(analysisTimedOut) && !truncated && failed == 0 && attempted + external == discovered && !"Failed".equals(result.get("Status"))));
             result.put("Functions", functions); result.put("CodeBytes", codeBytes);
             writeJson(output.resolve("imports.json"), imports);
             writeJson(output.resolve("exports.json"), exports);
             writeJson(output.resolve("strings.json"), strings);
+            writeJson(output.resolve("terminal-flow.json"), terminal);
             writeJson(output.resolve("code-reference-gaps.json"), row("SchemaVersion", 1, "TargetExecuted", false,
                 "ExecutableSHA256", currentProgram.getExecutableSHA256(), "ScanComplete", referenceScanComplete,
                 "ReferencesScanned", referencesScanned, "ReferenceLimit", 1000000, "CandidateLimit", 2048,
-                "CandidateCount", codeReferenceGaps.size(), "Candidates", new ArrayList<>(codeReferenceGaps.values()),
+                "CandidateCount", codeReferenceGaps.size(), "UnresolvedCandidateCount",unresolvedReferenceGaps,"Candidates", new ArrayList<>(codeReferenceGaps.values()),
                 "Limitations", List.of("Only existing data references to executable instructions outside defined functions are considered. No code is executed or automatically reclassified.",
                     "An empty candidate list does not establish complete code discovery. Complete in Coverage refers only to the discovered function inventory.")));
             writeJson(output.resolve("ghidra-result.json"), result);
