@@ -227,6 +227,10 @@ Assert-True ($longCoverage.Truncated -and $longCoverage.TruncatedStrings -eq 1) 
 Write-Host 'PASS: strict combined output budget, explicit string truncation and independent provider resolution.'
 
 . (Join-Path $repo 'scripts/ExecutableAnalysis/Invoke-AnalysisRound.ps1')
+$skillFixture=Join-Path $TestRoot 'ambient skills [fixture]'
+foreach($name in @('review-one','nested/review-two')){$folder=Join-Path $skillFixture $name;$null=[IO.Directory]::CreateDirectory($folder);[IO.File]::WriteAllText((Join-Path $folder 'SKILL.md'),'Inert local instruction fixture.')}
+$skillConfig=Get-AnalysisReviewSkillConfig -WorkingDirectory $TestRoot -SkillRoots @($skillFixture)
+Assert-True ($skillConfig.StartsWith('skills.config=[') -and ([regex]::Matches($skillConfig,'enabled=false')).Count -eq 2 -and $skillConfig.Contains(((Join-Path $skillFixture 'nested/review-two/SKILL.md')|ConvertTo-Json -Compress))) 'Nested local skill paths were not disabled by exact per-child overrides.'
 # Provider failure and missing web retrieval must not become a successful research stage.
 function Invoke-AnalysisTool {
     param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$InputText)
@@ -235,6 +239,7 @@ function Invoke-AnalysisTool {
     [IO.File]::WriteAllText($LogPath+'.stdout','{"type":"item.completed","item":{"type":"error","message":"provider unavailable"}}')
     [IO.File]::WriteAllText($LogPath+'.stderr','')
     Assert-True ($ArgumentList -contains '--ignore-user-config' -and $ArgumentList -contains 'shell_tool' -and $ArgumentList -contains 'plugins' -and $ArgumentList -contains 'project_root_markers=[]') 'AI execution capability boundaries were dropped.'
+    Assert-True (@($ArgumentList|Where-Object {$_ -like 'skills.config=[[]*'}).Count -eq 1 -and $ArgumentList -contains 'skill_search' -and $ArgumentList -contains 'skill_mcp_dependency_install' -and $ArgumentList -notcontains 'skip_host_skill_discovery') 'MCP-only reviews inherited unavailable host skills or unstable feature flags.'
     [pscustomobject]@{Status='Completed';ExitCode=0;StandardOutputPath=$LogPath+'.stdout';StandardErrorPath=$LogPath+'.stderr'}
 }
 $round=Invoke-AnalysisRound -Name 'mock-research' -Prompt 'fixture' -OutputDirectory $TestRoot -CodexPath 'fixture' -Research
@@ -246,6 +251,7 @@ Write-Host 'PASS: AI provider errors and unverified research remain partial, eve
     function Invoke-AnalysisTool {
         param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$InputText)
         Assert-True (($ArgumentList -join ' ') -match 'analysis_evidence' -and ($ArgumentList -join ' ') -match 'required=true' -and $ArgumentList -contains 'shell_tool') 'Scoped review tools or execution boundaries were lost.'
+        Assert-True (@($ArgumentList|Where-Object {$_ -like 'skills.config=[[]*'}).Count -eq 1 -and $ArgumentList -contains 'skill_search' -and $ArgumentList -contains 'skill_mcp_dependency_install') 'Evidence reviews inherited unavailable ambient skills.'
         $output=$ArgumentList[[array]::IndexOf($ArgumentList,'-o')+1]
         'Fixture findings from a real-looking tool event; this fixture never calls a model.'|Set-Content -LiteralPath $output
         $script:fixtureEvidenceEvents|Set-Content -LiteralPath ($LogPath+'.stdout')
