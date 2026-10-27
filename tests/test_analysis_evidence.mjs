@@ -31,6 +31,51 @@ test('function index includes exact names, addresses, provider source and paged 
   let offset=0,text='';do{const page=await store.call('read_function',{query:'entry',offset,limit:7});text+=page.text;offset=page.next_offset;}while(offset!==null);
   assert.equal(text,'int entry(void) { return target(); }\n');
 });
+test('oversized text reads return bounded complete pages for evidence and functions',async()=>{
+  const code='// paged evidence: 😀 " \\\n'.repeat(16000);
+  const manifestPath=path.join(root,'rea/rea-result.json');
+  const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
+  await fs.writeFile(path.join(root,store.bodies[0].path),code);
+  Object.assign(manifest.Artifacts[0],{Bytes:Buffer.byteLength(code),SHA256:sha(code)});
+  manifest.Padding=code;
+  const evidence=JSON.stringify(manifest);
+  await fs.writeFile(manifestPath,evidence);
+  store=await EvidenceStore.create(root);
+  for(const [name,args,expected]of [['read_function',{query:'entry'},code],['read_evidence',{path:'rea/rea-result.json'},evidence]]){
+    const schema=toolCatalog.find(x=>x.name===name).inputSchema.properties.limit;
+    assert.equal(schema.minimum,1);assert.ok(schema.maximum>=250000);
+    const initial=await store.call(name,args);assert.equal(initial.text,expected.slice(0,20000));assert.equal(initial.limit_clamped,false);
+    for(const requested of [13,24000,25000,250000,Number.MAX_SAFE_INTEGER]){
+      const page=await store.call(name,{...args,offset:17,limit:requested});
+      const applied=Math.min(requested,24000);
+      assert.equal(page.text,expected.slice(17,17+applied));assert.equal(page.next_offset,17+applied);
+      assert.equal(page.requested_limit,requested);assert.equal(page.applied_limit,applied);
+      assert.equal(page.returned_characters,applied);assert.equal(page.page_limit,24000);assert.equal(page.limit_clamped,requested>24000);
+    }
+    let offset=0,reconstructed='';
+    do{
+      const page=await store.call(name,{...args,offset,limit:250000});
+      assert.equal(page.sha256,sha(expected));assert.equal(page.characters,expected.length);
+      assert.ok(page.text.length<=24000);assert.equal(page.returned_characters,page.text.length);
+      assert.ok(page.next_offset===null||page.next_offset>offset);
+      reconstructed+=page.text;offset=page.next_offset;
+    }while(offset!==null);
+    assert.equal(reconstructed,expected);
+    const eof=await store.call(name,{...args,offset:expected.length,limit:250000});
+    assert.equal(eof.text,'');assert.equal(eof.returned_characters,0);assert.equal(eof.next_offset,null);
+  }
+});
+test('text pagination still rejects invalid sizes and preserves the file read budget',async()=>{
+  for(const name of ['read_evidence','read_function']){
+    const args=name==='read_evidence'?{path:'basic/identity.json'}:{query:'entry'};
+    for(const limit of [0,-1,1.5,'250000',null,Number.MAX_SAFE_INTEGER+1])await assert.rejects(store.call(name,{...args,limit}),/Invalid bounded integer: limit/);
+    await assert.rejects(store.call(name,{...args,offset:16777217,limit:250000}),/Invalid bounded integer: offset/);
+  }
+  const large=path.join(root,'basic/too-large.txt');await fs.writeFile(large,'');await fs.truncate(large,16777217);
+  store=await EvidenceStore.create(root);
+  await assert.rejects(store.call('read_evidence',{path:'basic/too-large.txt',limit:250000}),/read budget/);
+  await assert.rejects(store.call('read_evidence',{path:'../outside.txt',limit:250000}),/retained|contained/);
+});
 test('retention audit independently catches tampered, missing and forged-path bodies',async()=>{
   assert.equal((await store.call('audit_decompilation')).complete,true);
   await fs.appendFile(path.join(root,store.bodies[0].path),'tampered');await fs.unlink(path.join(root,store.bodies[1].path));
@@ -66,11 +111,16 @@ test('browser escapes target-derived labels and refuses overwrite',async()=>{
 });
 test('MCP transport advertises only read-only tools and returns real probe results',async()=>{
   assert.ok(toolCatalog.every(x=>x.annotations.readOnlyHint&&!x.annotations.destructiveHint));
+  const identity=JSON.stringify({Format:'PE'})+' '.repeat(50000);await fs.writeFile(path.join(root,'basic/identity.json'),identity);
   const script=fileURLToPath(new URL('../scripts/ExecutableAnalysis/evidence-server.mjs',import.meta.url));
   const child=spawn(process.execPath,[script,root],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
   const exit=new Promise(resolve=>child.on('close',resolve));
-  for(const [id,method,params]of [[1,'initialize',{}],[2,'tools/list',{}],[3,'tools/call',{name:'read_function',arguments:{query:'entry'}}],[4,'tools/call',{name:'execute',arguments:{command:'never'}}]])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();
+  for(const [id,method,params]of [[1,'initialize',{}],[2,'tools/list',{}],[3,'tools/call',{name:'read_function',arguments:{query:'entry'}}],[4,'tools/call',{name:'execute',arguments:{command:'never'}}],...[0,24000,48000].map((offset,i)=>[5+i,'tools/call',{name:'read_evidence',arguments:{path:'basic/identity.json',offset,limit:250000}}])])child.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n');child.stdin.end();
   assert.equal(await exit,0,stderr);const replies=stdout.trim().split('\n').map(x=>JSON.parse(x));assert.equal(replies[2].result.structuredContent.function.name,'entry');assert.equal(replies[3].result.isError,true);
+  const pages=replies.slice(4).map(reply=>{assert.ok(!reply.result.isError);return reply.result.structuredContent;});
+  assert.equal(pages.map(page=>page.text).join(''),identity);
+  assert.deepEqual(pages.map(page=>page.next_offset),[24000,48000,null]);
+  assert.ok(pages.every(page=>page.limit_clamped&&page.text.length<=24000));
 });
 
 test('native proxy filters tools, pins the input and rejects a changed hash',async()=>{
