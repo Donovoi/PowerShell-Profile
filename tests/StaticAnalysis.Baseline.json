@@ -62,7 +62,8 @@
     "scripts/ExecutableAnalysis/Invoke-AnalysisTool.ps1",
     "scripts/ExecutableAnalysis/Invoke-AnalysisRound.ps1",
     "scripts/ExecutableAnalysis/Invoke-AnalysisGhidra.ps1",
-    "scripts/ExecutableAnalysis/Resolve-AnalysisTools.ps1"
+    "scripts/ExecutableAnalysis/Resolve-AnalysisTools.ps1",
+    "scripts/ExecutableAnalysis/Get-AnalysisReportText.ps1"
   ],
   "AllowedWarnings": [
     {
