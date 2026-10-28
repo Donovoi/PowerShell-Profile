@@ -8,6 +8,8 @@ Reports use Simplified Technical English writing principles from [ASD-STE100 Iss
 
 The Markdown report uses plain explanations for saved code, debug symbols and function-ending warnings. It keeps exact identifiers, counts, hashes, addresses, evidence links and uncertainty. Raw tool output and the JSON analysis record retain their original technical wording. These are project rules adapted from ASD-STE100; the reports do not claim certification or a complete dictionary-compliance check.
 
+Reviews are saved in `ai/`. When the report includes their findings, it adjusts existing local `../` evidence links for the report's root folder. The original reviews and literal code remain unchanged. Missing files and links outside the run are not rewritten.
+
 Direct Ghidra analysis shares one time budget between automatic analysis and evidence export. An auto-analysis timeout leaves the result `Partial`, even when the export process succeeds. The manifest records both phase budgets, the workflow deadline and function coverage; partial files remain available for review.
 
 ```powershell
