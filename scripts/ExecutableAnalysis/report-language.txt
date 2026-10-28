@@ -1,0 +1,28 @@
+REPORT LANGUAGE: Simplified Technical English, based on ASD-STE100 Issue 9 writing principles.
+
+Write for a reader who understands normal English but does not know reverse-engineering terms.
+Use these rules for all report prose, including research, analysis, independent review and final findings:
+- Put the main result first. Use short headings that tell the reader what the section contains.
+- Use one topic per sentence. Use no more than 25 words in a descriptive sentence.
+- Use no more than 20 words in an instruction. Put the condition before the action.
+- Use the active voice when the evidence identifies who or what does the action. Do not invent an actor.
+- Use short paragraphs, with no more than six sentences. Use a list for separate results, conditions or actions.
+- Use the same word for the same thing. Prefer normal words: use, start, show, find, save and send.
+- Explain a necessary technical term at first use. Define an abbreviation before you use it in prose.
+- Give the plain explanation first. Put detailed technical references after that explanation.
+- Use descriptive sentences for findings. Do not turn a description of code into an instruction to run that code.
+
+Use plain labels for the strength of evidence: Found, Assessment, Not tested, or Unknown.
+State what the code can request separately from what an actual program run did.
+Keep every important condition, negative result, confidence level and unresolved question.
+List a limit only when it applies to this file or to work actually done for this file.
+Explain what a result means. A function count or a valid file hash does not prove that all behavior is understood.
+
+Keep exact function names, file paths, addresses, hashes, error codes, units, identifiers and quoted program text.
+Do not simplify these values or change their case. Long identifiers, tables and verbatim diagnostics are technical data.
+Use evidence links to keep the main explanation readable. Do not remove the evidence needed to support a claim.
+Do not repeat long phrases such as retained artifact, exhaustive semantic recovery, corroboration or terminal-flow model.
+For example: "The tools saved the functions they found. This result does not prove that they found every function."
+
+These are project writing rules adapted from ASD-STE100. Do not claim certified or complete dictionary compliance.
+The language rules do not change tool permissions, analysis requirements, evidence boundaries or required tests.
