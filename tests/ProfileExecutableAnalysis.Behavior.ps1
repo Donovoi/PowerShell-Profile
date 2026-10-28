@@ -37,6 +37,28 @@ Assert-True (@($strings|Where-Object Text -EQ 'UNICODE_MARKER').Count -eq 1) 'UT
 Push-Location -LiteralPath $TestRoot
 try{$default=Invoke-ExecutableAnalysis $target -BasicOnly -SkipAI -NoInstall;Assert-True ((Split-Path $default.OutputDirectory -Parent) -eq $TestRoot) 'Default output is not current directory.'}finally{Pop-Location}
 Write-Host 'PASS: literal input, WhatIf, preservation, unique/default output, hashes, UTF-16 and explicit skipped stages.'
+$linkRun=Join-Path $TestRoot 'report-link-fixture'
+$null=[IO.Directory]::CreateDirectory((Join-Path $linkRun 'ai'))
+$null=[IO.Directory]::CreateDirectory((Join-Path $linkRun 'basic'))
+[IO.File]::WriteAllText((Join-Path $linkRun 'basic/Exact Case.json'),'Exact evidence bytes.')
+$linkFindings=@'
+Found: The file has a header. See [header](../basic/Exact%20Case.json#header).
+[root-relative](basic/Exact%20Case.json) [web](https://example.invalid/file) [missing](../missing.json) [outside](../../outside.json)
+Literal code: `[header](../basic/Exact%20Case.json)`.
+```text
+[header](../basic/Exact%20Case.json)
+```
+'@
+$savedFindings=Join-Path $linkRun 'ai/reconciled-findings.md'
+[IO.File]::WriteAllText($savedFindings,$linkFindings)
+$savedHash=(Get-FileHash -LiteralPath $savedFindings).Hash
+$linkReport=Get-AnalysisReportText -Record $record -RunDirectory $linkRun
+Assert-True ($linkReport.Contains('[header](basic/Exact%20Case.json#header)')) 'Embedded review link did not resolve from the report root.'
+foreach($unchanged in @('[root-relative](basic/Exact%20Case.json)','[web](https://example.invalid/file)','[missing](../missing.json)','[outside](../../outside.json)','`[header](../basic/Exact%20Case.json)`',"``````text`r`n[header](../basic/Exact%20Case.json)")){
+    Assert-True ($linkReport.Contains($unchanged)) ('Link rebasing changed a non-evidence link or literal code: '+$unchanged)
+}
+Assert-True ((Get-FileHash -LiteralPath $savedFindings).Hash -eq $savedHash) 'Report rendering changed the original review.'
+Write-Host 'PASS: embedded evidence links resolve from report.md; raw reviews and code remain unchanged.'
 $presentation=[pscustomobject]@{Status='Partial';SourceUnchanged=$true;Identity=@{Format='PE';Architecture='x86_64'};ApplicationContext=$null;FirmwareContext=$null;Stages=@(@{Name='GhidraDirect';Status='Partial'});FunctionIndex=@{function_count=284};PdbContext=@{Reference=@{Name='ExactCase.pdb'};Loaded=$false;Source='Download';Status='Matched'};TerminalFlow=@{TotalSites=32;ResolvedSites=31;UnresolvedSites=1;TailJumps=17;Breakpoints=14;Complete=$false};Limitations=@('Specific failure 0x80070057 remains unresolved.')}
 $presentationBefore=$presentation|ConvertTo-Json -Depth 10 -Compress
 $plain=Get-AnalysisReportText -Record $presentation -RunDirectory $TestRoot -SourceSHA256 ('A1'*32) -FindingsText 'Unknown: Exact_Function at 0x1400015b0. Evidence: code/native/ExactCase.c.'
