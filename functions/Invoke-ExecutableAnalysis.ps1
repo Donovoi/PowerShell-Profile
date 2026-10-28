@@ -172,7 +172,7 @@ function Invoke-ExecutableAnalysis {
         $SymbolCacheDirectory=[IO.Path]::GetFullPath($SymbolCacheDirectory)
         if($SymbolCacheDirectory.StartsWith('\\')){throw 'SymbolCacheDirectory must be a local directory.'}
         $assets=Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts/ExecutableAnalysis'
-        foreach($helper in @('Invoke-AnalysisTool','Get-AnalysisIdentity','Get-AnalysisApplicationContext','Get-AnalysisFirmwareContext','Resolve-AnalysisFirmwareTools','Invoke-AnalysisFirmware','Resolve-AnalysisTools','Invoke-AnalysisRound','Invoke-AnalysisGhidra')) {
+        foreach($helper in @('Invoke-AnalysisTool','Get-AnalysisIdentity','Get-AnalysisApplicationContext','Get-AnalysisFirmwareContext','Resolve-AnalysisFirmwareTools','Invoke-AnalysisFirmware','Resolve-AnalysisTools','Invoke-AnalysisRound','Invoke-AnalysisGhidra','Get-AnalysisReportText')) {
             $helperPath=Join-Path $assets ($helper+'.ps1')
             if(-not(Test-Path -LiteralPath $helperPath)){throw "Missing profile asset: $helperPath. Install the complete profile checkout."}
             . $helperPath
@@ -489,42 +489,7 @@ Research current primary documentation for reverse engineering a $($identity.For
             $record.EndedUtc=[DateTime]::UtcNow.ToString('o')
             $record.Artifacts=@(Get-ChildItem -LiteralPath $run -Recurse -File|Where-Object{ -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }|ForEach-Object{[pscustomobject]@{Path=[IO.Path]::GetRelativePath($run,$_.FullName);Length=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
             $record|ConvertTo-Json -Depth 30|Set-Content -LiteralPath (Join-Path $run 'report.json') -Encoding utf8
-            $lines=[Collections.Generic.List[string]]::new()
-            $lines.Add('# Executable analysis');$lines.Add('');$lines.Add("Status: $($record.Status)")
-            $lines.Add("Source SHA256: $originalHash");$lines.Add("Source unchanged: $($record.SourceUnchanged)")
-            if($record.Identity){$lines.Add("Format: $($record.Identity.Format); architecture: $($record.Identity.Architecture)")}
-            if($applicationContext -and $applicationContext.Detected){$lines.Add("Application scope: $($applicationContext.Scope)");$lines.Add('Package declarations, companion inventory, omissions and retained identities: basic/application-context.json.')}
-            if($firmwareContext -and $firmwareContext.RequiresStaticOnly){
-                $lines.Add('');$lines.Add('## Firmware scope');$lines.Add('')
-                $lines.Add('Static firmware candidate analysis. The updater and extracted programs were not launched; no flash, NVRAM write or menu unlock was performed.')
-                $lines.Add('Detection and compressed-region offsets: basic/firmware-context.json. Recognition of a wrapper is not validation of its payload.')
-                if(Test-Path -LiteralPath (Join-Path $run 'firmware/firmware-result.json') -PathType Leaf){$lines.Add('Extraction status, available inventory, tool provenance and diagnostics: firmware/firmware-result.json.')}
-                if(Test-Path -LiteralPath (Join-Path $run 'firmware/menu-summary.json') -PathType Leaf){$lines.Add('Bounded HII declarations: firmware/menu-summary.json. Consult its FormPackageTextPaths for full recovered form text.')}
-                if(Test-Path -LiteralPath (Join-Path $run 'firmware/numeric-validation.json') -PathType Leaf){$lines.Add('Independent checks of EDK2 Label/Timeout/Class/SubClass values: firmware/numeric-validation.json. IFRExtractor 1.6.1 has a high-byte decoding defect in these fields; original text is retained, and separate corrected values require a source-byte match.')}
-                if(Test-Path -LiteralPath (Join-Path $run 'firmware/form-navigation.json') -PathType Leaf){$lines.Add('Source-verified formset GUIDs, class GUIDs, navigation references and enclosing conditional scopes: firmware/form-navigation.json. Static references do not prove frontend reachability or that a visibility condition is true.')}
-                $lines.Add('Recovered declarations and defaults do not establish active settings, menu accessibility, hardware applicability or write access. Native analysis outside firmware/ concerns the updater wrapper.')
-            }
-            $lines.Add('');$lines.Add('## Stages');$lines.Add('')
-            foreach($stage in $stages){$lines.Add("- $($stage.Name): $($stage.Status)")}
-            if($record.FunctionIndex.function_count -gt 0){$lines.Add('');$lines.Add('## Recovered functions');$lines.Add('');$lines.Add("Retained function bodies: $($record.FunctionIndex.function_count). [Browse/search functions and native instructions](functions.html); [complete index and hashes](functions.json). Code paths are linked from the browser. Pseudocode is reconstructed, not original source; counts do not establish exhaustive semantic review.")}
-            if($record.PdbContext.Reference -or $record.TerminalFlow){
-                $lines.Add('');$lines.Add('## Symbols and terminal-flow inspection');$lines.Add('')
-                if($record.PdbContext.Reference){$lines.Add("PDB: $($record.PdbContext.Reference.Name); identity match: $($record.PdbContext.Status); source: $($record.PdbContext.Source); loaded: $($record.PdbContext.Loaded). [Local lookup, download, identity and retained-file evidence](basic/pdb-context.json).")}
-                if($record.TerminalFlow){$flow=$record.TerminalFlow;$lines.Add("Inspected terminal sites without an established model basis: $($flow.TotalSites); resolved: $($flow.ResolvedSites); unresolved: $($flow.UnresolvedSites). Tail jumps: $($flow.TailJumps); breakpoints: $($flow.Breakpoints); inspection complete: $($flow.Complete). [Per-site evidence and existing no-return model annotations](code/native/terminal-flow.json).")}
-            }
-            foreach($stage in $stages|Where-Object {$_.Name -in 'analysis','detractor','reconciled-findings'}){$lines.Add("- $($stage.Name): $($stage.SuccessfulEvidenceToolCalls) successful evidence tool calls; details are retained in ai/$($stage.Name).stdout.")}
-            foreach($stage in $stages|Where-Object Name -EQ 'Runtime'){
-                if($stage.Result.GuestResult.Execution){$lines.Add("  Target exit code: $($stage.Result.GuestResult.Execution.ExitCode); reason: $($stage.Result.GuestResult.Execution.Reason). Observation completion is not proof of successful application startup.")}
-                elseif($stage.Result.Runtime){$lines.Add("  Target exec observed: $($stage.Result.Runtime.targetExecObserved); exit code: $($stage.Result.Runtime.exitCode); reason: $($stage.Result.Runtime.termination).")}
-            }
-            if($record.Limitations.Count){
-                $lines.Add('');$lines.Add('## Limits and unknowns');$lines.Add('')
-                foreach($limit in $record.Limitations){$lines.Add('- '+$limit)}
-            }
-            $lines.Add('');$lines.Add('Full commands, logs, artifact hashes and coverage are retained in report.json and the evidence folders. AI reports are under ai/.')
-            $findings=Join-Path $run 'ai/reconciled-findings.md'
-            if(Test-Path -LiteralPath $findings){$lines.Add('');$lines.Add('## Reconciled findings');$lines.Add('');$lines.Add([IO.File]::ReadAllText($findings))}
-            $lines|Set-Content -LiteralPath (Join-Path $run 'report.md') -Encoding utf8
+            Get-AnalysisReportText -Record $record -RunDirectory $run -SourceSHA256 $originalHash|Set-Content -LiteralPath (Join-Path $run 'report.md') -Encoding utf8
             Write-Progress -Activity 'Executable analysis' -Completed
         }
         $result=[ordered]@{PSTypeName='PowerShellProfile.ExecutableAnalysis';Status=$record.Status;OutputDirectory=$run;ReportPath=(Join-Path $run 'report.md');JsonPath=(Join-Path $run 'report.json');SHA256=$originalHash;SourceUnchanged=$record.SourceUnchanged}

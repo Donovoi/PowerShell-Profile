@@ -9,6 +9,7 @@ $null=[IO.Directory]::CreateDirectory($TestRoot)
 . (Join-Path $repo 'functions/Invoke-ExecutableAnalysis.ps1')
 . (Join-Path $repo 'scripts/ExecutableAnalysis/Invoke-AnalysisTool.ps1')
 . (Join-Path $repo 'scripts/ExecutableAnalysis/Get-AnalysisIdentity.ps1')
+. (Join-Path $repo 'scripts/ExecutableAnalysis/Get-AnalysisReportText.ps1')
 function Assert-True([bool]$Condition,[string]$Message){if(-not $Condition){throw $Message}}
 function Assert-Throws([scriptblock]$Body,[string]$Pattern){try{& $Body;throw 'Expected exception'}catch{if($_.Exception.Message -notmatch $Pattern){throw}}}
 $target=Join-Path $TestRoot 'test [literal] & fixture.bin'
@@ -36,6 +37,13 @@ Assert-True (@($strings|Where-Object Text -EQ 'UNICODE_MARKER').Count -eq 1) 'UT
 Push-Location -LiteralPath $TestRoot
 try{$default=Invoke-ExecutableAnalysis $target -BasicOnly -SkipAI -NoInstall;Assert-True ((Split-Path $default.OutputDirectory -Parent) -eq $TestRoot) 'Default output is not current directory.'}finally{Pop-Location}
 Write-Host 'PASS: literal input, WhatIf, preservation, unique/default output, hashes, UTF-16 and explicit skipped stages.'
+$presentation=[pscustomobject]@{Status='Partial';SourceUnchanged=$true;Identity=@{Format='PE';Architecture='x86_64'};ApplicationContext=$null;FirmwareContext=$null;Stages=@(@{Name='GhidraDirect';Status='Partial'});FunctionIndex=@{function_count=284};PdbContext=@{Reference=@{Name='ExactCase.pdb'};Loaded=$false;Source='Download';Status='Matched'};TerminalFlow=@{TotalSites=32;ResolvedSites=31;UnresolvedSites=1;TailJumps=17;Breakpoints=14;Complete=$false};Limitations=@('Specific failure 0x80070057 remains unresolved.')}
+$presentationBefore=$presentation|ConvertTo-Json -Depth 10 -Compress
+$plain=Get-AnalysisReportText -Record $presentation -RunDirectory $TestRoot -SourceSHA256 ('A1'*32) -FindingsText 'Unknown: Exact_Function at 0x1400015b0. Evidence: code/native/ExactCase.c.'
+Assert-True ($plain.Contains('Incomplete (Partial)') -and $plain.Contains('Unresolved: 1') -and $plain.Contains('Inspection complete: No') -and $plain.Contains('Loaded: No')) 'Plain wording hid an incomplete result or a PDB load failure.'
+foreach($exact in @(('A1'*32),'ExactCase.pdb','0x80070057','Exact_Function','0x1400015b0','code/native/ExactCase.c','functions.html','functions.json','basic/pdb-context.json')){Assert-True ($plain.Contains($exact)) 'Plain wording changed a technical value or evidence link.'}
+Assert-True (($presentation|ConvertTo-Json -Depth 10 -Compress) -ceq $presentationBefore) 'Report presentation changed the analysis record.'
+Write-Host 'PASS: plain report wording preserves incomplete results, technical values, evidence links and the original analysis record.'
 
 $encoded=Join-Path $TestRoot 'encoded.bin';[IO.File]::WriteAllText($encoded,'SGVsbG8gZXZpZGVuY2U=')
 $decodeFolder=Join-Path $TestRoot 'decode';$null=[IO.Directory]::CreateDirectory($decodeFolder)
@@ -76,7 +84,7 @@ Write-Host 'PASS: format identification and decoding candidates (not decryption 
     Assert-True ($linux.Status -eq 'CompletedWithLimitations' -and $calls.Count -eq 2 -and $calls[0].Kind -eq 'InitializeLinux' -and $calls[1].Name -eq 'Profile-Analysis-Linux' -and $calls[1].Seconds -eq 7 -and $calls[1].VirtualDisplay -and $calls[1].MaxAddressSpaceMB -eq 65536) 'Linux runtime routing, display/budget request or initialization failed.'
     $windows=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -WindowsIsoPath 'fixture-media.iso'
     Assert-True ($windows.Status -eq 'CompletedWithLimitations' -and $calls[2].Kind -eq 'InitializeWindows' -and $calls[2].IsoPath -eq 'fixture-media.iso' -and $calls[3].Name -eq 'Profile-Analysis-Windows') 'Windows runtime routing or ISO forwarding failed.'
-    Assert-True ((Get-Content -LiteralPath $windows.ReportPath -Raw) -match 'Target exit code: 7; reason: Completed') 'Runtime report concealed the target exit code.'
+    Assert-True ((Get-Content -LiteralPath $windows.ReportPath -Raw) -match 'Program exit code: 7\. Reason: Completed') 'Runtime report concealed the target exit code.'
     $null=Invoke-ExecutableAnalysis $standalone -OutputDirectory $TestRoot -BasicOnly -SkipAI -Dynamic -NoInstall -VirtualMachineName 'Owned-Custom-VM'
     Assert-True ($calls.Count -eq 5 -and $calls[4].Name -eq 'Owned-Custom-VM' -and $calls[4].Input -like '*analysis-*\input\pwsh.exe') 'NoInstall, explicit VM selection or retained-copy handoff failed.'
     Assert-True ($calls[4].ExpectedSHA256 -eq (Get-FileHash -LiteralPath $standalone).Hash) 'Standalone runtime lost the preserved input identity.'
@@ -239,6 +247,7 @@ function Invoke-AnalysisTool {
     [IO.File]::WriteAllText($LogPath+'.stdout','{"type":"item.completed","item":{"type":"error","message":"provider unavailable"}}')
     [IO.File]::WriteAllText($LogPath+'.stderr','')
     Assert-True ($ArgumentList -contains '--ignore-user-config' -and $ArgumentList -contains 'shell_tool' -and $ArgumentList -contains 'plugins' -and $ArgumentList -contains 'project_root_markers=[]') 'AI execution capability boundaries were dropped.'
+    Assert-True ($InputText.StartsWith('REPORT LANGUAGE:') -and $InputText.Contains('ASD-STE100') -and $InputText.Contains('ANALYSIS TASK:') -and $InputText.EndsWith('fixture')) 'Report language guidance replaced the task or was not supplied to research.'
     Assert-True (@($ArgumentList|Where-Object {$_ -like 'skills.config=[[]*'}).Count -eq 1 -and $ArgumentList -contains 'skill_search' -and $ArgumentList -contains 'skill_mcp_dependency_install' -and $ArgumentList -notcontains 'skip_host_skill_discovery') 'MCP-only reviews inherited unavailable host skills or unstable feature flags.'
     [pscustomobject]@{Status='Completed';ExitCode=0;StandardOutputPath=$LogPath+'.stdout';StandardErrorPath=$LogPath+'.stderr'}
 }
@@ -251,6 +260,7 @@ Write-Host 'PASS: AI provider errors and unverified research remain partial, eve
     function Invoke-AnalysisTool {
         param($FilePath,$ArgumentList,$LogPath,$WorkingDirectory,$TimeoutSeconds,$InputText)
         Assert-True (($ArgumentList -join ' ') -match 'analysis_evidence' -and ($ArgumentList -join ' ') -match 'required=true' -and $ArgumentList -contains 'shell_tool') 'Scoped review tools or execution boundaries were lost.'
+        Assert-True ($InputText.StartsWith('REPORT LANGUAGE:') -and $InputText.Contains('ASD-STE100') -and $InputText.EndsWith('fixture')) 'Report language guidance did not reach an evidence review.'
         Assert-True (@($ArgumentList|Where-Object {$_ -like 'skills.config=[[]*'}).Count -eq 1 -and $ArgumentList -contains 'skill_search' -and $ArgumentList -contains 'skill_mcp_dependency_install') 'Evidence reviews inherited unavailable ambient skills.'
         $output=$ArgumentList[[array]::IndexOf($ArgumentList,'-o')+1]
         'Fixture findings from a real-looking tool event; this fixture never calls a model.'|Set-Content -LiteralPath $output
