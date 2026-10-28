@@ -4,6 +4,10 @@
 
 The report's **Limits and unknowns** section contains only limits relevant to the selected input and the stages requested or performed. Reached string limits include actual counts; decompiler caveats require recovered code. Negative Go/Rust metadata probes remain in raw evidence and do not add unrelated language warnings. A positive compiler or dependency metadata finding carries its specific provenance limits. AI analysis and critique use the same relevance requirement. An empty section is omitted.
 
+Reports use Simplified Technical English writing principles from [ASD-STE100 Issue 9](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf). Descriptive sentences have at most 25 words; instructions have at most 20. The report gives one topic per sentence, uses the active voice where the evidence identifies the actor, defines technical terms, and uses consistent words. The main result comes first. Research and every review receive the same versioned guidance from `scripts/ExecutableAnalysis/report-language.txt`.
+
+The Markdown report uses plain explanations for saved code, debug symbols and function-ending warnings. It keeps exact identifiers, counts, hashes, addresses, evidence links and uncertainty. Raw tool output and the JSON analysis record retain their original technical wording. These are project rules adapted from ASD-STE100; the reports do not claim certification or a complete dictionary-compliance check.
+
 Direct Ghidra analysis shares one time budget between automatic analysis and evidence export. An auto-analysis timeout leaves the result `Partial`, even when the export process succeeds. The manifest records both phase budgets, the workflow deadline and function coverage; partial files remain available for review.
 
 ```powershell

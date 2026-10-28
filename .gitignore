@@ -18,6 +18,7 @@ aria2c/**
 *.log
 *.lzma
 *.txt
+!scripts/ExecutableAnalysis/report-language.txt
 Invoke-CradleCrafter/**
 *.csv
 Non PowerShell Tools/tiny11/test.cs

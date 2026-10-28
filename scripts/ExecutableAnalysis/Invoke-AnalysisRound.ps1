@@ -122,6 +122,10 @@ function Get-AnalysisReviewSkillConfig {
 function Invoke-AnalysisRound {
     [CmdletBinding()]
     param([string]$Name,[string]$Prompt,[string]$OutputDirectory,[string]$CodexPath,[int]$TimeoutSeconds=600,[switch]$Research,[string]$EvidenceDirectory,[string]$NativeReaScriptPath,[string]$NativeInputPath,[string]$NativeInputSHA256,[string]$NativeGhidraPath)
+    $languagePath=Join-Path $PSScriptRoot 'report-language.txt'
+    $languageFile=Get-Item -LiteralPath $languagePath -ErrorAction Stop
+    if($languageFile.Length -lt 1 -or $languageFile.Length -gt 16384){throw 'Report language guidance exceeds its size bound.'}
+    $Prompt=[IO.File]::ReadAllText($languagePath)+"`n`nANALYSIS TASK:`n"+$Prompt
     $output=Join-Path $OutputDirectory ($Name+'.md')
     $promptPath=Join-Path $OutputDirectory ($Name+'.prompt.txt')
     [IO.File]::WriteAllText($promptPath,$Prompt)

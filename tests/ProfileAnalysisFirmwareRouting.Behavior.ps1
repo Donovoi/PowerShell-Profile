@@ -65,7 +65,7 @@ Write-Output 'PASS: PE32/PE32+ EFI subsystem classification, header boundaries a
 & {
     # Real orchestration and detection, mocked installation/provider boundaries.
     $script:firmwareFixtureAssets=$assets
-    foreach($name in 'Get-AnalysisIdentity','Get-AnalysisFirmwareContext','Get-AnalysisApplicationContext','Invoke-AnalysisRound'){
+    foreach($name in 'Get-AnalysisIdentity','Get-AnalysisFirmwareContext','Get-AnalysisApplicationContext','Invoke-AnalysisRound','Get-AnalysisReportText'){
         . (Join-Path $assets ($name+'.ps1'))
     }
     $source=[IO.File]::ReadAllText((Join-Path $repo 'functions/Invoke-ExecutableAnalysis.ps1'))
