@@ -84,7 +84,7 @@ Write-Output 'PASS: PE32/PE32+ EFI subsystem classification, header boundaries a
     Assert-True (@($run.Stages|Where-Object Name -EQ 'Orchestration').Count -eq 0) 'Firmware orchestration failed.'
     $record=Get-Content -LiteralPath $run.JsonPath -Raw|ConvertFrom-Json
     Assert-True ($record.Firmware.Manifest.Summary.FormPackages -eq 2 -and 'Fixture extraction warning' -in $record.Limitations) 'Firmware evidence or warning missing from report.'
-    Assert-True ((Get-Content -LiteralPath $run.ReportPath -Raw) -notmatch 'Bounded HII declarations:') 'Report advertised menu files that were not recovered.'
+    Assert-True ((Get-Content -LiteralPath $run.ReportPath -Raw) -notmatch 'firmware/menu-summary\.json') 'Report advertised menu files that were not recovered.'
     $rounds=[Collections.Generic.List[string]]::new()
     function Resolve-AnalysisCodex {param($LogDirectory)[pscustomobject]@{Source='mock-codex.exe'}}
     function Invoke-AnalysisRound {
