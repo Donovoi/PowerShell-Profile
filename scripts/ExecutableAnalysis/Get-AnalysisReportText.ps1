@@ -15,7 +15,31 @@ function Get-AnalysisReportText {
         $lines.Add('See [application files and limits](basic/application-context.json).')
     }
     if(-not $PSBoundParameters.ContainsKey('FindingsText')){$findings=Join-Path $RunDirectory 'ai/reconciled-findings.md';if(Test-Path -LiteralPath $findings){$FindingsText=[IO.File]::ReadAllText($findings)}}
-    if($FindingsText){$lines.Add('');$lines.Add('## Findings');$lines.Add('');$lines.Add($FindingsText.Trim())}
+    if($FindingsText){
+        # Reviews live under ai/, but this report lives at the run root. Rebase
+        # existing local evidence links without changing the saved review or code.
+        $runRoot=[IO.Path]::GetFullPath($RunDirectory).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+        $fence=$null
+        $reportFindings=foreach($line in ($FindingsText -split '\r?\n')){
+            if($line -match '^\s*(`{3,}|~{3,})'){
+                if(-not $fence){$fence=$Matches[1][0]}elseif($Matches[1][0] -eq $fence){$fence=$null}
+                $line;continue
+            }
+            if($fence){$line;continue}
+            [regex]::Replace($line,'(?<code>`+[^`]*`+)|(?<prefix>\[[^\]\r\n]+\]\()(?<target>\.\./[^)\r\n]+)(?<suffix>\))',{
+                param($link)
+                if($link.Groups['code'].Success){return $link.Value}
+                $target=$link.Groups['target'].Value
+                try{
+                    $filePart=[uri]::UnescapeDataString(($target -split '[?#]',2)[0])
+                    $resolved=[IO.Path]::GetFullPath((Join-Path (Join-Path $runRoot 'ai') $filePart))
+                    if(-not $resolved.StartsWith($runRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath $resolved -PathType Leaf)){return $link.Value}
+                }catch{return $link.Value}
+                return $link.Groups['prefix'].Value+$target.Substring(3)+$link.Groups['suffix'].Value
+            })
+        }
+        $lines.Add('');$lines.Add('## Findings');$lines.Add('');$lines.Add(($reportFindings -join [Environment]::NewLine).Trim())
+    }
     if($Record.FirmwareContext -and $Record.FirmwareContext.RequiresStaticOnly){
         $lines.Add('');$lines.Add('## Firmware analysis');$lines.Add('')
         $lines.Add('The tools read the firmware files. They did not run the updater or the extracted programs.')
