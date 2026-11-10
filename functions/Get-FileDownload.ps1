@@ -10,6 +10,8 @@ function Get-FileDownload {
     interactive confirmation pages are not a supported download protocol.
     Shows live progress in RPC and NoRPC modes. Ctrl+C cancels the active
     download and stops the URL pipeline without starting a native fallback.
+    TimeoutSeconds is an optional total deadline per attempt; 0 (default) has
+    no total deadline. An explicit timeout stops without a fallback restart.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -31,7 +33,7 @@ function Get-FileDownload {
         [string]$FileName,
         [switch]$Force,
         [switch]$AllowEmpty,
-        [ValidateRange(1,86400)][int]$TimeoutSeconds = 600,
+        [ValidateRange(0,86400)][int]$TimeoutSeconds = 0,
         [ValidateRange(-1,[long]::MaxValue)][long]$ExpectedLength = -1,
         [ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSHA256
     )
@@ -87,10 +89,13 @@ function Get-FileDownload {
                 try { Invoke-ValidatedDownload @parameters -ErrorAction Stop }
                 catch [Management.Automation.PipelineStoppedException] { throw }
                 catch [OperationCanceledException] { throw }
+                catch [TimeoutException] { throw }
                 catch {
                     if ($PSCmdlet.Stopping) { throw }
                     if ($LoadCookiesFromFile) { throw } # Native cannot silently discard cookie-file authentication.
-                    Write-Warning 'aria2 failed; retrying this URL with the native downloader.'
+                    $reason = $_.Exception.Data['DownloadFailureReason']
+                    if (-not $reason) { $reason = 'transport error' }
+                    Write-Warning "aria2 failed ($reason); retrying this URL with the native downloader."
                     $parameters.Transport = 'Native'
                     Invoke-ValidatedDownload @parameters -ErrorAction Stop
                 }

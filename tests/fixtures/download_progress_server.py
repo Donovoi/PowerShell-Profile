@@ -22,6 +22,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         with lock, (root / "requests.jsonl").open("a", encoding="utf-8") as log:
             log.write(json.dumps({"path": self.path}) + "\n")
+        if "/missing/" in self.path:
+            self.send_error(404)
+            return
         if "/stall/" in self.path:
             time.sleep(8)
         size = (64 if "/cancel/" in self.path else 4) * 1024 * 1024

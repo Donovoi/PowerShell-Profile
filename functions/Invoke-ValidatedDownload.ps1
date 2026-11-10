@@ -8,6 +8,8 @@ function Invoke-ValidatedDownload {
     process with a random secret. Remote errors are redacted to protect headers.
     Reports live progress without adding text to the success stream. Cancellation
     stops the owned transport and removes its unpublished staging files.
+    TimeoutSeconds defaults to 0 (no total deadline). Positive values are an
+    explicit total time limit, reported as a timeout rather than user cancellation.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -25,7 +27,7 @@ function Invoke-ValidatedDownload {
         [switch]$LogToFile,
         [switch]$Force,
         [switch]$AllowEmpty,
-        [ValidateRange(1,86400)][int]$TimeoutSeconds = 600,
+        [ValidateRange(0,86400)][int]$TimeoutSeconds = 0,
         [ValidateRange(-1,[long]::MaxValue)][long]$ExpectedLength = -1,
         [ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSHA256
     )
@@ -62,6 +64,7 @@ function Invoke-ValidatedDownload {
     $configPath = [IO.Path]::Combine($stage, 'aria2.conf')
     $logPath = [IO.Path]::Combine($stage, 'aria2.log')
     $ownedProcess = $null
+    $failureReason = 'transport or verification error'
     $processStarted = $false
     $stdoutTask = $null; $stderrTask = $null
     $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -74,7 +77,7 @@ function Invoke-ValidatedDownload {
         if ($Total -gt 0) {
             $progress.PercentComplete = [int][Math]::Min(100, [Math]::Floor(100.0 * $Completed / $Total))
             $progress.Status = '{0}% - {1:N1} / {2:N1} MiB' -f $progress.PercentComplete, ($Completed / 1MB), ($Total / 1MB)
-            if ($Speed -gt 0) { $progress.SecondsRemaining = [int][Math]::Min([int]::MaxValue, [Math]::Max(0, ($Total - $Completed) / $Speed)) }
+            if ($Speed -gt 0) { $progress.SecondsRemaining = [int][Math]::Min([double][int]::MaxValue, [Math]::Max(0.0, ($Total - $Completed) / $Speed)) }
         }
         if ($Speed -gt 0) { $progress.Status += ' - {0:N2} MiB/s' -f ($Speed / 1MB) }
         Write-Progress @progress
@@ -100,7 +103,8 @@ function Invoke-ValidatedDownload {
             $client = [Net.Http.HttpClient]::new($handler)
             $client.Timeout = [Threading.Timeout]::InfiniteTimeSpan
             $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Get, $URL)
-            $cancellation = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds($TimeoutSeconds))
+            $cancellation = [Threading.CancellationTokenSource]::new()
+            if ($TimeoutSeconds -gt 0) { $cancellation.CancelAfter([TimeSpan]::FromSeconds($TimeoutSeconds)) }
             $response = $null; $outputStream = $null; $inputStream = $null
             try {
                 foreach ($key in $requestHeaders.Keys) {
@@ -110,6 +114,7 @@ function Invoke-ValidatedDownload {
                 $responseTask = $client.SendAsync($request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancellation.Token)
                 Wait-DownloadTask $responseTask
                 $response = $responseTask.GetAwaiter().GetResult()
+                if (-not $response.IsSuccessStatusCode) { $failureReason = 'HTTP status {0}' -f [int]$response.StatusCode }
                 $null = $response.EnsureSuccessStatusCode()
                 $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
                 $outputStream = [IO.File]::Open($partial, 'CreateNew', 'Write', 'None')
@@ -117,6 +122,12 @@ function Invoke-ValidatedDownload {
                 $copyTask = $inputStream.CopyToAsync($outputStream, 81920, $cancellation.Token)
                 Wait-DownloadTask $copyTask -ReportProgress
                 $null = $copyTask.GetAwaiter().GetResult()
+            }
+            catch [OperationCanceledException] {
+                if ($cancellation.IsCancellationRequested -and -not $downloadCommand.Stopping) {
+                    throw [TimeoutException]::new("Download exceeded -TimeoutSeconds $TimeoutSeconds; no replacement was published. Use 0 for no total deadline.")
+                }
+                throw
             }
             finally {
                 $cancellation.Cancel()
@@ -186,7 +197,9 @@ function Invoke-ValidatedDownload {
                 $stdoutTask = $ownedProcess.StandardOutput.ReadLineAsync()
                 while ($null -ne $stdoutTask -or -not $ownedProcess.HasExited) {
                     if ($downloadCommand.Stopping) { throw [Management.Automation.PipelineStoppedException]::new() }
-                    if ($timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) { throw [TimeoutException]::new('aria2 download timed out.') }
+                    if ($TimeoutSeconds -gt 0 -and $timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                        throw [TimeoutException]::new("Download exceeded -TimeoutSeconds $TimeoutSeconds; no replacement was published. Use 0 for no total deadline.")
+                    }
                     if ($null -ne $stdoutTask -and $stdoutTask.IsCompleted) {
                         $line = $stdoutTask.GetAwaiter().GetResult()
                         if ($null -eq $line) { $stdoutTask = $null; continue }
@@ -197,13 +210,16 @@ function Invoke-ValidatedDownload {
                     }
                     else { Start-Sleep -Milliseconds 100 }
                 }
-                if ($ownedProcess.ExitCode -ne 0) { throw "aria2 exited with code $($ownedProcess.ExitCode)." }
+                if ($ownedProcess.ExitCode -ne 0) { $failureReason = "aria2 exit code $($ownedProcess.ExitCode)"; throw $failureReason }
             }
             else {
                 $stdoutTask = $ownedProcess.StandardOutput.BaseStream.CopyToAsync([IO.Stream]::Null)
                 function Invoke-DownloadRpc([string]$Method, [object[]]$Arguments = @()) {
-                    $remaining = $TimeoutSeconds - $timer.Elapsed.TotalSeconds
-                    if ($remaining -le 0) { throw 'RPC download timed out.' }
+                    # Keep each RPC request bounded even without a download deadline.
+                    $remaining = if ($TimeoutSeconds -gt 0) { $TimeoutSeconds - $timer.Elapsed.TotalSeconds } else { 5.0 }
+                    if ($remaining -le 0) {
+                        throw [TimeoutException]::new("Download exceeded -TimeoutSeconds $TimeoutSeconds; no replacement was published. Use 0 for no total deadline.")
+                    }
                     if ($ownedProcess.HasExited) { throw 'Owned aria2 process exited.' }
                     $body = @{ jsonrpc = '2.0'; id = [guid]::NewGuid().ToString('N'); method = "aria2.$Method"; params = @("token:$rpcSecret") + $Arguments } | ConvertTo-Json -Depth 8 -Compress
                     $response = Invoke-RestMethod -Uri "http://127.0.0.1:$port/jsonrpc" -Method Post -ContentType 'application/json' -Body $body -TimeoutSec ([int][Math]::Max(1,[Math]::Min(5,[Math]::Ceiling($remaining)))) -ErrorAction Stop
@@ -211,18 +227,25 @@ function Invoke-ValidatedDownload {
                     $response.result
                 }
                 $ready = $false
-                while (-not $ready -and $timer.Elapsed.TotalSeconds -lt [Math]::Min(10, $TimeoutSeconds)) {
+                $startupSeconds = if ($TimeoutSeconds -gt 0) { [Math]::Min(10, $TimeoutSeconds) } else { 10 }
+                while (-not $ready -and $timer.Elapsed.TotalSeconds -lt $startupSeconds) {
                     try { $null = Invoke-DownloadRpc getVersion; $ready = $true }
                     catch [Management.Automation.PipelineStoppedException] { throw }
                     catch [OperationCanceledException] { throw }
+                    catch [TimeoutException] { throw }
                     catch { if ($downloadCommand.Stopping -or $ownedProcess.HasExited) { throw }; Start-Sleep -Milliseconds 100 }
                 }
-                if (-not $ready) { throw 'Owned aria2 RPC instance did not become ready.' }
+                if (-not $ready) {
+                    if ($TimeoutSeconds -gt 0 -and $timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                        throw [TimeoutException]::new("Download exceeded -TimeoutSeconds $TimeoutSeconds; no replacement was published. Use 0 for no total deadline.")
+                    }
+                    $failureReason = 'aria2 RPC startup timed out'; throw $failureReason
+                }
                 $gid = Invoke-DownloadRpc addUri @(@($URL.AbsoluteUri), @{ dir = $stage; out = 'payload' })
                 do {
                     $status = Invoke-DownloadRpc tellStatus @($gid)
                     Show-DownloadProgress ([long]$status.completedLength) ([long]$status.totalLength) ([double]$status.downloadSpeed)
-                    if ($status.status -in 'error','removed') { throw "aria2 download failed: $($status.status)." }
+                    if ($status.status -in 'error','removed') { $failureReason = 'aria2 download error code {0}' -f [int]$status.errorCode; throw $failureReason }
                     if ($status.status -eq 'complete') { break }
                     Start-Sleep -Milliseconds 200
                 } while ($true)
@@ -240,9 +263,12 @@ function Invoke-ValidatedDownload {
     }
     catch [Management.Automation.PipelineStoppedException] { throw }
     catch [OperationCanceledException] { throw }
+    catch [TimeoutException] { throw }
     catch {
         if ($downloadCommand.Stopping) { throw }
-        throw "Download failed using $Transport; no replacement was published. Check availability, authentication, expected size/hash and timeout."
+        $failure = [InvalidOperationException]::new("Download failed using ${Transport}: $failureReason. No replacement was published. Check availability, authentication and expected size/hash.")
+        $failure.Data['DownloadFailureReason'] = $failureReason
+        throw $failure
     }
     finally {
         if ($ownedProcess) {

@@ -2,6 +2,8 @@ function Invoke-AriaRPCDownload {
     <#
     .SYNOPSIS
     Downloads using an invocation-owned, authenticated loopback aria2 RPC process.
+    .DESCRIPTION
+    TimeoutSeconds defaults to 0 (no total deadline).
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -17,7 +19,7 @@ function Invoke-AriaRPCDownload {
         [ValidateSet('debug','info','notice','warn','error')][string]$AriaConsoleLogLevel = 'error',
         [switch]$Force,
         [switch]$AllowEmpty,
-        [ValidateRange(1,86400)][int]$TimeoutSeconds = 600,
+        [ValidateRange(0,86400)][int]$TimeoutSeconds = 0,
         [ValidateRange(-1,[long]::MaxValue)][long]$ExpectedLength = -1,
         [ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSHA256
     )

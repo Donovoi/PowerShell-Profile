@@ -6,24 +6,33 @@ if (Test-Path -LiteralPath $TestRoot) { throw 'Use a new fixture directory.' }
 $null = [IO.Directory]::CreateDirectory($TestRoot)
 $functions = [IO.Path]::GetFullPath("$PSScriptRoot/../functions")
 $aria = (Get-Command aria2c.exe -CommandType Application -ErrorAction Stop).Source
-function Assert($Condition, $Message) { if (-not $Condition) { throw $Message } }
-function New-DownloadPipeline($Mode, $Endpoint, $Directory, [switch]$Next) {
+function Assert($Condition, $Message) {
+    if (-not $Condition) {
+        if ($active) {
+            Write-Host ('Fixture warnings: ' + ($active.PowerShell.Streams.Warning -join '; '))
+            Write-Host ('Fixture errors: ' + ($active.PowerShell.Streams.Error -join '; '))
+        }
+        throw $Message
+    }
+}
+function New-DownloadPipeline($Mode, $Endpoint, $Directory, [switch]$Next, [int]$TimeoutSeconds = -1) {
     $ps = [PowerShell]::Create()
     $null = $ps.AddScript({
-        param($Functions, $Aria, $Mode, $Urls, $Directory)
+        param($Functions, $Aria, $Mode, $Urls, $Directory, $TimeoutSeconds)
         $ErrorActionPreference = 'Stop'
         $ProgressPreference = 'Continue'
         foreach ($name in 'Initialize-CmdletDependencies','Get-FinalOutputPath','Get-OutputFilename','Invoke-ValidatedDownload','Get-FileDownload','Get-LatestGitHubRelease') {
             . (Join-Path $Functions "$name.ps1")
         }
-        $parameters = @{ URL = $Urls; DestinationDirectory = $Directory; Force = $true; TimeoutSeconds = 30; aria2cExe = $Aria }
+        $parameters = @{ URL = $Urls; DestinationDirectory = $Directory; Force = $true; aria2cExe = $Aria }
+        if ($TimeoutSeconds -ge 0) { $parameters.TimeoutSeconds = $TimeoutSeconds }
         if ($Mode -ne 'Native') { $parameters.UseAria2 = $true }
         if ($Mode -eq 'Aria2') { $parameters.NoRPCMode = $true }
         Get-FileDownload @parameters
     }).AddArgument($functions).AddArgument($aria).AddArgument($Mode)
     $urls = @("$base/$Endpoint/$Mode.bin")
     if ($Next) { $urls += "$base/next/$Mode.bin" }
-    $null = $ps.AddArgument($urls).AddArgument($Directory)
+    $null = $ps.AddArgument($urls).AddArgument($Directory).AddArgument($TimeoutSeconds)
     $handle = $ps.BeginInvoke()
     @{ PowerShell = $ps; Handle = $handle }
 }
@@ -60,13 +69,14 @@ try {
         Wait-Until { $active.Handle.IsCompleted }
         $result = @($ps.EndInvoke($active.Handle))
         Assert ($ps.Streams.Error.Count -eq 0 -and $result.Count -eq 1) "$mode polluted the path output or failed."
+        Assert ($ps.Streams.Warning.Count -eq 0) "$mode success unexpectedly used fallback."
         Assert ([IO.FileInfo]::new($result[0]).Length -eq 4MB) "$mode downloaded wrong length."
         $expectedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::ASCII.GetBytes(('x' * 4MB))))
         Assert ((Get-FileHash -LiteralPath $result[0]).Hash -eq $expectedHash) "$mode downloaded wrong bytes."
         Assert (@($ps.Streams.Progress | Where-Object RecordType -EQ Completed).Count -gt 0) "$mode did not clear progress."
         Assert ((Get-FixtureAria $directory).Count -eq 0) "$mode leaked aria2 after success."
         $ps.Dispose(); $active = $null
-        Write-Host "PASS: $mode live progress, speed, exact bytes, clean output and process cleanup"
+        Write-Host "PASS: $mode default deadline disabled, live progress, speed, exact bytes, clean output and process cleanup"
     }
     # PowerShell.Stop() uses the same pipeline-stop mechanism as console Ctrl+C.
     foreach ($endpoint in 'cancel','stall') {
@@ -101,7 +111,7 @@ try {
         }
     }
     foreach ($mode in 'Aria2','RPC') {
-        $active = New-DownloadPipeline $mode 'unknown' (Join-Path $TestRoot "unknown-$mode")
+        $active = New-DownloadPipeline $mode 'unknown' (Join-Path $TestRoot "unknown-$mode") -TimeoutSeconds 0
         $ps = $active.PowerShell
         Wait-Until { @($ps.Streams.Progress | Where-Object StatusDescription -Match 'MiB/s').Count -gt 0 -or $active.Handle.IsCompleted }
         Assert (@($ps.Streams.Progress | Where-Object { $_.PercentComplete -eq -1 -and $_.StatusDescription -match 'MiB/s' }).Count -gt 0) "$mode unknown-length progress missing."
@@ -110,6 +120,43 @@ try {
         Assert ($result.Count -eq 1 -and [IO.FileInfo]::new($result[0]).Length -eq 4MB) "$mode unknown-length download failed."
         $ps.Dispose(); $active = $null
         Write-Host "PASS: $mode unknown-length download and progress"
+    }
+    foreach ($endpoint in 'timeout-body','stall/timeout-headers') {
+        foreach ($mode in 'Aria2','RPC','Native') {
+            $directory = Join-Path $TestRoot ($endpoint.Replace('/', '-') + '-' + $mode)
+            $null = [IO.Directory]::CreateDirectory($directory)
+            $destination = Join-Path $directory "$mode.bin"
+            [IO.File]::WriteAllText($destination, 'preserve existing file')
+            $active = New-DownloadPipeline $mode $endpoint $directory -TimeoutSeconds 1 -Next
+            $ps = $active.PowerShell
+            Wait-Until { $active.Handle.IsCompleted } -Seconds 5
+            $failure = $null
+            try { $null = $ps.EndInvoke($active.Handle) } catch { $failure = $_ }
+            Assert ($null -ne $failure -and $failure.Exception.ToString() -match 'exceeded -TimeoutSeconds 1') "$mode did not report an explicit timeout during $endpoint."
+            Assert ($failure.Exception.ToString() -notmatch 'operation was canceled') "$mode misreported timeout as user cancellation."
+            Assert ($ps.Streams.Warning.Count -eq 0) "$mode timeout restarted via fallback."
+            Assert ([IO.File]::ReadAllText($destination) -eq 'preserve existing file') "$mode timeout replaced an existing file."
+            Assert (@(Get-ChildItem -LiteralPath $directory -Force -Directory -Filter '.download-*').Count -eq 0) "$mode timeout leaked staging/config files."
+            Assert ((Get-FixtureAria $directory).Count -eq 0) "$mode timeout leaked aria2."
+            $requests = Get-Content -LiteralPath "$TestRoot/requests.jsonl" | ConvertFrom-Json
+            Assert (@($requests | Where-Object path -EQ "/$endpoint/$mode.bin").Count -eq 1) "$mode timeout retried the request."
+            Assert (@($requests | Where-Object path -LIKE '/next/*').Count -eq 0) "$mode timeout advanced to the next URL."
+            $ps.Dispose(); $active = $null
+            Write-Host "PASS: $mode explicit timeout during $endpoint; clear error, no restart, no replacement, no leaked process"
+        }
+    }
+    foreach ($mode in 'Aria2','RPC') {
+        $directory = Join-Path $TestRoot "failure-$mode"
+        $active = New-DownloadPipeline $mode 'missing' $directory
+        $ps = $active.PowerShell
+        Wait-Until { $active.Handle.IsCompleted }
+        $failure = $null
+        try { $null = $ps.EndInvoke($active.Handle) } catch { $failure = $_ }
+        Assert ($null -ne $failure -and $failure.Exception.ToString() -match 'HTTP status 404') "$mode native failure lost HTTP status."
+        Assert ($ps.Streams.Warning.Count -eq 1 -and $ps.Streams.Warning[0].Message -match 'aria2 (exit code|download error code) 3') "$mode fallback warning lost aria2 error code."
+        Assert ((Get-FixtureAria $directory).Count -eq 0) "$mode failure leaked aria2."
+        $ps.Dispose(); $active = $null
+        Write-Host "PASS: $mode aria2 failure code and native HTTP status preserved"
     }
 }
 finally {

@@ -6,6 +6,7 @@ function Invoke-AriaDownload {
     URLFile accepts one HTTP(S) URL per nonblank line. aria2 per-item option lines
     are rejected so they cannot bypass destination/overwrite safeguards.
     Headers, cookies and timeout apply equally in direct and RPC modes.
+    TimeoutSeconds defaults to 0 (no total deadline).
     #>
     [CmdletBinding(DefaultParameterSetName='URL',SupportsShouldProcess)]
     [OutputType([string])]
@@ -25,7 +26,7 @@ function Invoke-AriaDownload {
         [string]$UserAgent = 'PowerShell-Profile',
         [switch]$Force,
         [switch]$AllowEmpty,
-        [ValidateRange(1,86400)][int]$TimeoutSeconds = 600,
+        [ValidateRange(0,86400)][int]$TimeoutSeconds = 0,
         [ValidateRange(-1,[long]::MaxValue)][long]$ExpectedLength = -1,
         [ValidatePattern('^[a-fA-F0-9]{64}$')][string]$ExpectedSHA256
     )
