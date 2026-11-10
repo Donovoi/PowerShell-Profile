@@ -57,6 +57,7 @@ $testNames=@(
     'ProfileDependencies.Behavior',
     'ProfileArchive.Behavior',
     'ProfileDownloads.Behavior',
+    'ProfileDownloadProgress.Behavior',
     'ProfileSecrets.Behavior',
     'ProfileGit.Behavior',
     'ProfileSearch.Behavior',

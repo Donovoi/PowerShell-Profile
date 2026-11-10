@@ -8,6 +8,8 @@ function Get-FileDownload {
     -Force. Use -FileName for an asset API URL; it requires a single URL.
     Google Drive requires a direct download URL and an authenticated WebSession;
     interactive confirmation pages are not a supported download protocol.
+    Shows live progress in RPC and NoRPC modes. Ctrl+C cancels the active
+    download and stops the URL pipeline without starting a native fallback.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -83,7 +85,10 @@ function Get-FileDownload {
                 $parameters.Transport = if ($NoRPCMode) { 'Aria2' } else { 'RPC' }
                 $parameters.Aria2cExePath = $aria2cExe
                 try { Invoke-ValidatedDownload @parameters -ErrorAction Stop }
+                catch [Management.Automation.PipelineStoppedException] { throw }
+                catch [OperationCanceledException] { throw }
                 catch {
+                    if ($PSCmdlet.Stopping) { throw }
                     if ($LoadCookiesFromFile) { throw } # Native cannot silently discard cookie-file authentication.
                     Write-Warning 'aria2 failed; retrying this URL with the native downloader.'
                     $parameters.Transport = 'Native'

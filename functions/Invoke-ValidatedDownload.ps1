@@ -6,6 +6,8 @@ function Invoke-ValidatedDownload {
     Shared native/aria2/RPC implementation. -Force permits replacement only after
     verification. Empty files require -AllowEmpty. RPC owns a private loopback
     process with a random secret. Remote errors are redacted to protect headers.
+    Reports live progress without adding text to the success stream. Cancellation
+    stops the owned transport and removes its unpublished staging files.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -35,7 +37,7 @@ function Invoke-ValidatedDownload {
         if (Test-Path -LiteralPath $loader) { . $loader }
         else { . ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/Donovoi/PowerShell-Profile/main/functions/Initialize-CmdletDependencies.ps1' -ErrorAction Stop))) }
     }
-    Initialize-CmdletDependencies -RequiredCmdlets @('Get-FinalOutputPath','Invoke-Process') -PreferLocal -ErrorAction Stop
+    Initialize-CmdletDependencies -RequiredCmdlets @('Get-FinalOutputPath') -PreferLocal -ErrorAction Stop
     $destination = Get-FinalOutputPath -BasePath $OutFile -Force:$Force
     $requestHeaders = @{}
     if ($Headers) { foreach ($key in $Headers.Keys) { $requestHeaders[[string]$key] = [string]$Headers[$key] } }
@@ -60,8 +62,38 @@ function Invoke-ValidatedDownload {
     $configPath = [IO.Path]::Combine($stage, 'aria2.conf')
     $logPath = [IO.Path]::Combine($stage, 'aria2.log')
     $ownedProcess = $null
+    $processStarted = $false
+    $stdoutTask = $null; $stderrTask = $null
     $timer = [Diagnostics.Stopwatch]::StartNew()
+    $progressId = Get-Random -Minimum 1 -Maximum ([int]::MaxValue)
+    $activity = 'Downloading ' + [IO.Path]::GetFileName($destination)
+    $downloadCommand = $PSCmdlet
+    function Show-DownloadProgress([long]$Completed, [long]$Total, [double]$Speed) {
+        $progress = @{ Id = $progressId; Activity = $activity; PercentComplete = -1 }
+        $progress.Status = '{0:N1} MiB downloaded' -f ($Completed / 1MB)
+        if ($Total -gt 0) {
+            $progress.PercentComplete = [int][Math]::Min(100, [Math]::Floor(100.0 * $Completed / $Total))
+            $progress.Status = '{0}% - {1:N1} / {2:N1} MiB' -f $progress.PercentComplete, ($Completed / 1MB), ($Total / 1MB)
+            if ($Speed -gt 0) { $progress.SecondsRemaining = [int][Math]::Min([int]::MaxValue, [Math]::Max(0, ($Total - $Completed) / $Speed)) }
+        }
+        if ($Speed -gt 0) { $progress.Status += ' - {0:N2} MiB/s' -f ($Speed / 1MB) }
+        Write-Progress @progress
+    }
+    function Wait-DownloadTask([Threading.Tasks.Task]$Task, [switch]$ReportProgress) {
+        # GetResult/WaitForExit on an unfinished operation delays Ctrl+C. Yield to
+        # PowerShell regularly so pipeline stop can enter our finally blocks.
+        while (-not $Task.IsCompleted) {
+            if ($downloadCommand.Stopping) { throw [Management.Automation.PipelineStoppedException]::new() }
+            if ($ReportProgress) {
+                $completed = $outputStream.Position
+                Show-DownloadProgress $completed $ExpectedLength ($completed / [Math]::Max(0.001, $timer.Elapsed.TotalSeconds))
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($downloadCommand.Stopping) { throw [Management.Automation.PipelineStoppedException]::new() }
+    }
     try {
+        Write-Progress -Id $progressId -Activity $activity -Status 'Connecting...'
         if ($Transport -eq 'Native') {
             $handler = [Net.Http.HttpClientHandler]::new()
             if ($WebSession) { $handler.CookieContainer = $WebSession.Cookies; $handler.Credentials = $WebSession.Credentials }
@@ -75,17 +107,22 @@ function Invoke-ValidatedDownload {
                     if (-not $request.Headers.TryAddWithoutValidation($key, [string]$requestHeaders[$key])) { throw 'Unsupported request header.' }
                 }
                 if ($UserAgent -and -not $requestHeaders.ContainsKey('User-Agent')) { $null = $request.Headers.TryAddWithoutValidation('User-Agent', $UserAgent) }
-                $response = $client.SendAsync($request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancellation.Token).GetAwaiter().GetResult()
+                $responseTask = $client.SendAsync($request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancellation.Token)
+                Wait-DownloadTask $responseTask
+                $response = $responseTask.GetAwaiter().GetResult()
                 $null = $response.EnsureSuccessStatusCode()
                 $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
                 $outputStream = [IO.File]::Open($partial, 'CreateNew', 'Write', 'None')
-                $null = $inputStream.CopyToAsync($outputStream, 81920, $cancellation.Token).GetAwaiter().GetResult()
                 if ($ExpectedLength -lt 0 -and $null -ne $response.Content.Headers.ContentLength) { $ExpectedLength = $response.Content.Headers.ContentLength }
+                $copyTask = $inputStream.CopyToAsync($outputStream, 81920, $cancellation.Token)
+                Wait-DownloadTask $copyTask -ReportProgress
+                $null = $copyTask.GetAwaiter().GetResult()
             }
             finally {
-                if ($outputStream) { $outputStream.Dispose() }
+                $cancellation.Cancel()
                 if ($inputStream) { $inputStream.Dispose() }
                 if ($response) { $response.Dispose() }
+                if ($outputStream) { $outputStream.Dispose() }
                 $request.Dispose(); $client.Dispose(); $cancellation.Dispose()
             }
         }
@@ -95,7 +132,9 @@ function Invoke-ValidatedDownload {
             foreach ($line in @('enable-rpc=false','auto-file-renaming=false','allow-overwrite=false',
                 'continue=false','max-tries=3','retry-wait=1','connect-timeout=10','timeout=30',
                 'file-allocation=none','follow-torrent=false','follow-metalink=false',
-                'check-certificate=true','summary-interval=0',"console-log-level=$AriaConsoleLogLevel",
+                'check-certificate=true','summary-interval=1','human-readable=false',
+                'show-console-readout=true','enable-color=false','truncate-console-readout=false',
+                "stop-with-process=$PID", "console-log-level=$AriaConsoleLogLevel",
                 "dir=$stage",'out=payload',"user-agent=$UserAgent")) { $options.Add($line) }
             foreach ($key in $requestHeaders.Keys) { $options.Add(('header={0}: {1}' -f $key, $requestHeaders[$key])) }
             if ($LoadCookiesFromFile) { $options.Add("load-cookies=$LoadCookiesFromFile") }
@@ -127,20 +166,41 @@ function Invoke-ValidatedDownload {
             $configWriter = [IO.StreamWriter]::new($configStream, [Text.UTF8Encoding]::new($false))
             try { foreach ($line in $options) { $configWriter.WriteLine($line) } }
             finally { $configWriter.Dispose() }
+            $startInfo = [Diagnostics.ProcessStartInfo]::new($executable)
+            $startInfo.UseShellExecute = $false
+            $startInfo.CreateNoWindow = $true
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            $startInfo.ArgumentList.Add("--conf-path=$configPath")
             if ($Transport -eq 'Aria2') {
-                $result = Invoke-Process -FilePath $executable -ArgumentList @("--conf-path=$configPath", '--', $URL.AbsoluteUri) -PassThru -IgnoreExitCode -TimeoutSeconds $TimeoutSeconds
-                if ($result.ExitCode -ne 0) { throw "aria2 exited with code $($result.ExitCode)." }
+                $startInfo.ArgumentList.Add('--')
+                $startInfo.ArgumentList.Add($URL.AbsoluteUri)
+            }
+            $ownedProcess = [Diagnostics.Process]::new()
+            $ownedProcess.StartInfo = $startInfo
+            $processStarted = $ownedProcess.Start()
+            # Drain continuously; never display remote diagnostics containing URLs
+            # or credentials, and never accumulate an entire download's logs.
+            $stderrTask = $ownedProcess.StandardError.BaseStream.CopyToAsync([IO.Stream]::Null)
+            if ($Transport -eq 'Aria2') {
+                $stdoutTask = $ownedProcess.StandardOutput.ReadLineAsync()
+                while ($null -ne $stdoutTask -or -not $ownedProcess.HasExited) {
+                    if ($downloadCommand.Stopping) { throw [Management.Automation.PipelineStoppedException]::new() }
+                    if ($timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) { throw [TimeoutException]::new('aria2 download timed out.') }
+                    if ($null -ne $stdoutTask -and $stdoutTask.IsCompleted) {
+                        $line = $stdoutTask.GetAwaiter().GetResult()
+                        if ($null -eq $line) { $stdoutTask = $null; continue }
+                        if ($line -match '\[#([0-9a-f]+)\s+(?<done>\d+)B/(?<total>\d+)B.*?\bDL:(?<speed>\d+)B') {
+                            Show-DownloadProgress ([long]$Matches.done) ([long]$Matches.total) ([double]$Matches.speed)
+                        }
+                        $stdoutTask = $ownedProcess.StandardOutput.ReadLineAsync()
+                    }
+                    else { Start-Sleep -Milliseconds 100 }
+                }
+                if ($ownedProcess.ExitCode -ne 0) { throw "aria2 exited with code $($ownedProcess.ExitCode)." }
             }
             else {
-                $startInfo = [Diagnostics.ProcessStartInfo]::new($executable)
-                $startInfo.UseShellExecute = $false
-                $startInfo.CreateNoWindow = $true
-                $startInfo.RedirectStandardOutput = $true
-                $startInfo.RedirectStandardError = $true
-                $startInfo.ArgumentList.Add("--conf-path=$configPath")
-                $ownedProcess = [Diagnostics.Process]::Start($startInfo)
-                $stdoutTask = $ownedProcess.StandardOutput.ReadToEndAsync()
-                $stderrTask = $ownedProcess.StandardError.ReadToEndAsync()
+                $stdoutTask = $ownedProcess.StandardOutput.BaseStream.CopyToAsync([IO.Stream]::Null)
                 function Invoke-DownloadRpc([string]$Method, [object[]]$Arguments = @()) {
                     $remaining = $TimeoutSeconds - $timer.Elapsed.TotalSeconds
                     if ($remaining -le 0) { throw 'RPC download timed out.' }
@@ -153,15 +213,18 @@ function Invoke-ValidatedDownload {
                 $ready = $false
                 while (-not $ready -and $timer.Elapsed.TotalSeconds -lt [Math]::Min(10, $TimeoutSeconds)) {
                     try { $null = Invoke-DownloadRpc getVersion; $ready = $true }
-                    catch { if ($ownedProcess.HasExited) { throw }; Start-Sleep -Milliseconds 100 }
+                    catch [Management.Automation.PipelineStoppedException] { throw }
+                    catch [OperationCanceledException] { throw }
+                    catch { if ($downloadCommand.Stopping -or $ownedProcess.HasExited) { throw }; Start-Sleep -Milliseconds 100 }
                 }
                 if (-not $ready) { throw 'Owned aria2 RPC instance did not become ready.' }
                 $gid = Invoke-DownloadRpc addUri @(@($URL.AbsoluteUri), @{ dir = $stage; out = 'payload' })
                 do {
                     $status = Invoke-DownloadRpc tellStatus @($gid)
+                    Show-DownloadProgress ([long]$status.completedLength) ([long]$status.totalLength) ([double]$status.downloadSpeed)
                     if ($status.status -in 'error','removed') { throw "aria2 download failed: $($status.status)." }
                     if ($status.status -eq 'complete') { break }
-                    Start-Sleep -Milliseconds 100
+                    Start-Sleep -Milliseconds 200
                 } while ($true)
                 if ([long]$status.completedLength -ne [long]$status.totalLength) { throw 'RPC completion length mismatch.' }
                 if ($ExpectedLength -lt 0) { $ExpectedLength = [long]$status.totalLength }
@@ -171,18 +234,23 @@ function Invoke-ValidatedDownload {
         if ($file.PSIsContainer -or ($file.Length -eq 0 -and -not $AllowEmpty)) { throw 'Download produced no file content.' }
         if ($ExpectedLength -ge 0 -and $file.Length -ne $ExpectedLength) { throw 'Downloaded length differs from the expected length.' }
         if ($ExpectedSHA256 -and (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash -ne $ExpectedSHA256) { throw 'Downloaded SHA256 differs from the expected hash.' }
+        if ($downloadCommand.Stopping) { throw [Management.Automation.PipelineStoppedException]::new() }
         [IO.File]::Move($partial, $destination, [bool]$Force)
         $destination
     }
+    catch [Management.Automation.PipelineStoppedException] { throw }
+    catch [OperationCanceledException] { throw }
     catch {
+        if ($downloadCommand.Stopping) { throw }
         throw "Download failed using $Transport; no replacement was published. Check availability, authentication, expected size/hash and timeout."
     }
     finally {
         if ($ownedProcess) {
             try {
-                if (-not $ownedProcess.HasExited) { $ownedProcess.Kill($true); $null = $ownedProcess.WaitForExit(5000) }
-                if ($stdoutTask) { $null = $stdoutTask.Wait(5000) }
-                if ($stderrTask) { $null = $stderrTask.Wait(5000) }
+                if ($processStarted -and -not $ownedProcess.HasExited) { $ownedProcess.Kill($true); $null = $ownedProcess.WaitForExit(5000) }
+                # EOF/cancellation can fault a pending read during teardown.
+                try { if ($stdoutTask) { $null = $stdoutTask.Wait(1000) } } catch { $null = $_ } # Teardown read failure is expected.
+                try { if ($stderrTask) { $null = $stderrTask.Wait(1000) } } catch { $null = $_ }
             } finally { $ownedProcess.Dispose() }
         }
         foreach ($temporary in @($configPath, $partial, ($partial + '.aria2'))) {
@@ -190,5 +258,6 @@ function Invoke-ValidatedDownload {
         }
         if ([IO.File]::Exists($logPath)) { Write-Verbose "aria2 diagnostics retained at $logPath" }
         if ([IO.Directory]::Exists($stage) -and [IO.Directory]::GetFileSystemEntries($stage).Length -eq 0) { [IO.Directory]::Delete($stage) }
+        Write-Progress -Id $progressId -Activity $activity -Completed
     }
 }
